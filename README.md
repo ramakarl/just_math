@@ -9,17 +9,17 @@ Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com. MIT Licen
 ## Sample Gallery
 
 <div style="display:flex">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_bp.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_cells.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_deform.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_invk.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_quatsquad.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_raycast.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_trajectories.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles.jpg" width="300">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles3d.jpg" width="300">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_bp.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_cells.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_deform.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_invk.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_quatsquad.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_raycast.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_trajectories.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles.jpg" width="200">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles3d.jpg" width="200">
 </div>
 
 
