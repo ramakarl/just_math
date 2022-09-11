@@ -73,7 +73,7 @@ The binary (build) path should be outside of the source \just_math folder.<br>
 Run the sample.<br>
 
 ## Contributions
-I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If interested in participating contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
+I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If you have similar interests contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
 
 ## License
 
