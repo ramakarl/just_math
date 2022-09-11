@@ -5,6 +5,7 @@ Just Math - A collection of pure math demos.
 The goal of Just Math is to provide both a visual example and code demonstrations of specific concepts in computer graphics, mathematics, simulation and AI. This repository consists of 'libmin', a **minimal utility library** for math and graphics, along with **several math examples** for various concepts. 
 
 Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, <a href="http://ramakarl.com">htpp://ramakarl.com</a>. MIT License.
+Contact: ramahoetzlein@gmail.com
 
 ## Sample Gallery
 
