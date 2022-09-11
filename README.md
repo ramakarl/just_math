@@ -58,17 +58,17 @@ Run the sample.<br>
 MIT License 
 Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
 
-The Just Math samples are MIT Licensed.
-Libmin is MIT Licensed with contributions from other BSD and MIT licensed sources.
-Individual portions of libmin are given here with their original licensing.
-Complete source copyright list for Libmin:
-
-Copyright (c) 2007-2002, Quanta Sciences, Rama Hoetzlein. MIT License (image, dataptr, events, widget)
-Copyright (c) 2017 NVIDIA GVDB, by Rama Hoetzlein. BSD License (camera3d, file_tga, nv_gui, string_helper, vec, main_win)
-Copyright (c) 2020 Yuji Hirose. MIT License (httplib.h)
-Copyright (c) 2005-2013 Lode Vandevenne. BSD License (LodePNG, file_png)
-Copyright (c) 2015-2017 Christian Stigen Larsen. BSD License (mersenne)
-Copyright (c) 2002-2012 Nikolaus Gebhardt, Irrlicht Engine. BSD License (quaternion)
+The Just Math samples are MIT Licensed.<br>
+Libmin is MIT Licensed with contributions from other BSD and MIT licensed sources.<br>
+Individual portions of libmin are given here with their original licensing.<br>
+Complete source copyright list for Libmin:<br>
+<br><br>
+Copyright (c) 2007-2002, Quanta Sciences, Rama Hoetzlein. MIT License (image, dataptr, events, widget)<br>
+Copyright (c) 2017 NVIDIA GVDB, by Rama Hoetzlein. BSD License (camera3d, file_tga, nv_gui, string_helper, vec, main_win)<br>
+Copyright (c) 2020 Yuji Hirose. MIT License (httplib.h)<br>
+Copyright (c) 2005-2013 Lode Vandevenne. BSD License (LodePNG, file_png)<br>
+Copyright (c) 2015-2017 Christian Stigen Larsen. BSD License (mersenne)<br>
+Copyright (c) 2002-2012 Nikolaus Gebhardt, Irrlicht Engine. BSD License (quaternion)<br>
 
 
 
