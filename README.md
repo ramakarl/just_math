@@ -8,8 +8,8 @@ Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com. MIT Licen
 
 ## Sample Gallery
 
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" width="300" style="float:left">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" width="300" style="float:left">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" style="float:left; width:200px">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" style="float:left; width:200px">
 <img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_bp.jpg" width="300" style="float:left">
 <img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_cells.jpg" width="300" style="float:left">
 <img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_deform.jpg" width="300" style="float:left">
