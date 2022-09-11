@@ -8,7 +8,7 @@ Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com. MIT Licen
 
 ## Sample Gallery
 
-![alt text](https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG)
+![alt text](https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG?raw=true)
 
 ## Libmin
 
