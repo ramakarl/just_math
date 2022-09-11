@@ -9,6 +9,10 @@ Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com. MIT Licen
 ## Sample Gallery
 
 <img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" width="300">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" width="300">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_bp.JPG" width="300">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_cells.JPG" width="300">
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_deform.JPG" width="300">
 
 ## Libmin
 
