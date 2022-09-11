@@ -55,8 +55,8 @@ Run the sample.<br>
 
 ## License
 
-MIT License 
-Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
+MIT License <br>
+Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com<br><br>
 
 The Just Math samples are MIT Licensed.<br>
 Libmin is MIT Licensed with contributions from other BSD and MIT licensed sources.<br>
