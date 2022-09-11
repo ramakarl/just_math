@@ -43,15 +43,15 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 
 ## How to Build
 
-Step 1) Cmake and build Libmin. 
-cmake -S \just_math\libmin -B \build\libmin
-The binary (build) path should be outside of the source \just_math folder.
-You must successfully build libmin before proceeding to step 2.
+**Step 1)** Cmake and build Libmin. <br>
+cmake -S \just_math\libmin -B \build\libmin <br>
+The binary (build) path should be outside of the source \just_math folder.<br>
+You must successfully build libmin before proceeding to step 2.<br>
 
-Step 2) Cmake and build sample. 
-cmake -S \just_math\raycast -B \build\raycast
-The binary (build) path should be outside of the source \just_math folder.
-Run the sample.
+**Step 2)** Cmake and build sample. <br>
+cmake -S \just_math\raycast -B \build\raycast<br>
+The binary (build) path should be outside of the source \just_math folder.<br>
+Run the sample.<br>
 
 ## License
 
