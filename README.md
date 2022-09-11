@@ -59,7 +59,7 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 - WangTiles3D - Alternative demo of Wang Tiles for 3D geometry instancing over a density map landscape.
 
 ## How to Build
-Platforms: Tested in Win10, Visual Studio 2019<br>
+Platforms: Tested on Win10, Visual Studio 2019<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
 
 **Step 1)** Cmake and build Libmin. <br><br>
