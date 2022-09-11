@@ -23,7 +23,7 @@ The functionality in Libmin includes:
 - Time library, with nanosecond accuracy over millenia (timex.h)
 - Widget library, very basic GUI (widget.h)
 
-## Samples
+## Just Math Samples
 
 Each sample in Just Math demonstrates a specific concept in code and visually.
 The samples provided are briefly described:
