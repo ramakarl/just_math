@@ -60,8 +60,8 @@ Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com<br>
 
 The Just Math samples are MIT Licensed.<br>
 Libmin is MIT Licensed with contributions from other BSD and MIT licensed sources.<br>
-Individual portions of libmin are given here with their original licensing.<br>
-Complete source copyright list for Libmin:<br>
+Individual portions of libmin are listed here with their original licensing.<br>
+Copyright listing for Libmin:<br>
 <br>
 Copyright (c) 2007-2002, Quanta Sciences, Rama Hoetzlein. MIT License (image, dataptr, events, widget)<br>
 Copyright (c) 2017 NVIDIA GVDB, by Rama Hoetzlein. BSD License (camera3d, file_tga, nv_gui, string_helper, vec, main_win)<br>
