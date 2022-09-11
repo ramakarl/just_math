@@ -77,7 +77,7 @@ There are two ways to contribute to the Just Math community:<br>
 
 Option 1) **Contributing to Just Math directly.** If you build your own sample using libmin, and following the format for sample creation, you can write your own math demo and we would be happy to share it here. Your demo should have very simple C/C++ code for CPU, not include any other libraries, create an interactive graphical depiction, and be BSD or MIT licensed. Following that we can add it to this Just Math repository.<br>
 
-Option 2) **Developing your own Just Math sample**. If you wish to retain the code or modify the license for your own github repository, you can make use of the libmin library in your own project(s) and then post them on your github. In that case, all we ask by way of contribution is to share a link to your project and a screenshot for the gallery here.<br>
+Option 2) **Developing your own Just Math sample**. If you wish to retain the code or modify the license for your own github repository, you can make use of the libmin library in your own project(s) and then post them on your github. In that case, all we ask by way of contribution is to share a link to your project and a screenshot for the gallery here. Contact: Rama Hoetzlein at ramahoetzlein@gmail.com<br> 
 
 The goal is to build a contributor network around simplified math demos, with galleries and links, so that your github projects are not lost in the ether. You are still free to use the libmin library and code as you like.
 
@@ -98,6 +98,7 @@ Copyright (c) 2005-2013 Lode Vandevenne. BSD License (LodePNG, file_png)<br>
 Copyright (c) 2015-2017 Christian Stigen Larsen. BSD License (mersenne)<br>
 Copyright (c) 2002-2012 Nikolaus Gebhardt, Irrlicht Engine. BSD License (quaternion)<br>
 
+Contact: Rama Hoetzlein at ramahoetzlein@gmail.com
 
 
 
