@@ -6,6 +6,10 @@ The goal of Just Math is to provide both a visual example and code demonstration
 
 Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com. MIT License.
 
+## Sample Gallery
+
+![alt text](https://github.com/ramakarl/just_math/gallery/image.jpg?raw=true)
+
 ## Libmin
 
 Libmin stands for *minimal utility library* for computer graphics. Libmin combines multiple useful functions into a single library, but with no external dependencies.
