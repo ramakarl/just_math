@@ -72,7 +72,7 @@ You must successfully build libmin before proceeding to step 2.<br>
 The binary (build) path should be outside of the source \just_math folder.<br>
 Run the sample.<br>
 
-## Contrubtions
+## Contributions
 There are two ways to contribute to the Just Math community:<br>
 
 Option 1) **Contributing to Just Math directly.** If you build your own sample using libmin, and following the format for sample creation, you can write your own math demo and we would be happy to share it here. Your demo should have very simple C/C++ code for CPU, not include any other libraries, create an interactive graphical depiction, and be BSD or MIT licensed. Following that we can add it to this Just Math repository.<br>
