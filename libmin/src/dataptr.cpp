@@ -80,17 +80,17 @@ int DataPtr::getStride ( uchar dtype )
 	return bpp;
 }
 
-void DataPtr::SetUsage ( uchar dt, uchar flags, Vector3DI res )
+void DataPtr::SetUsage ( uchar dt, uchar flags, int rx, int ry, int rz )
 {
 	mUseType = dt;
 	if ( flags != DT_MISC ) mUseFlags = flags;
-	if ( res.x != -1) mUseRes = res;	
+	if ( rz != -1) { mUseRX=rx; mUseRY=ry; mUseRZ=rz; }
 }
 
 void DataPtr::UpdateUsage ( uchar flags )
 {
 	mUseFlags |= flags;							// append usage, e.g. GPU
-	SetUsage ( mUseType, mUseFlags, mUseRes );
+	SetUsage ( mUseType, mUseFlags, mUseRX, mUseRY, mUseRZ );
 	Append ( mStride, 0, 0x0, mUseFlags );		// reallocate on new usage
 	mNum = mMax;
 	Commit ();									// commit to new usage
@@ -160,13 +160,13 @@ int DataPtr::Append ( int stride, uint64_t added_cnt, char* dat, uchar dest_flag
 
 			checkGL ( "glBindTexture (DataPtr::Append)" );
 			switch (mUseType) {
-			case DT_UCHAR:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R8,		mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_BYTE, src );	break;			
-			case DT_UCHAR3:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRes.x, mUseRes.y, 0, GL_RGB,	GL_UNSIGNED_BYTE, src );	break; // <-- NOTE: GL_RGBA8 (4 chan) as GL_RGB8 (3 chan) not supported by CUDA interop
-			case DT_UCHAR4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRes.x, mUseRes.y, 0, GL_RGBA,	GL_UNSIGNED_BYTE, src );	break;
-			case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_SHORT,src );	break;
-			case DT_INT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_INT,  src );	break;
-			case DT_FLOAT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,	mUseRes.x, mUseRes.y, 0, GL_RED,	GL_FLOAT, src);				break;
-			case DT_FLOAT4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA32F, mUseRes.x, mUseRes.y, 0, GL_RGBA,	GL_FLOAT, src);				break;
+			case DT_UCHAR:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R8,		mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_BYTE, src );	break;			
+			case DT_UCHAR3:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRX, mUseRY, 0, GL_RGB,	GL_UNSIGNED_BYTE, src );	break; // <-- NOTE: GL_RGBA8 (4 chan) as GL_RGB8 (3 chan) not supported by CUDA interop
+			case DT_UCHAR4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRX, mUseRY, 0, GL_RGBA,	GL_UNSIGNED_BYTE, src );	break;
+			case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_SHORT,src );	break;
+			case DT_INT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_INT,  src );	break;
+			case DT_FLOAT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,	mUseRX, mUseRY, 0, GL_RED,	GL_FLOAT, src);				break;
+			case DT_FLOAT4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA32F, mUseRX, mUseRY, 0, GL_RGBA,	GL_FLOAT, src);				break;
 			};			
 			checkGL ( "glTexImage2D (DataPtr::Append)" );		
 			
@@ -253,13 +253,13 @@ void DataPtr::Commit ()
 		if ( mUseFlags & DT_GLTEX ) {						// CPU -> OpenGL Texture 			
 			glBindTexture ( GL_TEXTURE_2D, mGLID );				
 			switch (mUseType) {
-			case DT_UCHAR:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R8,		mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_BYTE, mCpu );	break;
-			case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R16F,   mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_SHORT,mCpu );	break;
-			case DT_INT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRes.x, mUseRes.y, 0, GL_RED,	GL_UNSIGNED_INT,  mCpu );	break;
-			case DT_UCHAR3:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRes.x, mUseRes.y, 0, GL_RGB,	GL_UNSIGNED_BYTE, mCpu );	break;
-			case DT_UCHAR4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRes.x, mUseRes.y, 0, GL_RGBA,	GL_UNSIGNED_BYTE, mCpu );	break;
-			case DT_FLOAT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,	mUseRes.x, mUseRes.y, 0, GL_RED,	GL_FLOAT, mCpu);			break;
-			case DT_FLOAT4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA32F, mUseRes.x, mUseRes.y, 0, GL_RGBA,	GL_FLOAT, mCpu);		break;
+			case DT_UCHAR:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R8,		mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_BYTE, mCpu );	break;
+			case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R16F,   mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_SHORT,mCpu );	break;
+			case DT_INT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,	GL_UNSIGNED_INT,  mCpu );	break;
+			case DT_UCHAR3:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRX, mUseRY, 0, GL_RGB,	GL_UNSIGNED_BYTE, mCpu );	break;
+			case DT_UCHAR4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,	mUseRX, mUseRY, 0, GL_RGBA,	GL_UNSIGNED_BYTE, mCpu );	break;
+			case DT_FLOAT:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,	mUseRX, mUseRY, 0, GL_RED,	GL_FLOAT, mCpu);			break;
+			case DT_FLOAT4:	glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA32F, mUseRX, mUseRY, 0, GL_RGBA,	GL_FLOAT, mCpu);		break;
 			}; 
 		}
 		if ( mUseFlags & DT_GLVBO ) {						// CPU -> OpenGL VBO			

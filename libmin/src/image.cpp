@@ -122,19 +122,19 @@ void Image::ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat)
 		// Set new pixel format parameters		
 		uchar dt = info->GetDataType ( eFormat );
 		info->SetFormat ( xr, yr, eFormat );		
-		m_Pix.SetUsage ( dt, m_UseFlags, Vector3DI(xr, yr, 1) );
+		m_Pix.SetUsage ( dt, m_UseFlags, xr,yr,1 );
 		m_Pix.Resize ( GetBytesPerPixel(), xr*yr, 0x0, m_UseFlags );		
 		m_Pix.mNum = xr*yr;
 				
 		// Create extended buffers
 		if (HasFlag(ImageOp::Alpha) && !HasFlag(ImageOp::AlphaMerged)) {	// Check if we need seperate alpha data..					
 			m_Alpha.Resize ( sizeof(XBYTE), xr*yr );
-			m_Alpha.SetUsage ( DT_UCHAR, DT_CPU, Vector3DI(xr, yr, 1) );		// 8-bit alpha
+			m_Alpha.SetUsage ( DT_UCHAR, DT_CPU, xr,yr,1 );		// 8-bit alpha
 		}
 		
 		if (HasFlag(ImageOp::Depth) && !HasFlag(ImageOp::DepthMerged)) { // Check if we need seperate depth data..
 			m_Depth.Resize ( sizeof(XBYTE), xr*yr );
-			m_Depth.SetUsage ( DT_UCHAR, DT_CPU, Vector3DI(xr, yr, 1) );		// 8-bit depth
+			m_Depth.SetUsage ( DT_UCHAR, DT_CPU, xr,yr,1 );		// 8-bit depth
 		}
 
 		// Update formatting functions
@@ -295,7 +295,7 @@ void Image::TransferFrom ( Image* src_img )
 		
 		uchar dt = src_img->GetDataType( src_img->GetFormat() );
 		SetFormat ( xr, yr, src_img->GetFormat() );				// Set new pixel format
-		m_Pix.SetUsage( dt, m_UseFlags, Vector3DI(xr, yr, 1));
+		m_Pix.SetUsage( dt, m_UseFlags, xr,yr,1);
 		m_Pix.mNum = xr * yr;
 
 		SetEqual ( ImageOp::Channels, orig_flags );
@@ -309,11 +309,11 @@ void Image::TransferFrom ( Image* src_img )
 			
 		if (src_img->HasFlag(ImageOp::Depth) && !src_img->HasFlag(ImageOp::DepthMerged)) {	// Check if we need seperate depth data.. 
 			CopyIntoBuffer ( m_Depth, src_img->m_Depth, sizeof(XBYTE), xr, yr );
-			m_Depth.SetUsage(DT_UCHAR, DT_CPU, Vector3DI(xr, yr, 1));		// 8-bit depth
+			m_Depth.SetUsage(DT_UCHAR, DT_CPU, xr, yr,1 );		// 8-bit depth
 		}
 		if (src_img->HasFlag(ImageOp::Alpha) && !src_img->HasFlag(ImageOp::AlphaMerged)) {
 			CopyIntoBuffer(m_Alpha, src_img->m_Alpha, sizeof(XBYTE), m_Info.mXres, m_Info.mYres);
-			m_Alpha.SetUsage(DT_UCHAR, DT_CPU, Vector3DI(xr, yr, 1));		// 8-bit alpha
+			m_Alpha.SetUsage(DT_UCHAR, DT_CPU, xr, yr,1 );		// 8-bit alpha
 		}
 		
 		SetFormatFunc (0);

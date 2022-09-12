@@ -22,8 +22,8 @@
 	#include "common_defs.h"
 	#include <assert.h>
 	#include <vector>
-	#include <string>		
-	#include "vec.h"	
+	#include <string>
+
 	#ifdef USE_CUDA
 		#include "cuda.h"	
 		#define PUSH_CTX		cuCtxPushCurrent(cuCtx);
@@ -55,7 +55,7 @@
 
 	class HELPAPI DataPtr {
 	public:
-		DataPtr() { mNum=0; mMax=0; mStride=0; mUseRes.Set(0,0,0); mUseType=DT_MISC; mUseFlags=DT_MISC; 
+		DataPtr() { mNum=0; mMax=0; mStride=0; mUseRX=0; mUseRY=0; mUseRZ=0; mUseType=DT_MISC; mUseFlags=DT_MISC; 
 					mSize=0; mCpu=0; 
 					#ifdef USE_CUDA
 						mGpu=0; mGrsc=0; mGarray=0; mGLID=-1; mGtex = -1; mGsurf = -1; 
@@ -65,7 +65,7 @@
 
 		void			Resize ( int stride, uint64_t cnt, char* dat=0x0, uchar dest_flags=DT_CPU );
 		int				Append ( int stride, uint64_t cnt, char* dat=0x0, uchar dest_flags=DT_CPU );
-		void			SetUsage ( uchar dt, uchar flags=DT_MISC, Vector3DI res = Vector3DI(-1,-1,-1) );		// special usage (2D,3D,GLtex,GLvbo,etc.)
+		void			SetUsage ( uchar dt, uchar flags=DT_MISC, int rx=-1, int ry=-1, int rz=-1 );		// special usage (2D,3D,GLtex,GLvbo,etc.)
 		void			UpdateUsage ( uchar flags );		
 		void			ReallocateCPU ( uint64_t oldsz, uint64_t newsz );
 		void			FillBuffer ( uchar v );
@@ -89,7 +89,7 @@
 		uint64_t		mNum, mMax, mSize;
 		int				mStride;
 		uchar			mRefID, mUseType, mUseFlags;	// usage
-		Vector3DI		mUseRes;		
+		int				mUseRX, mUseRY, mUseRZ;
 		bool			bCpu, bGpu;
 		char*			mCpu;			
 		

@@ -67,7 +67,7 @@ int DataX::AddBuffer ( int userid, std::string name, ushort stride, uint64_t max
 {
 	DataPtr buf;
 	buf.mRefID = userid;
-	buf.SetUsage ( DT_MISC, dest_flags, Vector3DI(maxcnt,1,1) );
+	buf.SetUsage ( DT_MISC, dest_flags, maxcnt,1,1 );
 	buf.Resize ( stride, maxcnt, 0x0, dest_flags );
 
 	// add to buffer list
@@ -76,10 +76,10 @@ int DataX::AddBuffer ( int userid, std::string name, ushort stride, uint64_t max
 	mRef[ userid ] = b;
 	return b;
 }
-void DataX::SetBufferUsage	( int i, uchar dt, uchar use_flags, Vector3DI res  )
+void DataX::SetBufferUsage	( int i, uchar dt, uchar use_flags, int rx, int ry, int rz  )
 {
 	int b = mRef[i];  if (b==BUNDEF) return;
-	mBuf[b].SetUsage ( dt, use_flags, res );
+	mBuf[b].SetUsage ( dt, use_flags, rx, ry, rz );
 }
 
 void DataX::SetNum ( int num )

@@ -93,7 +93,7 @@
 			// Buffer Operations
 			bool		isActive ( int buf )		{ return (mRef[buf]==BUNDEF) ? false : true; }
 			int			AddBuffer		( int ref, std::string name, ushort stride, uint64_t maxcnt, uchar dest_flags=DT_CPU );		// add buffer
-			void		SetBufferUsage	( int i, uchar dt, uchar flags=DT_MISC, Vector3DI res = Vector3DI(-1,-1,-1) );
+			void		SetBufferUsage	( int i, uchar dt, uchar flags=DT_MISC, int rx=-1, int ry=-1, int rz=-1 );
 			char*		ExpandBuffer	( int i, int max_cnt);						
 			void		ResizeBuffer	( int i, int max_cnt, bool safe=false );			// safely resize a buffer. does not change number of elements.
 			
