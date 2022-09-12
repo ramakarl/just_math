@@ -23,24 +23,6 @@ Contact: ramahoetzlein@gmail.com
 <img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles3d.jpg" width="200">
 </div>
 
-
-## Libmin
-
-Libmin stands for *minimal utility library* for computer graphics. Libmin combines multiple useful functions into a single library, but with no external dependencies.
-Projects with BSD and MIT Licenses have been merged into libmin. The full library is MIT Licensed. Copyrights may be appended but should not be modified or removed.
-The functionality in Libmin includes:
-- Vectors, 4x4 Matrices, Cameras (vec.h, camera.h)
-- Quaternions (quaternion.h)
-- Stateful Mersenee Twister RNG (mersenne.h)
-- Event system (event.h, event_system.h)
-- Drawing in 2D/3D in OpenGL core profile (nv_gui.h)
-- Smart memory pointers for CPU/GPU via OpenGL/CUDA (dataptr.h)
-- Image class, with multiple image loaders (image.h, png/tga/jpg/tiff)
-- Directory listings (directory.h)
-- Http connections (httlib.h)
-- Time library, with nanosecond accuracy over millenia (timex.h)
-- Widget library, very basic GUI (widget.h)
-
 ## Just Math Samples
 
 Each sample in Just Math demonstrates a specific concept in code and visually.
@@ -59,6 +41,23 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 - WangTiles - Sampling of spatial distribution functions with scale invariance.
 - WangTiles3D - Alternative demo of Wang Tiles for 3D geometry instancing over a density map landscape.
 
+## Libmin
+
+Libmin stands for *minimal utility library* for computer graphics. Libmin combines multiple useful functions into a single library, but with no external dependencies.
+Projects with BSD and MIT Licenses have been merged into libmin. The full library is MIT Licensed. Copyrights may be appended but should not be modified or removed.
+The functionality in Libmin includes:
+- Vectors, 4x4 Matrices, Cameras (vec.h, camera.h)
+- Quaternions (quaternion.h)
+- Stateful Mersenee Twister RNG (mersenne.h)
+- Event system (event.h, event_system.h)
+- Drawing in 2D/3D in OpenGL core profile (nv_gui.h)
+- Smart memory pointers for CPU/GPU via OpenGL/CUDA (dataptr.h)
+- Image class, with multiple image loaders (image.h, png/tga/jpg/tiff)
+- Directory listings (directory.h)
+- Http connections (httlib.h)
+- Time library, with nanosecond accuracy over millenia (timex.h)
+- Widget library, very basic GUI (widget.h)
+
 ## How to Build
 Platforms: Tested on Win10, Visual Studio 2019<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
@@ -74,13 +73,7 @@ The binary (build) path should be outside of the source \just_math folder.<br>
 Run the sample.<br>
 
 ## Contributions
-There are two ways to contribute to the Just Math community:<br>
-
-Option 1) **Contributing to Just Math directly.** If you build your own sample using libmin, and following the format for sample creation, you can write your own math demo and we would be happy to share it here. Your demo should have very simple C/C++ code for CPU, not include any other libraries, create an interactive graphical depiction, and be BSD or MIT licensed. Following that we can add it to this Just Math repository.<br>
-
-Option 2) **Developing your own Just Math sample**. If you wish to retain the code or modify the license for your own github repository, you can make use of the libmin library in your own project(s) and then post them on your github. In that case, all we ask by way of contribution is to share a link to your project and a screenshot for the gallery here. Contact: Rama Hoetzlein at ramahoetzlein@gmail.com<br> 
-
-The goal is to build a contributor network around simplified math demos, with galleries and links, so that your github projects are not lost in the ether. You are still free to use the libmin library and code as you like.
+I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If you have similar interests contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
 
 ## License
 
