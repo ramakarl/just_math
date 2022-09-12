@@ -48,14 +48,21 @@ endmacro()
 
 function ( _REQUIRE_MAIN )
     # Add Main to build
+
+    OPTION (BUILD_CONSOLE "Build console app" OFF)
+
     add_definitions(-DUSE_MAIN)
-	IF(WIN32)
-  		LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_win.cpp" )
-	ELSEIF(ANDROID)
-		LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_android.cpp" )
-	ELSE()
-	  	LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_x11.cpp" )
-	ENDIF()
+    IF(BUILD_CONSOLE)
+    	LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_console.cpp" )
+    ELSE()
+	    IF(WIN32)
+  		    LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_win.cpp" )
+	    ELSEIF(ANDROID)
+		    LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_android.cpp" )
+	    ELSE()
+	  	    LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main_x11.cpp" )
+	    ENDIF()
+    ENDIF()
 	LIST( APPEND SRC_FILES "${LIBMIN_MAINS}/main.h" )
     include_directories( ${LIBMIN_MAINS} )
 

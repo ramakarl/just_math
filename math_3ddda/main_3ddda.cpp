@@ -28,6 +28,7 @@
 
 #define V_3DDDA		0
 
+
 class Sample : public Application {
 public:
 	virtual void startup();

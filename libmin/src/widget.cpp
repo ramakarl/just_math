@@ -18,7 +18,10 @@
 
 #include "widget.h"
 #include "event_system.h"
+#include "camera3d.h"
 #include <string>
+
+#include "nv_gui.h"
 
 Widgets* gInterface = 0x0;
 
@@ -141,6 +144,7 @@ void Widgets::SetImage		( int i, std::string png_name )
 	strcpy ( fname, png_name.c_str() );
 	mWidgets[i].img->LoadPng ( fname );	
 }
+
 void Widgets::SetText		( int i, std::string txt )
 {
 	mWidgets[i].text = txt;
@@ -151,7 +155,11 @@ void Widgets::SetTextEntry	( int i, std::string txt)
 	
 	float y;
 	mFocusPos = txt.length();
-	getTextSize(txt.substr(0, mFocusPos).c_str(), mFocusX, y);		// update cursor position
+	mFocusX = mFocusPos;
+
+	#ifdef USE_OPENGL
+		getTextSize (txt.substr(0, mFocusPos).c_str(), mFocusX, y);		// update cursor position
+	#endif
 }
 void Widgets::SetButtonType	( int i, int typ )
 {
@@ -192,59 +200,61 @@ void Widgets::Draw ()
 	char txt[1024];
 	Vector4DF clr;
 
-	start2D ();
+	#ifdef USE_OPENGL
+		start2D ();
 
-	// draw widgets
-	for (int n=0; n < mWidgets.size(); n++) {
-		w = &mWidgets[n];
+		// draw widgets
+		for (int n=0; n < mWidgets.size(); n++) {
+			w = &mWidgets[n];
 
-		if ( hasOp(w, OP_VISIBLE) ) {
-			drawFill ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, w->backClr.x, w->backClr.y, w->backClr.z, w->backClr.w );	// background
+			if ( hasOp(w, OP_VISIBLE) ) {
+				drawFill ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, w->backClr.x, w->backClr.y, w->backClr.z, w->backClr.w );	// background
 
-			if ( w->buttonState == BTN_ON ) {
-				if ( hasOp(w, OP_CLICK)) w->buttonState = BTN_OFF;
-				drawFill ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, 1, 1, 1, 0.75 );						// highlighting				
-			}
-			//drawRect ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, w->bordClr.x, w->bordClr.y, w->bordClr.z, w->bordClr.w );	// border
-
-			if ( hasOp(w, OP_TEXT) && !w->text.empty() ) {
-				strncpy ( txt, w->text.c_str(), 1024 );					// *NOTE* Need to cache this for performance! (strncpy on every widget/frame)
-				setText ( (w->pos.w - w->pos.y)*0.95f, 1 );
-				drawText ( w->pos.x + 4, w->pos.y + 4, txt, w->foreClr.x, w->foreClr.y, w->foreClr.z, w->foreClr.w );
-			}
-			if ( hasOp(w, OP_TEXT_ENTRY) || hasOp(w, OP_SLIDER) ) {
-				entryx = w->pos.x + 0.30 * (w->pos.z - w->pos.x);		// this widget has an entry portion (30% indented)
-				drawFill(entryx, w->pos.y, w->pos.z, w->pos.w, 0.5, 0.5, 0.5, 0.5);				
-				if (w->val != 0x0) {									// slider values
-					valx = entryx + (*w->val - w->vrange.x) / (w->vrange.z - w->vrange.x) * (w->pos.z - entryx);					
-					drawFill(entryx, w->pos.y + 2, valx, w->pos.w - 2, 1, 1, 1, 0.75);
+				if ( w->buttonState == BTN_ON ) {
+					if ( hasOp(w, OP_CLICK)) w->buttonState = BTN_OFF;
+					drawFill ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, 1, 1, 1, 0.75 );						// highlighting				
 				}
-				if (!w->textEntry.empty()) {
-					strncpy(txt, w->textEntry.c_str(), 1024);			// text entry values. *NOTE* Need to cache this for performance!
-					setText((w->pos.w - w->pos.y) * 0.95f, 1);
-					drawText(entryx, w->pos.y + 4, txt, w->foreClr.x, w->foreClr.y, w->foreClr.z, w->foreClr.w);
+				//drawRect ( w->pos.x, w->pos.y, w->pos.z, w->pos.w, w->bordClr.x, w->bordClr.y, w->bordClr.z, w->bordClr.w );	// border
+
+				if ( hasOp(w, OP_TEXT) && !w->text.empty() ) {
+					strncpy ( txt, w->text.c_str(), 1024 );					// *NOTE* Need to cache this for performance! (strncpy on every widget/frame)
+					setText ( (w->pos.w - w->pos.y)*0.95f, 1 );
+					drawText ( w->pos.x + 4, w->pos.y + 4, txt, w->foreClr.x, w->foreClr.y, w->foreClr.z, w->foreClr.w );
 				}
-			}
+				if ( hasOp(w, OP_TEXT_ENTRY) || hasOp(w, OP_SLIDER) ) {
+					entryx = w->pos.x + 0.30 * (w->pos.z - w->pos.x);		// this widget has an entry portion (30% indented)
+					drawFill(entryx, w->pos.y, w->pos.z, w->pos.w, 0.5, 0.5, 0.5, 0.5);				
+					if (w->val != 0x0) {									// slider values
+						valx = entryx + (*w->val - w->vrange.x) / (w->vrange.z - w->vrange.x) * (w->pos.z - entryx);					
+						drawFill(entryx, w->pos.y + 2, valx, w->pos.w - 2, 1, 1, 1, 0.75);
+					}
+					if (!w->textEntry.empty()) {
+						strncpy(txt, w->textEntry.c_str(), 1024);			// text entry values. *NOTE* Need to cache this for performance!
+						setText((w->pos.w - w->pos.y) * 0.95f, 1);
+						drawText(entryx, w->pos.y + 4, txt, w->foreClr.x, w->foreClr.y, w->foreClr.z, w->foreClr.w);
+					}
+				}
 			
-			if ( w->img != 0 ) drawImg ( w->img->getTex(), w->pos.x ,w->pos.y, w->pos.z, w->pos.w, 1,1,1,1);
+				if ( w->img != 0 ) drawImg ( w->img->getTex(), w->pos.x ,w->pos.y, w->pos.z, w->pos.w, 1,1,1,1);
 			
 		
+			}
 		}
-	}
-	// draw cursor
-	if (mFocus != -1) {
-		w = &mWidgets[ mFocus ];
-		if (hasOp(w, OP_VISIBLE)) {
-			entryx = w->pos.x + 0.30 * (w->pos.z - w->pos.x);		// this widget has an entry portion (30% indented)
-			drawFill(entryx + mFocusX, w->pos.y + 2, entryx + mFocusX + 2, w->pos.w - 2, 1, 1, 1, 1);
-			drawRect(entryx, w->pos.y, w->pos.z, w->pos.w, 1, 1, 1, 1);
+		// draw cursor
+		if (mFocus != -1) {
+			w = &mWidgets[ mFocus ];
+			if (hasOp(w, OP_VISIBLE)) {
+				entryx = w->pos.x + 0.30 * (w->pos.z - w->pos.x);		// this widget has an entry portion (30% indented)
+				drawFill(entryx + mFocusX, w->pos.y + 2, entryx + mFocusX + 2, w->pos.w - 2, 1, 1, 1, 1);
+				drawRect(entryx, w->pos.y, w->pos.z, w->pos.w, 1, 1, 1, 1);
+			}
 		}
-	}
 
-	//sprintf (txt, "Active: %d", mActWidget );
-	//drawText ( 20, 180, txt, 1,0,0,1 );				// debug
+		//sprintf (txt, "Active: %d", mActWidget );
+		//drawText ( 20, 180, txt, 1,0,0,1 );				// debug
 
-	end2D();
+		end2D();
+	#endif 
 }
 
 bool Widgets::OnMouse ( AppEnum button, AppEnum state, int mods, int x, int y, Widget3D& dw, bool& finish)
@@ -404,7 +414,10 @@ bool Widgets::OnKeyboard ( int key )
 		break;
 	}	
 	mWidgets[mFocus].textEntry = txt;								// update widget text
-	getTextSize(txt.substr(0, mFocusPos).c_str(), mFocusX, y);		// update cursor position
+	mFocusX = mFocusPos;
+	#ifdef USE_OPENGL
+		getTextSize(txt.substr(0, mFocusPos).c_str(), mFocusX, y);		// update cursor position
+	#endif
 
 	return true;
 }
@@ -470,59 +483,61 @@ void Widgets::SetOpt3D ( int w, ushort op, bool on )
 // Axes or rings are drawn highlighted if they are currently active (undergoing update)
 void Widgets::Draw3D ()
 {
-	Widget3D* w;
-	Vector3DF p0, p1, p2, p3;
-	Vector4DF gray (.7,.7,.7,1); 
-	Vector4DF act;
+	#ifdef USE_OPENGL
 
-	float sz = mWidgetSize3D * min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
+		Widget3D* w;
+		Vector3DF p0, p1, p2, p3;
+		Vector4DF gray (.7,.7,.7,1); 
+		Vector4DF act;
 
-	float sc = sz * 0.025f;
+		float sz = mWidgetSize3D * min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
+		float sc = sz * 0.025f;
 
-	// activations
-	act.x = (mAct==ACT_X) ? 2 : 1;
-	act.y = (mAct==ACT_Y) ? 2 : 1;
-	act.z = (mAct==ACT_Z) ? 2 : 1;
-	act.w = (mAct==ACT_SCALE) ? 2 : 1;	
+		// activations
+		act.x = (mAct==ACT_X) ? 2 : 1;
+		act.y = (mAct==ACT_Y) ? 2 : 1;
+		act.z = (mAct==ACT_Z) ? 2 : 1;
+		act.w = (mAct==ACT_SCALE) ? 2 : 1;	
 
-	start3D ( mCam );
+		start3D ( mCam );
 
-	glLineWidth ( 2);
+		glLineWidth ( 2);
 
-	for (int n=0; n < mWidgets3D.size(); n++) {
-		w = &mWidgets3D[n];
+		for (int n=0; n < mWidgets3D.size(); n++) {
+			w = &mWidgets3D[n];
 
-		if ( hasOpt3D(n, OP_VISIBLE) ) {	
+			if ( hasOpt3D(n, OP_VISIBLE) ) {	
 
-			p0 = w->pos;	// +  w->pivot * w->scale;
-			p1.Set(sz, 0, 0); p1 = w->rot.rotateVec(p1);
-			p2.Set(0, sz, 0); p2 = w->rot.rotateVec(p2);
-			p3.Set(0, 0, sz); p3 = w->rot.rotateVec(p3);
+				p0 = w->pos;	// +  w->pivot * w->scale;
+				p1.Set(sz, 0, 0); p1 = w->rot.rotateVec(p1);
+				p2.Set(0, sz, 0); p2 = w->rot.rotateVec(p2);
+				p3.Set(0, 0, sz); p3 = w->rot.rotateVec(p3);
 
-			if (hasOpt3D(n, OP_MOVE)) {				
-				drawCyl3D(p0, p0 + p1 * .8f, act.x * sc, act.x * sc, Vector4DF(1, 0, 0, 1));	drawCyl3D(p0 + p1 * .8f, p0 + p1, act.x * sc * 2.f, 0.0, Vector4DF(1, 0, 0, 1));
-				drawCyl3D(p0, p0 + p2 * .8f, act.y * sc, act.y * sc, Vector4DF(0, 1, 0, 1));	drawCyl3D(p0 + p2 * .8f, p0 + p2, act.y * sc * 2.f, 0.0, Vector4DF(0, 1, 0, 1));
-				drawCyl3D(p0, p0 + p3 * .8f, act.z * sc, act.z * sc, Vector4DF(0, 0, 1, 1));	drawCyl3D(p0 + p3 * .8f, p0 + p3, act.z * sc * 2.f, 0.0, Vector4DF(0, 0, 1, 1));
+				if (hasOpt3D(n, OP_MOVE)) {				
+					drawCyl3D(p0, p0 + p1 * .8f, act.x * sc, act.x * sc, Vector4DF(1, 0, 0, 1));	drawCyl3D(p0 + p1 * .8f, p0 + p1, act.x * sc * 2.f, 0.0, Vector4DF(1, 0, 0, 1));
+					drawCyl3D(p0, p0 + p2 * .8f, act.y * sc, act.y * sc, Vector4DF(0, 1, 0, 1));	drawCyl3D(p0 + p2 * .8f, p0 + p2, act.y * sc * 2.f, 0.0, Vector4DF(0, 1, 0, 1));
+					drawCyl3D(p0, p0 + p3 * .8f, act.z * sc, act.z * sc, Vector4DF(0, 0, 1, 1));	drawCyl3D(p0 + p3 * .8f, p0 + p3, act.z * sc * 2.f, 0.0, Vector4DF(0, 0, 1, 1));
+				}
+				if (hasOpt3D(n, OP_SCALE)) {
+					//drawCyl3D ( p0+p2*1.0f, p0+p2*1.1f, 0.0f, act.w*sc*2.f, Vector4DF(1,1,0,1) );
+					drawCyl3D(p0 + p2 * 1.1f, p0 + p2 * 1.2f, act.w * sc * 2.f, act.w * sc * 2.f, Vector4DF(1, 1, 0, 1));
+					drawCyl3D(p0 + p2 * 1.1f, p0 + p2 * 1.1f, act.w * sc * 2.f, 0.0f, Vector4DF(1, 1, 0, 1));
+				}
+				if (hasOpt3D(n, OP_ROTATE)) {
+					drawCircle3D(p0, p0 + p1, sz, (mAct == ACT_ROTX) ? Vector4DF(1, 0, 0, 1) : gray);
+					drawCircle3D(p0, p0 + p2, sz, (mAct == ACT_ROTY) ? Vector4DF(0, 1, 0, 1) : gray);
+					drawCircle3D(p0, p0 + p3, sz, (mAct == ACT_ROTZ) ? Vector4DF(0, 0, 1, 1) : gray);
+				}
+				if ( hasOpt3D(n, OP_BOX))
+					drawBox3DXform ( Vector3DF(0,0,0), Vector3DF(1,1,1), w->clr, w->xform ); 
 			}
-			if (hasOpt3D(n, OP_SCALE)) {
-				//drawCyl3D ( p0+p2*1.0f, p0+p2*1.1f, 0.0f, act.w*sc*2.f, Vector4DF(1,1,0,1) );
-				drawCyl3D(p0 + p2 * 1.1f, p0 + p2 * 1.2f, act.w * sc * 2.f, act.w * sc * 2.f, Vector4DF(1, 1, 0, 1));
-				drawCyl3D(p0 + p2 * 1.1f, p0 + p2 * 1.1f, act.w * sc * 2.f, 0.0f, Vector4DF(1, 1, 0, 1));
-			}
-			if (hasOpt3D(n, OP_ROTATE)) {
-				drawCircle3D(p0, p0 + p1, sz, (mAct == ACT_ROTX) ? Vector4DF(1, 0, 0, 1) : gray);
-				drawCircle3D(p0, p0 + p2, sz, (mAct == ACT_ROTY) ? Vector4DF(0, 1, 0, 1) : gray);
-				drawCircle3D(p0, p0 + p3, sz, (mAct == ACT_ROTZ) ? Vector4DF(0, 0, 1, 1) : gray);
-			}
-			if ( hasOpt3D(n, OP_BOX))
-				drawBox3DXform ( Vector3DF(0,0,0), Vector3DF(1,1,1), w->clr, w->xform ); 
 		}
-	}
 
-	//drawBox3D ( mActP-Vector3DF(.002f,.002f,.002f), mActP+Vector3DF(.002f,.002f,.002f), 1,1,1,1 );		// action point (white)
-	//drawBox3D ( mP2-Vector3DF(.002f,.002f,.002f), mP2+Vector3DF(.002f,.002f,.002f), 1,1,0,1 );		// debug point (yellow)
+		//drawBox3D ( mActP-Vector3DF(.002f,.002f,.002f), mActP+Vector3DF(.002f,.002f,.002f), 1,1,1,1 );		// action point (white)
+		//drawBox3D ( mP2-Vector3DF(.002f,.002f,.002f), mP2+Vector3DF(.002f,.002f,.002f), 1,1,0,1 );		// debug point (yellow)
 
-	end3D();
+		end3D();
+	#endif
 }
 
 // Action3D - 

@@ -30,15 +30,20 @@
 // OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // Sample utils
+#include <algorithm>
 #include "main.h"			// window system 
 #include "nv_gui.h"			// gui system
 #include "image.h"
 #include "mersenne.h"
-#include <GL/glew.h>
-#include <algorithm>
-
+#include "camera3d.h"
 #include "dataptr.h"
-#include "common_cuda.h"
+
+#ifdef USE_OPENGL
+	#include <GL/glew.h>
+#endif
+#ifdef USE_CUDA
+	#include "common_cuda.h"
+#endif
 
 #define BUF_VOL			0		// volume: n^3
 #define BUF_G			1		// beliefprop, G(a) vector
@@ -566,15 +571,10 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img )
 		}
 	}
 
-	// commit image to OpenGL (hardware gl texture) for on-screen display
-	img->Commit ( DT_GLTEX );			
-	
-	// optional write to disk
-	if ( m_save ) {
-		char savename[256];
-		sprintf ( savename, "out%04d.png", (int) m_frame );
-		img->Save ( savename );				
-	}
+	#ifdef USE_OPENGL
+		//commit image to OpenGL (hardware gl texture) for on-screen display
+		img->Commit ( DT_GLTEX );			
+	#endif
 }
 
 void Sample::Restart()
@@ -590,14 +590,17 @@ void Sample::Restart()
 bool Sample::init()
 {
 	addSearchPath(ASSET_PATH);
-	init2D("arial_256");
-	setText(24,1);
+
+	#ifdef USE_OPENGL
+		init2D("arial");
+		setText(18,1);
+	#endif
 
 	// options
-	m_frame = 0;
-	m_run = false;
-	m_run_cuda = false;									// run cuda pathway
-	m_save = false;										// save image sequence to disk
+	m_frame = 0;	
+	m_run_cuda = false;		// run cuda pathway	
+	m_run = true;			// run belief prop
+	m_save = true;			// save to disk
 	
 	int R = 32;
 
@@ -631,53 +634,56 @@ bool Sample::init()
 
 void Sample::display()
 {
+	char savename[256];
 	char msg[256];
 	Vector3DF a, b, c;
 	Vector3DF p, q, d;
 
-	clearGL();
-	
 	// advance
-	if (m_run) {									// time update
-		//m_run = false;		// single stepping
-		
+	if (m_run) {									// time update	
 		ComputeBelief ( BUF_MU, BUF_VOL );
 		BeliefProp ();		
 		UpdateMU();
 		NormalizeMU();	
 
-		//WriteFunc ( BUF_VOL, m_frame );				// write to volume
-		//m_frame++;
 	}
 
 	// raycast
 	RaycastCPU ( m_cam, BUF_VOL, m_img );			// raycast volume
 
-	// draw 2D
-	start2D();
-	setview2D(getWidth(), getHeight());	
-
-	drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );	// draw raycast image 	
-
-	//sprintf ( msg, "Peak iter: %d\n", m_peak_iter );			// overlay text
-	//drawText ( 10, 10, msg, 1,1,1,1);
-
-	end2D();
-	draw2D();										// complete 2D rendering to OpenGL
-
-	// draw grid in 3D
-	start3D(m_cam);
-	setLight(S3D, 20, 100, 20);	
-	for (int i=-10; i <= 10; i++ ) {
-		drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
-		drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
+	// optional write to disk
+	if ( m_save ) {		
+		sprintf ( savename, "out%04d.png", (int) m_frame );
+		m_img->Save ( savename );				
+		m_frame++;
+	} else {
+		sprintf ( savename, "save is off");
 	}
-	drawBox3D ( Vector3DF(0,0,0), Vector3DF(1,1,1), 1,1,1, 0.3);
-	end3D();
-
-	draw3D();										// complete 3D rendering to OpenGL
 	
-	appPostRedisplay();								// Post redisplay since simulation is continuous
+	// interactive rendering (opengl only)
+	#ifdef USE_OPENGL
+		clearGL();
+		start2D();
+			setview2D(getWidth(), getHeight());	
+			drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );	// draw raycast image 	
+		end2D();
+		draw2D();										// complete 2D rendering to OpenGL
+
+		// draw grid in 3D
+		start3D(m_cam);
+		setLight(S3D, 20, 100, 20);	
+		for (int i=-10; i <= 10; i++ ) {
+			drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
+			drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
+		}
+		drawBox3D ( Vector3DF(0,0,0), Vector3DF(1,1,1), 1,1,1, 0.3);
+		end3D();
+		draw3D();										// complete 3D rendering to OpenGL			
+	#else
+		dbgprintf ( "Running.. saved: %s\n", savename);
+	#endif
+
+	appPostRedisplay();		
 }
 
 void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
@@ -708,9 +714,10 @@ void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
 	}
 }
 
+
 void Sample::mouse(AppEnum button, AppEnum state, int mods, int x, int y)
 {
-	if (guiHandler(button, state, x, y)) return;
+	if ( guiHandler(button, state, x, y) ) return;
 	mouse_down = (state == AppEnum::BUTTON_PRESS) ? button : -1;		// Track when we are in a mouse drag
 }
 
@@ -739,8 +746,10 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
 void Sample::reshape(int w, int h)
 {
-	glViewport(0, 0, w, h);
-	setview2D(w, h);
+	#ifdef USE_OPENGL
+		glViewport(0, 0, w, h);
+		setview2D(w, h);
+	#endif
 
 	m_cam->setSize( w, h );
 	m_cam->setAspect(float(w) / float(h));

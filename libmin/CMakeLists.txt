@@ -64,6 +64,7 @@ endif()
 # Source files for this project
 #
 file(GLOB SOURCE_FILES src/*.cpp src/*.c)
+file(GLOB OPENGL_FILES include/GL/*.c)
 file(GLOB INCLUDE_FILES include/*.hpp include/*.h)
 
 #####################################################################################
@@ -95,6 +96,9 @@ unset ( ALL_SOURCE_FILES )
 list( APPEND ALL_SOURCE_FILES ${SOURCE_FILES} )
 list( APPEND ALL_SOURCE_FILES ${INCLUDE_FILES} )
 list( APPEND ALL_SOURCE_FILES ${PACKAGE_SOURCE_FILES} )
+if (BUILD_OPENGL)
+	list( APPEND ALL_SOURCE_FILES ${OPENGL_FILES} )
+endif()
 
 # Definitions
 add_definitions(-DLIBHELP_EXPORTS)	# Export dll symbols
@@ -142,19 +146,19 @@ if ( WIN32 )
 	# instruct CMake to automatically build INSTALL project in Visual Studio 
 	set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
 	# visual studio source groups
-	source_group(Include FILES 
-		${INCLUDE_FILES}  
-	)
-	source_group(Source FILES 
-		${SOURCE_FILES}  
-	)
+	source_group(Include FILES ${INCLUDE_FILES} )
+	source_group(Source FILES ${SOURCE_FILES} )
+	source_group(OpenGL FILES ${OPENGL_FILES} )
 endif()
 
 ################################################################
 # Install Binaries
 #
-file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/include/GL" DESTINATION ${INSTALL_INC_PATH} )
-file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/src/glew.c" DESTINATION ${INSTALL_INC_PATH} )
+
+if (BUILD_OPENGL)
+	file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/include/GL" DESTINATION ${INSTALL_INC_PATH} )
+	file (COPY "${CMAKE_CURRENT_SOURCE_DIR}/include/GL/glew.c" DESTINATION ${INSTALL_INC_PATH} )
+endif()
 install ( FILES ${INCLUDE_FILES} DESTINATION ${INSTALL_INC_PATH} )
 
 install ( FILES ${INSTALL_LIST} DESTINATION ${INSTALL_BIN_PATH} )

@@ -18,11 +18,13 @@
 //
 
 #include "common_defs.h"
+#include "vec.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <vector>
-#include <string.h>
+#include <string>
 
 #if defined(__ANDROID__)
     #include <android/log.h>               // for Android printf logs  
@@ -184,52 +186,54 @@ void checkMem(xlong& total, xlong& used, xlong& app)
         app = pmc.WorkingSetSize;
 }
 
-const char * glErrorString(GLenum const err) 
-{
-    switch (err) {        
-    case GL_NO_ERROR:           return "Ok";  // opengl 2 errors (8)
-    case GL_INVALID_ENUM:       return "GL_INVALID_ENUM";
-    case GL_INVALID_VALUE:      return "GL_INVALID_VALUE";
-    case GL_INVALID_OPERATION:  return "GL_INVALID_OPERATION";
-    case GL_STACK_OVERFLOW:     return "GL_STACK_OVERFLOW";
-    case GL_STACK_UNDERFLOW:    return "GL_STACK_UNDERFLOW";
-    case GL_OUT_OF_MEMORY:      return "GL_OUT_OF_MEMORY";
-    case GL_TABLE_TOO_LARGE:    return "GL_TABLE_TOO_LARGE";        
-    case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";      // opengl 3 errors (1)        
-    default:                    return "UNKNOWN"; 
-    }
-}
 
-
+//------------------------------------------------------------- OPENGL
+//
 #ifdef USE_OPENGL
-
-#if defined(__ANDROID__)
     
-    void checkGL(const char* msg, bool debug)
+    const char * glErrorString(GLenum const err) 
     {
-        GLenum errCode = 0;
-        errCode = glGetError();
-        if ( errCode != GL_NO_ERROR || debug ) {
-            const char* errString = glErrorString(errCode);
-            dbgprintf("GL: %s, code: %x (%s)\n", msg, errCode, errString );
+        switch (err) {        
+        case GL_NO_ERROR:           return "Ok";  // opengl 2 errors (8)
+        case GL_INVALID_ENUM:       return "GL_INVALID_ENUM";
+        case GL_INVALID_VALUE:      return "GL_INVALID_VALUE";
+        case GL_INVALID_OPERATION:  return "GL_INVALID_OPERATION";
+        case GL_STACK_OVERFLOW:     return "GL_STACK_OVERFLOW";
+        case GL_STACK_UNDERFLOW:    return "GL_STACK_UNDERFLOW";
+        case GL_OUT_OF_MEMORY:      return "GL_OUT_OF_MEMORY";
+        case GL_TABLE_TOO_LARGE:    return "GL_TABLE_TOO_LARGE";        
+        case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";      // opengl 3 errors (1)        
+        default:                    return "UNKNOWN"; 
         }
     }
 
-#elif defined(__linux__)
-    void checkGL(const char* msg, bool debug) {}
-    void checkMem(xlong& total, xlong& used, xlong& app) {}
-
-#elif defined(_WIN32)
-
-    void checkGL(const char* msg, bool debug)
-    {
-        GLenum errCode = 0;
-        errCode = glGetError();
-        if (errCode != GL_NO_ERROR || debug) {
-            const char* errString = glErrorString(errCode);
-            dbgprintf("GL: %s, code: %x (%s)\n", msg, errCode, errString);
+    #if defined(__ANDROID__)
+    
+        void checkGL(const char* msg, bool debug)
+        {
+            GLenum errCode = 0;
+            errCode = glGetError();
+            if ( errCode != GL_NO_ERROR || debug ) {
+                const char* errString = glErrorString(errCode);
+                dbgprintf("GL: %s, code: %x (%s)\n", msg, errCode, errString );
+            }
         }
-    }
+
+    #elif defined(__linux__)
+        void checkGL(const char* msg, bool debug) {}
+        void checkMem(xlong& total, xlong& used, xlong& app) {}
+
+    #elif defined(_WIN32)
+
+        void checkGL(const char* msg, bool debug)
+        {
+            GLenum errCode = 0;
+            errCode = glGetError();
+            if (errCode != GL_NO_ERROR || debug) {
+                const char* errString = glErrorString(errCode);
+                dbgprintf("GL: %s, code: %x (%s)\n", msg, errCode, errString);
+            }
+        }
 
     //-------------------------------------------- Texture interface
 
@@ -283,10 +287,11 @@ const char * glErrorString(GLenum const err)
         unsigned int  a, b, c;
     };
 
-    void initTexGL()
+    void initBasicGL()
     {
-        dbgprintf("Initializing GLEW for LIBHELP.\n");
-        glewInit();      // init glew pointers for libhelp.dll
+        dbgprintf( "  initBasicGL: Initializing Glew for libmin.\n");
+
+        glewInit();      // init glew pointers for libmin.dll
 
         int status;
         int maxLog = 65536, lenLog;
@@ -491,15 +496,6 @@ const char * glErrorString(GLenum const err)
 
     #endif
 
-#else
-    //-- not using opengl
-    void checkGL(const char* msg)   { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void initTexGL()                { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void clearGL()                  { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void createTexGL(int& glid, int w, int h, int clamp = 0x812D, int fmt = 0x8058, int typ = 0x1401, int filter = 0x2601) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void renderTexGL(int w, int h, int glid, char inv1 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void renderTexGL(float x1, float y1, float x2, float y2, int glid1, char inv1 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
-    void compositeTexGL(float blend, int w, int h, int glid1, int glid2, char inv1 = 0, char inv2 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
 #endif
 
   

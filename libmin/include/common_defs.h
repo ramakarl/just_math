@@ -126,22 +126,6 @@
     const f64 ROUNDING_ERROR_f64 = 0.00000001;
     const f64 PI64 = 3.1415926535897932384626433832795028841971693993751;
 
-    
-    //--- OpenGL include
-    #ifdef USE_OPENGL
-        #define GLEW_STATIC             // make sure glew is static
-
-        #if defined(__ANDROID__)
-            #include <EGL/egl.h>
-            #include <GLES3/gl3.h>
-        #elif defined(__linux__)
-
-        #elif defined(_WIN32)
-            #include <GL/glew.h>
-            #include <GL/gl.h>
-        #endif
-    #endif
-
     // Universal functions
     #include <vector>
     #include <string>    
@@ -155,26 +139,45 @@
     HELPAPI unsigned long getFilePos ( FILE* fp );
     HELPAPI void dbgprintf(const char * fmt, ...);
 
-    // Basic OpenGL interface		
-    HELPAPI void checkGL(const char* msg, bool debug=false);
-    HELPAPI void initTexGL();
-    HELPAPI void clearGL();
-    HELPAPI void createTexGL(int& glid, int w, int h, int clamp = 0x812D, int fmt = 0x8058, int typ = 0x1401, int filter = 0x2601);	// defaults: GL_CLAMP_TO_BORDER, GL_RGBA8, GL_UNSIGNED_BYTE, GL_LINEAR
-    HELPAPI void renderTexGL(int w, int h, int glid, char inv1 = 0);
-    HELPAPI void renderTexGL(float x1, float y1, float x2, float y2, int glid1, char inv1 = 0);
-    HELPAPI void compositeTexGL(float blend, int w, int h, int glid1, int glid2, char inv1 = 0, char inv2 = 0);		// composite two textures	
+    //--- OpenGL include
+    #ifdef USE_OPENGL
+        #define GLEW_STATIC             // make sure glew is static
 
-    struct HELPAPI TexInterface {
-        int	prog[3];
-        int	vshader[3];
-        int	fshader[3];
-        int	vbo[3];
-        int	utex1[3];
-        int	utex2[3];
-        int	utexflags[3];
-        int	ucoords[3];
-        int	uscreen[3];
-    };  
+        #if defined(__ANDROID__)
+            #include <EGL/egl.h>
+            #include <GLES3/gl3.h>
+        #elif defined(__linux__)
+
+        #elif defined(_WIN32)
+            #include <GL/glew.h>
+            #include <GL/gl.h>
+        #endif
+
+        // Basic OpenGL interface	        
+        HELPAPI void initBasicGL();
+        HELPAPI void checkGL(const char* msg, bool debug=false);        
+        HELPAPI void clearGL();
+        HELPAPI void createTexGL(int& glid, int w, int h, int clamp = 0x812D, int fmt = 0x8058, int typ = 0x1401, int filter = 0x2601);	// defaults: GL_CLAMP_TO_BORDER, GL_RGBA8, GL_UNSIGNED_BYTE, GL_LINEAR
+        HELPAPI void renderTexGL(int w, int h, int glid, char inv1 = 0);
+        HELPAPI void renderTexGL(float x1, float y1, float x2, float y2, int glid1, char inv1 = 0);
+        HELPAPI void compositeTexGL(float blend, int w, int h, int glid1, int glid2, char inv1 = 0, char inv2 = 0);		// composite two textures	
+
+        struct HELPAPI TexInterface {
+            int	prog[3];
+            int	vshader[3];
+            int	fshader[3];
+            int	vbo[3];
+            int	utex1[3];
+            int	utex2[3];
+            int	utexflags[3];
+            int	ucoords[3];
+            int	uscreen[3];
+        };  
+    #else
+        struct HELPAPI TexInterface {
+            int handle;
+        };
+    #endif  
 
     HELPAPI void strncpy_sc ( char *dst, const char *src, size_t len);                      // cross-platform
     HELPAPI void strncpy_sc (char *dst, size_t dstsz, const char *src, size_t count );      // cross-platform

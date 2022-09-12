@@ -21,15 +21,17 @@
     #include "network_system.h"
 #endif
 
+#ifdef USE_OPENGL
+    #include <GL/glew.h>
+    #include <GL/wglew.h>
+#endif
+
 #include <windows.h>
 #include <windowsx.h>
 #include <shellscalingapi.h>		// Windows DPI awareness (4K displays)
 #include <d2d1.h>					// Windows DPI awareness (4K displays)
 
 #include <shellapi.h>		        // Open browser in shell
-
-#include <GL/glew.h>
-#include <GL/wglew.h>
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -332,6 +334,7 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     //-- Call user startup()
     // This sets the desired window configuration (cflags, opengl version, title, width, height)
+    dbgprintf ( "Starting..\n");
     pApp->startup();
 
     pApp->appHandleArgs( gArgc, gArgv );
@@ -351,6 +354,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
     //-- Main Windows loop
     MSG msg;
     pApp->m_running = true;  
+
+    dbgprintf ( "Running..\n");
 
     while (pApp->m_running) {
 
@@ -383,8 +388,9 @@ int WINAPI WinMain(HINSTANCE hInstance,
             }
         }
     }
-
-    disable_nvgui();
+    #ifdef USE_OPENGL
+        disable_nvgui();
+    #endif
 
     pApp->appShutdown();
 
@@ -500,104 +506,6 @@ LRESULT CALLBACK WinProc (HWND m_hWnd,
 
 
 
-static int stringInExtensionString(const char* string, const char* exts)
-{
-    const GLubyte* extensions = (const GLubyte*)exts;
-    const GLubyte* start;
-    GLubyte* where;
-    GLubyte* terminator;
-
-    // It takes a bit of care to be fool-proof about parsing the
-    // OpenGL extensions string. Don't be fooled by sub-strings,
-    // etc.
-    start = extensions;
-    for (;;) {
-        where = (GLubyte*)strstr((const char*)start, string);
-        if (!where) return GL_FALSE;
-        terminator = where + strlen(string);
-        if (where == start || *(where - 1) == ' ') {
-            if (*terminator == ' ' || *terminator == '\0')
-                break;
-        }
-        start = terminator;
-    }
-
-    return GL_TRUE;
-}
-
-int sysExtensionSupported(const char* name)
-{
-    int i;
-    GLint count;
-
-    // Check if extension is in the modern OpenGL extensions string list
-    // This should be safe to use since GL 3.0 is around for a long time :)
-    glGetIntegerv(GL_NUM_EXTENSIONS, &count);
-
-    for (i = 0; i < count; i++) {
-        const char* en = (const char*)glGetStringi(GL_EXTENSIONS, i);
-        if (!en) return GL_FALSE;
-        if (strcmp(en, name) == 0) return GL_TRUE;
-    }
-
-    // Check platform specifc gets
-    const char* exts = NULL;
-
-    if (WGLEW_ARB_extensions_string) {
-        exts = wglGetExtensionsStringARB(pApp->m_win->_hDC);
-    }
-    if (!exts && WGLEW_EXT_extensions_string) {
-        exts = wglGetExtensionsStringEXT();
-    }
-    if (!exts) return FALSE;
-    return stringInExtensionString(name, exts);
-}
-
-static void APIENTRY sysOpenGLCallback(GLenum source,
-    GLenum type,
-    GLuint id,
-    GLenum severity,
-    GLsizei length,
-    const GLchar* message,
-    const GLvoid* userParam)
-{
-    if (pApp == 0x0) return;
-
-    GLenum filter = pApp->m_debugFilter;
-    GLenum severitycmp = severity;
-    // minor fixup for filtering so notification becomes lowest priority
-    if (GL_DEBUG_SEVERITY_NOTIFICATION == filter) {
-        filter = GL_DEBUG_SEVERITY_LOW_ARB + 1;
-    }
-    if (GL_DEBUG_SEVERITY_NOTIFICATION == severitycmp) {
-        severitycmp = GL_DEBUG_SEVERITY_LOW_ARB + 1;
-    }
-    if (!filter || severitycmp <= filter) {
-        //static std::map<GLuint, bool> ignoreMap;
-        //if(ignoreMap[id] == true)
-        //    return;
-        char* strSource = "0";
-        char* strType = strSource;
-        switch (source) {
-        case GL_DEBUG_SOURCE_API_ARB:              strSource = "API";         break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM_ARB:    strSource = "WINDOWS";     break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER_ARB:  strSource = "SHADER COMP.";       break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY_ARB:      strSource = "3RD PARTY";          break;
-        case GL_DEBUG_SOURCE_APPLICATION_ARB:      strSource = "APP";         break;
-        case GL_DEBUG_SOURCE_OTHER_ARB:            strSource = "OTHER";       break;
-        }
-        switch (type) {
-        case GL_DEBUG_TYPE_ERROR_ARB:               strType = "ERROR";          break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB: strType = "Deprecated";     break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB:  strType = "Undefined";      break;
-        case GL_DEBUG_TYPE_PORTABILITY_ARB:         strType = "Portability";    break;
-        case GL_DEBUG_TYPE_PERFORMANCE_ARB:         strType = "Performance";    break;
-        case GL_DEBUG_TYPE_OTHER_ARB:               strType = "Other";          break;
-        }
-        dbgprintf("ARB_DEBUG: %s - %s : %s\n", strSource, strType, message);
-    }
-}
-
 
 //------------------------------------------------------------ Application
 
@@ -618,8 +526,6 @@ Application::Application() : m_renderCnt(1), m_win(0), m_debugFilter(0)
 // appStart - called from the user function startup() to indicate desired application config
 bool Application::appStart(const std::string& title, const std::string& shortname, int width, int height, int Major, int Minor, int MSAA, bool GLDebug )
 {
-    dbgprintf("appStart");
-
     bool vsyncstate = true;
 
     m_winSz[0] = width;             // desired width & height, may not be actual/final
@@ -638,8 +544,6 @@ bool Application::appStart(const std::string& title, const std::string& shortnam
 
 bool Application::appStartWindow (void* arg1, void* arg2, void* arg3, void* arg4)
 {
-    dbgprintf("appStartWindow.\n");
-
     if (m_win == 0x0) {
         m_win = new OSWindow(this);    // create os-specific variables first time
     }
@@ -705,163 +609,32 @@ bool Application::appStartWindow (void* arg1, void* arg2, void* arg3, void* arg4
     if ( m_win->_hWnd == NULL)
         return false;
 
-    //-- Create OpenGL context
-    appCreateGL(&m_cflags, m_winSz[0], m_winSz[1]);
-    
+    #ifdef USE_OPENGL
+        //-- Create OpenGL context
+        appCreateGL(&m_cflags, m_winSz[0], m_winSz[1]);       
 
-    //-- Additional OpenGL initialization
-    appInitGL();
-
-    //-- GUI framework
-    enable_nvgui();
+        appInitGL();
+            
+        enable_nvgui();     // GUI framework
+    #endif
 
     //-- User init
     if (m_startup) {                // Call user init() only ONCE per application
-        dbgprintf("init()\n");
+        dbgprintf("  init()\n");
         if (!init()) { dbgprintf("ERROR: Unable to init() app.\n"); return false; }
     }
-    dbgprintf("activate()\n");        // Call user activate() each time window/surface is recreated
+    dbgprintf("  activate()\n");        // Call user activate() each time window/surface is recreated
     if (!activate()) { dbgprintf("ERROR: Activate failed.\n"); return false; }
     
     // Show the OS Window
     ShowWindow(m_win->_hWnd, SW_SHOW);
     
-//    sysVisibleConsole();
-
+    // sysVisibleConsole();
     m_startup = false;
     m_active = true;                // yes, now active.
 
     // Vsync off by default
     appSwapInterval( 0 );    
-
-    return true;
-}
-
-bool Application::appCreateGL(const Application::ContextFlags* cflags, int& width, int& height)
-{
-    GLuint PixelFormat;
-
-    Application::ContextFlags  settings;
-    settings = m_cflags;
-
-    PIXELFORMATDESCRIPTOR pfd;
-    memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
-
-    pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.iPixelType = PFD_TYPE_RGBA;
-    pfd.cColorBits = 32;
-    pfd.cDepthBits = settings.depth;
-    pfd.cStencilBits = settings.stencil;
-
-    if (settings.stereo) pfd.dwFlags |= PFD_STEREO;
-
-    // Multisample Anti-Aliasing
-    if (settings.MSAA > 1)
-    {
-        dbgprintf(" Enable Multisample Anti-Aliasing.\n");
-        m_win->_hDC = GetDC(m_win->_hWndDummy);
-        PixelFormat = ChoosePixelFormat(m_win->_hDC, &pfd);
-        SetPixelFormat(m_win->_hDC, PixelFormat, &pfd);
-        m_win->_hRC = wglCreateContext(m_win->_hDC);
-        wglMakeCurrent(m_win->_hDC, m_win->_hRC);
-        glewInit();
-        ReleaseDC(m_win->_hWndDummy, m_win->_hDC);
-        m_win->_hDC = GetDC(m_win->_hWnd);
-
-        int attri[] = {
-            WGL_DRAW_TO_WINDOW_ARB, true,
-            WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-            WGL_SUPPORT_OPENGL_ARB, true,
-            WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-            WGL_DOUBLE_BUFFER_ARB, true,
-            WGL_DEPTH_BITS_ARB, settings.depth,
-            WGL_STENCIL_BITS_ARB, settings.stencil,
-            WGL_SAMPLE_BUFFERS_ARB, 1,
-            WGL_SAMPLES_ARB, settings.MSAA,
-            0,0
-        };
-        GLuint nfmts;
-        int fmt;
-        if (!wglChoosePixelFormatARB(m_win->_hDC, attri, NULL, 1, &fmt, &nfmts)) {
-            wglDeleteContext(m_win->_hRC);
-            return false;
-        }
-        wglDeleteContext(m_win->_hRC);
-        DestroyWindow(m_win->_hWndDummy);
-        m_win->_hWndDummy = NULL;
-        if (!SetPixelFormat(m_win->_hDC, fmt, &pfd))
-            return false;
-
-        glEnable(GL_MULTISAMPLE);
-
-    }
-    else {
-        m_win->_hDC = GetDC(m_win->_hWnd);
-        PixelFormat = ChoosePixelFormat(m_win->_hDC, &pfd);
-        SetPixelFormat(m_win->_hDC, PixelFormat, &pfd);
-    }
-    m_win->_hRC = wglCreateContext(m_win->_hDC);
-    wglMakeCurrent(m_win->_hDC, m_win->_hRC);
-
-    // calling glewinit NOW because the inside glew, there is mistake to fix...
-    // This is the joy of using Core. The query glGetString(GL_EXTENSIONS) is deprecated from the Core profile.
-    // You need to use glGetStringi(GL_EXTENSIONS, <index>) instead. Sounds like a "bug" in GLEW.
-
-    glewInit();
-
-#define GLCOMPAT
-
-    if (!wglCreateContextAttribsARB)
-        wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
-
-    if (wglCreateContextAttribsARB) {
-        HGLRC hRC = NULL;
-        std::vector<int> attribList;
-#define ADDATTRIB(a,b) { attribList.push_back(a); attribList.push_back(b); }
-        int maj = settings.major;
-        int min = settings.minor;
-        ADDATTRIB(WGL_CONTEXT_MAJOR_VERSION_ARB, maj)
-            ADDATTRIB(WGL_CONTEXT_MINOR_VERSION_ARB, min)
-            if (settings.core)
-                ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB)
-            else
-                ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB)
-                int ctxtflags = 0;
-        if (settings.debug)         ctxtflags |= WGL_CONTEXT_DEBUG_BIT_ARB;
-        if (settings.robust)        ctxtflags |= WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB;
-        if (settings.forward)       ctxtflags |= WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;  // use it if you want errors when compat options still used
-        ADDATTRIB(WGL_CONTEXT_FLAGS_ARB, ctxtflags);
-        ADDATTRIB(0, 0)
-            int* p = &(attribList[0]);
-        if (!(hRC = wglCreateContextAttribsARB(m_win->_hDC, 0, p)))
-        {
-            //LOGE("wglCreateContextAttribsARB() failed for OpenGL context.\n");
-            return false;
-        }
-        if (!wglMakeCurrent(m_win->_hDC, hRC)) {
-            //LOGE("wglMakeCurrent() failed for OpenGL context.\n"); 
-        }
-        else {
-            wglDeleteContext(m_win->_hRC);
-            m_win->_hRC = hRC;
-            
-            if ( settings.debug ) {
-                if (__glewDebugMessageCallbackARB) {
-                    __glewDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC) wglGetProcAddress("glDebugMessageCallbackARB");
-                    __glewDebugMessageControlARB = (PFNGLDEBUGMESSAGECONTROLARBPROC) wglGetProcAddress("glDebugMessageControlARB");
-                }
-                glEnable(GL_DEBUG_OUTPUT);
-                glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-                glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-                glDebugMessageCallbackARB( sysOpenGLCallback, 0x0);
-            }
-        }
-    }
-    dbgprintf(" Initialize Glew.\n");
-    glewInit();
-    dbgprintf(" OpenGL Started. Version %s\n", glGetString(GL_VERSION) );
 
     return true;
 }
@@ -904,9 +677,11 @@ void Application::appUpdateMouse(float mx, float my, AppEnum button, AppEnum sta
 
 bool Application::appStopWindow()
 {
-    // Cleanup OpenGL
-    wglDeleteContext( m_win->_hRC);
-    ReleaseDC( m_win->_hWnd, m_win->_hDC);
+    #ifdef USE_OPENGL
+        // Cleanup OpenGL
+        wglDeleteContext( m_win->_hRC);
+        ReleaseDC( m_win->_hWnd, m_win->_hDC);
+    #endif
 
     // Destroy Window
     DestroyWindow( m_win->_hWnd );
@@ -958,16 +733,6 @@ void Application::appHandleArgs(int argc, char** argv)
         }        
     }
 }
-
-
-/*void NVPWindow::makeContextCurrent()
-{
-    wglMakeCurrent(m_internal->m_hDC,m_internal->m_hRC);
-}
-void NVPWindow::makeContextNonCurrent()
-{
-    wglMakeCurrent(0,0);
-}*/
 
 void Application::appOpenKeyboard ()
 {
@@ -1092,7 +857,9 @@ bool Application::isActive()
 
 void Application::appSwapInterval(int i)
 {
-    wglSwapIntervalEXT(i);
+    #ifdef USE_OPENGL
+        wglSwapIntervalEXT(i);
+    #endif
 }
 
 
@@ -1102,14 +869,15 @@ void Application::appSetKeyPress(int key, bool state)
     m_keyPressed[key] = state;
 }
 
-
 bool Application::appInitGL()
-{
-    // additional opengl initialization
-    //  (primary init of opengl occurs in WINinteral::initBase)
-    initTexGL();
+{    
+    #ifdef USE_OPENGL
+        // additional opengl initialization
+        //  (primary init of opengl occurs in WINinteral::initBase)
+        initBasicGL();
 
-    glFinish();
+        glFinish();
+    #endif
 
     return true;
 }
@@ -1117,30 +885,259 @@ bool Application::appInitGL()
 // from file_png.cpp
 extern void save_png(char* fname, unsigned char* img, int w, int h, int ch);
 
-void Application::appSaveFrame(char* fname)
-{
-    int w = getWidth();
-    int h = getHeight();
 
-    // Read back pixels
-    unsigned char* pixbuf = (unsigned char*)malloc(w * h * 3);
 
-    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixbuf);
+#ifdef USE_OPENGL
 
-    // Flip Y
-    int pitch = w * 3;
-    unsigned char* buf = (unsigned char*)malloc(pitch);
-    for (int y = 0; y < h / 2; y++) {
-        memcpy(buf, pixbuf + (y * pitch), pitch);
-        memcpy(pixbuf + (y * pitch), pixbuf + ((h - y - 1) * pitch), pitch);
-        memcpy(pixbuf + ((h - y - 1) * pitch), buf, pitch);
+    static int stringInExtensionStringGL (const char* string, const char* exts)
+    {
+        const GLubyte* extensions = (const GLubyte*)exts;
+        const GLubyte* start;
+        GLubyte* where;
+        GLubyte* terminator;
+
+        // It takes a bit of care to be fool-proof about parsing the
+        // OpenGL extensions string. Don't be fooled by sub-strings,
+        // etc.
+        start = extensions;
+        for (;;) {
+            where = (GLubyte*)strstr((const char*)start, string);
+            if (!where) return GL_FALSE;
+            terminator = where + strlen(string);
+            if (where == start || *(where - 1) == ' ') {
+                if (*terminator == ' ' || *terminator == '\0')
+                    break;
+            }
+            start = terminator;
+        }
+        return GL_TRUE; 
     }
 
-    // Save png
-    #ifdef BUILD_PNG
-        save_png(fname, pixbuf, w, h, 3);
-    #endif
+    int sysExtensionSupportedGL (const char* name)
+    {
+        int i;
+        GLint count;
 
-    free(pixbuf);
-    free(buf);
-}
+        // Check if extension is in the modern OpenGL extensions string list
+        // This should be safe to use since GL 3.0 is around for a long time :)
+        glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+
+        for (i = 0; i < count; i++) {
+            const char* en = (const char*)glGetStringi(GL_EXTENSIONS, i);
+            if (!en) return GL_FALSE;
+            if (strcmp(en, name) == 0) return GL_TRUE;
+        }
+
+        // Check platform specifc gets
+        const char* exts = NULL;
+
+        if (WGLEW_ARB_extensions_string) {
+            exts = wglGetExtensionsStringARB(pApp->m_win->_hDC);
+        }
+        if (!exts && WGLEW_EXT_extensions_string) {
+            exts = wglGetExtensionsStringEXT();
+        }
+        if (!exts) return FALSE;
+        return stringInExtensionStringGL (name, exts);
+    }
+
+    static void APIENTRY sysCallbackGL (GLenum source,
+        GLenum type,
+        GLuint id,
+        GLenum severity,
+        GLsizei length,
+        const GLchar* message,
+        const GLvoid* userParam)
+    {
+        if (pApp == 0x0) return;
+
+        GLenum filter = pApp->m_debugFilter;
+        GLenum severitycmp = severity;
+        // minor fixup for filtering so notification becomes lowest priority
+        if (GL_DEBUG_SEVERITY_NOTIFICATION == filter) {
+            filter = GL_DEBUG_SEVERITY_LOW_ARB + 1;
+        }
+        if (GL_DEBUG_SEVERITY_NOTIFICATION == severitycmp) {
+            severitycmp = GL_DEBUG_SEVERITY_LOW_ARB + 1;
+        }
+        if (!filter || severitycmp <= filter) {
+            //static std::map<GLuint, bool> ignoreMap;
+            //if(ignoreMap[id] == true)
+            //    return;
+            char* strSource = "0";
+            char* strType = strSource;
+            switch (source) {
+            case GL_DEBUG_SOURCE_API_ARB:              strSource = "API";         break;
+            case GL_DEBUG_SOURCE_WINDOW_SYSTEM_ARB:    strSource = "WINDOWS";     break;
+            case GL_DEBUG_SOURCE_SHADER_COMPILER_ARB:  strSource = "SHADER COMP.";       break;
+            case GL_DEBUG_SOURCE_THIRD_PARTY_ARB:      strSource = "3RD PARTY";          break;
+            case GL_DEBUG_SOURCE_APPLICATION_ARB:      strSource = "APP";         break;
+            case GL_DEBUG_SOURCE_OTHER_ARB:            strSource = "OTHER";       break;
+            }
+            switch (type) {
+            case GL_DEBUG_TYPE_ERROR_ARB:               strType = "ERROR";          break;
+            case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB: strType = "Deprecated";     break;
+            case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB:  strType = "Undefined";      break;
+            case GL_DEBUG_TYPE_PORTABILITY_ARB:         strType = "Portability";    break;
+            case GL_DEBUG_TYPE_PERFORMANCE_ARB:         strType = "Performance";    break;
+            case GL_DEBUG_TYPE_OTHER_ARB:               strType = "Other";          break;
+            }
+            dbgprintf("ARB_DEBUG: %s - %s : %s\n", strSource, strType, message);
+        }
+    }
+
+    bool Application::appCreateGL(const Application::ContextFlags* cflags, int& width, int& height)
+    {
+        GLuint PixelFormat;
+
+        Application::ContextFlags  settings;
+        settings = m_cflags;
+
+        PIXELFORMATDESCRIPTOR pfd;
+        memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
+
+        pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.iPixelType = PFD_TYPE_RGBA;
+        pfd.cColorBits = 32;
+        pfd.cDepthBits = settings.depth;
+        pfd.cStencilBits = settings.stencil;
+
+        if (settings.stereo) pfd.dwFlags |= PFD_STEREO;
+
+        // Multisample Anti-Aliasing
+        if (settings.MSAA > 1)
+        {
+            dbgprintf("  Enable Multisample Anti-Aliasing.\n");
+            m_win->_hDC = GetDC(m_win->_hWndDummy);
+            PixelFormat = ChoosePixelFormat(m_win->_hDC, &pfd);
+            SetPixelFormat(m_win->_hDC, PixelFormat, &pfd);
+            m_win->_hRC = wglCreateContext(m_win->_hDC);
+            wglMakeCurrent(m_win->_hDC, m_win->_hRC);
+            glewInit();
+            ReleaseDC(m_win->_hWndDummy, m_win->_hDC);
+            m_win->_hDC = GetDC(m_win->_hWnd);
+
+            int attri[] = {
+                WGL_DRAW_TO_WINDOW_ARB, true,
+                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+                WGL_SUPPORT_OPENGL_ARB, true,
+                WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+                WGL_DOUBLE_BUFFER_ARB, true,
+                WGL_DEPTH_BITS_ARB, settings.depth,
+                WGL_STENCIL_BITS_ARB, settings.stencil,
+                WGL_SAMPLE_BUFFERS_ARB, 1,
+                WGL_SAMPLES_ARB, settings.MSAA,
+                0,0
+            };
+            GLuint nfmts;
+            int fmt;
+            if (!wglChoosePixelFormatARB(m_win->_hDC, attri, NULL, 1, &fmt, &nfmts)) {
+                wglDeleteContext(m_win->_hRC);
+                return false;
+            }
+            wglDeleteContext(m_win->_hRC);
+            DestroyWindow(m_win->_hWndDummy);
+            m_win->_hWndDummy = NULL;
+            if (!SetPixelFormat(m_win->_hDC, fmt, &pfd))
+                return false;
+
+            glEnable(GL_MULTISAMPLE);
+
+        }
+        else {
+            m_win->_hDC = GetDC(m_win->_hWnd);
+            PixelFormat = ChoosePixelFormat(m_win->_hDC, &pfd);
+            SetPixelFormat(m_win->_hDC, PixelFormat, &pfd);
+        }
+        m_win->_hRC = wglCreateContext(m_win->_hDC);
+        wglMakeCurrent(m_win->_hDC, m_win->_hRC);
+
+        // calling glewinit NOW because the inside glew, there is mistake to fix...
+        // This is the joy of using Core. The query glGetString(GL_EXTENSIONS) is deprecated from the Core profile.
+        // You need to use glGetStringi(GL_EXTENSIONS, <index>) instead. Sounds like a "bug" in GLEW.
+
+        glewInit();
+
+    #define GLCOMPAT
+
+        if (!wglCreateContextAttribsARB)
+            wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
+
+        if (wglCreateContextAttribsARB) {
+            HGLRC hRC = NULL;
+            std::vector<int> attribList;
+    #define ADDATTRIB(a,b) { attribList.push_back(a); attribList.push_back(b); }
+            int maj = settings.major;
+            int min = settings.minor;
+            ADDATTRIB(WGL_CONTEXT_MAJOR_VERSION_ARB, maj)
+                ADDATTRIB(WGL_CONTEXT_MINOR_VERSION_ARB, min)
+                if (settings.core)
+                    ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB)
+                else
+                    ADDATTRIB(WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB)
+                    int ctxtflags = 0;
+            if (settings.debug)         ctxtflags |= WGL_CONTEXT_DEBUG_BIT_ARB;
+            if (settings.robust)        ctxtflags |= WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB;
+            if (settings.forward)       ctxtflags |= WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;  // use it if you want errors when compat options still used
+            ADDATTRIB(WGL_CONTEXT_FLAGS_ARB, ctxtflags);
+            ADDATTRIB(0, 0)
+                int* p = &(attribList[0]);
+            if (!(hRC = wglCreateContextAttribsARB(m_win->_hDC, 0, p)))
+            {
+                //LOGE("wglCreateContextAttribsARB() failed for OpenGL context.\n");
+                return false;
+            }
+            if (!wglMakeCurrent(m_win->_hDC, hRC)) {
+                //LOGE("wglMakeCurrent() failed for OpenGL context.\n"); 
+            }
+            else {
+                wglDeleteContext(m_win->_hRC);
+                m_win->_hRC = hRC;
+            
+                if ( settings.debug ) {
+                    if (__glewDebugMessageCallbackARB) {
+                        __glewDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC) wglGetProcAddress("glDebugMessageCallbackARB");
+                        __glewDebugMessageControlARB = (PFNGLDEBUGMESSAGECONTROLARBPROC) wglGetProcAddress("glDebugMessageControlARB");
+                    }
+                    glEnable(GL_DEBUG_OUTPUT);
+                    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+                    glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+                    glDebugMessageCallbackARB( sysCallbackGL, 0x0);
+                }
+            }
+        }
+        dbgprintf("  Initialize Glew.\n");
+        glewInit();
+        dbgprintf("  OpenGL Started. Version %s\n", glGetString(GL_VERSION) );
+
+        return true;
+    }
+
+    void Application::appSaveFrame(char* fname)
+    {        
+        int w = getWidth(), h = getHeight();        
+        unsigned char* pixbuf = (unsigned char*) malloc(w * h * 3);
+         
+        glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixbuf);     // Read back pixels
+
+        // Flip Y
+        int pitch = w * 3;
+        unsigned char* buf = (unsigned char*)malloc(pitch);
+        for (int y = 0; y < h / 2; y++) {
+            memcpy(buf, pixbuf + (y * pitch), pitch);
+            memcpy(pixbuf + (y * pitch), pixbuf + ((h - y - 1) * pitch), pitch);
+            memcpy(pixbuf + ((h - y - 1) * pitch), buf, pitch);
+        }
+        // Save png
+        #ifdef BUILD_PNG
+            save_png(fname, pixbuf, w, h, 3);
+        #endif
+
+        free(pixbuf);
+        free(buf);   
+    }
+
+#endif
+

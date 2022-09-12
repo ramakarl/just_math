@@ -152,7 +152,7 @@ Quaternion& Quaternion::set(const Vector3DF& vec)
 // Construct the dual portion of a dual-Quaternion (where 'this' is assumed to be the real/rotation part)			
 Quaternion& Quaternion::dual(Vector3DF pos) 
 {
-	return (Quaternion(pos, 0.0f) * (*this)) * 0.5f;
+	return (Quaternion(pos, 0.0f) * (*this) * 0.5f);
 }
 
 //! Check Quaternion equals the other one (within floating point rounding tolerance)

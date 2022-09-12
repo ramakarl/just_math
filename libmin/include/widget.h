@@ -55,6 +55,8 @@
 	#define OP_SCALE		8192
 	#define OP_ROTATE		16384
 
+	class nvImg;
+
 	struct HELPAPI Widget {
 		Vector4DF		rpos;			// relative position
 		Vector4DF		pos;			// abs. screen coordinates		
