@@ -62,7 +62,7 @@ The functionality in Libmin includes:
 Platforms: Tested on Win10, Visual Studio 2019<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
 
-Cmake build options should default to BUILD_OPENGL=ON, BUILD_CUDA=off, BUILD_CONSOLE=off.
+Cmake build options should default to BUILD_OPENGL=ON, BUILD_CUDA=off, BUILD_CONSOLE=off.<br>
 Keep these settings. CUDA and/or Console mode are not yet well supported.
 
 **Step 1)** Cmake and build Libmin. <br><br>
