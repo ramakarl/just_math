@@ -95,9 +95,12 @@ bool Sample::init ()
 	int w = getWidth(), h = getHeight();			// window width & height
 
 	addSearchPath ( ASSET_PATH );
-	init2D ( "arial" );
-	setview2D ( w, h );	
-	setText ( 16, 1 );		
+	
+	#ifdef USE_OPENGL
+		init2D ( "arial" );
+		setview2D ( w, h );	
+		setText ( 16, 1 );		
+	#endif
 	
 	mouse_mod = 1;
 
@@ -129,11 +132,13 @@ bool Sample::init ()
 
 void Sample::drawGrid()
 {
-	float o	 = -0.05;		// offset
-	for (int n=-100; n <= 100; n+=10 ) {
-		drawLine3D ( n, o,-100, n, o,100, .5,.5,.5, 1);
-		drawLine3D (-100, o, n, 100, o, n, .5, .5, .5, 1);
-	}
+	#ifdef USE_OPENGL
+		float o	 = -0.05;		// offset
+		for (int n=-100; n <= 100; n+=10 ) {
+			drawLine3D ( n, o,-100, n, o,100, .5,.5,.5, 1);
+			drawLine3D (-100, o, n, 100, o, n, .5, .5, .5, 1);
+		}
+	#endif
 }
 
 void Sample::RebuildLines ( Vector3DF angs ) 
@@ -214,11 +219,13 @@ void Sample::RemakeBasisFromLines(Basis& dest, Basis src, Basis constr, int i)
 
 void Sample::drawBasis (Basis& s) 
 {
-	Vector3DF a,b,c;
-	drawLine3D (s.ctr, s.ctr + s.fwd, Vector4DF(1,0,0,1) );
-	drawLine3D (s.ctr, s.ctr + s.up, Vector4DF(0,1, 0,1));
-	drawLine3D (s.ctr, s.ctr + s.side, Vector4DF(0,0,1,1) );
-	drawBox3D ( s.ctr+s.fwd-Vector3DF(.1,.1,.1), s.ctr + s.fwd +Vector3DF(.1,.1,.1), 1,0,0,1 );
+	#ifdef USE_OPENGL
+		Vector3DF a,b,c;
+		drawLine3D (s.ctr, s.ctr + s.fwd, Vector4DF(1,0,0,1) );
+		drawLine3D (s.ctr, s.ctr + s.up, Vector4DF(0,1, 0,1));
+		drawLine3D (s.ctr, s.ctr + s.side, Vector4DF(0,0,1,1) );
+		drawBox3D ( s.ctr+s.fwd-Vector3DF(.1,.1,.1), s.ctr + s.fwd +Vector3DF(.1,.1,.1), 1,0,0,1 );
+	#endif	
 }
 
 
@@ -230,60 +237,62 @@ void Sample::display ()
 	int w = getWidth();
 	int h = getHeight();
 
-	start2D();
-		setview2D(getWidth(), getHeight());
-		drawText(10, 20, "Input:", 1,1,1,1);
-		drawText(10, 35, "  Orbit view       Right-mouse drag", 1,1,1,1);		
-		drawText(10, 50, "  1 key            Select source object. Change the angular distribution, world coordinates", 1,1,1,1);		
-		drawText(10, 65, "  2 key            Select target object. Rotate the target basis", 1,1,1,1);			
-		drawText(10, 80, "  Modify selected  Left-click + drag", 1,1,1,1);		
-	end();
+	#ifdef USE_OPENGL
+		start2D();
+			setview2D(getWidth(), getHeight());
+			drawText(10, 20, "Input:", 1,1,1,1);
+			drawText(10, 35, "  Orbit view       Right-mouse drag", 1,1,1,1);		
+			drawText(10, 50, "  1 key            Select source object. Change the angular distribution, world coordinates", 1,1,1,1);		
+			drawText(10, 65, "  2 key            Select target object. Rotate the target basis", 1,1,1,1);			
+			drawText(10, 80, "  Modify selected  Left-click + drag", 1,1,1,1);		
+		end();
 
+		clearGL();
 
-	clearGL();
+		Vector3DF ctr;
 
-	Vector3DF ctr;
-
-	start3D(m_cam);
-		drawGrid();
+		start3D(m_cam);
+			drawGrid();
 				
-		RemakeBasisUpward ( basis[TRUNK], basis[UI], Vector3DF(10,0,0) );
+			RemakeBasisUpward ( basis[TRUNK], basis[UI], Vector3DF(10,0,0) );
 
-		RemakeBasisCopy( basis[TRUNK2], basis[TRUNK], Vector3DF(20, 0, 0));
-		RemakeBasisFromLines (basis[BRANCH0], basis[TRUNK2], basis[CONSTR], 0);
-		RemakeBasisFromLines (basis[BRANCH1], basis[TRUNK2], basis[CONSTR], 1);
-		RemakeBasisFromLines (basis[BRANCH2], basis[TRUNK2], basis[CONSTR], 2);
+			RemakeBasisCopy( basis[TRUNK2], basis[TRUNK], Vector3DF(20, 0, 0));
+			RemakeBasisFromLines (basis[BRANCH0], basis[TRUNK2], basis[CONSTR], 0);
+			RemakeBasisFromLines (basis[BRANCH1], basis[TRUNK2], basis[CONSTR], 1);
+			RemakeBasisFromLines (basis[BRANCH2], basis[TRUNK2], basis[CONSTR], 2);
 
 
-		// draw all basis
-		for (int b=0; b <= 6; b++ ) {
-			drawBasis( basis[b] );
+			// draw all basis
+			for (int b=0; b <= 6; b++ ) {
+				drawBasis( basis[b] );
 	
-			for (int n=0; n < m_lines.size(); n++) {				
-				// transform a point to an new basis (from the construction basis) 
-				//Matrix4F m;
-				//m.toBasis (basis[b].fwd, basis[b].up, basis[b].side );
-				Quaternion q;
-				q.toBasis (basis[b].fwd, basis[b].up, basis[b].side);
+				for (int n=0; n < m_lines.size(); n++) {				
+					// transform a point to an new basis (from the construction basis) 
+					//Matrix4F m;
+					//m.toBasis (basis[b].fwd, basis[b].up, basis[b].side );
+					Quaternion q;
+					q.toBasis (basis[b].fwd, basis[b].up, basis[b].side);
 
-				pnt = m_lines[n] * q;
-				ctr = basis[b].ctr;
-				clr = (n < 6 ? Vector4DF(1,1,1,1) : Vector4DF(1,1,1,.15 ) );
-				drawLine3D( ctr, ctr + pnt, clr );
+					pnt = m_lines[n] * q;
+					ctr = basis[b].ctr;
+					clr = (n < 6 ? Vector4DF(1,1,1,1) : Vector4DF(1,1,1,.15 ) );
+					drawLine3D( ctr, ctr + pnt, clr );
+				}
 			}
-		}
 
-		if ( mouse_down == AppEnum::BUTTON_LEFT ) {
-			Vector3DF h;
-			// draw a cyan ring to show how the UI basis works
-			h = Vector3DF(0, 5.0*basis[UI].fwd.y, 0 ) + basis[UI].ctr;
-			float r = 5.0 * sqrt(basis[UI].fwd.x* basis[UI].fwd.x + basis[UI].fwd.z* basis[UI].fwd.z);
-			drawCyl3D ( h, h+Vector3DF(0,.01,0), r, r+.05, Vector4DF(0,1,1,1));
-		}
-	end3D();
+			if ( mouse_down == AppEnum::BUTTON_LEFT ) {
+				Vector3DF h;
+				// draw a cyan ring to show how the UI basis works
+				h = Vector3DF(0, 5.0*basis[UI].fwd.y, 0 ) + basis[UI].ctr;
+				float r = 5.0 * sqrt(basis[UI].fwd.x* basis[UI].fwd.x + basis[UI].fwd.z* basis[UI].fwd.z);
+				drawCyl3D ( h, h+Vector3DF(0,.01,0), r, r+.05, Vector4DF(0,1,1,1));
+			}
+		end3D();
 
-	draw3D ();
-	draw2D (); 	
+		draw3D ();
+		draw2D (); 	
+	#endif
+
 	appPostRedisplay();								// Post redisplay since simulation is continuous
 }
 
@@ -375,8 +384,10 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
 void Sample::reshape (int w, int h)
 {
-	glViewport ( 0, 0, w, h );
-	setview2D ( w, h );
+	#ifdef USE_OPENGL
+		glViewport ( 0, 0, w, h );
+		setview2D ( w, h );
+	#endif
 
 	m_cam->setAspect(float(w) / float(h));
 	m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());

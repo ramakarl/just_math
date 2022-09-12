@@ -54,7 +54,7 @@ if (BUILD_OPENGL)
 	     LIST(APPEND LIBRARIES_DEBUG "opengl32.lib" )
 	ENDIF()
 	add_definitions(-DGLEW_STATIC)
-	file(GLOB COMMON_SOURCE_FILES "${LIBMIN_SRC}/glew.c" )   # Use GLEW (static)
+	file(GLOB COMMON_SOURCE_FILES "${LIBMIN_GLEW_DIR}/glew.c" )   # Use GLEW (static)
 	message ( STATUS "  ---> Using GLEW: ${COMMON_SOURCE_FILES}" )
 endif()
 
