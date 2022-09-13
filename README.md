@@ -61,7 +61,7 @@ The functionality in Libmin includes:
 ## How to Build
 Platforms:<br>
 Win10, Visual Studio 2019 - definitely<br>
-Win110/11, VS{other} - probably<br>
+Win10/11, VS{other} - probably<br>
 Linux - hypothetically<br>
 Mac - unknown<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
