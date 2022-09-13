@@ -59,8 +59,8 @@ The functionality in Libmin includes:
 - Widget library, very basic GUI (widget.h)
 
 ## How to Build
-Platforms: 
-Win10, VS2019 - definitely. tested here<br>
+Platforms:<br>
+Win10, Visual Studio 2019 - definitely<br>
 Win110/11, VS{other} - probably<br>
 Linux - hypothetically<br>
 Mac - unknown<br>
