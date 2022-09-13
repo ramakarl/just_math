@@ -59,7 +59,11 @@ The functionality in Libmin includes:
 - Widget library, very basic GUI (widget.h)
 
 ## How to Build
-Platforms: Tested on Win10, Visual Studio 2019<br>
+Platforms: 
+- Win10, VS2019 - definitely. tested here
+- Win110/11, VS{other} - probably
+- Linux - hypothetically
+- Mac - unknown
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
 
 Cmake build options should default to BUILD_OPENGL=ON, BUILD_CUDA=off, BUILD_CONSOLE=off.<br>
