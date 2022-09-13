@@ -60,10 +60,10 @@ The functionality in Libmin includes:
 
 ## How to Build
 Platforms: 
-- Win10, VS2019 - definitely. tested here
-- Win110/11, VS{other} - probably
-- Linux - hypothetically
-- Mac - unknown
+Win10, VS2019 - definitely. tested here<br>
+Win110/11, VS{other} - probably<br>
+Linux - hypothetically<br>
+Mac - unknown<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
 
 Cmake build options should default to BUILD_OPENGL=ON, BUILD_CUDA=off, BUILD_CONSOLE=off.<br>
