@@ -70,14 +70,20 @@ Cmake build options should default to BUILD_OPENGL=ON, BUILD_CUDA=off, BUILD_CON
 Keep these settings. CUDA and/or Console mode are not yet well supported.
 
 **Step 1)** Cmake and build Libmin. <br><br>
-`cmake -S \just_math\libmin -B \build\libmin`<br><br>
+Windows: `cmake -S \just_math\libmin -B \build\libmin`<br><br>
+Linux: `cmake -DBUILD_OPENGL=OFF`
+ (you may need to create a libmin\bin folder and copy liblibmin.so into libmin\bin\libmind.so and libmin\bin\libmin.so)<br><br>
+
 The binary (build) path should be outside of the source \just_math folder.<br>
 You must successfully build libmin before proceeding to step 2.<br>
 
 **Step 2)** Cmake and build sample. <br><br>
-`cmake -S \just_math\raycast -B \build\raycast`<br><br>
+Windows: `cmake -S \just_math\raycast -B \build\raycast`<br><br>
+Linux: `cmake -DBUILD_OPENGL=OFF -DBUILD_CONSOLE=ON -DLIBMIN_ROOT_DIR={abspath}`<br><br>
+
 The binary (build) path should be outside of the source \just_math folder.<br>
-Run the sample.<br>
+Build and run the sample.<br>
+
 
 ## Contributions
 I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If you have similar interests contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
