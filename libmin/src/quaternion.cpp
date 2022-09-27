@@ -150,9 +150,10 @@ Quaternion& Quaternion::set(const Vector3DF& vec)
 }
 
 // Construct the dual portion of a dual-Quaternion (where 'this' is assumed to be the real/rotation part)			
-Quaternion& Quaternion::dual(Vector3DF pos) 
+Quaternion Quaternion::dual(Vector3DF pos)
 {
-	return (Quaternion(pos, 0.0f) * (*this) * 0.5f);
+  return Quaternion(pos, 0.0f) * (*this) * 0.5f;
+	//return (Quaternion(pos, 0.0f) * (*this) * 0.5f);
 }
 
 //! Check Quaternion equals the other one (within floating point rounding tolerance)
@@ -164,7 +165,7 @@ bool Quaternion::equals(const Quaternion& other, const f32 tolerance) const
 		fequal(W, other.W, tolerance);
 }
 
-void Quaternion::fixround() 
+void Quaternion::fixround()
 {
 	if (fabs(X) < ROUNDING_ERROR_f64) X = 0;
 	if (fabs(Y) < ROUNDING_ERROR_f64) Y = 0;
@@ -180,14 +181,15 @@ Quaternion& Quaternion::normalize()
 	//n = 1.0f / sqrtf(n);
 	return (*this *= fast_inv_squareroot(n));
 }
+
 // q^-1 = inverse = <-Qxyz, Qw> / ||Q||
-Quaternion Quaternion::inverse() 
-{ 
+Quaternion Quaternion::inverse()
+{
 	float N = fast_inv_squareroot(X*X+Y*Y+Z*Z+W*W);
-	return Quaternion(-X*N, -Y*N, -Z*N, W*N); 
+	return Quaternion(-X*N, -Y*N, -Z*N, W*N);
 }		
 
-// q* = conjugate inverse 
+// q* = conjugate inverse
 Quaternion Quaternion::conjugate()
 {
 	return Quaternion(-X, -Y, -Z, W);		// note: q* = q^-1 when N=||q||=1  (NOT WHEN W=1)
@@ -233,7 +235,7 @@ Quaternion& Quaternion::toBasis (Vector3DF a, Vector3DF b, Vector3DF c)
 	return *this;
 }
 
-// Linear interpolation - set this Quaternion to the result of the linear interpolation 
+// Linear interpolation - set this Quaternion to the result of the linear interpolation
 Quaternion& Quaternion::lerp(Quaternion q1, Quaternion q2, f32 time)
 {
 	const f32 scale = 1.0f - time;
@@ -241,7 +243,7 @@ Quaternion& Quaternion::lerp(Quaternion q1, Quaternion q2, f32 time)
 }
 
 
-// Spherical interpolation - set this Quaternion to the result of the spherical interpolation 
+// Spherical interpolation - set this Quaternion to the result of the spherical interpolation
 //
 // def. SLERP(q0,q1) = q0 exp( u log(q0.conj q1))
 //
@@ -283,7 +285,7 @@ void Quaternion::toAngleAxis(f32& angle, Vector3DF& axis) const
 {
 	const f32 scale = sqrtf(X * X + Y * Y + Z * Z);
 
-	if (fabs(scale) < EPS || W > 1.0f || W < -1.0f)
+	if (fabs(scale) < Q_EPS || W > 1.0f || W < -1.0f)
 	{
 		angle = 0.0f;
 		axis.x = 0.0f;

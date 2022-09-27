@@ -2057,7 +2057,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
 		}
 		fprintf ( fp, "%s\n", buf);
 	}
-	fprintf ( fp, "---------------------------------------\n", buf);
+	fprintf ( fp, "---------------------------------------\n" );
 	fflush ( fp );
 	fclose ( fp );	
 }

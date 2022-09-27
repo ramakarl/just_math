@@ -68,7 +68,7 @@ void Image::RemapBGR24 ( unsigned int vmin, unsigned int vmax )
 	XBYTE* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
 	
 	unsigned long mMin, mMax;
-	mMin = (unsigned long(1) << 16)-1;
+	mMin = (((unsigned long)(1)) << 16)-1;
 	mMax = 0;
 	for (; src < src_stop; ) {
 		if ( *src < mMin ) mMin = *src;

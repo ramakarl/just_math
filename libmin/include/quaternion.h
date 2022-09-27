@@ -42,7 +42,7 @@
 	#include "vec.h"
 	//#include "matrix.h"
 
-	#define EPS		0.00001
+	#define Q_EPS		0.00001
 
 	// Quaternion
 	// - concisely express an orientation
@@ -97,10 +97,10 @@
 			Quaternion identity() { return Quaternion(0,0,0,1.f); }
 
 			// Fix Quaternion within rounding tolerance
-			void Quaternion::fixround();
+			void fixround();
 
 			//! Normalizes the Quaternion
-			inline Quaternion& normalize();
+			Quaternion& normalize();
 
 			// Get operators
 			Matrix4F getMatrix() const;									// Creates a matrix from this Quaternion
@@ -112,7 +112,7 @@
 			Quaternion inverse ();										// q^-1 = inverse = <-qxyz, qw>/||q||
 			Quaternion conjugate ();									// q* = conjugate = <-qxyz, qw>
 			Quaternion negative() { return Quaternion(X, Y, Z, -W); }	// -q = negative quaternion (-W)
-			Quaternion& dual(Vector3DF pos);							// dual portion of a dual quaternion
+			Quaternion dual(Vector3DF pos);							// dual portion of a dual quaternion
 			
 			// Construct quaternion from orthonormal basis
 			Quaternion& toBasis (Vector3DF c1, Vector3DF c2, Vector3DF c3 );
