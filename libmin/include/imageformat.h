@@ -22,8 +22,11 @@
 	#include "image.h"
 	#include "image_info.h"
 	#include <stdio.h>
+
+#ifdef WIN32
 	#include <windows.h>
 	#include <conio.h>
+#endif
 
 	#define FILE_NAMELEN	512
 

@@ -4,15 +4,15 @@
 // * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
 //
 // MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+// associated documentation files (the "Software"), to deal in the Software without restriction, including without
+// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 // and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 // The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 // OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
@@ -254,7 +254,7 @@ void Widgets::Draw ()
 		//drawText ( 20, 180, txt, 1,0,0,1 );				// debug
 
 		end2D();
-	#endif 
+	#endif
 }
 
 bool Widgets::OnMouse ( AppEnum button, AppEnum state, int mods, int x, int y, Widget3D& dw, bool& finish)
@@ -407,7 +407,7 @@ bool Widgets::OnKeyboard ( int key )
 				txt = txt.substr(0, mFocusPos) + ch + txt.substr(mFocusPos);		// insert key
 			}			
 			PushEvent('wKey', mFocus, key);
-			mFocusPos++;		// advance the cursor 
+			mFocusPos++;		// advance the cursor
 		} else {
 			return false;		// KEY WAS NOT PROCESSED
 		}
@@ -469,15 +469,15 @@ void Widgets::Create3D ( ushort ops, Vector3DF pos, Vector3DF angs, Vector3DF sc
 void Widgets::SetOpt3D ( int w, ushort op, bool on )
 {
 	if (w==-1) return;
-	if ( on ) 
+	if ( on )
 		mWidgets3D[w].opts |= op;
-	else 
+	else
 		mWidgets3D[w].opts &= ~op;
 }
 
 #define max3(a,b,c)		( (a>b) ? ((a>c) ? a : c) : ((b>c) ? b : c) )
 
-// Draw3D - 
+// Draw3D -
 // This function draws a set of 3D GUI interface widgets
 // Each widget is drawn with translation handles and rotation rings.
 // Axes or rings are drawn highlighted if they are currently active (undergoing update)
@@ -487,10 +487,10 @@ void Widgets::Draw3D ()
 
 		Widget3D* w;
 		Vector3DF p0, p1, p2, p3;
-		Vector4DF gray (.7,.7,.7,1); 
+		Vector4DF gray (.7,.7,.7,1);
 		Vector4DF act;
 
-		float sz = mWidgetSize3D * min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
+		float sz = mWidgetSize3D * std::min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
 		float sc = sz * 0.025f;
 
 		// activations
@@ -529,7 +529,7 @@ void Widgets::Draw3D ()
 					drawCircle3D(p0, p0 + p3, sz, (mAct == ACT_ROTZ) ? Vector4DF(0, 0, 1, 1) : gray);
 				}
 				if ( hasOpt3D(n, OP_BOX))
-					drawBox3DXform ( Vector3DF(0,0,0), Vector3DF(1,1,1), w->clr, w->xform ); 
+					drawBox3DXform ( Vector3DF(0,0,0), Vector3DF(1,1,1), w->clr, w->xform );
 			}
 		}
 
@@ -540,7 +540,7 @@ void Widgets::Draw3D ()
 	#endif
 }
 
-// Action3D - 
+// Action3D -
 // This function detects interaction with a 3D GUI interface widget.
 // Detects the hit condition with translation axes or with rotation rings.
 bool Widgets::OnAction3D(int wi, int x, int y)
@@ -556,7 +556,7 @@ bool Widgets::OnAction3D(int wi, int x, int y)
 	bool scale = hasOpt3D(wi, OP_SCALE);
 	bool rotate = hasOpt3D(wi, OP_ROTATE);
 
-	float sz = mWidgetSize3D * min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
+	float sz = mWidgetSize3D * std::min(1.0f, mCam->getOrbitDist() / 32.0f);				// widget size, limited by zoom
 
 	float sc = sz * 0.02f * 16.f;			// axis hits
 	float scr = sc; // /2.f;						// rotation hits
@@ -600,10 +600,10 @@ bool Widgets::OnAction3D(int wi, int x, int y)
 	return false;
 }
 
-// Update3D - 
+// Update3D -
 // This function computes the transformations for a 3D GUI interface widget,
 // with translation along x/y/z axes, and rotation using x/y/z rings.
-// Proper computation here uses the saved widget transformation state on mousedown (mActWgOrig), 
+// Proper computation here uses the saved widget transformation state on mousedown (mActWgOrig),
 // and then computes the stable translation or rotation delta from that.
 bool Widgets::OnUpdate3D ( int wi, int x, int y )
 {
@@ -617,10 +617,10 @@ bool Widgets::OnUpdate3D ( int wi, int x, int y )
 	Quaternion q;
 	
 	// get the widget local axes
-	float sz = mWidgetSize3D * min(1.0f, mCam->getOrbitDist() / 32.0f) ;				// widget size, limited by zoom	
+	float sz = mWidgetSize3D * std::min(1.0f, mCam->getOrbitDist() / 32.0f) ;				// widget size, limited by zoom
 
 	float d;
-	p0 = mActWgOrig.pos; 
+	p0 = mActWgOrig.pos;
 	p1.Set(sz,0,0); p1 = mActWgOrig.rot.rotateVec(p1);		// x-norm
 	p2.Set(0,sz,0); p2 = mActWgOrig.rot.rotateVec(p2);		// y-norm
 	p3.Set(0,0,sz); p3 = mActWgOrig.rot.rotateVec(p3);		// z-norm
@@ -693,7 +693,7 @@ bool Widgets::IntersectBox3D ( Vector3DF pos, Vector3DF piv, Vector3DF scale, Qu
 	Vector3DF c2 = mCam->inverseRay (x, y, mXres, mYres);
 	
 	rot = rot.inverse();
-	c1 -= pos; c1 = rot.rotateVec(c1); 
+	c1 -= pos; c1 = rot.rotateVec(c1);
 	c2 = rot.rotateVec(c2);	c2.Normalize();
 
 	Vector3DF t = intersectLineBox ( c1, c1+c2, piv*scale, scale );

@@ -84,8 +84,22 @@
 
       #else   // ANDOID and linux
 
+        #include <math.h>
+        #include <assert.h>
+        #include <string.h>
+
             #define ALIGN(x)		__attribute__ ((aligned(x)))
             #define CACHE_ALIGNED   __attribute__ ((aligned(64)))
+
+    // XXX
+        #if !defined ( LIBHELP_STATIC )
+          #if defined ( LIBHELP_EXPORTS )				// inside DLL
+            #define HELPAPI		__attribute__((visibility("default")))
+          #else										// outside DLL
+            #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
+          #endif
+        #endif
+
 
             #include "inttypes.h"
 

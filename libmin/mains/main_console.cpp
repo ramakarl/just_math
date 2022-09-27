@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <fcntl.h>
-#include <io.h>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
@@ -17,6 +16,7 @@
 #ifdef WIN32
     #include <windows.h>
     #include <time.h>           // for clock() 
+    #include <io.h>
 #else
     #include <unistd.h>     // linux
 #endif

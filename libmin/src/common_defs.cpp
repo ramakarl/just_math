@@ -170,6 +170,7 @@ void strncpy_sc (char *dst, size_t dstsz, const char *src, size_t len )
 
 void checkMem(xlong& total, xlong& used, xlong& app)
 {
+#ifdef WIN32
     struct _MEMORYSTATUSEX memx;
     memset(&memx, 0, sizeof(memx));
     memx.dwLength = sizeof(memx);
@@ -184,6 +185,7 @@ void checkMem(xlong& total, xlong& used, xlong& app)
     app = 0;
     if (result)
         app = pmc.WorkingSetSize;
+#endif
 }
 
 
@@ -498,11 +500,3 @@ void checkMem(xlong& total, xlong& used, xlong& app)
 
 #endif
 
-  
-
-
-
-
-
-
-        

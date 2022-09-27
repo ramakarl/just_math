@@ -435,7 +435,7 @@ void Sample::ComputeBelief (int id, int id_vol)
 		vox->y = bi[1] + bi[3];
 		vox->z = bi[2];
 		//vox->w = max(bi[0], max(bi[1], max(bi[2], bi[3])));
-		vox->w = max(bi[0], max(bi[1], bi[2]));
+		vox->w = std::max(bi[0], std::max(bi[1], bi[2]));
 		vox++;
 	}
 
