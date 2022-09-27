@@ -62,7 +62,7 @@ The functionality in Libmin includes:
 Platforms:<br>
 Win10, Visual Studio 2019 - definitely<br>
 Win10/11, VS{other} - probably<br>
-Linux - hypothetically<br>
+Linux - yes, libmin and math_belief_prop only<br>
 Mac - unknown<br>
 Dependencies: OpenGL only, CUDA is optional (flag at cmake time)<br>
 
