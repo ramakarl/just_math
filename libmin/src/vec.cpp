@@ -2070,7 +2070,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
  
 //----------------- Geometry utilities
 //
-
+/*
 #define EPS		0.000001
 
 // Line A: p1 to p2
@@ -2204,3 +2204,4 @@ Vector3DF moveHit3D(Camera3D* cam, int x, int y, Vector3DF target, Vector3DF pla
 	Vector3DF hit = intersectLinePlane(cam->getPos(), cam->getPos() + dir, target, plane_norm);
 	return hit;	
 }
+*/

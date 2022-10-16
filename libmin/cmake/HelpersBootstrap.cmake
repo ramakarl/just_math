@@ -22,7 +22,8 @@ set ( LIBRARIES_INC_DIR "${_libraries}/include" CACHE PATH "Third-party includes
 set ( LIBRARIES_LIB_DIR "${_libraries}/win64" CACHE PATH "Third-party libs.")
 include_directories( ${LIBRARIES_INCLUDE_PATH} )	
 
-set ( DEBUG_HEAP false CACHE BOOL "Enable heap checking (debug or release).")
+#set ( DEBUG_HEAP false CACHE BOOL "Enable heap checking (debug or release).")
+set ( DEBUG_HEAP true CACHE BOOL "Enable heap checking (debug or release).")
 if ( ${DEBUG_HEAP} )
    add_definitions( -DDEBUG_HEAP)
    add_definitions( -D_CRTDBG_MAP_ALLOC)

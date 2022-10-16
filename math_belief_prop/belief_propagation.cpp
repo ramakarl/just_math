@@ -31,19 +31,17 @@
 //
 // Sample utils
 #include <algorithm>
-#include "main.h"      // window system 
-#include "nv_gui.h"      // gui system
-#include "image.h"
 #include "mersenne.h"
-#include "camera3d.h"
 #include "dataptr.h"
 
+/*
 #ifdef USE_OPENGL
   #include <GL/glew.h>
 #endif
 #ifdef USE_CUDA
   #include "common_cuda.h"
 #endif
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,24 +59,13 @@
 #define BUF_MU_NXT    5    // beliefprop, mu'{i,j}(a,b) vector
 #define BUF_BELIEF    6    // Belief array
 
-class Sample : public Application {
+class BeliefPropagation {
 public:
-  virtual void startup();
   virtual bool init();
-  virtual void display();
-  virtual void reshape(int w, int h);
-  virtual void motion(AppEnum button, int x, int y, int dx, int dy);
-  virtual void keyboard(int keycode, AppEnum action, int mods, int x, int y);
-  virtual void mouse(AppEnum button, AppEnum state, int mods, int x, int y);
-  virtual void mousewheel(int delta);
-  virtual void shutdown();
-  
+  virtual void step();
+
   // volumes
   void    AllocBuffer(int id, Vector3DI res, int chan=1);
-  float    getVoxel ( int id, int x, int y, int z );
-  Vector4DF  getVoxel4 ( int id, int x, int y, int z );
-  void    WriteFunc (int id, float time);
-  void    RaycastCPU ( Camera3D* cam, int id, Image* img );
 
   // belief prop
   void    Restart();
@@ -115,8 +102,6 @@ public:
   uint64_t  m_num_values;    //  B = 0..Bm-1 (value domain)  
   Vector3DI  m_bpres;      // 3D spatial belief prop res
 
-  Camera3D*  m_cam;        // camera
-  Image*    m_img;        // output image  
   Vector3DI  m_res;        // volume res
 
   DataPtr    buf[128];      // data buffers (CPU & GPU)  
@@ -131,35 +116,28 @@ public:
 
   Mersenne  m_rand;
 };
-Sample obj;
+
+//Sample obj;
 
 //---- volume buffers
-void Sample::AllocBuffer (int id, Vector3DI res, int chan)    // volume alloc
+//
+void BeliefPropagation::AllocBuffer (int id, Vector3DI res, int chan)    // volume alloc
 {
   uint64_t cnt = res.x*res.y*res.z;
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   buf[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
 }
-float Sample::getVoxel ( int id, int x, int y, int z )
-{
-  float* dat = (float*) buf[id].getPtr ( (z*m_res.y + y)*m_res.x + x );
-  return *dat;
-}
-Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
-{
-  Vector4DF* dat = (Vector4DF*) buf[id].getPtr ( (z*m_res.y + y)*m_res.x + x );  
-  return *dat;
-}
 
 //---- belief prop buffers
-void Sample::AllocBPVec (int id, int cnt)            // vector alloc (h and g)
+//
+void BeliefPropagation::AllocBPVec (int id, int cnt)            // vector alloc (h and g)
 {
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   buf[id].Resize( sizeof(float), cnt, 0x0, flags );
 }
 
 // allocate message matrix mu
-void Sample::AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals)    // belief matrix alloc (mu)
+void BeliefPropagation::AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals)    // belief matrix alloc (mu)
 {
   // NOTE: matrix is stored sparesly. 
   // full matrix: mem=D*D*B, mu{D->D}[B] is full vertex-to-vertex messages over values B, where D=R^3, e.g. D=64^3, B=4, mem=262144^2*4 floats= 1 terabyte
@@ -169,20 +147,20 @@ void Sample::AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals)    // 
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   buf[id].Resize( sizeof(float), cnt, 0x0, flags );
 }
-void Sample::AllocBPMap (int id, int nbrs, int vals)        // belief value mapping (f)
+void BeliefPropagation::AllocBPMap (int id, int nbrs, int vals)        // belief value mapping (f)
 {
   uint64_t cnt = vals * vals * nbrs;    // size B*B*6
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   buf[id].Resize( sizeof(float), cnt, 0x0, flags );
 }
 
-uint64_t Sample::getVertex(int x, int y, int z)
+uint64_t BeliefPropagation::getVertex(int x, int y, int z)
 {
   return uint64_t(z*m_bpres.y + y)*m_bpres.x + x;
 }
 
 // domain index to 3D pos
-Vector3DI Sample::getVertexPos(uint64_t j)
+Vector3DI BeliefPropagation::getVertexPos(uint64_t j)
 {
   Vector3DI p;
   p.z = j / (m_bpres.x*m_bpres.y);  j -= p.z * (m_bpres.x*m_bpres.y);
@@ -192,7 +170,7 @@ Vector3DI Sample::getVertexPos(uint64_t j)
 }
 
 // get 3D grid neighbor 
-uint64_t Sample::getNeighbor( uint64_t j, int nbr )
+uint64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr )
 {
   Vector3DI jp = getVertexPos(j);
 
@@ -208,7 +186,7 @@ uint64_t Sample::getNeighbor( uint64_t j, int nbr )
   return -1;
 }
 
-void Sample::ConstructF ()
+void BeliefPropagation::ConstructF ()
 {
   int B = m_num_values;
 
@@ -219,17 +197,6 @@ void Sample::ConstructF ()
   
   
   std::vector<Vector4DF> rules;
-
-  // x = src tile, y=dest tile, z=probability, w=neighbor, w<0=all nbrs    
-  
-  /*float OK = 1.0;
-  rules.push_back( Vector4DF(0,0,0,OK) );    // red<->red, X+
-  rules.push_back( Vector4DF(0,0,1,OK) );    // red<->red, X-
-  rules.push_back( Vector4DF(0,0,2,0) );    // red<->red, Y+
-  rules.push_back( Vector4DF(0,0,3,0) );    // red<->red, Y-
-
-  rules.push_back( Vector4DF(0,0,2,0) );    // red<->red, Y+
-  rules.push_back( Vector4DF(0,0,3,0) );    // red<->red, Y- */
 
   float h=0.5;
   rules.push_back( Vector4DF(0,1,-1,h) );    // red<->grn
@@ -245,24 +212,7 @@ void Sample::ConstructF ()
   rules.push_back( Vector4DF(1,1,-1,1) );    // green<->green
   rules.push_back( Vector4DF(0,0,-1,1) );    // red<->red  - red can connect to itself, in any direction (w<0) 
 
-  /*
-  rules.push_back( Vector4DF(0,0,1,0) );    // red<->red
-  rules.push_back( Vector4DF(0,0,1,1) );
-  rules.push_back( Vector4DF(1,1,1,2) );    // grn<->grn
-  rules.push_back( Vector4DF(1,1,1,3) );    
-  
-  rules.push_back( Vector4DF(2,0,1,0) );    // red->blue, X+  
-  rules.push_back( Vector4DF(2,0,1,1) );    // red->blue, X-
-  rules.push_back( Vector4DF(2,1,1,2) );    // grn->blue, Y+
-  rules.push_back( Vector4DF(2,1,1,3) );    // grn->blue, Y-
-  */
-
-  /*
-  rules.push_back( Vector4DF(0,3,h,-1) );    // any color to empty    
-  rules.push_back( Vector4DF(1,3,h,-1) );    
-  rules.push_back( Vector4DF(2,3,h,-1) );
-  */
-  
+ 
   Vector4DF r;
   for (int n=0; n < rules.size(); n++) {
     r = rules[n];
@@ -274,35 +224,9 @@ void Sample::ConstructF ()
     }
   }
 
-  /*
-  float p = 0.5;
-  float q = 0.45;
-  SetVal ( BUF_F, 0, 0, 1 );
-  SetVal ( BUF_F, 1, 1, 1 );
-  SetVal ( BUF_F, 2, 2, 1 );
-  SetVal ( BUF_F, 3, 3, 1 );
-
-  SetVal ( BUF_F, 0, 1, q );    // red-grn
-  SetVal ( BUF_F, 1, 0, q );
-
-  SetVal ( BUF_F, 0, 2, 0 );    // red-blue
-  SetVal ( BUF_F, 2, 0, 0 );
-
-  SetVal ( BUF_F, 0, 3, p );    // red-empty
-  SetVal ( BUF_F, 3, 0, p );
-
-  SetVal ( BUF_F, 1, 2, 0 );    // green-blue
-  SetVal ( BUF_F, 2, 1, 0 );
-
-  SetVal ( BUF_F, 1, 3, 0 );    // green-empty
-  SetVal ( BUF_F, 3, 1, 0 );
-
-  SetVal ( BUF_F, 2, 3, p );    // blue-empty
-  SetVal ( BUF_F, 3, 2, p );
-  */
 }
 
-void Sample::ConstructGH ()
+void BeliefPropagation::ConstructGH ()
 {
   AllocBPVec ( BUF_G, m_num_values );
   AllocBPVec ( BUF_H, m_num_values );
@@ -315,7 +239,7 @@ void Sample::ConstructGH ()
 
 
 
-void Sample::ConstructMU ()
+void BeliefPropagation::ConstructMU ()
 {
   AllocBPMtx ( BUF_MU, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_NXT, 6, m_num_verts, m_num_values );
@@ -340,7 +264,7 @@ void Sample::ConstructMU ()
     }
 }
 
-void Sample::NormalizeMU ()
+void BeliefPropagation::NormalizeMU ()
 {
   int i;
   float v, sum;
@@ -362,7 +286,7 @@ void Sample::NormalizeMU ()
   }
 }
 
-float Sample::BeliefProp ()
+float BeliefPropagation::BeliefProp ()
 {  
   uint64_t i, j, k;
   float H_ij_a;
@@ -459,7 +383,7 @@ float Sample::BeliefProp ()
   return max_diff;
 }
 
-void Sample::UpdateMU ()
+void BeliefPropagation::UpdateMU ()
 {  
   float* mu_curr = (float*) buf[BUF_MU].getData();
   float* mu_next = (float*) buf[BUF_MU_NXT].getData();
@@ -468,7 +392,7 @@ void Sample::UpdateMU ()
   memcpy ( mu_curr, mu_next, cnt * sizeof(float) );
 }
 
-float Sample::_getVertexBelief ( uint64_t j, float* bi )
+float BeliefPropagation::_getVertexBelief ( uint64_t j, float* bi )
 {
   uint64_t k;
   float sum = 0;
@@ -487,7 +411,7 @@ float Sample::_getVertexBelief ( uint64_t j, float* bi )
   return sum;
 }
 
-float Sample::getVertexBelief ( uint64_t j )
+float BeliefPropagation::getVertexBelief ( uint64_t j )
 {
   uint64_t k;
   float sum = 0;
@@ -521,7 +445,7 @@ float Sample::getVertexBelief ( uint64_t j )
   return sum;
 }
 
-void Sample::ComputeBelief (int id, int id_vol)
+void BeliefPropagation::ComputeBelief (int id, int id_vol)
 {
   int k;
   float sum;
@@ -583,110 +507,7 @@ void Sample::ComputeBelief (int id, int id_vol)
   
 }
 
-void Sample::WriteFunc (int id, float time)
-{
-  Vector3DF c, d;
-  float v;
-  Vector4DF* dat = (Vector4DF*) buf[id].getData();
-  Vector4DF* vox = dat;
-  
-  c = m_res / 2;
-
-  float maxv = sqrt(c.x*c.x + c.y*c.y + c.z*c.z );
-  Vector3DF s;
-
-  for (int z=0; z < m_res.z; z++)
-    for (int y=0; y < m_res.y; y++)
-      for (int x=0; x < m_res.x; x++) {
-        d.Set ( (x-c.x), (y-c.y), (z-c.z) );
-        
-        //v = max(0.6 - (sqrt(d.x*d.x + d.y*d.y + d.z*d.z) / maxv), 0);    // sphere
-        
-        v = sin(d.x*d.y*d.z*0.0001 + time*0.1)*0.5+0.5;            // sin(x*y*z + t)
-        v = v*v*v;
-        
-        /*s.x = sin (d.x*0.1 + time*0.1)*0.25+0.5;              // sin(x)+cos(z) < y
-        s.z = cos (d.z*0.2 + time*0.1)*0.25+0.5;
-        v = (y < (s.x+s.z)*c.y ) ? 1.0 : 0;   */
-
-        vox->x = float(x)/m_res.x;
-        vox->y = float(y)/m_res.y;
-        vox->z = float(z)/m_res.z;
-        vox->w = v; 
-        vox++;
-      }
-
-  if ( m_run_cuda )
-    buf[id].Commit ();      // commit to GPU
-}
-
-void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img )
-{
-  Vector3DF rpos, rdir;
-  Vector4DF clr;
-
-  Vector3DF vmin (0,0,0);
-  Vector3DF vmax (1,1,1);
-  Vector3DF wp, dwp, p, dp, t;
-  Vector3DF vdel = m_res;
-  Vector4DF val;
-  int iter;
-  float alpha, k;
-  float pStep = 0.005;        // volume quality   - lower=better (0.01), higher=worse (0.1)
-  float kDensity = 4.0;        // volume density   - lower=softer, higher=more opaque
-  float kIntensity = 8.0;        // volume intensity - lower=darker, higher=brighter
-  float kWidth = 4.0;          // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
-
-  int xres = img->GetWidth();
-  int yres = img->GetHeight();
-  
-  // for each pixel in image..
-  m_peak_iter = 0;
-  for (int y=0; y < yres; y++) {
-    for (int x=0; x < xres; x++) {
-      
-      // get camera ray
-      rpos = cam->getPos();
-      rdir = cam->inverseRay ( x, y, xres, yres );  
-      rdir.Normalize();
-
-      // intersect with volume box
-      t = intersectLineBox ( rpos, rdir, vmin, vmax );
-      clr.Set(0,0,0,0);
-      if ( t.z >= 0 ) {
-        // hit volume, start raycast...    
-        wp = rpos + rdir * t.x + Vector3DF(0.001, 0.001, 0.001);    // starting point in world space        
-        dwp = (vmax-vmin) * rdir * pStep;                // ray sample stepping in world space
-        p = Vector3DF(m_res-1) * (wp - vmin) / (vmax-vmin);        // starting point in volume        
-        dp = Vector3DF(m_res-1) * rdir * pStep;              // step delta along ray
-        
-        // accumulate along ray
-        for (iter=0; iter < 512 && clr.w < 0.95 && p.x >= 0 && p.y >= 0 && p.z >= 0 && p.x < m_res.x && p.y < m_res.y && p.z < m_res.z; iter++) {
-          val = getVoxel4 ( BUF_VOL, p.x, p.y, p.z );          // get voxel value
-          alpha = val.w;                        // opacity = linear transfer
-          //alpha = 1.0 / (1+exp(-(val.w-1.0)*kWidth));        // opacity = sigmoid transfer - accentuates boundaries at 0.5
-          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color            
-          clr.w += alpha * kDensity * pStep;              // attenuate alpha          
-          p += dp;                           // next sample
-        }  
-        if (iter > m_peak_iter) m_peak_iter = iter;
-        if (clr.x > 1.0) clr.x = 1;
-        if (clr.y > 1.0) clr.y = 1;
-        if (clr.z > 1.0) clr.z = 1;
-        clr *= 255.0;
-      }  
-      // set pixel
-      img->SetPixel ( x, y, clr.x, clr.y, clr.z );
-    }
-  }
-
-  #ifdef USE_OPENGL
-    //commit image to OpenGL (hardware gl texture) for on-screen display
-    img->Commit ( DT_GLTEX );      
-  #endif
-}
-
-void Sample::Restart()
+void BeliefPropagation::Restart()
 {
   m_rand.seed ( m_seed++ );  
 
@@ -843,15 +664,13 @@ int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
 
 //----
 
-bool Sample::init()
+bool BeliefPropagation::init()
 {
   int i;
   std::string name_fn = "examples/stair_name.csv";
   std::string rule_fn = "examples/stair_rule.csv";
   std::vector< std::string > tile_name;
   std::vector< std::vector<float> > tile_rule;
-
-  addSearchPath(ASSET_PATH);
 
   _read_name_csv(name_fn, tile_name);
   _read_rule_csv(rule_fn, tile_rule);
@@ -903,10 +722,6 @@ bool Sample::init()
   m_run       = true;
   m_save      = false;
 
-  m_cam = new Camera3D;
-  m_cam->setOrbit ( 30, 20, 0, Vector3DF(.5,.5,.5), 10, 1 );
-  m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );
   AllocBuffer ( BUF_VOL, m_res, 4 );
 
   printf("init done\n"); fflush(stdout);
@@ -951,12 +766,6 @@ bool Sample::init()
 
   Restart();
 
-  m_cam = new Camera3D;                // create camera
-  m_cam->setOrbit ( 30, 20, 0, Vector3DF(.5,.5,.5), 10, 1 );
-
-  m_img = new Image;                  // create image
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );  // image resolution (output)
-
   #ifdef USE_CUDA    
     if ( m_run_cuda ) {
       CUcontext ctx; 
@@ -971,54 +780,7 @@ bool Sample::init()
 
 }
 
-/*
-bool Sample::init()
-{
-  addSearchPath(ASSET_PATH);
-
-  #ifdef USE_OPENGL
-    init2D("arial");
-    setText(18,1);
-  #endif
-
-  // options
-  m_frame = 0;  
-  m_run_cuda = false;    // run cuda pathway  
-  m_run = true;      // run belief prop
-  m_save = true;      // save to disk
-  
-  int R = 32;
-
-  // belief propagation setup
-  m_bpres.Set ( R, R, R );    // D = R^3
-  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
-  m_num_values = 4;
-  
-  m_res.Set ( R, R, R );              // volume resolution
-
-  Restart();
-
-  m_cam = new Camera3D;                // create camera
-  m_cam->setOrbit ( 30, 20, 0, Vector3DF(.5,.5,.5), 10, 1 );
-
-  m_img = new Image;                  // create image
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );  // image resolution (output)
-
-  #ifdef USE_CUDA    
-    if ( m_run_cuda ) {
-      CUcontext ctx; 
-      CUdevice dev;
-      cuStart ( DEV_FIRST, 0, dev, ctx, 0, true );    // start CUDA
-    }
-  #endif
-
-  AllocBuffer ( BUF_VOL, m_res, 4 );          // allocate color volume (4 channel)
-
-  return true;
-}
-*/
-
-void Sample::display()
+void BeliefPropagation::step()
 {
   float md= 0.0;
   char savename[256] = {'\0'};
@@ -1038,135 +800,13 @@ void Sample::display()
     UpdateMU();
     NormalizeMU();  
 
-    printf("cp.display.0 (--> %f)\n", md); fflush(stdout);
+    printf("cp.step.0 (--> %f)\n", md); fflush(stdout);
   }
 
-
-  // raycast
-  /*
-  RaycastCPU ( m_cam, BUF_VOL, m_img );      // raycast volume
-
-  // optional write to disk
-  if ( m_save ) {    
-    sprintf ( savename, "out%04d.png", (int) m_frame );
-    m_img->Save ( savename );        
-    m_frame++;
-  } else {
-    sprintf ( savename, "save is off");
-  }
-  */
-  
-  // interactive rendering (opengl only)
-  #ifdef USE_OPENGL
-    clearGL();
-    start2D();
-      setview2D(getWidth(), getHeight());  
-      drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image   
-    end2D();
-    draw2D();                    // complete 2D rendering to OpenGL
-
-    // draw grid in 3D
-    start3D(m_cam);
-    setLight(S3D, 20, 100, 20);  
-    for (int i=-10; i <= 10; i++ ) {
-      drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
-      drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
-    }
-    drawBox3D ( Vector3DF(0,0,0), Vector3DF(1,1,1), 1,1,1, 0.3);
-    end3D();
-    draw3D();                    // complete 3D rendering to OpenGL      
-  #else
-    //dbgprintf ( "Running.. saved: %s\n", savename);
-    dbgprintf ( "Running..\n" );
-  #endif
-
-  appPostRedisplay();    
+  dbgprintf ( "Running..\n" );
 }
 
-void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
-{
-  float fine = 0.5;
-
-  switch (mouse_down) {
-  case AppEnum::BUTTON_LEFT: {
-
-    appPostRedisplay();  // Update display
-  } break;
-
-  case AppEnum::BUTTON_MIDDLE: {
-    // Adjust target pos    
-    m_cam->moveRelative(float(dx) * fine * m_cam->getOrbitDist() / 1000, float(-dy) * fine * m_cam->getOrbitDist() / 1000, 0);
-    appPostRedisplay();  // Update display
-  } break;
-
-  case AppEnum::BUTTON_RIGHT: {
-
-    // Adjust camera orbit 
-    Vector3DF angs = m_cam->getAng();
-    angs.x += dx * 0.2f * fine;
-    angs.y -= dy * 0.2f * fine;
-    m_cam->setOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());    
-    appPostRedisplay();  // Update display
-  } break;
-  }
+// DEBUG MAIN
+int main(int argc, char **argv) {
+  printf("hello\n");
 }
-
-
-void Sample::mouse(AppEnum button, AppEnum state, int mods, int x, int y)
-{
-  if ( guiHandler(button, state, x, y) ) return;
-  mouse_down = (state == AppEnum::BUTTON_PRESS) ? button : -1;    // Track when we are in a mouse drag
-}
-
-void Sample::mousewheel(int delta)
-{
-  // Adjust zoom
-  float zoomamt = 1.0;
-  float dist = m_cam->getOrbitDist();
-  float dolly = m_cam->getDolly();
-  float zoom = (dist - dolly) * 0.001f;
-  dist -= delta * zoom * zoomamt;
-
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
-}
-
-
-void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
-{
-  if (action==AppEnum::BUTTON_RELEASE) return;
-
-  switch (keycode) {
-  case ' ':  m_run = !m_run;  break;
-  case 'g':  printf("??\n"); fflush(stdout); Restart();  break;
-  };
-}
-
-void Sample::reshape(int w, int h)
-{
-  #ifdef USE_OPENGL
-    glViewport(0, 0, w, h);
-    setview2D(w, h);
-  #endif
-
-  m_cam->setSize( w, h );
-  m_cam->setAspect(float(w) / float(h));
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
-  m_cam->updateMatricies();
-
-  appPostRedisplay();
-}
-
-void Sample::startup()
-{
-  int w = 1900, h = 1000;
-  appStart("Volume Raycast", "Volume Raycast", w, h, 4, 2, 16, false);
-}
-
-void Sample::shutdown()
-{
-}
-
-
-
-
-
