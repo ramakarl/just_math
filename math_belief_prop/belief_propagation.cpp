@@ -61,8 +61,8 @@
 
 class BeliefPropagation {
 public:
-  virtual bool init();
-  virtual void step();
+  bool init();
+  float step();
 
   // volumes
   void    AllocBuffer(int id, Vector3DI res, int chan=1);
@@ -107,9 +107,7 @@ public:
   DataPtr    buf[128];      // data buffers (CPU & GPU)  
 
   int      mouse_down;  
-  bool    m_run;
   bool    m_run_cuda;
-  bool    m_save;
   float    m_frame;
   int      m_peak_iter;
   int      m_seed;
@@ -719,68 +717,15 @@ bool BeliefPropagation::init()
   //
   m_frame     = 0;  
   m_run_cuda  = false;
-  m_run       = true;
-  m_save      = false;
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
 
   printf("init done\n"); fflush(stdout);
 
   return true;
-
-  /*
-  // G - global individual (independent) tile probability
-  // H - messsage passing vector
-  //
-  AllocBPVec ( BUF_G, m_num_values );
-  AllocBPVec ( BUF_H, m_num_values );
-  
-  float weight = 1.0 / (float)m_num_values;
-  for (int a=0; a < m_num_values; a++ ) {
-    SetVal ( BUF_G, a, weight );
-  }
-
-  return true;
-  */
-
-  #ifdef USE_OPENGL
-    init2D("arial");
-    setText(18,1);
-  #endif
-
-  // options
-  m_frame = 0;  
-  m_run_cuda = false;    // run cuda pathway  
-  m_run = true;      // run belief prop
-  m_save = true;      // save to disk
-  
-  //int R = 32;
-  R = 32;
-
-  // belief propagation setup
-  m_bpres.Set ( R, R, R );    // D = R^3
-  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
-  m_num_values = 4;
-  
-  m_res.Set ( R, R, R );              // volume resolution
-
-  Restart();
-
-  #ifdef USE_CUDA    
-    if ( m_run_cuda ) {
-      CUcontext ctx; 
-      CUdevice dev;
-      cuStart ( DEV_FIRST, 0, dev, ctx, 0, true );    // start CUDA
-    }
-  #endif
-
-  AllocBuffer ( BUF_VOL, m_res, 4 );          // allocate color volume (4 channel)
-
-  return true;
-
 }
 
-void BeliefPropagation::step()
+float BeliefPropagation::step()
 {
   float md= 0.0;
   char savename[256] = {'\0'};
@@ -791,22 +736,24 @@ void BeliefPropagation::step()
   // advance
   //time update  
   //
-  if (m_run) {
-    ComputeBelief ( BUF_MU, BUF_VOL );
+  ComputeBelief ( BUF_MU, BUF_VOL );
 
-    printf(">>>\n"); fflush(stdout);
+  printf(">>>\n"); fflush(stdout);
 
-    md = BeliefProp ();    
-    UpdateMU();
-    NormalizeMU();  
+  md = BeliefProp ();    
+  UpdateMU();
+  NormalizeMU();  
 
-    printf("cp.step.0 (--> %f)\n", md); fflush(stdout);
-  }
+  printf("cp.step.0 (--> %f)\n", md); fflush(stdout);
 
-  dbgprintf ( "Running..\n" );
+  return md;
 }
 
 // DEBUG MAIN
 int main(int argc, char **argv) {
+
+
+
   printf("hello\n");
+
 }
