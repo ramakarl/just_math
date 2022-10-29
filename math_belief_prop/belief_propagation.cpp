@@ -113,6 +113,8 @@ public:
   void    ConstructMU ();
   void    NormalizeMU ();
 
+  void    _NormalizeMU ();
+
   void    ConstructTileIdx();
   
   uint64_t  m_num_verts;    // Xi = 0..X (graph domain)
@@ -138,6 +140,7 @@ public:
   void filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
   void filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
   int32_t tileName2ID (std::string &tile_name);
+  int32_t tileName2ID (char *);
 
 };
 
@@ -228,7 +231,7 @@ uint64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr )
 void BeliefPropagation::ConstructTileIdx() {
   int i, j;
   AllocTileIdx( BUF_TILE_IDX, m_num_verts, m_num_values );
-  AllocTileIdxN( BUF_TILE_IDX_N, m_num_values );
+  AllocTileIdxN( BUF_TILE_IDX_N, m_num_verts );
   for (i=0; i<m_num_verts; i++) {
     SetVali( BUF_TILE_IDX_N, i, m_num_values );
     for (j=0; j<m_num_values; j++) {
@@ -317,6 +320,36 @@ void BeliefPropagation::ConstructMU ()
 
 void BeliefPropagation::NormalizeMU ()
 {
+  int i, n_a, a;
+  float v, sum;
+
+  for (int j=0; j < m_num_verts; j++) {
+    for (int in=0; in < getNumNeighbors(j); in++) {
+      i = getNeighbor(j, in);
+      sum = 0;
+
+      n_a = getVali( BUF_TILE_IDX_N, j );
+      for (int a_idx=0; a_idx<n_a; a_idx++) {
+        a = getVali( BUF_TILE_IDX, j, a_idx );
+        sum += getVal(BUF_MU, in, j, a );
+      }
+
+      if ( sum > 0 ) {
+        n_a = getVali( BUF_TILE_IDX_N, j );
+        for (int a_idx=0; a_idx<n_a; a_idx++) {
+          a = getVali( BUF_TILE_IDX, j, a_idx );
+
+          v = getVal(BUF_MU, in, j, a);
+          SetVal( BUF_MU, in, j, a, v / sum);
+        }
+      }
+
+    }
+  }
+}
+
+void BeliefPropagation::_NormalizeMU ()
+{
   int i;
   float v, sum;
   
@@ -353,23 +386,24 @@ float BeliefPropagation::BeliefProp ()
 
   // for all i->j messages in graph domain
   //
-  // this is a 3D grid/ ---|
-  //                       v
   for ( uint64_t j=0; j < getNumVerts(); j++ ) {
 
-    // 6 neighbors of j in 3D --|
-    //                          v
+    // 6 neighbors of j in 3D
+    //
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, in);
       if (i == -1) { continue; }
 
-      // compute message from i to j      
-      // for each a..
+      // compute message from i to j for each a..
       //
-      for (int a=0; a < getNumValues(j); a++) {
+      //for (int a=0; a < getNumValues(j); a++) {
+      for (a_idx=0; a_idx<a_n; a_idx++) {
+
+        // CHECKPOINT (WIP)!!!
+        //!!!
+        //a = getVali( BUF_TILE_IDX, 
 
         // first compute Hij_t
-        //
         // initialize Hij(a) = gi(a)/
         //
         H_ij_a = getVal(BUF_G, a);
@@ -381,25 +415,16 @@ float BeliefPropagation::BeliefProp ()
           //
           if (k!=-1 && k!=j) {
             H_ij_a *= getVal(BUF_MU, kn, i, a);
-
-            //DEBUG
-            //printf("  h_ij_a *= mu[%i][%i][%i] (=%f)\n", kn, (int)i, a, getVal(BUF_MU, kn, i, a) );
           }
 
         }
 
         // exclude mu{ji}_a - message from j to i
         //
-        //mu_j = getVal(BUF_MU, j, i, a);
-        //if (mu_j > 0) H_ij_a /= mu_j;
-        //
         SetVal (BUF_H, a, H_ij_a);
       }
 
       // now compute mu_ij_t+1 = Fij * hij         
-      //max_mu = 0;
-      //
-      //
       // b = rows in f{ij}(a,b), also elements of mu(b)/
       //
       for (int b=0; b < getNumValues(j); b++) {
@@ -409,27 +434,15 @@ float BeliefPropagation::BeliefProp ()
         //
         for (int a=0; a < getNumValues(j); a++) {
           u_nxt_b += getValF(BUF_F, a, b, in) * getVal(BUF_H, a);
-
-          //DEBUG
-          //printf("  (f[%i][%i][%i] %f)*(h[%i] %f)\n", (int)a, (int)b, (int)in, (float)getValF(BUF_F, a, b, in), (int)a, (float)getVal(BUF_H, a));
           count++;
         }
         u_prev_b = getVal(BUF_MU, in, j, b);
 
-        // in = neighbor index of i, for mu{i,j}(b)
-
         du = u_nxt_b - u_prev_b;
-
-        //DEBUG
-        //printf("::: du %f (%f, %f)\n", du, u_nxt_b, u_prev_b);
 
         if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
 
-        //if ( j < 8 ) dbgprintf ( "%d: %f\n", j, du );
-        //SetVal (BUF_MU_NXT, in, j, b, u_prev_b + du*rate );
-        //
         SetVal (BUF_MU_NXT, in, j, b, u_prev_b + du );
-        
       }
     }
   }
@@ -439,6 +452,8 @@ float BeliefPropagation::BeliefProp ()
   return max_diff;
 }
 
+// copy BUF_MU_NXT back to BUF_MU
+//
 void BeliefPropagation::UpdateMU ()
 {  
   float* mu_curr = (float*) buf[BUF_MU].getData();
@@ -453,16 +468,21 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j, float* bi )
   uint64_t k;
   float sum = 0;
   for (int a=0; a < m_num_values; a++) {
-    bi[a] = 1.0;  //getVal(BUF_G, a);
+    bi[a] = 1.0;
     for (int kn=0; kn < getNumNeighbors(j); kn++) {
       k = getNeighbor(j, kn);
-      if (k!=-1) bi[a] *= getVal(BUF_MU, kn, j, a );    // mu{k,j}(a)
+
+      // mu{k,j}(a)
+      //
+      if (k!=-1) { bi[a] *= getVal(BUF_MU, kn, j, a ); }
     }
     sum += bi[a];
   }
-  if ( sum > 0 )
-    for (int a=0; a < m_num_values; a++) 
+  if ( sum > 0 ) {
+    for (int a=0; a < m_num_values; a++)  {
       bi[a] /= sum;
+    }
+  }
   
   return sum;
 }
@@ -475,10 +495,9 @@ float BeliefPropagation::getVertexBelief ( uint64_t j )
 
   for (int a=0; a < m_num_values; a++) {
     SetVal( BUF_BELIEF, a, 1.0 );
-    //bi[a] = 1.0;  //getVal(BUF_G, a);
+
     for (int kn=0; kn < getNumNeighbors(j); kn++) {
       k = getNeighbor(j, kn);
-      //if (k!=-1) bi[a] *= getVal(BUF_MU, kn, j, a );    // mu{k,j}(a)
       if (k!=-1) {
 
         // mu{k,j}(a)
@@ -487,14 +506,12 @@ float BeliefPropagation::getVertexBelief ( uint64_t j )
         SetVal( BUF_BELIEF, a, _bi );
       }
     }
-    //sum += bi[a];
     sum += getVal( BUF_BELIEF, a );
   }
   if ( sum > 0 ) {
     for (int a=0; a < m_num_values; a++) {
       _bi = getVal( BUF_BELIEF, a ) / sum;
       SetVal( BUF_BELIEF, a, _bi );
-      //bi[a] /= sum;
     }
   }
   
@@ -767,6 +784,8 @@ bool BeliefPropagation::init(int R)
 
   init_F_CSV(rule_fn, name_fn);
 
+  ConstructTileIdx();
+
   //---
   m_rand.seed ( m_seed++ );  
 
@@ -789,6 +808,7 @@ bool BeliefPropagation::init(int R)
   ConstructGH();
   */
 
+
   ConstructMU();
   NormalizeMU ();
 
@@ -801,7 +821,6 @@ bool BeliefPropagation::init(int R)
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
 
-  ConstructTileIdx();
 
   printf("init done\n"); fflush(stdout);
 
@@ -813,16 +832,14 @@ bool BeliefPropagation::init(int Rx, int Ry, int Rz)
   int i, j;
   std::string name_fn = "examples/stair_name.csv";
   std::string rule_fn = "examples/stair_rule.csv";
-  //std::vector< std::string > tile_name;
-  //std::vector< std::vector<float> > tile_rule;
 
   init_F_CSV(rule_fn, name_fn);
+
+  ConstructTileIdx();
 
   //---
   m_rand.seed ( m_seed++ );  
 
-  //int R = 32;
-  //int R = 10;
   m_bpres.Set ( Rx, Ry, Rz );
   m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
   m_num_values = m_tile_name.size();
@@ -851,8 +868,6 @@ bool BeliefPropagation::init(int Rx, int Ry, int Rz)
   m_run_cuda  = false;
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
-
-  ConstructTileIdx();
 
   printf("init done\n"); fflush(stdout);
 
@@ -924,9 +939,9 @@ bool BeliefPropagation::_init()
 
 float BeliefPropagation::step()
 {
-  float md= 0.0;
-  char savename[256] = {'\0'};
-  char msg[256];
+  float max_diff = 0.0;
+  //char savename[256] = {'\0'};
+  //char msg[256];
   Vector3DF a, b, c;
   Vector3DF p, q, d;
 
@@ -937,13 +952,13 @@ float BeliefPropagation::step()
 
   printf(">>>\n"); fflush(stdout);
 
-  md = BeliefProp ();    
+  max_diff = BeliefProp ();    
   UpdateMU();
   NormalizeMU();  
 
-  printf("cp.step.0 (--> %f)\n", md); fflush(stdout);
+  printf("cp.step.0 (--> %f)\n", max_diff); fflush(stdout);
 
-  return md;
+  return max_diff;
 }
 
 //---
@@ -1008,8 +1023,19 @@ int32_t BeliefPropagation::tileName2ID (std::string &tile_name) {
   return -1;
 }
 
+int32_t BeliefPropagation::tileName2ID (char *cs) {
+  int32_t  i;
+  std::string tile_name = cs;
+
+  for (i=0; i<m_tile_name.size(); i++) {
+    if (tile_name == m_tile_name[i]) { return i; }
+  }
+
+  return -1;
+}
+
 void BeliefPropagation::debugPrint() {
-  int i, n=3, m=16, jnbr=0, a;
+  int i, n=3, m=7, jnbr=0, a;
   int a_idx, a_idx_n;
   uint64_t u;
   Vector3DI p;
@@ -1032,7 +1058,8 @@ void BeliefPropagation::debugPrint() {
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
     if ((i%m)==0) { printf("\n"); }
-    printf(" %s", m_tile_name[i].c_str());
+    v = getVal( BUF_G, i );
+    printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
   }
   printf("\n\n");
 
@@ -1047,8 +1074,9 @@ void BeliefPropagation::debugPrint() {
 
       __a = tileName2ID( m_tile_name[a] );
 
-      //printf("  %s(%i): ", m_tile_name[a].c_str(), a);
-      printf("  %s(%i,%i): ", m_tile_name[a].c_str(), a, __a);
+      printf("  %s(%2i): ", m_tile_name[a].c_str(), a);
+      //printf("  %s(%i,%i): ", m_tile_name[a].c_str(), a, __a);
+
       for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
         v = getVal( BUF_MU, jnbr, u, a );
         printf(" [%s](%i):%f", _dp_desc[jnbr].c_str(), jnbr, v);
@@ -1117,6 +1145,91 @@ int test2() {
   return 0;
 }
 
+int test3() {
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+  bp.init(4,3,1);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"+000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(3,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(3,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(3,0,0), keep_list);
+
+  //---
+
+  bp.NormalizeMU();  
+
+  bp.debugPrint();
+
+  return 0;
+}
 
 // DEBUG MAIN
 //
@@ -1124,7 +1237,8 @@ int main(int argc, char **argv) {
 
   //test0();
   //test1();
-  test2();
+  //test2();
+  test3();
 
   return 0;
 
