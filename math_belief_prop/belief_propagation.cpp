@@ -108,10 +108,13 @@ public:
   void    ComputeBelief (int id, int id_vol);
   void    UpdateMU ();
 
+  float   MaxDiffMU();
+
   void    ConstructF ();
   void    ConstructGH ();
   void    ConstructMU ();
   void    NormalizeMU ();
+  void    NormalizeMU (int id);
 
   void    _NormalizeMU ();
 
@@ -318,7 +321,35 @@ void BeliefPropagation::ConstructMU ()
     }
 }
 
-void BeliefPropagation::NormalizeMU ()
+//---
+
+float BeliefPropagation::MaxDiffMU () {
+  int i, n_a, a;
+  float v0,v1, d, max_diff=-1.0;
+
+  for (int j=0; j < m_num_verts; j++) {
+    for (int in=0; in < getNumNeighbors(j); in++) {
+      i = getNeighbor(j, in);
+
+      n_a = getVali( BUF_TILE_IDX_N, j );
+      for (int a_idx=0; a_idx<n_a; a_idx++) {
+        a = getVali( BUF_TILE_IDX, j, a_idx );
+        v0 = getVal( BUF_MU, in, j, a );
+        v1 = getVal( BUF_MU_NXT, in, j, a );
+
+        d = fabs(v0-v1);
+        if (max_diff < d) { max_diff = d; }
+      }
+
+    }
+  }
+
+  return max_diff;
+}
+
+void BeliefPropagation::NormalizeMU () { NormalizeMU( BUF_MU ); }
+
+void BeliefPropagation::NormalizeMU (int id)
 {
   int i, n_a, a;
   float v, sum;
@@ -328,10 +359,20 @@ void BeliefPropagation::NormalizeMU ()
       i = getNeighbor(j, in);
       sum = 0;
 
+      if (i==-1) {
+
+        n_a = getVali( BUF_TILE_IDX_N, j );
+        for (int a_idx=0; a_idx<n_a; a_idx++) {
+          a = getVali( BUF_TILE_IDX, j, a_idx );
+          SetVal( id, in, j, a, 0.0 );
+        }
+        continue;
+      }
+
       n_a = getVali( BUF_TILE_IDX_N, j );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, j, a_idx );
-        sum += getVal(BUF_MU, in, j, a );
+        sum += getVal( id, in, j, a );
       }
 
       if ( sum > 0 ) {
@@ -339,8 +380,8 @@ void BeliefPropagation::NormalizeMU ()
         for (int a_idx=0; a_idx<n_a; a_idx++) {
           a = getVali( BUF_TILE_IDX, j, a_idx );
 
-          v = getVal(BUF_MU, in, j, a);
-          SetVal( BUF_MU, in, j, a, v / sum);
+          v = getVal( id, in, j, a );
+          SetVal( id, in, j, a, v / sum);
         }
       }
 
@@ -372,82 +413,109 @@ void BeliefPropagation::_NormalizeMU ()
 
 float BeliefPropagation::BeliefProp ()
 {  
-  uint64_t i, j, k;
+
+  uint64_t anch_cell=0, nei_cell=0;
+  //uint64_t i, j, k;
+  int a_idx, a_idx_n;
+  int a, b, d;
+
+  int anch_tile_idx, anch_tile_idx_n;
+  int nei_tile_idx, nei_tile_idx_n;
+  int anch_tile, nei_tile;
+  int _neinei_cell;
+
+  int nei_in_idx, anch_in_idx;
+
   float H_ij_a;
   float u_nxt_b, u_prev_b;
   float mu_j, du;
-  int jchk = getVertex(3,3,3);
 
-  float rate = .98;
+  //float rate = .98;
+  float rate = 1.0, max_diff=-1.0;
 
-  float max_diff = -1.0;
-
-  uint64_t count=0;
-
-  // for all i->j messages in graph domain
+  // for all `nei`->`anch` messages in graph domain
   //
-  for ( uint64_t j=0; j < getNumVerts(); j++ ) {
+  for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
 
+    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
     // 6 neighbors of j in 3D
     //
-    for (int in=0; in < getNumNeighbors(j); in++) {
-      i = getNeighbor(j, in);
-      if (i == -1) { continue; }
+    for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+      nei_cell = getNeighbor(anch_cell, anch_in_idx);
 
-      // compute message from i to j for each a..
+      if (anch_tile_idx_n <= 1) {
+        if (anch_tile_idx_n == 1) {
+          anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
+          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        }
+        continue;
+      }
+
+      if (nei_cell == -1) { continue; }
+
+      // compute message from `nei` to `anch` for each a..
+      // we're skipping some tiles, so zero out H
       //
-      //for (int a=0; a < getNumValues(j); a++) {
-      for (a_idx=0; a_idx<a_n; a_idx++) {
+      for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
 
-        // CHECKPOINT (WIP)!!!
-        //!!!
-        //a = getVali( BUF_TILE_IDX, 
+      nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+      if (nei_tile_idx_n <= 1) {
+
+        for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+          anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+
+          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        }
+
+        continue;
+      }
+
+      for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
+
+        nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
 
         // first compute Hij_t
         // initialize Hij(a) = gi(a)/
         //
-        H_ij_a = getVal(BUF_G, a);
+        H_ij_a = getVal(BUF_G, nei_tile);
 
-        for (int kn=0; kn < getNumNeighbors(i); kn++ ) {
-          k = getNeighbor(i, kn);
+        for (nei_in_idx=0; nei_in_idx < getNumNeighbors(nei_cell); nei_in_idx++ ) {
+          _neinei_cell = getNeighbor(nei_cell, nei_in_idx);
 
           // Hij(a) = gi(a) * PROD mu{ki}_a
           //
-          if (k!=-1 && k!=j) {
-            H_ij_a *= getVal(BUF_MU, kn, i, a);
+          if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
+            H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
           }
 
         }
 
-        // exclude mu{ji}_a - message from j to i
-        //
-        SetVal (BUF_H, a, H_ij_a);
+        SetVal (BUF_H, nei_tile, H_ij_a);
       }
 
-      // now compute mu_ij_t+1 = Fij * hij         
+      // now compute mu_ij_t+1 = Fij * hij
       // b = rows in f{ij}(a,b), also elements of mu(b)/
       //
-      for (int b=0; b < getNumValues(j); b++) {
-        u_nxt_b = 0;          
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+
+        u_nxt_b = 0.0;
 
         // a = cols in f{ij}(a,b), also elements of h(a)
         //
-        for (int a=0; a < getNumValues(j); a++) {
-          u_nxt_b += getValF(BUF_F, a, b, in) * getVal(BUF_H, a);
-          count++;
+        for (d=0; d < m_num_values; d++) {
+          u_nxt_b += getValF(BUF_F, d, anch_tile, anch_in_idx) * getVal(BUF_H, d);
         }
-        u_prev_b = getVal(BUF_MU, in, j, b);
+        u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
 
         du = u_nxt_b - u_prev_b;
 
         if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
 
-        SetVal (BUF_MU_NXT, in, j, b, u_prev_b + du );
+        SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
       }
     }
   }
-
-  printf(">>> %i\n", (int)count);
 
   return max_diff;
 }
@@ -455,7 +523,7 @@ float BeliefPropagation::BeliefProp ()
 // copy BUF_MU_NXT back to BUF_MU
 //
 void BeliefPropagation::UpdateMU ()
-{  
+{
   float* mu_curr = (float*) buf[BUF_MU].getData();
   float* mu_next = (float*) buf[BUF_MU_NXT].getData();
 
@@ -1231,6 +1299,120 @@ int test3() {
   return 0;
 }
 
+int test4() {
+
+  float maxdiff;
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+  bp.init(4,3,1);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"+000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(3,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(3,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(3,0,0), keep_list);
+
+  //---
+
+  bp.NormalizeMU();  
+
+  printf("---\nBEFORE:\n");
+  bp.debugPrint();
+
+  bp.BeliefProp();
+  bp.NormalizeMU(BUF_MU_NXT);
+  bp.UpdateMU();
+
+  maxdiff = bp.MaxDiffMU();
+  printf("[0] got diff: %f\n", maxdiff);
+
+  bp.BeliefProp();
+  bp.NormalizeMU(BUF_MU_NXT);
+  bp.UpdateMU();
+
+  maxdiff = bp.MaxDiffMU();
+  printf("[1] got diff: %f\n", maxdiff);
+
+  bp.BeliefProp();
+  bp.NormalizeMU(BUF_MU_NXT);
+  bp.UpdateMU();
+
+  maxdiff = bp.MaxDiffMU();
+  printf("[2] got diff: %f\n", maxdiff);
+
+  printf("\n\n---\nAFTER:\n");
+  bp.debugPrint();
+  printf("---\n\n");
+
+  return 0;
+}
+
 // DEBUG MAIN
 //
 int main(int argc, char **argv) {
@@ -1238,7 +1420,8 @@ int main(int argc, char **argv) {
   //test0();
   //test1();
   //test2();
-  test3();
+  //test3();
+  test4();
 
   return 0;
 
