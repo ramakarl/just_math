@@ -150,6 +150,10 @@ public:
   int32_t tileName2ID (std::string &tile_name);
   int32_t tileName2ID (char *);
 
+
+  // non "strict" bp functions but helpful still
+  //
+  int CullBoundary();
 };
 
 //Sample obj;
@@ -1255,9 +1259,62 @@ void BeliefPropagation::debugPrint() {
 
 }
 
-//---
-//---
-//---
+//----------------------------------
+//----------------------------------
+
+int BeliefPropagation::CullBoundary() {
+  uint64_t anch_cell;
+  int anch_in_idx, nei_cell;
+  float fval, _eps = (1.0/(1024.0*1024.0));
+
+  int boundary_tile = 0;
+  int anch_tile_idx, anch_tile, anch_tile_n, tval;
+
+
+  int count = 0;
+
+  for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
+    anch_tile_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    for (anch_tile_idx=0; anch_tile_idx<anch_tile_n; anch_tile_idx++) {
+
+      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+
+      for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+        nei_cell = getNeighbor(anch_cell, anch_in_idx);
+        if (nei_cell != -1) { continue; }
+
+        fval = getValF( BUF_F, anch_tile, boundary_tile, anch_in_idx);
+        if (fval > _eps) { continue; }
+
+        anch_tile_n--;
+        tval = getVali( BUF_TILE_IDX, anch_cell, anch_tile_n );
+        SetVali( BUF_TILE_IDX, anch_cell, anch_tile_n, anch_tile);
+        SetVali( BUF_TILE_IDX, anch_cell, anch_tile_idx, tval);
+
+        SetVali( BUF_TILE_IDX_N, anch_cell, anch_tile_n );
+
+        count++;
+
+        anch_tile_idx--;
+        break;
+      }
+
+    }
+
+
+  }
+
+  return count;
+}
+
+//----------------------------------
+//  _            _   _             
+// | |_ ___  ___| |_(_)_ __   __ _ 
+// | __/ _ \/ __| __| | '_ \ / _` |
+// | ||  __/\__ \ |_| | | | | (_| |
+//  \__\___||___/\__|_|_| |_|\__, |
+//                           |___/ 
+//----------------------------------
 
 // custom size (basic test)
 //
@@ -1611,6 +1668,189 @@ int test4() {
   return 0;
 }
 
+// test run until converged
+//
+int test5() {
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=10;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+  bp.init(3,3,1);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+
+  for (iter=0; iter<max_iter; iter++) {
+    bp.NormalizeMU();  
+
+    printf("---\nBEFORE:\n");
+    bp.debugPrint();
+
+    bp.BeliefProp();
+    bp.NormalizeMU(BUF_MU_NXT);
+    maxdiff = bp.MaxDiffMU();
+    bp.UpdateMU();
+
+    if (fabs(maxdiff) < _eps) { break; }
+  }
+
+  printf("count: %i\n", iter);
+  bp.debugPrint();
+
+  return 0;
+}
+
+// cull boundary
+//
+int test6() {
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=10;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+  bp.init(3,3,1);
+
+  bp.CullBoundary();
+
+  bp.debugPrint();
+  return 0;
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+
+  for (iter=0; iter<max_iter; iter++) {
+    bp.NormalizeMU();  
+
+    printf("---\nBEFORE:\n");
+    bp.debugPrint();
+
+    bp.BeliefProp();
+    bp.NormalizeMU(BUF_MU_NXT);
+    maxdiff = bp.MaxDiffMU();
+    bp.UpdateMU();
+
+    if (fabs(maxdiff) < _eps) { break; }
+  }
+
+  printf("count: %i\n", iter);
+  bp.debugPrint();
+
+  return 0;
+}
+
 void _debugstate() {
   int a, b, i, j, k, d;
 
@@ -1642,7 +1882,9 @@ int main(int argc, char **argv) {
   //test2();
   //test3();
   //test4_();
-  test4();
+  //test4();
+  //test5();
+  test6();
 
   return 0;
 
