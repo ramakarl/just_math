@@ -2037,7 +2037,8 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
 
  void MatrixF::Print ( char* fname )
 {
-	char buf[2000];
+	char buf[1000];
+	char tbuf[256];
 	
 	#ifdef _MSC_VER
 		FILE* fp;
@@ -2047,12 +2048,12 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
 	#endif
 	
 	for (int r=0; r < rows; r++) {
-		buf[0] = '\0';
+		tbuf[0] = '\0';
 		for (int c =0; c < cols; c++) {
 			#ifdef _MSC_VER
-				sprintf_s ( buf, "%s %04.3f", buf, GetVal(c, r) );
+				sprintf_s ( buf, "%s %04.3f", tbuf, GetVal(c, r) );
 			#else
-				sprintf ( buf, "%s %04.3f", buf, GetVal(c, r) );
+				sprintf ( buf, "%s %04.3f", tbuf, GetVal(c, r) );
 			#endif
 		}
 		fprintf ( fp, "%s\n", buf);
