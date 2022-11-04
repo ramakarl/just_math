@@ -1337,7 +1337,7 @@ int BeliefPropagation::realize() {
       d = step();
 
       if ((step_iter>0) && ((step_iter%10)==0)) {
-        printf("  step_iter %i (d:%f)\n", (int)step_iter, d); fflush(stdout);
+        printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
       }
 
       //DEBUG
@@ -3055,7 +3055,16 @@ int main(int argc, char **argv) {
 
   //test_realize0();
   //test_realize1();
-  test_realize2(4,4,4);
+  //test_realize2(4,4,4);
+
+  // -O3 2.6s
+  //test_realize2(6,6,6);
+
+  // -O3 ~55s
+  //test_realize2(10,10,10);
+
+  // -O3 ~16m24s
+  test_realize2(16,16,16);
 
   return 0;
 
