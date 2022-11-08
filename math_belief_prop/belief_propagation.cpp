@@ -125,6 +125,7 @@ public:
   //---
 
   int   realize();
+  int   wfc();
 
   float step();
   float _step();
@@ -138,6 +139,7 @@ public:
 
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+  int     chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
   float   MaxDiffMU();
 
@@ -798,6 +800,109 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
   return count;
 }
 
+int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_entropy) {
+  int64_t anch_cell=0;
+  int32_t anch_tile_idx, anch_tile_idx_n, anch_tile;
+  int count=0;
+
+  float _max_entropy= -1.0, p, g, _entropy, g_sum, g_cdf;
+  int64_t _max_cell = -1;
+  int32_t _max_tile = -1,
+          _max_tile_idx = -1;
+
+  float _eps = (1.0/(1024.0*1024.0));
+
+  for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
+
+    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    if (anch_tile_idx_n==0) { return -1; }
+    if (anch_tile_idx_n==1) { continue; }
+
+    g_sum = 0.0;
+    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      g = getVal( BUF_G, anch_tile );
+      g_sum += g;
+    }
+
+    if (g_sum < _eps) { continue; }
+
+    _entropy = 0.0;
+    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      g = getVal( BUF_G, anch_tile ) / g_sum;
+      if (g > _eps) {
+        _entropy += -g * logf(g);
+      }
+    }
+
+    if (_entropy > (_max_entropy - _eps)) {
+
+      if (_entropy > _max_entropy) {
+        _max_entropy  = _entropy;
+        _max_cell     = anch_cell;
+        //_max_tile     = anch_tile;
+        //_max_tile_idx = anch_tile_idx;
+        count=1;
+      }
+
+      // randomize 'equal' choices
+      //
+      else {
+        count++;
+        p = m_rand.randF();
+        if ( p < (1.0/(float)count) ) {
+          _max_entropy  = _entropy;
+          _max_cell     = anch_cell;
+          //_max_tile     = anch_tile;
+          //_max_tile_idx = anch_tile_idx;
+        }
+      }
+
+    }
+
+  }
+
+  _max_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
+  _max_tile_idx = 0;
+
+  // now we choose a particular tile from the tile position
+  // (both tile ID and tile index)
+  //
+  anch_cell = _max_cell;
+  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  g_sum = 0.0;
+  for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+    g_sum += getVal( BUF_G, anch_tile);
+  }
+
+  if (g_sum > _eps) {
+
+    p = m_rand.randF();
+
+    g_cdf = 0.0;
+    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      g_cdf += getVal( BUF_G, anch_tile ) / g_sum;
+
+      if (p < g_cdf) {
+        _max_tile     = anch_tile;
+        _max_tile_idx = anch_tile_idx;
+        break;
+      }
+    }
+
+  }
+
+  if (max_cell)     { *max_cell     = _max_cell; }
+  if (max_tile)     { *max_tile     = _max_tile; }
+  if (max_tile_idx) { *max_tile_idx = _max_tile_idx; }
+  if (max_entropy)  { *max_entropy  = _max_entropy; }
+
+  return count;
+}
+
 //----
 
 float BeliefPropagation::getVertexBelief ( uint64_t j )
@@ -1297,6 +1402,45 @@ bool BeliefPropagation::_init() {
 }
 
 //---
+
+int BeliefPropagation::wfc() {
+  int ret;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1;
+  float entropy=-1.0, d = -1.0;
+
+  int64_t it, step_iter=0, max_step_iter = 1000;
+
+  float _eps = (1.0/(1024.0*1024.0));
+  _eps = (1.0/(128.0));
+
+  CullBoundary();
+
+  for (it=0; it<m_num_verts; it++) {
+
+    ret = chooseMaxEntropy( &cell, &tile, &tile_idx, &entropy);
+    if (ret < 0) { return -1; }
+    if (ret==0) { break; }
+
+    printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
+        (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
+
+    ret = tileIdxCollapse( cell, tile_idx );
+    if (ret < 0) { return -2; }
+
+    m_note_n[ m_grid_note_idx ] = 0;
+    m_note_n[ 1-m_grid_note_idx ] = 0;
+
+    cellFillAccessed(cell, m_grid_note_idx);
+    unfillAccessed(m_grid_note_idx);
+    //ret = cellConstraintPropagate(cell);
+    ret = cellConstraintPropagate();
+    if (ret < 0) { return -3; }
+
+  }
+
+  return 0;
+}
 
 int BeliefPropagation::realize() {
   int ret;
@@ -3012,6 +3156,24 @@ int test_realize2(int x, int y, int z) {
 
 
 
+int test_wfc0(int x, int y, int z) {
+  int ret;
+  int iter, max_iter=10;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.init(x,y,z);
+  ret = bp.wfc();
+
+  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+
+  bp.debugPrint();
+  return 0;
+}
+
+
+
 void _debugstate() {
   int a, b, i, j, k, d;
 
@@ -3063,8 +3225,11 @@ int main(int argc, char **argv) {
   // -O3 ~55s
   //test_realize2(10,10,10);
 
+  //test_wfc0(2,2,2);
+  test_wfc0(6,6,1);
+
   // -O3 ~16m24s
-  test_realize2(16,16,16);
+  //test_realize2(16,16,16);
 
   return 0;
 
