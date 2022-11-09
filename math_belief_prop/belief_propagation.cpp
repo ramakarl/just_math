@@ -110,8 +110,8 @@ public:
   void    AllocVeci32(int, int, int);
 
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
-  Vector3DI  getVertexPos(uint64_t j);
-  uint64_t  getVertex(int x, int y, int z);
+  Vector3DI  getVertexPos(int64_t j);
+  int64_t  getVertex(int x, int y, int z);
 
   inline int      getNumNeighbors(int j)        {return 6;}     
   inline int      getNumValues(int j)          {return m_num_values;}
@@ -222,6 +222,9 @@ public:
 
   float m_rate;
 
+  int filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
+
+
 };
 
 //Sample obj;
@@ -310,14 +313,12 @@ void BeliefPropagation::AllocVeci32(int id, int nval, int b) {
 
 //---
 
-uint64_t BeliefPropagation::getVertex(int x, int y, int z)
-{
-  return uint64_t(z*m_bpres.y + y)*m_bpres.x + x;
+int64_t BeliefPropagation::getVertex(int x, int y, int z) {
+  return int64_t(z*m_bpres.y + y)*m_bpres.x + x;
 }
 
 // domain index to 3D pos
-Vector3DI BeliefPropagation::getVertexPos(uint64_t j)
-{
+Vector3DI BeliefPropagation::getVertexPos(int64_t j) {
   Vector3DI p;
   p.z = j / (m_bpres.x*m_bpres.y);  j -= p.z * (m_bpres.x*m_bpres.y);
   p.y = j / m_bpres.x;        j -= p.y * m_bpres.x;
@@ -1168,9 +1169,95 @@ int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
   return 0;
 }
 
+//WIP !!!!
 
+// constraint file format:
+//
+// <x>,<y>,<z>,<tile_id>
+//
+int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile) {
+  int i;
+  float val, _weight;
+  FILE *fp;
+  std::string line, tok;
+  std::vector<std::string> toks;
+  std::vector<float> v;
+
+  float _tile_src, _tile_dst;
+  int x, y, z, tileid;
+
+  std::vector< int32_t > v32;
+
+  fp = fopen(fn.c_str(), "r");
+  if (!fp) { return -1; }
+
+  while (!feof(fp)) {
+    line.clear();
+    _read_line(fp, line);
+
+    toks.clear();
+    tok.clear();
+    for (i=0; i<line.size(); i++) {
+      if (line[i]==',') {
+        toks.push_back(tok);
+        tok.clear();
+        continue;
+      }
+      tok += line[i];
+    }
+    toks.push_back(tok);
+
+    if ((toks.size() < 3) || (toks.size() > 4)) { continue; }
+
+    x = atoi(toks[0].c_str());
+    y = atoi(toks[1].c_str());
+    z = atoi(toks[2].c_str());
+    tileid = atoi(toks[3].c_str());
+
+    v32.clear();
+    v32.push_back(x);
+    v32.push_back(y);
+    v32.push_back(z);
+    v32.push_back(tileid);
+
+    admissible_tile.push_back(v32);
+
+  }
+
+  return 0;
+}
 
 //----
+
+int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &constraint_list) {
+  int i;
+  int32_t tile_id, x, y, z, n;
+  int64_t pos;
+
+  for (pos=0; pos<m_num_verts; pos++) {
+    SetVali( BUF_TILE_IDX_N, pos, 0 );
+  }
+
+  for (i=0; i<constraint_list.size(); i++) {
+
+    x = constraint_list[i][0];
+    y = constraint_list[i][1];
+    z = constraint_list[i][2];
+
+    tile_id = constraint_list[i][3];
+
+    pos = getVertex(x,y,z);
+    if ((pos < 0) || (pos >= m_num_verts)) { continue; }
+
+    n = getVali( BUF_TILE_IDX_N, pos );
+    SetVali( BUF_TILE_IDX, pos, n,  tile_id );
+    n++;
+    SetVali( BUF_TILE_IDX_N, pos, n );
+
+  }
+
+  return 0;
+}
 
 int BeliefPropagation::init_F_CSV(std::string &rule_fn, std::string &name_fn) {
   int i, ret;
@@ -3153,6 +3240,16 @@ int run_test(int test_num) {
   return 0;
 }
 
+//------------//
+//       _ _  //
+//   ___| (_) //
+//  / __| | | //
+// | (__| | | //
+//  \___|_|_| //
+//            //
+//------------//
+
+
 // DEBUG MAIN
 //
 
@@ -3194,6 +3291,8 @@ int main(int argc, char **argv) {
 
   int wfc_flag = 0;
   int seed = 0;
+
+  std::vector< std::vector< int32_t > > constraint_list;
 
   BeliefPropagation bpc;
 
@@ -3272,12 +3371,20 @@ int main(int argc, char **argv) {
   rule_fn_str = rule_fn;
   if (constraint_fn) {
     constraint_fn_str = constraint_fn;
+    _read_constraint_csv(constraint_fn_str, constraint_list);
   }
 
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n");
     exit(-1);
+  }
+
+  if (constraint_fn) {
+    bpc.filter_constraint(constraint_list);
+
+    //DEBUG
+    //bpc.debugPrint();
   }
 
   if (test_num >= 0) {
