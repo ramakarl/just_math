@@ -51,6 +51,8 @@
 #include <vector>
 #include <string>
 
+#define BELIEF_PROPAGATION_VERSION "0.1.0"
+
 #define BUF_VOL         0    // volume: n^3
 #define BUF_G           1    // beliefprop, G(a) vector
 #define BUF_H           2    // beliefprop, H(a) vector
@@ -2121,6 +2123,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
 
 
+#ifdef MAIN_BELIEF_PROP
 
 //------------------------------------//
 //  _            _   _                //
@@ -3088,51 +3091,222 @@ void _debugstate() {
   }
 }
 
-// DEBUG MAIN
-//
-int main(int argc, char **argv) {
+int run_test(int test_num) {
+  switch(test_num) {
+    case 0:
+      test0();
+      break;
+    case 1:
+      test1();
+      break;
+    case 2:
+      test2();
+      break;
+    case 3:
+      test3();
+      break;
+    case 4:
+      test4();
+      break;
+    case 5:
+      test5();
+      break;
+    case 6:
+      test6();
+      break;
 
-  //_debugstate();
+    case 7:
+      test_cull0();
+      break;
+    case 8:
+      test_cull1();
+      break;
+    case 9:
+      test_cull2();
+      break;
+    case 10:
+      test_cull3();
+      break;
+    case 11:
+      test_cull4();
+      break;
 
-  //test0();
-  //test1();
-  //test2();
-  //test3();
-  //test4_();
-  //test4();
-  //test5();
-  //test5_1();
-  //test6();
-  //test_cull0();
-  //test_cull1();
-  //test_cull2();
-  //test_cull3();
-  //test_cull4();
+    case 12:
+      test_realize0();
+      break;
+    case 13:
+      test_realize1();
+      break;
+    case 14:
+      test_realize2(4,4,4);
+      break;
 
-  //test_realize0();
-  //test_realize1();
-  //test_realize2(4,4,4);
+    case 15:
+      test_wfc0(4,4,4);
+      break;
 
-  // -O3 2.6s
-  //test_realize2(6,6,6);
+    default:
+      return -1;
 
-  // -O3 ~55s
-  //test_realize2(10,10,10);
-
-  //test_wfc0(2,2,2);
-  //test_wfc0(6,6,1);
-  test_wfc0(6,6,4);
-
-  // -O3 ~16m24s
-  //test_realize2(16,16,16);
+  }
 
   return 0;
-
-  BeliefPropagation bp;
-  bp.init(32);
-  while (true) {
-    bp.step();
-  }
-  printf("hello\n");
 }
 
+// DEBUG MAIN
+//
+
+#include <getopt.h>
+
+void show_usage(FILE *fp) {
+  fprintf(fp, "usage:\n");
+  fprintf(fp, "\n");
+  fprintf(fp, "    bpc [-h] [-v] [-N <name_file>] [-R <rule_file] [-C <fn>] [-T <test#>] [-D <#>] [-X <#>] [-Y <#>] [-Z <#>]\n");
+  fprintf(fp, "\n");
+  fprintf(fp, "  -N <fn>  CSV name file\n");
+  fprintf(fp, "  -R <fn>  CSV rule file\n");
+  fprintf(fp, "  -C <fn>  constrained realization file\n");
+  fprintf(fp, "  -W       run 'wave function collapse' instead of belief propagation\n");
+  fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
+  fprintf(fp, "  -X <#>   set X\n");
+  fprintf(fp, "  -Y <#>   set Y\n");
+  fprintf(fp, "  -Z <#>   set Z\n");
+  fprintf(fp, "  -T <#>   run test number\n");
+  fprintf(fp, "  -S <#>   seed\n");
+  fprintf(fp, "  -v       show version\n");
+  fprintf(fp, "  -h       help (this screen)\n");
+  fprintf(fp, "\n");
+}
+
+void show_version(FILE *fp) {
+  fprintf(fp, "bp version: %s\n", BELIEF_PROPAGATION_VERSION);
+}
+
+int main(int argc, char **argv) {
+  int i, j, k, idx, ret;
+  char ch;
+
+  char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
+  std::string name_fn_str, rule_fn_str, constraint_fn_str;
+
+  int test_num = -1;
+  int X=0, Y=0, Z=0, D=0;
+
+  int wfc_flag = 0;
+  int seed = 0;
+
+  BeliefPropagation bpc;
+
+  while ((ch = getopt(argc, argv, "hvN:R:C:T:WD:X:Y:Z:S:")) != -1) {
+    switch (ch) {
+      case 'h':
+        show_usage(stdout);
+        exit(0);
+        break;
+      case 'v':
+        show_version(stdout);
+        exit(0);
+        break;
+
+      case 'N':
+        name_fn = strdup(optarg);
+        break;
+      case 'R':
+        rule_fn = strdup(optarg);
+        break;
+      case 'C':
+        constraint_fn = strdup(optarg);
+        break;
+
+      case 'S':
+        seed = atoi(optarg);
+        bpc.m_seed = seed;
+        break;
+
+      case 'T':
+        test_num = atoi(optarg);
+        break;
+
+      case 'D':
+        D = atoi(optarg);
+        break;
+      case 'X':
+        X = atoi(optarg);
+        break;
+      case 'Y':
+        Y = atoi(optarg);
+        break;
+      case 'Z':
+        Z = atoi(optarg);
+        break;
+
+      case 'W':
+        wfc_flag = 1;
+        break;
+
+      default:
+        show_usage(stderr);
+        exit(-1);
+    }
+  }
+
+  if ((!name_fn) || (!rule_fn)) {
+    fprintf(stderr, "\nprovide name file and rule file CSV\n\n");
+    show_usage(stderr);
+    exit(-1);
+  }
+
+  if (D>0) {
+    X = D;
+    Y = D;
+    Z = D;
+  }
+
+  if ((X<=0) || (Y<=0) || (Z<=0)) {
+    fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
+    show_usage(stderr);
+    exit(-1);
+  }
+
+  name_fn_str = name_fn;
+  rule_fn_str = rule_fn;
+  if (constraint_fn) {
+    constraint_fn_str = constraint_fn;
+  }
+
+  ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
+  if (ret<0) {
+    fprintf(stderr, "error loading CSV\n");
+    exit(-1);
+  }
+
+  if (test_num >= 0) {
+    run_test(test_num);
+    exit(0);
+  }
+
+  if (wfc_flag) {
+
+    ret = bpc.wfc();
+    printf("# wfc got: %i\n", ret);
+    bpc.debugPrint();
+
+  }
+  else {
+
+    ret = bpc.realize();
+    printf("# bp realize got: %i\n", ret);
+    bpc.debugPrint();
+
+  }
+
+  if (name_fn) { free(name_fn); }
+  if (rule_fn) { free(rule_fn); }
+  if (constraint_fn) { free(constraint_fn); }
+
+  return 0;
+}
+
+// MAIN_BELIEF_PROP
+//
+#endif
