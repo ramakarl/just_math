@@ -51,6 +51,9 @@
 #include <vector>
 #include <string>
 
+#include "belief_propagation.h"
+
+/*
 #define BELIEF_PROPAGATION_VERSION "0.1.0"
 
 #define BUF_VOL         0    // volume: n^3
@@ -226,6 +229,7 @@ public:
 
 
 };
+*/
 
 //Sample obj;
 
@@ -1168,8 +1172,6 @@ int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
 
   return 0;
 }
-
-//WIP !!!!
 
 // constraint file format:
 //
