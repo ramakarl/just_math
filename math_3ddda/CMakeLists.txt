@@ -52,10 +52,11 @@ if (BUILD_OPENGL)
 	     LIST(APPEND LIBRARIES_OPTIMIZED "opengl32.lib" )
 	     LIST(APPEND LIBRARIES_DEBUG "opengl32.lib" )
 	ENDIF()
-	add_definitions(-DGLEW_STATIC)
-	message ( "USING GLEW: ${LIBMIN_GLEW_DIR}/glew.c" )
+	add_definitions(-DGLEW_STATIC)	
 	file(GLOB COMMON_SOURCE_FILES "${LIBMIN_GLEW_DIR}/glew.c" )   # Use GLEW (static)	
+	message ( STATUS "  ---> Using GLEW: ${COMMON_SOURCE_FILES}" )
 endif()
+
 
 ######################
 # CMAKE_INSTALL_PREFIX -- path where library will be installed to

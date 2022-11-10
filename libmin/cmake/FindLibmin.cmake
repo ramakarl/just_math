@@ -24,7 +24,7 @@ if ( LIBMIN_ROOT_DIR )
     #-- Paths
 	set ( LIBMIN_INC_DIR "${LIBMIN_ROOT_DIR}/include" CACHE PATH "Path to include files" FORCE)
     set ( LIBMIN_LIB_DIR "${LIBMIN_ROOT_DIR}/bin" CACHE PATH "Path to libraries" FORCE)
-	set ( LIBMIN_GLEW_DIR "${LIBMIN_INC_DIR}" CACHE PATH "Path to glew.c" FORCE)
+	set ( LIBMIN_GLEW_DIR "${LIBMIN_INC_DIR}/GL" CACHE PATH "Path to glew.c" FORCE)
 
 	#-------- Locate Header files
     set ( OK_H "0" )

@@ -29,7 +29,6 @@
 #include "nv_gui.h"			// gui system
 #include "quaternion.h"
 
-
 class Sample : public Application {
 public:
 	virtual bool init();
