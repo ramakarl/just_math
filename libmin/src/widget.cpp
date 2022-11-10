@@ -19,6 +19,7 @@
 #include "widget.h"
 #include "event_system.h"
 #include "camera3d.h"
+#include "geom_helper.h"
 #include <string>
 
 #include "nv_gui.h"
