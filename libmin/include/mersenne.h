@@ -48,8 +48,8 @@
 		Quaternion	randQ();
 	
 	private:
-		uint32_t MT[ MT_SIZE ];
-		uint32_t MT_TEMPERED[ MT_SIZE];
+		uint32_t MT[ MT_SIZE ] = {0};
+		uint32_t MT_TEMPERED[ MT_SIZE] = {0};
 		size_t index = MT_SIZE;
 	};
 

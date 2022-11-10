@@ -86,14 +86,14 @@
 		char*			getPtr(uint64_t n)	{ return mCpu + n*mStride; }
 
 	public:
-		uint64_t		mNum, mMax, mSize;
-		int				mStride;
-		uchar			mRefID, mUseType, mUseFlags;	// usage
-		int				mUseRX, mUseRY, mUseRZ;
-		bool			bCpu, bGpu;
-		char*			mCpu;			
+		uint64_t		mNum=0, mMax=0, mSize=0;
+		int				mStride=0;
+		uchar			mRefID=0, mUseType=0, mUseFlags=0;	// usage
+		int				mUseRX=0, mUseRY=0, mUseRZ=0;
+		bool			bCpu=false, bGpu=false;
+		char*			mCpu=NULL;			
 		
-		int				mGLID;				// OpenGL
+		int				mGLID=0;				// OpenGL
 
 		#ifdef USE_CUDA
 			CUdeviceptr		mGpu;			// CUDA

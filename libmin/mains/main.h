@@ -47,7 +47,7 @@
 	#ifdef DEBUG_HEAP
 		#define _CRTDBG_MAP_ALLOC  
 		#include <stdlib.h>  
-		#include <crtdbg.h> 
+		//#include <crtdbg.h> 
 	#else
 		#include <stdlib.h>  
 	#endif
