@@ -37,6 +37,9 @@
 #include "mersenne.h"
 #include "camera3d.h"
 #include "dataptr.h"
+#include "geom_helper.h"
+
+#include "belief_propagation.h"
 
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -696,152 +699,6 @@ void Sample::Restart()
   NormalizeMU ();
 }
 
-//----
-
-int _read_line(FILE *fp, std::string &line) {
-  int ch=0, count=0;
-
-  while (!feof(fp)) {
-    ch = fgetc(fp);
-    if (ch == '\n') { break; }
-    if (ch == EOF) { break; }
-    line += (char)ch;
-    count++;
-  }
-  return count;
-}
-
-int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
-  int i, idx;
-  FILE *fp;
-  std::string line, tok, _s;
-  std::vector<std::string> toks;
-
-  fp = fopen(fn.c_str(), "r");
-  if (!fp) { return -1; }
-
-  while (!feof(fp)) {
-    line.clear();
-    _read_line(fp, line);
-
-    if (line.size()==0) { continue; }
-    if (line[0] == '#') { continue; }
-    if (line[0] == ' ') { continue; }
-
-    toks.clear();
-    tok.clear();
-    for (i=0; i<line.size(); i++) {
-      if (line[i]==',') {
-        toks.push_back(tok);
-        tok.clear();
-        continue;
-      }
-      tok += line[i];
-    }
-    toks.push_back(tok);
-
-    if (toks.size() != 2) { continue; }
-
-    idx = atoi(toks[0].c_str());
-    if (idx <= name.size()) {
-      for (i=name.size(); i<=idx; i++) {
-        _s.clear();
-        name.push_back(_s);
-      }
-    }
-    name[idx] = toks[1];
-  }
-
-  fclose(fp);
-
-  return 0;
-}
-
-
-int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
-  int i;
-  float val, _weight;
-  FILE *fp;
-  std::string line, tok;
-  std::vector<std::string> toks;
-  std::vector<float> v;
-
-  float _tile_src, _tile_dst;
-
-  fp = fopen(fn.c_str(), "r");
-  if (!fp) { return -1; }
-
-  while (!feof(fp)) {
-    line.clear();
-    _read_line(fp, line);
-
-    if (line.size()==0) { continue; }
-    if (line[0] == '#') { continue; }
-    if (line[0] == ' ') { continue; }
-
-    toks.clear();
-    tok.clear();
-    for (i=0; i<line.size(); i++) {
-      if (line[i]==',') {
-        toks.push_back(tok);
-        tok.clear();
-        continue;
-      }
-      tok += line[i];
-    }
-    toks.push_back(tok);
-
-    if ((toks.size() < 3) || (toks.size() > 4)) { continue; }
-
-    _tile_src = atof(toks[0].c_str());
-    _tile_dst = atof(toks[1].c_str());
-    _weight = 1;
-
-    if ((toks.size() >= 4) &&
-        (toks[3].size() != 0) &&
-        (toks[3][0] != 'u')) {
-      _weight = atof(toks[3].c_str());
-    }
-
-    // direction wild card
-    //
-    if ((toks[2].size()==0) ||
-        (toks[2][0] == '*')) {
-      v.clear();
-      v.push_back(0.0);
-      v.push_back(0.0);
-      v.push_back(0.0);
-      v.push_back(0.0);
-      for (i=0; i<6; i++) {
-        v[0] = _tile_src;
-        v[1] = _tile_dst;
-        v[2] = (float)i;
-        v[3] = _weight ;
-        rule.push_back(v);
-      }
-    }
-
-    // explicit entry
-    //
-    else {
-      v.clear();
-      v.push_back(_tile_src);
-      v.push_back(_tile_dst);
-      v.push_back(atof(toks[2].c_str()));
-      v.push_back(_weight);
-      rule.push_back(v);
-    }
-
-  }
-
-  fclose(fp);
-
-  return 0;
-}
-
-
-
-//----
 
 bool Sample::init()
 {

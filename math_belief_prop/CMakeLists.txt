@@ -117,7 +117,8 @@ add_definitions(-DASSET_PATH="${ASSET_PATH}/")
 #####################################################################################
 # Executable
 #
-file(GLOB MAIN_FILES *.cpp *.c *.h )
+# file(GLOB MAIN_FILES *.cpp *.c *.h )
+file(GLOB MAIN_FILES app_belief_prop.cpp belief_prop*.* )
 
 unset ( ALL_SOURCE_FILES )
 
