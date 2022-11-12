@@ -29,9 +29,11 @@
 #if defined(__ANDROID__)
     #include <android/log.h>               // for Android printf logs  
 #elif defined(_WIN32)
-    #include <windows.h>
-    #include <processthreadsapi.h>      // Process memory usage on Win32
-    #include <psapi.h>  
+    #ifndef BUILD_CMDLINE
+      #include <windows.h>
+      #include <processthreadsapi.h>      // Process memory usage on Win32
+      #include <psapi.h>  
+    #endif
 #endif
 
 static std::vector<std::string> gPaths;

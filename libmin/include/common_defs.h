@@ -22,34 +22,39 @@
 	#pragma warning ( disable: 4005)
 
 	#ifdef _WIN32
+        
+        #ifdef BUILD_CMDLINE               
+            #define HELPAPI	                            // Build cmdline app
+        #else
 
-        #define NOMINMAX                             // min/max will come from std::min/max
-		#define WIN32_LEAN_AND_MEAN
-		#include <windows.h>
-		#undef WIN32_LEAN_AND_MEAN
+            #define NOMINMAX                             // min/max will come from std::min/max
+		    #define WIN32_LEAN_AND_MEAN
+		    #include <windows.h>                        // Build windows (NOT cmdline)
+		    #undef WIN32_LEAN_AND_MEAN
 
-		#pragma warning ( disable : 4800 )			// cast to bool performance warning
-		#pragma warning ( disable : 4996 )			// fopen_s, strcpy_s (not linux compatible)
-		#pragma warning ( disable : 4244 )			// conversion from double to float
-		#pragma warning ( disable : 4305 )			// truncation from double to float (constants)
-        #pragma warning ( disable : 4251 )          // STL objects inside DLL-interface classes
+		    #pragma warning ( disable : 4800 )			// cast to bool performance warning
+		    #pragma warning ( disable : 4996 )			// fopen_s, strcpy_s (not linux compatible)
+		    #pragma warning ( disable : 4244 )			// conversion from double to float
+		    #pragma warning ( disable : 4305 )			// truncation from double to float (constants)
+            #pragma warning ( disable : 4251 )          // STL objects inside DLL-interface classes
 
-        #if !defined ( LIBHELP_STATIC )
-            #if defined ( LIBHELP_EXPORTS )				// inside DLL
-                #if defined(_WIN32) || defined(__CYGWIN__)
-                    #define HELPAPI		__declspec(dllexport)
+            #if !defined ( LIBHELP_STATIC )
+                #if defined ( LIBHELP_EXPORTS )				// inside DLL
+                    #if defined(_WIN32) || defined(__CYGWIN__)
+                        #define HELPAPI		__declspec(dllexport)
+                    #else
+                        #define HELPAPI		__attribute__((visibility("default")))
+                    #endif
+                #else										// outside DLL
+                    #if defined(_WIN32) || defined(__CYGWIN__)
+                        #define HELPAPI		__declspec(dllimport)
+                    #else
+                        #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
+                    #endif
+                   #endif          
                 #else
-                    #define HELPAPI		__attribute__((visibility("default")))
-                #endif
-            #else										// outside DLL
-                #if defined(_WIN32) || defined(__CYGWIN__)
-                    #define HELPAPI		__declspec(dllimport)
-                #else
-                    #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
-                #endif
-               #endif          
-            #else
-            #define HELP_API
+                #define HELP_API
+            #endif
         #endif
 
 		#include "inttypes.h"

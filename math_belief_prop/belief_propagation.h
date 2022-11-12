@@ -81,6 +81,7 @@
 
 class BeliefPropagation {
 public:
+  BeliefPropagation();
 
   bool _init();
 
@@ -90,12 +91,12 @@ public:
 
   //DEBUG
   //DEBUG
-  int init(int);
-  int init(int, int, int);
+  int	init(int);
+  int	init(int, int, int);
   //DEBUG
   //DEBUG
 
-  void init_dir_desc();
+  void	init_dir_desc();
 
   // volumes
   void    AllocBuffer(int id, Vector3DI res, int chan=1);
@@ -143,18 +144,17 @@ public:
 
   //---
 
-  int   realize();
-  int   wfc();
+  int	 start();
+  int	 single_realize(int64_t it);
+  int    realize();
+  int    wfc();
 
-  float step();
-  float _step();
+  float  step();  
 
-  float   BeliefProp();
-  void    ComputeBelief (int id, int id_vol);
+  float   BeliefProp();  
   void    UpdateMU ();
 
   float    getVertexBelief ( uint64_t j );
-  float    _getVertexBelief ( uint64_t j, float* bi);
 
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
@@ -168,26 +168,20 @@ public:
   void    NormalizeMU ();
   void    NormalizeMU (int id);
 
-  void    _NormalizeMU ();
-
   void    ConstructTileIdx();
   
   uint64_t  m_num_verts;    // Xi = 0..X (graph domain)
   uint64_t  m_num_values;    //  B = 0..Bm-1 (value domain)  
-  Vector3DI  m_bpres;      // 3D spatial belief prop res
+  Vector3DI m_bpres;      // 3D spatial belief prop res
 
-  Vector3DI  m_res;        // volume res
+  Vector3DI m_res;        // volume res
 
-  DataPtr    m_buf[128];      // data buffers (CPU & GPU)  
+  DataPtr  m_buf[128];      // data buffers (CPU & GPU)  
 
-  int      mouse_down;  
-  bool    m_run_cuda=0;
-  float    m_frame;
-  int      m_peak_iter;
-  int      m_seed;
-
+  bool      m_run_cuda=0;
+  int       m_seed;
   Mersenne  m_rand;
-
+  
   // helper arrays and functions for ease of testing and simple use
   //
   void debugPrint();
@@ -195,7 +189,7 @@ public:
   void debugPrintS();
 
   std::vector< std::string > m_tile_name;
-  std::vector< std::string > m_dir_desc;;
+  std::vector< std::string > m_dir_desc;
   int m_dir_inv[6];
 
   void filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);

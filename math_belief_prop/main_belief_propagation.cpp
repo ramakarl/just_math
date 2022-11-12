@@ -1077,7 +1077,27 @@ int run_test(int test_num) {
 // DEBUG MAIN
 //
 
-#include <getopt.h>
+
+bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg )
+{   
+   if (arg >= argc) return false;
+
+   char dash = argv[arg][0];
+   if (dash=='-') {
+     ch = argv[arg][1];
+     optarg = argv[ arg+1 ]; 
+     printf ( "arg: %d, ch: %c, opt: %s\n", arg, ch, optarg);
+     arg += 2;
+   } else {
+     ch = argv[arg][0];
+     optarg = 0;
+     printf ( "arg: %d, ch: %c, no opt\n", arg, ch);
+     arg++;
+   }
+   return (arg <= argc);
+}
+
+// #include "getopt.h"
 
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
@@ -1106,6 +1126,7 @@ void show_version(FILE *fp) {
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
+  char* optarg;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str, rule_fn_str, constraint_fn_str;
@@ -1119,62 +1140,63 @@ int main(int argc, char **argv) {
   std::vector< std::vector< int32_t > > constraint_list;
 
   BeliefPropagation bpc;
+ 
+  int arg=1;
 
-  while ((ch = getopt(argc, argv, "hvN:R:C:T:WD:X:Y:Z:S:")) != -1) {
+  while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
+    printf ( "ok %c. %d/%d \n", ch, arg, argc);
     switch (ch) {
-      case 'h':
-        show_usage(stdout);
-        exit(0);
-        break;
-      case 'v':
-        show_version(stdout);
-        exit(0);
-        break;
-
-      case 'N':
-        name_fn = strdup(optarg);
-        break;
-      case 'R':
-        rule_fn = strdup(optarg);
-        break;
-      case 'C':
-        constraint_fn = strdup(optarg);
-        break;
-
-      case 'S':
-        seed = atoi(optarg);
-        bpc.m_seed = seed;
-        break;
-
-      case 'T':
-        test_num = atoi(optarg);
-        break;
-
-      case 'D':
-        D = atoi(optarg);
-        break;
-      case 'X':
-        X = atoi(optarg);
-        break;
-      case 'Y':
-        Y = atoi(optarg);
-        break;
-      case 'Z':
-        Z = atoi(optarg);
-        break;
-
-      case 'W':
-        wfc_flag = 1;
-        break;
-
-      default:
-        show_usage(stderr);
-        exit(-1);
-    }
+    case 'h':
+      show_usage(stdout);
+      printf ( "show_use.\n" );
+      exit(0);
+      break;
+    case 'v':
+      show_version(stdout);
+      printf ( "show_ver.\n" );
+      exit(0);
+      break;
+    case 'N':
+      name_fn = strdup(optarg);
+      break;
+    case 'R':
+      rule_fn = strdup(optarg);
+      break;
+    case 'C':
+      constraint_fn = strdup(optarg);
+      break;
+    case 'S':
+      seed = atoi(optarg);
+      bpc.m_seed = seed;
+      break;
+    case 'T':
+      test_num = atoi(optarg);
+      break;
+    case 'D':
+      D = atoi(optarg);
+      break;
+    case 'X':
+      X = atoi(optarg);
+      break;
+    case 'Y':
+      Y = atoi(optarg);
+      break;
+    case 'Z':
+      Z = atoi(optarg);
+      break;
+    case 'W':
+      wfc_flag = 1;
+      break;
+    default:
+      show_usage(stderr);
+      printf ( "exit.\n" );
+      exit(-1);      
+      break;
+    };
   }
 
-  if ((!name_fn) || (!rule_fn)) {
-    fprintf(stderr, "\nprovide name file and rule file CSV\n\n");
+ if ((!name_fn) || (!rule_fn)) {
+    printf("\nprovide name file and rule file CSV\n\n");
     show_usage(stderr);
     exit(-1);
   }
@@ -1186,27 +1208,36 @@ int main(int argc, char **argv) {
   }
 
   if ((X<=0) || (Y<=0) || (Z<=0)) {
-    fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
+    printf("dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
     show_usage(stderr);
     exit(-1);
   }
 
+ 
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
   if (constraint_fn) {
     constraint_fn_str = constraint_fn;
     _read_constraint_csv(constraint_fn_str, constraint_list);
+    printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), constraint_list.size() );
+    for (int n=0; n < constraint_list.size(); n++) {
+      for (int j=0; j < 4; j++) {
+        printf ( "%d ", constraint_list[n][j] );
+      }
+      printf ( "\n" );
+    }
   }
 
+  printf ( "bpc init csv.\n" );
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
   if (ret<0) {
-    fprintf(stderr, "error loading CSV\n");
+    printf("error loading CSV\n");
     exit(-1);
   }
 
   if (constraint_fn) {
+    printf ( "filter constraints.\n" );
     bpc.filter_constraint(constraint_list);
-
     //DEBUG
     //bpc.debugPrint();
   }
@@ -1218,6 +1249,7 @@ int main(int argc, char **argv) {
 
   if (wfc_flag) {
 
+    printf ( "wfc realize.\n" );
     ret = bpc.wfc();
     printf("# wfc got: %i\n", ret);
     bpc.debugPrint();
@@ -1225,8 +1257,11 @@ int main(int argc, char **argv) {
   }
   else {
 
+    printf ( "bpc realize.\n" );
     ret = bpc.realize();
     printf("# bp realize got: %i\n", ret);
+
+    printf("####################### DEBUG PRINT\n" );
     bpc.debugPrint();
 
   }

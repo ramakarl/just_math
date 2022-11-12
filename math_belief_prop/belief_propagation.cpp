@@ -53,185 +53,10 @@
 
 #include "belief_propagation.h"
 
-/*
-#define BELIEF_PROPAGATION_VERSION "0.1.0"
-
-#define BUF_VOL         0    // volume: n^3
-#define BUF_G           1    // beliefprop, G(a) vector
-#define BUF_H           2    // beliefprop, H(a) vector
-#define BUF_F           3    // beliefprop, F(a,b) vector - assume independent of i,j
-#define BUF_MU          4    // beliefprop, mu{i,j}(a,b) vector 
-#define BUF_MU_NXT      5    // beliefprop, mu'{i,j}(a,b) vector
-#define BUF_BELIEF      6    // Belief array
-#define BUF_TILE_IDX    7
-#define BUF_TILE_IDX_N  8
-
-
-// consider/scan
-//
-#define BUF_CONSIDER    9
-
-// visited/picked
-//
-#define BUF_VISITED     10
-
-// note
-//
-#define BUF_NOTE        11
-
-class BeliefPropagation {
-public:
-
-  bool _init();
-
-  int init_CSV(int, std::string &, std::string &);
-  int init_CSV(int, int, int, std::string &, std::string &);
-  int init_F_CSV(std::string &, std::string &);
-
-  //DEBUG
-  //DEBUG
-  int init(int);
-  int init(int, int, int);
-  //DEBUG
-  //DEBUG
-
-  void init_dir_desc();
-
-  // volumes
-  void    AllocBuffer(int id, Vector3DI res, int chan=1);
-
-  // belief prop
-  void    Restart();
-  void    AllocBPVec (int id, int cnt);                  // vector alloc  
-  void    AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
-  void    AllocBPMap (int id, int nbrs, int vals);
-
-  void    AllocTileIdx (int, int, int);
-  void    AllocTileIdxN(int, int );
-
-  void    AllocVeci32(int, int);
-  void    AllocVeci32(int, int, int);
-
-  int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
-  Vector3DI  getVertexPos(int64_t j);
-  int64_t  getVertex(int x, int y, int z);
-
-  inline int      getNumNeighbors(int j)        {return 6;}     
-  inline int      getNumValues(int j)          {return m_num_values;}
-  inline int      getNumVerts()            {return m_num_verts;}
-
-  //---
-
-  // belief matrix packing
-  inline float   getVal(int id, int a)        {return *(float*) m_buf[id].getPtr (a);}            // G and H vectors, size B
-  inline void    SetVal(int id, int a, float val)  {*(float*) m_buf[id].getPtr(a) = val;}
-  inline float   getVal(int id, int n, int j, int a) {return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }  // mu matrix, NxDxB, where D=R^3, N=nbrs=6
-  inline void    SetVal(int id, int n, int j, int a, float val ) { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
-  inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }  // belief mapping (f), BxB
-  inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ) = val; }
-
-  inline int32_t getVali(int id, int i)                { return *(int32_t *) m_buf[id].getPtr (i); }
-  inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;
-  }
-
-  inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
-  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val;
-  }
-
-  inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
-  inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }
-
-  //---
-
-  int   realize();
-  int   wfc();
-
-  float step();
-  float _step();
-
-  float   BeliefProp();
-  void    ComputeBelief (int id, int id_vol);
-  void    UpdateMU ();
-
-  float    getVertexBelief ( uint64_t j );
-  float    _getVertexBelief ( uint64_t j, float* bi);
-
-  void    cellUpdateBelief(int64_t anch_cell);
-  int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
-  int     chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
-
-  float   MaxDiffMU();
-
-  void    ConstructF ();
-  void    ConstructGH ();
-  void    ConstructMU ();
-  void    NormalizeMU ();
-  void    NormalizeMU (int id);
-
-  void    _NormalizeMU ();
-
-  void    ConstructTileIdx();
-  
-  uint64_t  m_num_verts;    // Xi = 0..X (graph domain)
-  uint64_t  m_num_values;    //  B = 0..Bm-1 (value domain)  
-  Vector3DI  m_bpres;      // 3D spatial belief prop res
-
-  Vector3DI  m_res;        // volume res
-
-  DataPtr    m_buf[128];      // data buffers (CPU & GPU)  
-
-  int      mouse_down;  
-  bool    m_run_cuda=0;
-  float    m_frame;
-  int      m_peak_iter;
-  int      m_seed;
-
-  Mersenne  m_rand;
-
-  // helper arrays and functions for ease of testing and simple use
-  //
-  void debugPrint();
-  void debugPrintC();
-  void debugPrintS();
-
-  std::vector< std::string > m_tile_name;
-  std::vector< std::string > m_dir_desc;;
-  int m_dir_inv[6];
-
-  void filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
-  void filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
-  int32_t tileName2ID (std::string &tile_name);
-  int32_t tileName2ID (char *);
-
-  // non "strict" bp functions but helpful still
-  //
-  int CullBoundary();
-  int _CullBoundary();
-  void ConstructConstraintBuffers();
-  int cellConstraintPropagate();
-  void cellFillAccessed(uint64_t vtx, int32_t note_idx);
-
-  int tileIdxCollapse(uint64_t pos, int32_t tile_idx);
-
-  // note_idx is the 'plane' of BUF_NOTE to unwind
-  //
-  void unfillAccessed(int32_t note_idx);
-  int removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
-  int sanityAccessed();
-
-  uint64_t m_note_n[2];
-
-  int64_t m_grid_note_idx;
-
-  float m_rate;
-
-  int filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
-
-
-};
-*/
-
-//Sample obj;
+BeliefPropagation::BeliefPropagation()
+{
+    m_seed = 17;
+}
 
 //---- volume buffers
 //
@@ -522,28 +347,6 @@ void BeliefPropagation::NormalizeMU (int id) {
       }
 
     }
-  }
-}
-
-void BeliefPropagation::_NormalizeMU ()
-{
-  int i;
-  float v, sum;
-  
-  for (int j=0; j < m_num_verts; j++) {
-    for (int in=0; in < getNumNeighbors(j); in++) {
-      i = getNeighbor(j, in);
-      sum = 0;
-      for (int a=0; a < m_num_values; a++) {
-        sum += getVal(BUF_MU, in, j, a );
-      }    
-      if ( sum > 0 ) {
-        for (int a=0; a < m_num_values; a++) {      
-          v = getVal(BUF_MU, in, j, a);
-          SetVal( BUF_MU, in, j, a, v / sum);
-        }
-      }
-    }    
   }
 }
 
@@ -929,93 +732,6 @@ float BeliefPropagation::getVertexBelief ( uint64_t j )
   return sum;
 }
 
-float BeliefPropagation::_getVertexBelief ( uint64_t j, float* bi )
-{
-  int64_t k;
-  float sum = 0;
-  for (int a=0; a < m_num_values; a++) {
-    bi[a] = 1.0;
-    for (int kn=0; kn < getNumNeighbors(j); kn++) {
-      k = getNeighbor(j, kn);
-
-      // mu{k,j}(a)
-      //
-      if (k!=-1) { bi[a] *= getVal(BUF_MU, kn, j, a ); }
-    }
-    sum += bi[a];
-  }
-  if ( sum > 0 ) {
-    for (int a=0; a < m_num_values; a++)  {
-      bi[a] /= sum;
-    }
-  }
-  
-  return sum;
-}
-
-
-void BeliefPropagation::ComputeBelief (int id, int id_vol)
-{
-  int k;
-  float sum;
-  //float bi[16];
-  float *bi;
-  uint64_t j, i;
-
-  //Vector4DF* dat = (Vector4DF*) buf[id_vol].getData();
-  //Vector4DF* vox = dat;
-
-  for ( j=0; j < getNumVerts(); j++ ) {    
-    //getVertexBelief (j, bi);    
-    getVertexBelief (j);
-
-    /*
-    vox->x = bi[0] + bi[3];
-    vox->y = bi[1] + bi[3];
-    vox->z = bi[2];
-    //vox->w = max(bi[0], max(bi[1], max(bi[2], bi[3])));
-    vox->w = std::max(bi[0], std::max(bi[1], bi[2]));
-    vox++;
-    */
-  }
-
-  //----------- alternative: select highest b and write only that to volume
-  // find highest probability
-  /* int j_best = 0;
-  int a_best = 0;
-  float bi_best = 0;  
-  vox = dat;
-  for ( j=0; j < getNumVerts(); j++ ) {    
-    // compute belief at j      
-    if ( vox->w == 0 ) {                // select only from those not yet decided
-      getVertexBelief ( j, bi );      
-      for (int a=0; a < m_num_values; a++) {
-        if ( bi[a] > bi_best ) {
-          j_best = j;
-          a_best = a;
-          bi_best = bi[a];        
-        }
-      }  
-    }
-    vox++;
-  }  
-  // recompute bi[a] at best j
-  getVertexBelief (j_best, bi );
-  
-  // write belief directly to volume for visualization
-  // * we are assuming the spatial layout x/y/z of vol matches the indexing of j            
-  Vector3DF b ( bi[0], bi[1], bi[2] );
-  vox = dat + j_best;            // voxel for highest probability
-   vox->x = b.x;
-  vox->y = b.y;
-  vox->z = b.z;
-  vox->w = max(b.x, max(b.y, b.z));
-  */
-
-  printf("----\n"); fflush(stdout);
-  
-}
-
 void BeliefPropagation::Restart()
 {
   m_rand.seed ( m_seed++ );  
@@ -1222,9 +938,10 @@ int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &a
     v32.push_back(z);
     v32.push_back(tileid);
 
-    admissible_tile.push_back(v32);
+    admissible_tile.push_back(v32);    
 
   }
+  fclose (fp);
 
   return 0;
 }
@@ -1242,6 +959,11 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
 
   for (i=0; i<constraint_list.size(); i++) {
 
+    if ( constraint_list[i].size() != 4 ) {
+        printf ( "error: constraints don't have 4.\n");
+        exit(-1);
+    }
+
     x = constraint_list[i][0];
     y = constraint_list[i][1];
     z = constraint_list[i][2];
@@ -1250,6 +972,11 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
 
     pos = getVertex(x,y,z);
     if ((pos < 0) || (pos >= m_num_verts)) { continue; }
+
+    if ( x < 0 || x >= m_res.x || y <0 || y >= m_res.y || z<0 || z >= m_res.z) {
+        printf ( "error: constraint out of range: %d,%d,%d\n", x,y,z);
+        exit(-1);
+    }
 
     n = getVali( BUF_TILE_IDX_N, pos );
     SetVali( BUF_TILE_IDX, pos, n,  tile_id );
@@ -1368,8 +1095,7 @@ int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_f
   AllocBPVec( BUF_BELIEF, m_num_values );
 
   // options
-  //
-  m_frame     = 0;  
+  //  
   m_run_cuda  = false;
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
@@ -1416,7 +1142,6 @@ int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, st
 
   // options
   //
-  m_frame     = 0;  
   m_run_cuda  = false;
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
@@ -1460,8 +1185,7 @@ bool BeliefPropagation::_init() {
   AllocBPVec( BUF_BELIEF, m_num_values );
 
   // options
-  //
-  m_frame     = 0;  
+  //  
   m_run_cuda  = false;
 
   AllocBuffer ( BUF_VOL, m_res, 4 );
@@ -1512,21 +1236,25 @@ int BeliefPropagation::wfc() {
   return 0;
 }
 
-int BeliefPropagation::realize() {
-  int ret;
-  int64_t cell=-1;
-  int32_t tile=-1, tile_idx=-1;
-  float belief=-1.0, d = -1.0;
+int BeliefPropagation::start () {
 
-  int64_t it, step_iter=0, max_step_iter = 1000;
+    // cull boundary
+    CullBoundary();
 
-  float _eps = (1.0/(1024.0*1024.0));
-  _eps = (1.0/(128.0));
+    return 1;
+}
 
-  CullBoundary();
+int BeliefPropagation::single_realize (int64_t it) {
 
-  for (it=0; it<m_num_verts; it++) {
-
+    int ret;
+    int64_t cell=-1;
+    int32_t tile=-1, tile_idx=-1;
+    float belief=-1.0, d = -1.0;
+    int64_t step_iter=0, max_step_iter = 1000;
+    
+    float _eps = (1.0/(1024.0*1024.0));
+    _eps = (1.0/(128.0));
+    
     // after we've propagated constraints, BUF_MU
     // needs to be renormalized
     //
@@ -1548,7 +1276,7 @@ int BeliefPropagation::realize() {
     //
     ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
     if (ret < 0) { return -1; }
-    if (ret==0) { break; }
+    if (ret==0 ) { return 0; }      // was break
 
     ret = tileIdxCollapse( cell, tile_idx );
     if (ret < 0) { return -2; }
@@ -1562,9 +1290,33 @@ int BeliefPropagation::realize() {
     ret = cellConstraintPropagate();
     if (ret < 0) { return -3; }
 
-  }
+    return 1;
+}
 
-  return 0;
+
+
+int BeliefPropagation::realize() {
+
+  int ret = 1;
+
+  start();
+
+  // process all verts
+  for (int64_t it=0; it<m_num_verts; it++) {
+
+    ret = single_realize( it );
+    if (ret==0) break;
+
+    // check for errors
+    if ( ret < 0) {
+      switch (ret) {
+      case -1: printf ( "chooseMaxBelief error.\n" ); break;
+      case -2: printf ( "tileIdxCollapse error.\n" ); break;
+      case -3: printf ( "cellConstraintPropagate error.\n" ); break;
+      };
+    }
+  }
+  return ret;  // should be 0=done or 1=all touched
 }
 
 float BeliefPropagation::step() {
@@ -1586,30 +1338,6 @@ float BeliefPropagation::step() {
   // BUF_MU <- BUF_MU_NXT
   //
   UpdateMU();
-
-  return max_diff;
-}
-
-float BeliefPropagation::_step()
-{
-  float max_diff = 0.0;
-  //char savename[256] = {'\0'};
-  //char msg[256];
-  Vector3DF a, b, c;
-  Vector3DF p, q, d;
-
-  // advance
-  //time update  
-  //
-  ComputeBelief ( BUF_MU, BUF_VOL );
-
-  printf(">>>\n"); fflush(stdout);
-
-  max_diff = BeliefProp ();    
-  UpdateMU();
-  NormalizeMU();  
-
-  printf("cp.step.0 (--> %f)\n", max_diff); fflush(stdout);
 
   return max_diff;
 }
