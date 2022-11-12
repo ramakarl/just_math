@@ -1006,6 +1006,8 @@ int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &a
 
   }
 
+  close(fp);
+
   return 0;
 }
 

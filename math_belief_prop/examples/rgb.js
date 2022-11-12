@@ -1874,7 +1874,7 @@ function csv_rule(template, fn) {
 }
 
 function csv_constraint(template, fn, dist) {
-  let n=11, m=11, z=2;
+  let n=11, m=11, z=3;
 
   let remove_list = [];
 
