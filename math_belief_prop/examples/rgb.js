@@ -287,14 +287,17 @@ let _template = {
     "s": 1,
     "|": 1,
     "r": 1,
+    "^": 1,
 
     "t": 1,
     "-": 1,
     "/": 1,
+    "~": 1,
 
     "u": 1,
     "L": 1,
-    "!": 1
+    "!": 1,
+    "`": 1
 
     //"|": 1,
     //"+": 1,
@@ -310,14 +313,17 @@ let _template = {
     "s": 1,
     "|": 1,
     "r": 1,
+    "^": 1,
 
     "t": 1,
     "-": 1,
     "/": 1,
+    "~": 1,
 
     "u": 1,
     "!": 1,
-    "L": 1
+    "L": 1,
+    "`": 1
 
     //"|": -1,
     //"+": -1,
@@ -577,6 +583,17 @@ function init_template(template) {
     template["endpoint"]["r"].push(w_sb1[i]);
   }
 
+  let w_sS0 = widget_xy_d3(_g_w,_g_h);
+  let w_sS1 = widget_xz_d4(_g_w,_g_h);
+  template["endpoint"]["^"] = [];
+  for (let i=0; i<w_sS0.length; i++) {
+    template["endpoint"]["^"].push(w_sS0[i]);
+  }
+  for (let i=0; i<w_sS1.length; i++) {
+    template["endpoint"]["^"].push(w_sS1[i]);
+  }
+
+
   //---
 
   _g_w = 1/7; _g_h = 1/11;
@@ -585,9 +602,6 @@ function init_template(template) {
   for (let i=0; i<w_t.length; i++) {
     template["endpoint"]["t"].push(w_t[i]);
   }
-
-  //let w_tr0 = widget_xy_d2(_g_w,_g_h);
-  //let w_tr1 = widget_xy_d3(_g_w,_g_h);
 
   // try and match symbol with representation
   // +-x
@@ -614,6 +628,17 @@ function init_template(template) {
     template["endpoint"]["/"].push(w_tb1[i]);
   }
 
+  let w_tS0 = widget_xy_d3(_g_w,_g_h);
+  let w_tS1 = widget_xz_d4(_g_w,_g_h);
+  template["endpoint"]["~"] = [];
+  for (let i=0; i<w_tS0.length; i++) {
+    template["endpoint"]["~"].push(w_tS0[i]);
+  }
+  for (let i=0; i<w_tS1.length; i++) {
+    template["endpoint"]["~"].push(w_tS1[i]);
+  }
+
+
   //---
 
   _g_w = 1/13; _g_h = 1/17;
@@ -635,6 +660,8 @@ function init_template(template) {
     template["endpoint"]["!"].push(w_ur1[i]);
   }
 
+
+
   // try and match symbol better with actual endpoint
   // +x +y
   //
@@ -646,6 +673,16 @@ function init_template(template) {
   }
   for (let i=0; i<w_ub1.length; i++) {
     template["endpoint"]["L"].push(w_ub1[i]);
+  }
+
+  let w_uS0 = widget_xy_d3(_g_w,_g_h);
+  let w_uS1 = widget_xz_d4(_g_w,_g_h);
+  template["endpoint"]["`"] = [];
+  for (let i=0; i<w_uS0.length; i++) {
+    template["endpoint"]["`"].push(w_uS0[i]);
+  }
+  for (let i=0; i<w_uS1.length; i++) {
+    template["endpoint"]["`"].push(w_uS1[i]);
   }
 
 
