@@ -1094,6 +1094,13 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
+  fprintf(fp, "  -d       debug print\n");
+
+  fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
+  fprintf(fp, "  -e <#>   set convergence epsilon\n");
+  fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -I <#>   set max step iteration\n");
+
   fprintf(fp, "  -v       show version\n");
   fprintf(fp, "  -h       help (this screen)\n");
   fprintf(fp, "\n");
@@ -1114,13 +1121,17 @@ int main(int argc, char **argv) {
   int X=0, Y=0, Z=0, D=0;
 
   int wfc_flag = 0;
+  int debug_print = 0;
   int seed = 0;
+
+  float eps_zero = -1.0, eps_converge = -1.0;
+  int max_iter = -1;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
   BeliefPropagation bpc;
 
-  while ((ch = getopt(argc, argv, "hvN:R:C:T:WD:X:Y:Z:S:")) != -1) {
+  while ((ch = getopt(argc, argv, "hvdN:R:C:T:WD:X:Y:Z:S:V:e:z:I:")) != -1) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1129,6 +1140,31 @@ int main(int argc, char **argv) {
       case 'v':
         show_version(stdout);
         exit(0);
+        break;
+      case 'd':
+        debug_print = 1;
+        break;
+
+      case 'V':
+        bpc.m_verbose = atoi(optarg);
+        break;
+      case 'e':
+        eps_converge = atof(optarg);
+        if (eps_converge > 0.0) {
+          bpc.m_eps_converge = eps_converge;
+        }
+        break;
+      case 'z':
+        eps_zero = atof(optarg);
+        if (eps_zero > 0.0) {
+          bpc.m_eps_zero = eps_zero;
+        }
+        break;
+      case 'I':
+        max_iter = atoi(optarg);
+        if (max_iter > 0) {
+          bpc.m_max_iteration = (int64_t)max_iter;
+        }
         break;
 
       case 'N':
@@ -1209,6 +1245,11 @@ int main(int argc, char **argv) {
 
     //DEBUG
     //bpc.debugPrint();
+  }
+
+  if (debug_print) {
+    bpc.debugPrint();
+    exit(0);
   }
 
   if (test_num >= 0) {

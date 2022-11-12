@@ -81,6 +81,12 @@
 
 class BeliefPropagation {
 public:
+  BeliefPropagation() {
+    m_verbose = 0;
+    m_eps_converge = (1.0/(1024.0));
+    m_eps_zero = (1.0/(1024.0*1024.0));
+    m_max_iteration = 1024;
+  };
 
   bool _init();
 
@@ -226,6 +232,15 @@ public:
   float m_rate;
 
   int filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
+
+  int m_verbose;
+
+  float m_eps_converge;
+  float m_eps_zero;
+
+  int64_t m_max_iteration;
+
+  void gp_state_print();
 
 
 };
