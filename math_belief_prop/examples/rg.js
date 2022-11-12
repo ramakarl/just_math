@@ -1581,7 +1581,7 @@ function build_tile_library( template ) {
 
   // restrict undesirable combinations
   //
-  filter_steeple(template);
+  //filter_steeple(template);
 
 
   //---
@@ -1780,6 +1780,7 @@ function csv_name(template, fn) {
 
 function csv_rule(template, fn) {
   let _eps = (1.0/(1024.0*1024.0));
+  let _verbose = true;
 
   //let fp = fs.openSync(fn, "w");
 
@@ -1802,6 +1803,11 @@ function csv_rule(template, fn) {
     for (let j=0; j<F[dv_key[i]].length; j++) {
       for (let k=0; k<F[dv_key[i]][j].length; k++) {
         if (F[dv_key[i]][j][k] < _eps) { continue; }
+
+        if (_verbose) {
+          s += "#\n# " + template.tile_name[j] + " =(" + dv_key[i] + ")=> " + template.tile_name[k] + " : " + F[dv_key[i]][j][k] + "\n";
+        }
+
         s += j + "," + k + "," + i + "," + F[dv_key[i]][j][k] + "\n";
         //console.log(j + "," + k + "," + i + "," + F[dv_key[i]][j][k]);
         //fp.writeFileSync(s);
@@ -1814,22 +1820,32 @@ function csv_rule(template, fn) {
   //fp.close();
 }
 
-function csv_constraint(template, fn) {
+function csv_constraint(template, fn, dist) {
   let n=5, m=5;
 
   let gr = [];
   for (let i=0; i<n; i++) {
     gr.push([]);
     for (let j=0; j<m; j++) {
-      gr[i].push([0, 13, 14, 19, 20, 21, 22, 43, 44, 49, 50, 51, 52]);
+      gr[i].push([0,
+        13, 14,
+        19, 20, 21, 22,
+        43, 44,
+        49, 50, 51, 52]);
     }
   }
 
   gr[1][1] = [1];
-  gr[3][1] = [31];
+  gr[1][3] = [31];
 
-  gr[1][3] = [33];
-  gr[3][3] = [3];
+  //gr[dist][1] = [3];
+  //gr[dist][3] = [33];
+
+  gr[dist][3] = [3];
+  gr[dist][1] = [33];
+
+  //gr[3][1] = [3];
+  //gr[3][3] = [33];
 
   //let fp = fs.openSync(fn, "w");
 
@@ -1856,7 +1872,18 @@ build_tile_library(_template);
 
 csv_name(_template, "rg_name.csv");
 csv_rule(_template, "rg_rule.csv");
-csv_constraint(_template, "rg_constraint.csv");
+
+// wfc ok
+//
+//csv_constraint(_template, "rg_constraint.csv", 3);
+
+// wfc succeeds 34%
+//
+//csv_constraint(_template, "rg_constraint.csv", 6);
+
+// wfc succeeds 
+//
+csv_constraint(_template, "rg_constraint.csv", 3);
 
 
 //console.log(JSON.stringify(_template, null, 2));

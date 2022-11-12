@@ -1114,6 +1114,13 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
+  fprintf(fp, "  -d       debug print\n");
+
+  fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
+  fprintf(fp, "  -e <#>   set convergence epsilon\n");
+  fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -I <#>   set max step iteration\n");
+
   fprintf(fp, "  -v       show version\n");
   fprintf(fp, "  -h       help (this screen)\n");
   fprintf(fp, "\n");
@@ -1135,7 +1142,11 @@ int main(int argc, char **argv) {
   int X=0, Y=0, Z=0, D=0;
 
   int wfc_flag = 0;
+  int debug_print = 0;
   int seed = 0;
+
+  float eps_zero = -1.0, eps_converge = -1.0;
+  int max_iter = -1;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
@@ -1146,53 +1157,79 @@ int main(int argc, char **argv) {
   while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
     printf ( "ok %c. %d/%d \n", ch, arg, argc);
     switch (ch) {
-    case 'h':
-      show_usage(stdout);
-      printf ( "show_use.\n" );
-      exit(0);
-      break;
-    case 'v':
-      show_version(stdout);
-      printf ( "show_ver.\n" );
-      exit(0);
-      break;
-    case 'N':
-      name_fn = strdup(optarg);
-      break;
-    case 'R':
-      rule_fn = strdup(optarg);
-      break;
-    case 'C':
-      constraint_fn = strdup(optarg);
-      break;
-    case 'S':
-      seed = atoi(optarg);
-      bpc.m_seed = seed;
-      break;
-    case 'T':
-      test_num = atoi(optarg);
-      break;
-    case 'D':
-      D = atoi(optarg);
-      break;
-    case 'X':
-      X = atoi(optarg);
-      break;
-    case 'Y':
-      Y = atoi(optarg);
-      break;
-    case 'Z':
-      Z = atoi(optarg);
-      break;
-    case 'W':
-      wfc_flag = 1;
-      break;
-    default:
-      show_usage(stderr);
-      printf ( "exit.\n" );
-      exit(-1);      
-      break;
-    };
+      case 'h':
+        show_usage(stdout);
+        exit(0);
+        break;
+      case 'v':
+        show_version(stdout);
+        exit(0);
+        break;
+      case 'd':
+        debug_print = 1;
+        break;
+      case 'V':
+        bpc.m_verbose = atoi(optarg);
+        break;
+      case 'e':
+        eps_converge = atof(optarg);
+        if (eps_converge > 0.0) {
+          bpc.m_eps_converge = eps_converge;
+        }
+        break;
+      case 'z':
+        eps_zero = atof(optarg);
+        if (eps_zero > 0.0) {
+          bpc.m_eps_zero = eps_zero;
+        }
+        break;
+      case 'I':
+        max_iter = atoi(optarg);
+        if (max_iter > 0) {
+          bpc.m_max_iteration = (int64_t)max_iter;
+        }
+        break;
+
+      case 'N':
+        name_fn = strdup(optarg);
+        break;
+      case 'R':
+        rule_fn = strdup(optarg);
+        break;
+      case 'C':
+        constraint_fn = strdup(optarg);
+        break;
+
+      case 'S':
+        seed = atoi(optarg);
+        bpc.m_seed = seed;
+        break;
+
+      case 'T':
+        test_num = atoi(optarg);
+        break;
+
+      case 'D':
+        D = atoi(optarg);
+        break;
+      case 'X':
+        X = atoi(optarg);
+        break;
+      case 'Y':
+        Y = atoi(optarg);
+        break;
+      case 'Z':
+        Z = atoi(optarg);
+        break;
+
+      case 'W':
+        wfc_flag = 1;
+        break;
+
+      default:
+        show_usage(stderr);
+        exit(-1);
+    }
   }
 
  if ((!name_fn) || (!rule_fn)) {
@@ -1240,6 +1277,11 @@ int main(int argc, char **argv) {
     bpc.filter_constraint(constraint_list);
     //DEBUG
     //bpc.debugPrint();
+  }
+
+  if (debug_print) {
+    bpc.debugPrint();
+    exit(0);
   }
 
   if (test_num >= 0) {
