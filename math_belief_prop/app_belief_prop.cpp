@@ -76,7 +76,9 @@ public:
   void      Restart();
 
   BeliefPropagation bpc;
+  BeliefPropagation wfc;
 
+  bool m_run_bpc, m_run_wfc;
   int m_X, m_Y, m_Z, m_D;
   int64_t m_it;
   std::string   m_name_fn;
@@ -86,7 +88,8 @@ public:
   std::vector< std::vector<float> > m_tile_rule;
   
   // Volume rendering
-  void      VisualizeBelief ( int bp_id, int vol_id );
+  void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
+  void      VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id );
 
   void      AllocVolume(int id, Vector3DI res, int chan=1);
   float     getVoxel ( int id, int x, int y, int z );
@@ -96,6 +99,7 @@ public:
     
   Camera3D* m_cam;          // camera
   Image*    m_img;          // output image  
+  Image*    m_img2;     
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
 
@@ -109,9 +113,11 @@ public:
 };
 Sample obj;
 
-void Sample::on_arg(int i, std::string arg, std::string val )
+void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
     std::string name_fn, rule_fn, constraint_fn;    
+    float valf;
+    int vali;
     int wfc_flag = 0;
     int seed = 0;    
     int test_num = 0;
@@ -120,37 +126,65 @@ void Sample::on_arg(int i, std::string arg, std::string val )
     
     if ( dash=='-' ) {
     switch (ch) {      
+      case 'd':
+       // debug_print = 1;
+        break;
+      case 'V':
+        bpc.m_verbose = strToI(optarg);
+        break;
+      case 'e':
+        valf = strToF(optarg);
+        if (valf > 0.0) {
+          bpc.m_eps_converge = valf;
+        }
+        break;
+      case 'z':
+        valf = strToF(optarg);
+        if (valf > 0.0) {
+          bpc.m_eps_zero = valf;
+        }
+        break;
+      case 'I':
+        vali  = strToI(optarg);
+        if (vali > 0) {
+          bpc.m_max_iteration = (int64_t) vali;
+        }
+        break;
       case 'N':
-        name_fn = val;
+        name_fn = optarg;
         break;
       case 'R':
-        rule_fn = val;
+        rule_fn = optarg;
         break;
       case 'C':
-        constraint_fn = val;
+        constraint_fn = optarg;
         break;
+
       case 'S':
-        seed = strToI(val);
+        seed = strToI(optarg);
         bpc.m_seed = seed;
         break;
+
       case 'T':
-        test_num = strToI(val);
+        test_num = strToI(optarg);
         break;
+
       case 'D':
-        m_D = strToI(val);
+        m_D = strToI(optarg);
         break;
       case 'X':
-        m_X = strToI(val);
+        m_X = strToI(optarg);
         break;
       case 'Y':
-        m_Y = strToI(val);
+        m_Y = strToI(optarg);
         break;
       case 'Z':
-        m_Z = strToI(val);
+        m_Z = strToI(optarg);
         break;
+
       case 'W':
         wfc_flag = 1;
-        break;      
+        break;    
     }
     }
 }
@@ -160,7 +194,6 @@ void Sample::AllocVolume (int id, Vector3DI res, int chan)    // volume alloc
   uint64_t cnt = res.x*res.y*res.z;
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
-
   memset( (void *)(m_vol[id].getPtr(0)), 0, sizeof(float)*cnt);
 }
 float Sample::getVoxel ( int id, int x, int y, int z )
@@ -175,34 +208,73 @@ Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 }
 
 
-void Sample::VisualizeBelief ( int bp_id, int vol_id ) {
+void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
 
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
 
    float maxv;
 
    // map belief to RGBA voxel
-   for ( uint64_t j=0; j < bpc.getNumVerts(); j++ ) {    
-     bpc.getVertexBelief (j);
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+     src.getVertexBelief (j);
 
      // red
      maxv = 0.0;
      for (int k=1; k <= 30; k++) {  
-        maxv = std::max(maxv, bpc.getVal( BUF_BELIEF, k ));
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->x = maxv;
      
      // green
      maxv = 0.0;
      for (int k=31; k <= 60; k++) {  
-        maxv = std::max(maxv, bpc.getVal( BUF_BELIEF, k ));
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
      for (int k=61; k <= 90; k++) {  
-        maxv = std::max(maxv, bpc.getVal( BUF_BELIEF, k ));
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
+     }
+     vox->z = maxv;
+     //vox->z = 0.0;
+
+     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+     vox++;
+   }
+}
+
+
+void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
+
+   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+
+   float maxv;
+   int cnt;
+
+   // map belief to RGBA voxel
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+     cnt = src.getTilesAtVertex( j );
+
+     // red
+     maxv = 0.0;
+     for (int k=1; k <= 30; k++) {  
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
+     }
+     vox->x = maxv;
+     
+     // green
+     maxv = 0.0;
+     for (int k=31; k <= 60; k++) {  
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
+     }
+     vox->y = maxv;
+
+     // blue
+     maxv = 0.0;
+     for (int k=61; k <= 90; k++) {  
+        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->z = maxv;
      //vox->z = 0.0;
@@ -287,6 +359,9 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
+  m_run_bpc = false;
+  m_run_wfc = true;
+
   // Render volume  
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
   AllocVolume ( BUF_VOL, m_vres, 4 );
@@ -294,8 +369,8 @@ bool Sample::init()
   // App Options
   //
   m_frame     = 0;  
-  m_run_cuda  = false;  // run cuda pathway 
-  m_run       = true;   // run belief prop
+  m_run       = false;  // must start out false until all other init is done
+  m_run_cuda  = false;  // run cuda pathway   
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
@@ -323,25 +398,37 @@ bool Sample::init()
   getFileLocation ( "rgb_rule.csv", m_rule_fn );
   getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
  
-  ret = bpc.init_CSV(m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
-  if (ret<0) {
-    fprintf(stderr, "error loading CSV\n");
-    exit(-1);
+  if (m_run_bpc) {
+      // init belief prop
+      ret = bpc.init_CSV(m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      if (ret<0) {
+        fprintf(stderr, "bpc error loading CSV\n");
+        exit(-1);
+      }
+      // constrain belief prop
+      std::vector< std::vector< int32_t > > constraint_list;
+      if (!m_constraint_fn.empty()) {
+        _read_constraint_csv ( m_constraint_fn, constraint_list );
+        bpc.filter_constraint( constraint_list );    
+      }
+      // start belief prop
+      ret = bpc.start (); 
   }
   
-  std::vector< std::vector< int32_t > > constraint_list;
-  if (!m_constraint_fn.empty()) {
-    _read_constraint_csv ( m_constraint_fn, constraint_list );
-    bpc.filter_constraint( constraint_list );    
-  }
-
-  //-- test0
-  //bpc.init(4,3,1);
-  //bpc.debugPrint();
-  //return 0;
-
-  ret = bpc.start ();   // start belief prop
+  if (m_run_wfc) {
+      // init wfc
+      ret = wfc.init_CSV( m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      if (ret<0) {
+        fprintf(stderr, "wfc error loading CSV\n");
+        exit(-1);
+      }
+      // start wfc
+      ret = wfc.start (); 
+  } 
+  
   m_it = 0;
+
+  m_run = true;
 
   return true;
 }
@@ -349,6 +436,7 @@ bool Sample::init()
 
 void Sample::display()
 {
+  int ret;
   float md= 0.0;
   char savename[256] = {'\0'};
   char msg[256];
@@ -359,26 +447,43 @@ void Sample::display()
   //
   if (m_run) {
     
-    int ret = bpc.single_realize(m_it++);
-    if ( ret <= 0) {
-      switch (ret) {
-      case  0: printf ( "DONE.\n" ); m_run=false; break;
-      case -1: printf ( "chooseMaxBelief error.\n" ); break;
-      case -2: printf ( "tileIdxCollapse error.\n" ); break;
-      case -3: printf ( "cellConstraintPropagate error.\n" ); break;
-      };
-    }   
+    if ( m_run_bpc) { 
+      ret = bpc.single_realize(m_it);
+      if ( ret <= 0) {
+        switch (ret) {
+        case  0: printf ( "DONE.\n" ); m_run=false; break;
+        case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
+        case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
+        case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
+        };
+      }  
+    }
+
+    if ( m_run_wfc) {
+      ret = wfc.wfc_step(m_it);
+      if ( ret <= 0) {
+        switch (ret) {
+        case  0: printf ( "DONE.\n" ); m_run = false; break;
+        case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
+        case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
+        case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
+        };
+      } 
+    }
   
+    m_it++;
     fflush(stdout);
 
-    VisualizeBelief ( BUF_BELIEF, BUF_VOL );
+    if ( m_run_bpc );
+      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+
+    if ( m_run_wfc );
+      VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
   }
   
 
 
   // Raycast  
-  float mx = std::max(m_vres.x, std::max(m_vres.y, m_vres.z));
-  Vector3DF vmax = Vector3DF(m_vres) / mx;
   RaycastCPU ( m_cam, BUF_VOL, m_img, Vector3DF(0,0,0), Vector3DF(m_vres) );      // raycast volume
 
   // optional write to disk

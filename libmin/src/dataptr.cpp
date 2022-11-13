@@ -87,6 +87,8 @@ void DataPtr::SetUsage ( uchar dt, uchar flags, int rx, int ry, int rz )
   if ( rz != -1) { mUseRX=rx; mUseRY=ry; mUseRZ=rz; }
 }
 
+
+
 void DataPtr::UpdateUsage ( uchar flags )
 {
   mUseFlags |= flags;              // append usage, e.g. GPU
@@ -131,6 +133,7 @@ int DataPtr::Append ( int stride, uint64_t added_cnt, char* dat, uchar dest_flag
   #endif
   mMax += added_cnt;
   mSize = new_size;
+  mUseFlags = dest_flags;
 
   if ( new_size==0 ) return 0;
 
@@ -335,11 +338,14 @@ void DataPtr::CopyTo ( DataPtr* dest, uchar dest_flags )
     dbgprintf ( "ERROR: CopyTo sizes don't match.\n" );
     exit(-11);
   }
-  if ( (mUseFlags & DT_CPU) && (dest_flags & DT_CPU) )
+  if ( (mUseFlags & DT_CPU) && (dest_flags & DT_CPU) ) {
     memcpy ( dest->mCpu, mCpu, mSize );
+  }
 
   #ifdef USE_OPENGL
-    dbgprintf ( "WARNING: CopyTo not yet supported for OpenGL\n" );
+    if ( mUseFlags & DT_GLTEX || mUseFlags & DT_GLVBO) {
+      dbgprintf ( "WARNING: CopyTo not yet supported for OpenGL\n" );
+    }    
   #endif
   #ifdef USE_CUDA
     if ( (mUseFlags & DT_CUMEM) && (dest_flags & DT_CUMEM) ) {
@@ -350,11 +356,14 @@ void DataPtr::CopyTo ( DataPtr* dest, uchar dest_flags )
 
 void DataPtr::FillBuffer ( uchar v )
 {
-  if ( mUseFlags & DT_CPU )
+  if ( mUseFlags & DT_CPU ) {
     memset ( mCpu, v, mSize );
+  }
 
   #ifdef USE_OPENGL
-    dbgprintf ( "WARNING: FillBuffer not yet supported for OpenGL\n" );
+    if ( (mUseFlags & DT_GLTEX) || (mUseFlags & DT_GLVBO) ) {
+      dbgprintf ( "WARNING: FillBuffer not yet supported for OpenGL\n" );
+    }
   #endif
   #ifdef USE_CUDA
     if ( mUseFlags & DT_CUMEM ) {

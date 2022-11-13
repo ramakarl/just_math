@@ -53,16 +53,6 @@
 
 #include "belief_propagation.h"
 
-//---- volume buffers
-// volume alloc
-//
-void BeliefPropagation::AllocBuffer (int id, Vector3DI res, int chan) {
-  uint64_t cnt = res.x*res.y*res.z;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
 
 //---- belief prop buffers
 // vector alloc (h and g)P
@@ -72,6 +62,13 @@ void BeliefPropagation::AllocBPVec (int id, int cnt) {
   m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
 
   memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
+}
+
+
+
+void BeliefPropagation::ZeroBPVec (int id )
+{
+  m_buf[id].FillBuffer ( 0 );
 }
 
 // allocate message matrix mu
@@ -901,8 +898,6 @@ int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &a
   }
   fclose (fp);
 
-  close(fp);
-
   return 0;
 }
 
@@ -1058,8 +1053,6 @@ int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_f
   //  
   m_run_cuda  = false;
 
-  AllocBuffer ( BUF_VOL, m_res, 4 );
-
   return 0;
 }
 
@@ -1100,8 +1093,6 @@ int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, st
   // options
   //
   m_run_cuda  = false;
-
-  AllocBuffer ( BUF_VOL, m_res, 4 );
 
   return 0;
 }
@@ -1145,8 +1136,6 @@ bool BeliefPropagation::_init() {
   //  
   m_run_cuda  = false;
 
-  AllocBuffer ( BUF_VOL, m_res, 4 );
-
   printf("init done\n"); fflush(stdout);
 
   return true;
@@ -1155,40 +1144,65 @@ bool BeliefPropagation::_init() {
 //---
 
 int BeliefPropagation::wfc() {
+
+    int ret = 1;
+
+    wfc_start();
+
+    for (int64_t it = 0; it < m_num_verts; it++) {
+        ret = wfc_step (it );
+
+        if ( ret==0 ) break;
+
+        if ( ret < 0) { 
+          switch (ret) {          
+          case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
+          case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
+          case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
+          };          
+        } 
+    }
+    return ret;
+}
+
+int BeliefPropagation::wfc_start() {
+
+  CullBoundary();
+
+  return 1;
+}
+
+int BeliefPropagation::wfc_step(int64_t it) {
+  
   int ret;
   int64_t cell=-1;
   int32_t tile=-1, tile_idx=-1;
   float entropy=-1.0, d = -1.0;
 
-  int64_t it, step_iter=0;
+  int64_t step_iter=0;
 
-  CullBoundary();
+  ret = chooseMaxEntropy( &cell, &tile, &tile_idx, &entropy);
+  if (ret < 0) { return -1; }
+  if (ret==0) { return 0; }
 
-  for (it=0; it<m_num_verts; it++) {
+  printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
+    (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
 
-    ret = chooseMaxEntropy( &cell, &tile, &tile_idx, &entropy);
-    if (ret < 0) { return -1; }
-    if (ret==0) { break; }
+  ret = tileIdxCollapse( cell, tile_idx );
+  if (ret < 0) { return -2; }
 
-    printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
-        (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
+  m_note_n[ m_grid_note_idx ] = 0;
+  m_note_n[ 1-m_grid_note_idx ] = 0;
 
-    ret = tileIdxCollapse( cell, tile_idx );
-    if (ret < 0) { return -2; }
+  cellFillAccessed(cell, m_grid_note_idx);
+  unfillAccessed(m_grid_note_idx);
+  //ret = cellConstraintPropagate(cell);
+  ret = cellConstraintPropagate();
+  if (ret < 0) { return -3; }
 
-    m_note_n[ m_grid_note_idx ] = 0;
-    m_note_n[ 1-m_grid_note_idx ] = 0;
-
-    cellFillAccessed(cell, m_grid_note_idx);
-    unfillAccessed(m_grid_note_idx);
-    //ret = cellConstraintPropagate(cell);
-    ret = cellConstraintPropagate();
-    if (ret < 0) { return -3; }
-
-  }
-
-  return 0;
+  return 1;
 }
+
 
 int BeliefPropagation::start () {
 
@@ -1205,7 +1219,7 @@ int BeliefPropagation::single_realize (int64_t it) {
     int32_t tile=-1, tile_idx=-1;
     float belief=-1.0, d = -1.0;
     
-    int64_t it, step_iter=0,
+    int64_t step_iter=0,
        max_step_iter = m_max_iteration;
 
     float _eps = m_eps_converge;
@@ -1414,7 +1428,7 @@ void BeliefPropagation::debugPrintC() {
     n = m_note_n[m];
     for (i=0; i<n; i++) {
       if ((i%fold)==0) { printf("\n"); }
-      printf(" %i", (int)getValNote( BUF_NOTE, m, i));
+      printf(" %i", (int) getValNote( BUF_NOTE, m, i));
     }
     printf("\n");
   }
@@ -1697,6 +1711,7 @@ int BeliefPropagation::_CullBoundary() {
   return count;
 }
 
+
 // To speed up the 'collapse' propagation, two
 // auxiliary data structures are stored, one a copy
 // of the grid x dim that holds a 'note' about whether
@@ -1728,6 +1743,34 @@ void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_idx) {
 
 }
 
+int BeliefPropagation::getTilesAtVertex ( int64_t vtx ) {
+
+  int a = 0;
+  int n_a = getVali( BUF_TILE_IDX_N, vtx );
+
+  ZeroBPVec ( BUF_BELIEF );   // clear belief vec
+
+  float p = 1.0 / n_a;  
+  
+  for (int a_idx=0; a_idx<n_a; a_idx++) {
+    a = getVali( BUF_TILE_IDX, vtx, a_idx );
+    SetVal ( BUF_BELIEF, a, p );
+  }
+
+  return n_a;
+}
+
+/*void BeliefPropagation::UpdateAllVertsFromNotes ()
+{
+  int64_t i, vtx;
+
+  for (i=0; i < m_note_n[ m_grid_note_idx ]; i++) {
+    vtx = getValNote( BUF_NOTE, m_grid_note_idx, i );
+    
+    //SetVal( BUF_MU, 0, vtx, tile_val, 1.0 );    
+  }
+}*/
+
 // unwind/remove all 'filled' cells
 //
 void BeliefPropagation::unfillAccessed(int32_t note_idx) {
@@ -1737,7 +1780,6 @@ void BeliefPropagation::unfillAccessed(int32_t note_idx) {
     vtx = getValNote( BUF_NOTE, note_idx, i );
     SetVali( BUF_VISITED, vtx, 0 );
   }
-
 }
 
 int BeliefPropagation::sanityAccessed() {

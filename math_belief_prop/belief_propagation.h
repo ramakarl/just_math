@@ -104,11 +104,9 @@ public:
 
   void	init_dir_desc();
 
-  // volumes
-  void    AllocBuffer(int id, Vector3DI res, int chan=1);
-
   // belief prop
   void    Restart();
+  void    ZeroBPVec (int id);
   void    AllocBPVec (int id, int cnt);                  // vector alloc  
   void    AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
   void    AllocBPMap (int id, int nbrs, int vals);
@@ -122,6 +120,7 @@ public:
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
   Vector3DI  getVertexPos(int64_t j);
   int64_t  getVertex(int x, int y, int z);
+  int      getTilesAtVertex ( int64_t vtx );
 
   inline int      getNumNeighbors(int j)        {return 6;}     
   inline int      getNumValues(int j)          {return m_num_values;}
@@ -154,6 +153,8 @@ public:
   int	 single_realize(int64_t it);
   int    realize();
   int    wfc();
+  int    wfc_start();
+  int    wfc_step(int64_t it);
 
   float  step();  
 
