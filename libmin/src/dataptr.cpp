@@ -354,6 +354,7 @@ void DataPtr::CopyTo ( DataPtr* dest, uchar dest_flags )
   #endif
 }
 
+
 void DataPtr::FillBuffer ( uchar v )
 {
   if ( mUseFlags & DT_CPU ) {

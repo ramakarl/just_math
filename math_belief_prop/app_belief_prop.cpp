@@ -94,7 +94,7 @@ public:
   void      AllocVolume(int id, Vector3DI res, int chan=1);
   float     getVoxel ( int id, int x, int y, int z );
   Vector4DF getVoxel4 ( int id, int x, int y, int z );
-  void      WriteFunc (int id, float time);
+  void      ClearImg (Image* img);
   void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );      
     
   Camera3D* m_cam;          // camera
@@ -192,9 +192,10 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
 void Sample::AllocVolume (int id, Vector3DI res, int chan)    // volume alloc
 {
   uint64_t cnt = res.x*res.y*res.z;
+  uint64_t sz = cnt * chan * sizeof(float);
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
-  memset( (void *)(m_vol[id].getPtr(0)), 0, sizeof(float)*cnt);
+  memset( (void *) (m_vol[id].getPtr(0)), 0, sz );
 }
 float Sample::getVoxel ( int id, int x, int y, int z )
 {
@@ -253,6 +254,8 @@ void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
    float maxv;
    int cnt;
 
+   // dbgprintf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), m_vres.x, m_vres.y, m_vres.z);
+
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
      cnt = src.getTilesAtVertex( j );
@@ -280,8 +283,14 @@ void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
      //vox->z = 0.0;
 
      vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+
      vox++;
    }
+}
+
+void Sample::ClearImg (Image* img)
+{
+    img->Fill ( 0 );
 }
 
 void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax )
@@ -303,7 +312,6 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   int yres = img->GetHeight();
   
   // for each pixel in image..
-  m_peak_iter = 0;
   for (int y=0; y < yres; y++) {
     for (int x=0; x < xres; x++) {
       
@@ -331,14 +339,13 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
           clr.w += alpha * kDensity * pStep;              // attenuate alpha          
           p += dp;                           // next sample
         }  
-        if (iter > m_peak_iter) m_peak_iter = iter;
         if (clr.x > 1.0) clr.x = 1;
         if (clr.y > 1.0) clr.y = 1;
         if (clr.z > 1.0) clr.z = 1;
-        clr *= 255.0;
-      }  
-      // set pixel
-      img->SetPixel ( x, y, clr.x, clr.y, clr.z );
+        clr.x *= 255.0; clr.y *= 255.0; clr.z *= 255.0;
+
+        img->SetPixel ( x, y, clr.x, clr.y, clr.z );
+      }      
     }
   }
 
@@ -359,8 +366,8 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
-  m_run_bpc = false;
-  m_run_wfc = true;
+  m_run_bpc = true;
+  m_run_wfc = false;
 
   // Render volume  
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
@@ -451,7 +458,7 @@ void Sample::display()
       ret = bpc.single_realize(m_it);
       if ( ret <= 0) {
         switch (ret) {
-        case  0: printf ( "DONE.\n" ); m_run=false; break;
+        case  0: printf ( "BPC DONE.\n" ); m_run=false; break;
         case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
         case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
@@ -463,7 +470,7 @@ void Sample::display()
       ret = wfc.wfc_step(m_it);
       if ( ret <= 0) {
         switch (ret) {
-        case  0: printf ( "DONE.\n" ); m_run = false; break;
+        case  0: printf ( "WFC DONE.\n" );  break;
         case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
         case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
@@ -473,18 +480,22 @@ void Sample::display()
   
     m_it++;
     fflush(stdout);
-
-    if ( m_run_bpc );
-      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
-
-    if ( m_run_wfc );
-      VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
   }
   
-
-
   // Raycast  
-  RaycastCPU ( m_cam, BUF_VOL, m_img, Vector3DF(0,0,0), Vector3DF(m_vres) );      // raycast volume
+  ClearImg (m_img);
+  
+  if ( m_run_wfc ) {
+      Vector3DF wfc_off(0,0,-10);
+      VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
+  }  
+
+  if ( m_run_bpc ) {
+      Vector3DF bpc_off(0,0,0);
+      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+  }  
 
   // optional write to disk
   if ( m_save ) {    
