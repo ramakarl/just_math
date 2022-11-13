@@ -66,8 +66,7 @@ void BeliefPropagation::AllocBPVec (int id, int cnt) {
 
 
 
-void BeliefPropagation::ZeroBPVec (int id )
-{
+void BeliefPropagation::ZeroBPVec (int id ) {
   m_buf[id].FillBuffer ( 0 );
 }
 
@@ -155,8 +154,7 @@ Vector3DI BeliefPropagation::getVertexPos(int64_t j) {
 
 // get 3D grid neighbor 
 //
-int64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr )
-{
+int64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr ) {
   Vector3DI jp = getVertexPos(j);
 
   // 3D spatial neighbor function
@@ -1205,62 +1203,124 @@ int BeliefPropagation::wfc_step(int64_t it) {
 
 
 int BeliefPropagation::start () {
+  CullBoundary();
+  return 1;
+}
 
-    // cull boundary
-    CullBoundary();
+int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
+  int ret;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1;
+  float belief=-1.0, d = -1.0;
+  
+  int64_t step_iter=0,
+          max_step_iter = m_max_iteration;
 
-    return 1;
+  float _eps = m_eps_converge;
+  
+  // after we've propagated constraints, BUF_MU
+  // needs to be renormalized
+  //
+  NormalizeMU();
+
+  // iterate bp until converged
+  //
+  for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+    d = step();
+
+    if (cb && ((step_iter % m_step_cb) == 0)) {
+      m_state_info_d = d;
+      m_state_info_iter = step_iter;
+      cb(NULL);
+    }
+
+    /*
+    if ((step_iter>0) && ((step_iter%10)==0)) {
+      printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
+      if (m_verbose > 2) { gp_state_print(); }
+    }
+    */
+
+    if (fabs(d) < _eps) { break; }
+  }
+
+  // choose the cell and propagate choice
+  //
+  ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+  if (ret < 0) { return -1; }
+
+  // (success) end condition, all cell positions have exactly
+  // one tile in them.
+  //
+  if (ret==0 ) { return 0; }
+
+  ret = tileIdxCollapse( cell, tile_idx );
+  if (ret < 0) { return -2; }
+
+  m_note_n[ m_grid_note_idx ] = 0;
+  m_note_n[ 1-m_grid_note_idx ] = 0;
+
+  cellFillAccessed(cell, m_grid_note_idx);
+  unfillAccessed(m_grid_note_idx);
+
+  ret = cellConstraintPropagate();
+  if (ret < 0) { return -3; }
+
+  // non-error but still processing
+  //
+  return 1;
 }
 
 int BeliefPropagation::single_realize (int64_t it) {
+  int ret;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1;
+  float belief=-1.0, d = -1.0;
+  
+  int64_t step_iter=0,
+          max_step_iter = m_max_iteration;
 
-    int ret;
-    int64_t cell=-1;
-    int32_t tile=-1, tile_idx=-1;
-    float belief=-1.0, d = -1.0;
-    
-    int64_t step_iter=0,
-       max_step_iter = m_max_iteration;
+  float _eps = m_eps_converge;
+  
+  // after we've propagated constraints, BUF_MU
+  // needs to be renormalized
+  //
+  NormalizeMU();
 
-    float _eps = m_eps_converge;
-    
-    // after we've propagated constraints, BUF_MU
-    // needs to be renormalized
-    //
-    NormalizeMU();
+  // iterate bp until converged
+  //
+  for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+    d = step();
 
-    // iterate bp until converged
-    //
-    for (step_iter=0; step_iter<max_step_iter; step_iter++) {
-      d = step();
-
+    if (m_verbose > 0) {
       if ((step_iter>0) && ((step_iter%10)==0)) {
         printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
         if (m_verbose > 2) { gp_state_print(); }
       }
-
-      if (fabs(d) < _eps) { break; }
     }
 
-    // choose the cell and propagate choice
-    //
-    ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
-    if (ret < 0) { return -1; }
-    if (ret==0 ) { return 0; }      // was break
+    if (fabs(d) < _eps) { break; }
+  }
 
-    ret = tileIdxCollapse( cell, tile_idx );
-    if (ret < 0) { return -2; }
+  // choose the cell and propagate choice
+  //
+  ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+  if (ret < 0) { return -1; }
+  if (ret==0 ) { return 0; }      // was break
 
-    m_note_n[ m_grid_note_idx ] = 0;
-    m_note_n[ 1-m_grid_note_idx ] = 0;
+  ret = tileIdxCollapse( cell, tile_idx );
+  if (ret < 0) { return -2; }
 
-    cellFillAccessed(cell, m_grid_note_idx);
-    unfillAccessed(m_grid_note_idx);
+  m_note_n[ m_grid_note_idx ] = 0;
+  m_note_n[ 1-m_grid_note_idx ] = 0;
 
-    ret = cellConstraintPropagate();
-    if (ret < 0) { return -3; }
+  cellFillAccessed(cell, m_grid_note_idx);
+  unfillAccessed(m_grid_note_idx);
 
-    return 1;
+  ret = cellConstraintPropagate();
+  if (ret < 0) { return -3; }
+
+  return 1;
 }
 
 
@@ -1292,18 +1352,19 @@ void BeliefPropagation::gp_state_print() {
 }
 
 int BeliefPropagation::realize() {
-
   int ret = 1;
 
   start();
 
   // process all verts
+  //
   for (int64_t it=0; it<m_num_verts; it++) {
 
     ret = single_realize( it );
-    if (ret==0) break;
+    if (ret==0) { break; }
 
     // check for errors
+    //
     if ( ret < 0) {
       switch (ret) {
       case -1: printf ( "chooseMaxBelief error.\n" ); break;
@@ -1312,7 +1373,11 @@ int BeliefPropagation::realize() {
       };
     }
   }
-  return ret;  // should be 0=done or 1=all touched
+
+  // ret == 0 - success and done
+  // ret  < 0 - error
+  //
+  return ret;
 }
 
 float BeliefPropagation::step() {
