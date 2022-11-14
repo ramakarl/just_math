@@ -657,6 +657,49 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 float BeliefPropagation::getVertexBelief ( uint64_t j ) {
   int64_t k;
   int a, kn;
+  float sum = 0.0;
+  float _bi = 1.0;
+
+  int64_t tile_idx_n,
+          tile_idx,
+          tile_val;
+
+  for (a=0; a < m_num_values; a++) {
+    SetVal( BUF_BELIEF, a, 0.0 );
+  }
+
+  tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+  for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
+    tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+
+    _bi = 1.0;
+    for (kn=0; kn<getNumNeighbors(j); kn++) {
+      k = getNeighbor(j, kn);
+      if (k==-1) { continue; }
+
+      _bi *= getVal(BUF_MU, kn, j, tile_val);
+    }
+    SetVal(BUF_BELIEF, tile_val, _bi);
+
+    sum += _bi;
+  }
+
+  if (sum > m_eps_zero) {
+    for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
+      tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+
+      _bi = getVal( BUF_BELIEF, tile_val ) / sum;
+      SetVal( BUF_BELIEF, tile_val, _bi );
+    }
+
+  }
+
+  return sum;
+}
+
+float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
+  int64_t k;
+  int a, kn;
   float sum = 0;
   float _bi = 1.0;
 

@@ -1287,7 +1287,7 @@ void show_version(FILE *fp) {
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
-  char* optarg;
+  //char* optarg;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str, rule_fn_str, constraint_fn_str;
@@ -1318,7 +1318,10 @@ int main(int argc, char **argv) {
   int arg=1;
 
   //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
-  while ((ch=pd_getopt(argc, argv, "hvdVre:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:re:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
+  //while ((ch=z_getopt(argc, argv, "hvdVre:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
+    //optarg = z_optarg;
+
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1332,6 +1335,7 @@ int main(int argc, char **argv) {
         debug_print = 1;
         break;
       case 'V':
+        printf("VVV ?? %p\n", optarg); fflush(stdout);
         bpc.m_verbose = atoi(optarg);
         break;
       case 'r':
@@ -1365,6 +1369,9 @@ int main(int argc, char **argv) {
         name_fn = strdup(optarg);
         break;
       case 'R':
+
+        printf("??? %p\n", optarg); fflush(stdout);
+
         rule_fn = strdup(optarg);
         break;
       case 'C':

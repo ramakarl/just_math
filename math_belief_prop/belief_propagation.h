@@ -167,6 +167,7 @@ public:
   void    UpdateMU ();
 
   float    getVertexBelief ( uint64_t j );
+  float    _getVertexBelief ( uint64_t j );
 
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
