@@ -1185,6 +1185,15 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
    float maxv;
 
+   int N = (int)(src.m_tile_name.size());;
+
+   int r_l = 1,
+       r_u = (N-1)/3;
+   int g_l = r_u+1,
+       g_u = 2*(N-1)/3;
+   int b_l = g_u,
+       b_u = N-1;
+
    // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
 
    // map belief to RGBA voxel
@@ -1193,21 +1202,21 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
 
      // red
      maxv = 0.0;
-     for (int k=1; k <= 30; k++) {
+     for (int k=r_l; k <= r_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->x = maxv;
 
      // green
      maxv = 0.0;
-     for (int k=31; k <= 60; k++) {
+     for (int k=g_l; k <= g_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
-     for (int k=61; k <= 90; k++) {
+     for (int k=b_l; k <= b_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->z = maxv;
@@ -1318,10 +1327,7 @@ int main(int argc, char **argv) {
   int arg=1;
 
   //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
-  while ((ch=pd_getopt(argc, argv, "hvdV:re:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
-  //while ((ch=z_getopt(argc, argv, "hvdVre:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
-    //optarg = z_optarg;
-
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1335,7 +1341,6 @@ int main(int argc, char **argv) {
         debug_print = 1;
         break;
       case 'V':
-        printf("VVV ?? %p\n", optarg); fflush(stdout);
         bpc.m_verbose = atoi(optarg);
         break;
       case 'r':
@@ -1369,9 +1374,6 @@ int main(int argc, char **argv) {
         name_fn = strdup(optarg);
         break;
       case 'R':
-
-        printf("??? %p\n", optarg); fflush(stdout);
-
         rule_fn = strdup(optarg);
         break;
       case 'C':
@@ -1461,6 +1463,11 @@ int main(int argc, char **argv) {
   // prepare raycast [optional]
   //
   if (raycast) {
+
+    vres.x = X;
+    vres.y = Y;
+    vres.z = Z;
+
     printf ( "preparing raycast.\n" );
     alloc_img (iresx, iresy);
     alloc_volume (VOL, vres, 4);
