@@ -1226,6 +1226,52 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
    }
 }
 
+void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
+
+   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+   float maxv;
+
+   int N = (int)(src.m_tile_name.size());;
+
+   int r_l = 1,
+       r_u = (N-1)/3;
+   int g_l = r_u+1,
+       g_u = 2*(N-1)/3;
+   int b_l = g_u,
+       b_u = N-1;
+
+   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
+
+   // map belief to RGBA voxel
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
+     src.getVertexBelief (j);
+
+     // red
+     maxv = 0.0;
+     for (int k=r_l; k <= r_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->x = maxv;
+
+     // green
+     maxv = 0.0;
+     for (int k=g_l; k <= g_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->y = maxv;
+
+     // blue
+     maxv = 0.0;
+     for (int k=b_l; k <= b_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->z = maxv;
+
+     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+     vox++;
+   }
+}
+
 //------------//
 //       _ _  //
 //   ___| (_) //

@@ -150,4 +150,11 @@ In this pathological case, at least, the $\mu$'s converge, with a preference for
 over another based on initial conditions of the random $\mu$ values.
 
 
+### Miscellaneous Notes
+
+
+* I have been told, but still don't understand, that BP is minimizing the Free Energy ($<E> - TS$), maybe as it relates to
+  the Bethe lattice approximation (of the Free Energy?)
+* From observation, one of the constrained systems does manage to find the solution, given a low enough convergence epsilon,
+  but the solution looks like it meanders a lot more than it should
 
