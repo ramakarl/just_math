@@ -34,7 +34,6 @@ vertex $i$ and $j$ could have values $x_i$ and $x_j$.
 
 ### Belief Propagation on a (discrete) Markov Random Field
 
-```
 Each vertex, $i$, can be associated with a random variable, $X_i$, taking
 on (discrete) values chosen from some domain $D = \{ d_0, d_1, \cdots, d_{m-1} \}$ with
 a probability distribution function $g_i(\cdot)$.
@@ -117,20 +116,26 @@ next to each of the 'bend' tiles in the cell positions.
 For the moment, let's focus on updating the $\mu$ values for cell position `0`.
 We can write down what the updated $\mu$ should be:
 
-* $\mu^{t+1}_{1,0}(d_0) = f_{1,0}(d_0,d_0) \cdot \mu^{t}_{3,1}(d_0) + f_{1,0}(d_1,d_0) \cdot \mu^{t}_{3,1}(d_1)$
-* $\mu^{t+1}_{1,0}(d_1) = f_{1,0}(d_2,d_1) \cdot \mu^{t}_{3,1}(d_2) + f_{1,0}(d_0,d_1) \cdot \mu^{t}_{3,1}(d_0)$
-* $\mu^{t+1}_{2,0}(d_0) = f_{2,0}(d_0,d_0) \cdot \mu^{t}_{3,2}(d_0) + f_{2,0}(d_3,d_0) \cdot \mu^{t}_{3,2}(d_3)$
-* $\mu^{t+1}_{2,0}(d_1) = f_{2,0}(d_3,d_1) \cdot \mu^{t}_{3,2}(d_3) + f_{2,0}(d_0,d_1) \cdot \mu^{t}_{3,2}(d_0)$
+$$ \mu^{t+1}_ {1,0}(d_0) = f_ {1,0}(d_0,d_0) \cdot \mu^{t}_ {3,1}(d_0) + f_ {1,0}(d_1,d_0) \cdot \mu^{t}_ {3,1}(d_1) $$
+
+$$ \mu^{t+1}_ {1,0}(d_1) = f_ {1,0}(d_2,d_1) \cdot \mu^{t}_ {3,1}(d_2) + f_ {1,0}(d_0,d_1) \cdot \mu^{t}_ {3,1}(d_0) $$
+
+$$ \mu^{t+1}_ {2,0}(d_0) = f_ {2,0}(d_0,d_0) \cdot \mu^{t}_ {3,2}(d_0) + f_ {2,0}(d_3,d_0) \cdot \mu^{t}_ {3,2}(d_3) $$
+
+$$ \mu^{t+1}_ {2,0}(d_1) = f_ {2,0}(d_3,d_1) \cdot \mu^{t}_ {3,2}(d_3) + f_ {2,0}(d_0,d_1) \cdot \mu^{t}_ {3,2}(d_0) $$
 
 Since we know a blank tile can't connect to a 'bend' tile, each of the terms on the right is zero because
 the $f$ function is zero in that case.
 In addition, in this case, the $f$ function only takes on two values, $0$ or $1$, which allows us to simplify
 even further:
 
-* $\mu^{t+1}_{1,0}(d_0) = \mu^{t}_{3,1}(d_0) $
-* $\mu^{t+1}_{1,0}(d_1) = \mu^{t}_{3,1}(d_2) $
-* $\mu^{t+1}_{2,0}(d_0) = \mu^{t}_{3,2}(d_0) $
-* $\mu^{t+1}_{2,0}(d_1) = \mu^{t}_{3,2}(d_3) $
+$$\mu^{t+1}_ {1,0}(d_0) = \mu^{t}_ {3,1}(d_0) $$
+
+$$\mu^{t+1}_ {1,0}(d_1) = \mu^{t}_ {3,1}(d_2) $$
+
+$$\mu^{t+1}_ {2,0}(d_0) = \mu^{t}_ {3,2}(d_0) $$
+
+$$\mu^{t+1}_ {2,0}(d_1) = \mu^{t}_ {3,2}(d_3) $$
 
 Here we see the problem.
 This means that at every time step, $\mu_{j,0}(a)$ gets swapped with the corresponding
@@ -145,4 +150,11 @@ In this pathological case, at least, the $\mu$'s converge, with a preference for
 over another based on initial conditions of the random $\mu$ values.
 
 
+### Miscellaneous Notes
+
+
+* I have been told, but still don't understand, that BP is minimizing the Free Energy ($<E> - TS$), maybe as it relates to
+  the Bethe lattice approximation (of the Free Energy?)
+* From observation, one of the constrained systems does manage to find the solution, given a low enough convergence epsilon,
+  but the solution looks like it meanders a lot more than it should
 
