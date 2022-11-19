@@ -18,15 +18,15 @@
 // * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
 //
 // MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+// associated documentation files (the "Software"), to deal in the Software without restriction, including without
+// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 // and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 // The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 // OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // Sample utils
@@ -35,6 +35,9 @@
 #include "dataptr.h"
 
 #include "belief_propagation.h"
+
+#include "pd_getopt.h"
+extern char *optarg;
 
 //------------------------------------//
 //  _            _   _                //
@@ -177,7 +180,7 @@ int test3() {
 
   //---
 
-  bp.NormalizeMU();  
+  bp.NormalizeMU();
 
   bp.debugPrint();
 
@@ -265,7 +268,7 @@ int test4_() {
 
   //---
 
-  bp.NormalizeMU();  
+  bp.NormalizeMU();
 
   printf("---\nBEFORE:\n");
   bp.debugPrint();
@@ -364,7 +367,7 @@ int test4() {
 
   //---
 
-  bp.NormalizeMU();  
+  bp.NormalizeMU();
 
   printf("---\nBEFORE:\n");
   bp.debugPrint();
@@ -467,7 +470,7 @@ int test5() {
   //---
 
   for (iter=0; iter<max_iter; iter++) {
-    bp.NormalizeMU();  
+    bp.NormalizeMU();
 
     printf("---\nBEFORE:\n");
     bp.debugPrint();
@@ -555,13 +558,13 @@ int test5_1() {
 
   //---
 
-  bp.NormalizeMU();  
+  bp.NormalizeMU();
   for (iter=0; iter<max_iter; iter++) {
 
     maxdiff = bp.step();
 
     /*
-    bp.NormalizeMU();  
+    bp.NormalizeMU();
 
     printf("---\nBEFORE:\n");
     bp.debugPrint();
@@ -877,7 +880,7 @@ int test6() {
   //---
 
   for (iter=0; iter<max_iter; iter++) {
-    bp.NormalizeMU();  
+    bp.NormalizeMU();
 
     printf("---\nBEFORE:\n");
     bp.debugPrint();
@@ -1064,68 +1067,66 @@ int run_test(int test_num) {
   return 0;
 }
 
-//--------------------//
-// \/ /-\ |  | |--\   //
-// |  | | |  | |__/   //
-// |  \-/  --  |  \   //
-//                    //
-// |\  /| /--\ |\  /| //
-// | \/ | |  | | \/ | //
-// |    | \--/ |    | //
-//--------------------//
+//--------------------------------------//
+//  _____     _                         //
+// |___ /  __| |    _ __  _ __   __ _   //
+//   |_ \ / _` |   | '_ \| '_ \ / _` |  //
+//  ___) | (_| |   | |_) | | | | (_| |  //
+// |____/ \__,_|   | .__/|_| |_|\__, |  //
+//                 |_|          |___/   //
+//--------------------------------------//
+
 
 #include "camera3d.h"
 #include "file_png.h"
 
 uchar*    m_img;
-DataPtr   m_vol[4]; 
+DataPtr   m_vol[4];
 
-void alloc_img (int xres, int yres)
-{
+void alloc_img (int xres, int yres) {
   // RGB, 3 bytes/pix
   int sz = xres * yres * 3;
   m_img = (uchar*) malloc ( sz );
   // default gray
-  memset( m_img, 128, sz); 
+  memset( m_img, 128, sz);
 }
-void set_pixel (uchar* img, int x, int y, int xres, int yres, uchar r, uchar g, uchar b)
-{
+
+void set_pixel (uchar* img, int x, int y, int xres, int yres, uchar r, uchar g, uchar b) {
   int px = 3*(y*xres+x);
   *(m_img + px + 0) = r;
   *(m_img + px + 1) = g;
   *(m_img + px + 2) = b;
 }
 
-void alloc_volume (int id, Vector3DI res, int chan)
-{
-  uint64_t cnt = res.x*res.y*res.z;  
+void alloc_volume (int id, Vector3DI res, int chan) {
+  uint64_t cnt = res.x*res.y*res.z;
   m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, DT_CPU );
   memset( (void *)(m_vol[id].getPtr(0)), 0, sizeof(float)*cnt);
 }
-Vector4DF getVoxel4 ( int id, int x, int y, int z, Vector3DI vres )
-{
-  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*vres.y + y)*vres.x + x );  
+
+Vector4DF getVoxel4 ( int id, int x, int y, int z, Vector3DI vres ) {
+  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*vres.y + y)*vres.x + x );
   return *dat;
 }
 
-Vector3DF intersectLineBox(Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax)
-{
-	// p1 = ray position, p2 = ray direction
-	register float ht[8];
-	ht[0] = (bmin.x - p1.x)/p2.x;
-	ht[1] = (bmax.x - p1.x)/p2.x;
-	ht[2] = (bmin.y - p1.y)/p2.y;
-	ht[3] = (bmax.y - p1.y)/p2.y;
-	ht[4] = (bmin.z - p1.z)/p2.z;
-	ht[5] = (bmax.z - p1.z)/p2.z;
-	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
-	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));	
-	ht[6] = (ht[6] < 0 ) ? 0.0 : ht[6];
-	return Vector3DF( ht[6], ht[7], (ht[7]<ht[6] || ht[7]<0) ? -1 : 0 );
+Vector3DF intersectLineBox(Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax) {
+
+  // p1 = ray position, p2 = ray direction
+  //
+  register float ht[8];
+  ht[0] = (bmin.x - p1.x)/p2.x;
+  ht[1] = (bmax.x - p1.x)/p2.x;
+  ht[2] = (bmin.y - p1.y)/p2.y;
+  ht[3] = (bmax.y - p1.y)/p2.y;
+  ht[4] = (bmin.z - p1.z)/p2.z;
+  ht[5] = (bmax.z - p1.z)/p2.z;
+  ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+  ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));
+  ht[6] = (ht[6] < 0 ) ? 0.0 : ht[6];
+  return Vector3DF( ht[6], ht[7], (ht[7]<ht[6] || ht[7]<0) ? -1 : 0 );
 }
 
-void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, int yres, Vector3DF vmin, Vector3DF vmax )
-{
+void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, int yres, Vector3DF vmin, Vector3DF vmax ) {
   Vector3DF rpos, rdir;
   Vector4DF clr;
 
@@ -1138,8 +1139,8 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
   float kDensity = 3.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
   float kWidth = 3.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
-  
-  // for each pixel in image..  
+
+  // for each pixel in image..
   for (int y=0; y < yres; y++) {
     for (int x=0; x < xres; x++) {
 
@@ -1148,31 +1149,31 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
 
       // get camera ray
       rpos = cam->getPos();
-      rdir = cam->inverseRay ( x, y, xres, yres );  
+      rdir = cam->inverseRay ( x, y, xres, yres );
       rdir.Normalize();
 
       // intersect with volume box
       t = intersectLineBox ( rpos, rdir, vmin, vmax );
       if ( t.z >= 0 ) {
-        // hit volume, start raycast...    
-        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space        
+        // hit volume, start raycast...
+        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space
         dwp = (vmax-vmin) * rdir * pStep;                     // ray sample stepping in world space
-        p = Vector3DF(vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume        
+        p = Vector3DF(vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume
         dp = rdir * pStep;                // step delta along ray
-        
+
         // accumulate along ray
         for (iter=0; iter < 512 && clr.w < 0.99 && p.x >= 0 && p.y >= 0 && p.z >= 0 && p.x < vres.x && p.y < vres.y && p.z < vres.z; iter++) {
-          val = getVoxel4 ( 0, p.x, p.y, p.z, vres ); // get voxel value          
+          val = getVoxel4 ( 0, p.x, p.y, p.z, vres ); // get voxel value
           alpha = 1.0 / (1+exp(-(val.w-1.0)*kWidth)); // opacity = sigmoid transfer - accentuates boundaries at 0.5
-          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color            
-          clr.w += alpha * kDensity * pStep;          // attenuate alpha          
+          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color
+          clr.w += alpha * kDensity * pStep;          // attenuate alpha
           p += dp;                           // next sample
-        }          
+        }
         if (clr.x > 1.0) clr.x = 1;
         if (clr.y > 1.0) clr.y = 1;
         if (clr.z > 1.0) clr.z = 1;
         clr *= 255.0;
-      }  
+      }
       // set pixel
       set_pixel(img, x, y, xres, yres, clr.x, clr.y, clr.z );
     }
@@ -1184,29 +1185,84 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
    float maxv;
 
+   int N = (int)(src.m_tile_name.size());;
+
+   int r_l = 1,
+       r_u = (N-1)/3;
+   int g_l = r_u+1,
+       g_u = 2*(N-1)/3;
+   int b_l = g_u,
+       b_u = N-1;
+
    // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
 
    // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      src.getVertexBelief (j);
 
      // red
      maxv = 0.0;
-     for (int k=1; k <= 30; k++) {  
+     for (int k=r_l; k <= r_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->x = maxv;
-     
+
      // green
      maxv = 0.0;
-     for (int k=31; k <= 60; k++) {  
+     for (int k=g_l; k <= g_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
-     for (int k=61; k <= 90; k++) {  
+     for (int k=b_l; k <= b_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->z = maxv;
+
+     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+     vox++;
+   }
+}
+
+void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
+
+   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+   float maxv;
+
+   int N = (int)(src.m_tile_name.size());;
+
+   int r_l = 1,
+       r_u = (N-1)/3;
+   int g_l = r_u+1,
+       g_u = 2*(N-1)/3;
+   int b_l = g_u,
+       b_u = N-1;
+
+   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
+
+   // map belief to RGBA voxel
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
+     src.getVertexBelief (j);
+
+     // red
+     maxv = 0.0;
+     for (int k=r_l; k <= r_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->x = maxv;
+
+     // green
+     maxv = 0.0;
+     for (int k=g_l; k <= g_u; k++) {
+        maxv = std::max(maxv, src.getVal( bp_id, k ));
+     }
+     vox->y = maxv;
+
+     // blue
+     maxv = 0.0;
+     for (int k=b_l; k <= b_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
      }
      vox->z = maxv;
@@ -1230,14 +1286,14 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
 //
 
 
-bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg )
-{   
+/*
+bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg ) {
    if (arg >= argc) return false;
 
    char dash = argv[arg][0];
    if (dash=='-') {
      ch = argv[arg][1];
-     optarg = argv[ arg+1 ]; 
+     optarg = argv[ arg+1 ];
      printf ( "arg: %d, ch: %c, opt: %s\n", arg, ch, optarg);
      arg += 2;
    } else {
@@ -1248,6 +1304,7 @@ bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg )
    }
    return (arg <= argc);
 }
+*/
 
 // #include "getopt.h"
 
@@ -1285,7 +1342,7 @@ void show_version(FILE *fp) {
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
-  char* optarg;
+  //char* optarg;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str, rule_fn_str, constraint_fn_str;
@@ -1299,6 +1356,12 @@ int main(int argc, char **argv) {
   int seed = 0;
 
   int iresx=0, iresy=0;
+  Vector3DI vres (X, Y, Z);
+  Camera3D cam;
+  const char VOL=0;
+
+  std::string base_png = "out";
+  char imgfile[512] = {0};
 
   float eps_zero = -1.0, eps_converge = -1.0;
   int max_iter = -1;
@@ -1306,10 +1369,11 @@ int main(int argc, char **argv) {
   std::vector< std::vector< int32_t > > constraint_list;
 
   BeliefPropagation bpc;
- 
+
   int arg=1;
 
-  while ( handle_args ( arg, argc, argv, ch, optarg ) ) {    
+  //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1325,6 +1389,14 @@ int main(int argc, char **argv) {
       case 'V':
         bpc.m_verbose = atoi(optarg);
         break;
+      case 'r':
+        raycast = 1;
+        iresx = atoi(optarg);
+        iresy = iresx;
+        printf ("raycast enabled\n");
+        break;
+
+
       case 'e':
         eps_converge = atof(optarg);
         if (eps_converge > 0.0) {
@@ -1380,13 +1452,6 @@ int main(int argc, char **argv) {
         wfc_flag = 1;
         break;
 
-      case 'r':
-        raycast = 1;
-        iresx = atoi(optarg);
-        iresy = iresx;
-        printf ("raycast enabled\n");
-        break;
-
       default:
         show_usage(stderr);
         exit(-1);
@@ -1410,13 +1475,13 @@ int main(int argc, char **argv) {
     show_usage(stderr);
     exit(-1);
   }
- 
+
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
   if (constraint_fn) {
     constraint_fn_str = constraint_fn;
     _read_constraint_csv(constraint_fn_str, constraint_list);
-    printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );    
+    printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
   }
 
   printf ( "bpc init csv.\n" );
@@ -1429,8 +1494,6 @@ int main(int argc, char **argv) {
   if (constraint_fn) {
     printf ( "filter constraints.\n" );
     bpc.filter_constraint(constraint_list);
-    //DEBUG
-    //bpc.debugPrint();
   }
 
   if (debug_print) {
@@ -1444,19 +1507,20 @@ int main(int argc, char **argv) {
   }
 
   // prepare raycast [optional]
-  Vector3DI vres (X, Y, Z);
-  Camera3D cam;  
-  const char VOL=0;  
-  char imgfile[512];
-  if (raycast) {  
-    printf ( "preparing raycast.\n" );    
-    alloc_img (iresx, iresy);    
+  //
+  if (raycast) {
+
+    vres.x = X;
+    vres.y = Y;
+    vres.z = Z;
+
+    printf ( "preparing raycast.\n" );
+    alloc_img (iresx, iresy);
     alloc_volume (VOL, vres, 4);
-    cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );    
+    cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
     printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
   }
 
-  // realize 
   if (wfc_flag) {
 
     printf ( "wfc realize.\n" );
@@ -1471,15 +1535,16 @@ int main(int argc, char **argv) {
     ret = bpc.start();
 
     for (int64_t it=0; it < bpc.m_num_verts; it++) {
-        bpc.single_realize(it);
-        
-        if ( raycast )  {
-            visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
-            raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
-            sprintf ( imgfile, "out%04d.png", (int) it );
-            printf ( "  output: %s\n", imgfile );
-            save_png ( imgfile, m_img, iresx, iresy, 3 );             
-        }
+      ret = bpc.single_realize(it);
+      if (ret<=0) { break; }
+
+      if ( raycast )  {
+        visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
+        raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+        snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+        printf ( "  output: %s\n", imgfile );
+        save_png ( imgfile, m_img, iresx, iresy, 3 );
+      }
     }
 
     printf("# bp realize got: %i\n", ret);

@@ -31,7 +31,7 @@
 //
 
 #ifndef DEF_BELIEF_PROPAGATION
-	#define DEF_BELIEF_PROPAGATION
+#define DEF_BELIEF_PROPAGATION
 
 #include <algorithm>
 #include "mersenne.h"
@@ -54,7 +54,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.1.0"
+#define BELIEF_PROPAGATION_VERSION "0.1.1"
 
 #define BUF_VOL         0    // volume: n^3
 #define BUF_G           1    // beliefprop, G(a) vector
@@ -87,6 +87,10 @@ public:
     m_eps_converge = (1.0/(1024.0));
     m_eps_zero = (1.0/(1024.0*1024.0));
     m_max_iteration = 1024;
+
+    m_step_cb = 10;
+    m_state_info_d = -1;
+    m_state_info_iter = 0;
   };
 
   bool _init();
@@ -97,12 +101,12 @@ public:
 
   //DEBUG
   //DEBUG
-  int	init(int);
-  int	init(int, int, int);
+  int  init(int);
+  int  init(int, int, int);
   //DEBUG
   //DEBUG
 
-  void	init_dir_desc();
+  void  init_dir_desc();
 
   // belief prop
   void    Restart();
@@ -149,8 +153,9 @@ public:
 
   //---
 
-  int	 start();
-  int	 single_realize(int64_t it);
+  int   start();
+  int   single_realize(int64_t it);
+  int   single_realize_cb (int64_t it, void (*cb)(void *));
   int    realize();
   int    wfc();
   int    wfc_start();
@@ -162,6 +167,7 @@ public:
   void    UpdateMU ();
 
   float    getVertexBelief ( uint64_t j );
+  float    _getVertexBelief ( uint64_t j );
 
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
@@ -236,6 +242,10 @@ public:
   int64_t m_max_iteration;
 
   void gp_state_print();
+
+  int64_t   m_step_cb;
+  float     m_state_info_d;
+  int64_t   m_state_info_iter;
 
 
 };
