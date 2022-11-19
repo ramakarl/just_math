@@ -89,6 +89,7 @@ public:
   
   // Volume rendering
   void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
+  void      VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id );
   void      VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id );
 
   void      AllocVolume(int id, Vector3DI res, int chan=1);
@@ -209,6 +210,28 @@ Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 }
 
 
+void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
+
+   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+
+   float maxv;
+   float dmu;
+
+   float scalar = 20.0;
+
+   // map belief to RGBA voxel
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+     dmu =  std::min(1.0f, scalar * src.getVal ( bp_id, j ) );
+
+     vox->x = dmu;
+     vox->y = dmu;
+     vox->z = dmu;     
+     vox->w = dmu;
+     vox++;
+   }
+}
+
+
 void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
 
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
@@ -304,9 +327,9 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   int iter;
   float alpha, k;
   float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
-  float kDensity = 3.0;       // volume density   - lower=softer, higher=more opaque
+  float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
-  float kWidth = 3.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
+  float kWidth = 4.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
 
   int xres = img->GetWidth();
   int yres = img->GetHeight();
@@ -492,9 +515,13 @@ void Sample::display()
   }  
 
   if ( m_run_bpc ) {
-      Vector3DF bpc_off(0,0,0);
-      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      Vector3DF bpc_off(0,0,0);      
+      VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      
+      //-- regular belief viz
+      //VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }  
 
   // optional write to disk

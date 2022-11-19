@@ -65,19 +65,10 @@
 #define BUF_BELIEF      6    // Belief array
 #define BUF_TILE_IDX    7
 #define BUF_TILE_IDX_N  8
-
-
-// consider/scan
-//
-#define BUF_CONSIDER    9
-
-// visited/picked
-//
-#define BUF_VISITED     10
-
-// note
-//
+#define BUF_CONSIDER    9   // consider/scan
+#define BUF_VISITED     10  // visited/picked
 #define BUF_NOTE        11
+#define BUF_VIZ         12  
 
 class BeliefPropagation {
 public:
@@ -110,6 +101,8 @@ public:
   void    AllocBPVec (int id, int cnt);                  // vector alloc  
   void    AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
   void    AllocBPMap (int id, int nbrs, int vals);
+
+  void    AllocViz (int id, uint64_t cnt );  
 
   void    AllocTileIdx (int, int, int);
   void    AllocTileIdxN(int, int );
@@ -168,6 +161,7 @@ public:
   int     chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
   float   MaxDiffMU();
+  void    ComputeDiffMUField ();
 
   void    ConstructF ();
   void    ConstructGH ();

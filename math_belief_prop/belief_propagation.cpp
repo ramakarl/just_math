@@ -64,6 +64,14 @@ void BeliefPropagation::AllocBPVec (int id, int cnt) {
   memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
 }
 
+void BeliefPropagation::AllocViz (int id, uint64_t cnt )
+{
+  uint64_t sz = cnt * sizeof(float);         
+  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
+  m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
+  memset( (void *) (m_buf[id].getPtr(0)), 0, sz );
+}
+
 
 
 void BeliefPropagation::ZeroBPVec (int id )
@@ -246,6 +254,28 @@ void BeliefPropagation::ConstructMU () {
   }
 }
 
+void BeliefPropagation::ComputeDiffMUField () {
+  int i, n_a, a;
+  float v0,v1, d, max_dmu;
+
+  for (int j=0; j < m_num_verts; j++) {
+    for (int in=0; in < getNumNeighbors(j); in++) {
+      i = getNeighbor(j, in);
+      n_a = getVali( BUF_TILE_IDX_N, j );
+      max_dmu = 0;
+      for (int a_idx=0; a_idx<n_a; a_idx++) {
+        a = getVali( BUF_TILE_IDX, j, a_idx );
+        v0 = getVal( BUF_MU, in, j, a );
+        v1 = getVal( BUF_MU_NXT, in, j, a );
+        d = fabs(v0-v1);
+        if ( d > max_dmu) max_dmu = d;
+      }
+    }
+    //printf ( "%f\n", max_dmu );
+    SetVal ( BUF_VIZ, j, max_dmu );
+  } 
+ }
+
 //---
 
 float BeliefPropagation::MaxDiffMU () {
@@ -255,7 +285,6 @@ float BeliefPropagation::MaxDiffMU () {
   for (int j=0; j < m_num_verts; j++) {
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, in);
-
       n_a = getVali( BUF_TILE_IDX_N, j );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, j, a_idx );
@@ -265,7 +294,6 @@ float BeliefPropagation::MaxDiffMU () {
         d = fabs(v0-v1);
         if (max_diff < d) { max_diff = d; }
       }
-
     }
   }
 
@@ -1049,6 +1077,8 @@ int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_f
 
   AllocBPVec( BUF_BELIEF, m_num_values );
 
+  AllocViz ( BUF_VIZ, m_num_verts );
+
   // options
   //  
   m_run_cuda  = false;
@@ -1089,6 +1119,8 @@ int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, st
   NormalizeMU ();
 
   AllocBPVec( BUF_BELIEF, m_num_values );
+
+  AllocViz ( BUF_VIZ, m_num_verts );
 
   // options
   //
@@ -1229,6 +1261,8 @@ int BeliefPropagation::single_realize (int64_t it) {
     //
     NormalizeMU();
 
+    ComputeDiffMUField ();
+
     // iterate bp until converged
     //
     for (step_iter=0; step_iter<max_step_iter; step_iter++) {
@@ -1242,6 +1276,7 @@ int BeliefPropagation::single_realize (int64_t it) {
       if (fabs(d) < _eps) { break; }
     }
 
+    
     // choose the cell and propagate choice
     //
     ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
