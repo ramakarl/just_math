@@ -24,7 +24,7 @@
 	#ifdef _WIN32
         
         #ifdef BUILD_CMDLINE               
-            #define HELPAPI	                            // Build cmdline app
+            #define HELPAPI	                            // Build cmdline app. Direct include (not making library)
         #else
 
             #define NOMINMAX                             // min/max will come from std::min/max

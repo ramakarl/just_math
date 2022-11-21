@@ -217,7 +217,7 @@ void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
    float maxv;
    float dmu;
 
-   float scalar = 20.0;
+   float scalar = 50.0;
 
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    

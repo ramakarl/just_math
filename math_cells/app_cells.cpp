@@ -115,14 +115,14 @@ void Sample::CreateCells()
 	float ang, pct;
 	int cnt;
 	Cell c;
-	ring[0] = 3.0;
+	ring[0] = 7.0;
 	ring[1] = 5.0;
-	ring[2] = 7.0;
+	ring[2] = 3.0;
 	
 	//r[0] = 1.2; r[1] = 1.2; r[2] = 1.2;			pct = 0.6;
 	//r[0] = 1.2; r[1] = 1.1; r[2] = 0.9;			pct = 0.5;
 	//r[0] = 0.3; r[1] = 0.4; r[2] = 0.6;				pct = 0.7;
-	r[0] = 0.1; r[1] = 0.2; r[2] = 0.3;			pct = 0.95;
+	r[0] = 0.03; r[1] = 0.2; r[2] = 0.3;			pct = 0.95;
 
 	c.pos.Set(0, 0, 0);
 	c.vel.Set(0, 0, 0);
@@ -135,7 +135,7 @@ void Sample::CreateCells()
 	for (int g=0; g < 3; g++) {
 		cnt = int(2.0 * PI * ring[g] / (2 * r[g])) * pct;    //- (g+2)*4;
 
-		for (int i=0; i <cnt; i++) {	
+		for (int i=0; i < cnt; i++) {	
 			ang = (i+g*0.3)*360.0/cnt;
 			c.pos.Set( cos(ang*DEGtoRAD)*ring[g], 0, sin(ang*DEGtoRAD)*ring[g] );
 			c.pos += mt.randV3(-1,1)*0.1f;
@@ -144,7 +144,7 @@ void Sample::CreateCells()
 			c.vel.Set(0,0,0);
 			c.force.Set(0, 0, 0);
 			c.radius = r[g];
-			c.temp = 1-g;
+			c.temp = 1; //-g;
 			m_cells.push_back ( c );
 		}
 	}
@@ -153,28 +153,38 @@ void Sample::CreateCells()
 void Sample::SimCells()
 {
 	float dt = 0.005;
+	int coll;
 
 	float dst, r, v;
 	float a1, a2, a3, p;
-	Vector3DF n, f1, f2;
+	Vector3DF n, f1, f2, ipos;
 
 	// collision detection
 	for (int i=0; i < m_cells.size(); i++) {
 
+		// target position
+		ipos = m_cells[i].pos + m_cells[i].vel * dt;	 // advance by velocity
+		
+		// check for collisions
+		coll = 0;
 		for (int j=0; j < m_cells.size(); j++) {
 
 			if ( i==j ) continue;
-			n = m_cells[i].pos - m_cells[j].pos;
+			n = ipos - m_cells[j].pos;
 			r = m_cells[i].radius + m_cells[j].radius; 
 			dst = n.x*n.x + n.z*n.z;
 
 			if ( dst > 0 && dst < r*r ) {
-				dst = r-sqrt(dst);
+				coll++;
+				dst = r-sqrt(dst);						// dst = depth of collision
 				n.Normalize();
-			
+
+				// reposition at contact point (and use as new test point)
+				ipos = m_cells[j].pos + n * (r+0.01f);	
+
 				dst = 0.1 + 4.0 * dst * dst;				
-				
-				a1 = m_cells[i].vel.Dot ( n );							// reflect around  normal (elastic)
+
+				a1 = m_cells[i].vel.Dot ( n );			// reflect around  normal (elastic)
 				a2 = m_cells[j].vel.Dot ( n );
 				a3 = (m_cells[i].vel.Dot(m_cells[j].vel) - 1) * 0.3;	// directional avoidance
 				p = (a3+2*(a1-a2)) / r;					
@@ -185,6 +195,13 @@ void Sample::SimCells()
 				m_cells[i].force += f1 / dt;
 				m_cells[j].force += f2 / dt; 
 			}
+		}
+		// simplified position based dynamics:
+		//   0 collisions => advance by velocity
+		// 1,2 collisions => reposition at contact point
+		//  3+ collisions => best not to move
+		if ( coll <= 2 ) {
+			m_cells[i].pos = ipos;		
 		}
 		//dbgprintf("%f %f\n", p, dst);
 	}
@@ -214,13 +231,14 @@ void Sample::SimCells()
 
 		// convection (inward & outward)
 		r -= m_stable_radius;
-		if ( m_temp ) m_cells[i].force += n * (r * r) * 8.0f * m_cells[i].temp * m_cells[i].radius;
+		if ( m_temp ) m_cells[i].force += n * (r * r) * 2.0f * m_cells[i].temp * (1.0f-m_cells[i].radius);
 		if ( m_stable_radius > 0) m_cells[i].force += n * (r * r * r) * -0.5f;
 
-		m_cells[i].vel += m_cells[i].force * dt;
-		m_cells[i].pos += m_cells[i].vel * dt;
-		m_cells[i].force = 0;
+		// update velocity
+		m_cells[i].vel += m_cells[i].force * dt;		
+		m_cells[i].force = 0;	
 
+		// velocity limiter
 		v = m_cells[i].vel.Length();
 		if ( v > 3.0 ) m_cells[i].vel *= 0.96f;
 			
@@ -281,7 +299,7 @@ void Sample::drawCells()
 		p = m_cells[n].pos;
 		r = m_cells[n].radius;
 		t = m_cells[n].temp;
-		clr = ( t == 0 || m_temp==false ) ? Vector4DF(1, 1, 1, 1) : (t < 0) ? Vector4DF(0, 0, 1, 1) : Vector4DF(1, 0, 0, 1);
+		clr = ( t == 0 || m_temp==false ) ? Vector4DF(1, 1, 1, 1) : Vector4DF( (t+1)*0.5, 0, 1-(t+1)*0.5, 1);
 		drawCircle3D( p, p+Vector3DF(0,1,0), r, clr);
 	}
 
