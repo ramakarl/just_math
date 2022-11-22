@@ -122,7 +122,7 @@ void Sample::CreateCells()
 	//r[0] = 1.2; r[1] = 1.2; r[2] = 1.2;			pct = 0.6;
 	//r[0] = 1.2; r[1] = 1.1; r[2] = 0.9;			pct = 0.5;
 	//r[0] = 0.3; r[1] = 0.4; r[2] = 0.6;				pct = 0.7;
-	r[0] = 0.03; r[1] = 0.2; r[2] = 0.3;			pct = 0.95;
+	r[0] = 0.03; r[1] = 0.05; r[2] = 0.3;			pct = 0.95;
 
 	c.pos.Set(0, 0, 0);
 	c.vel.Set(0, 0, 0);
@@ -149,6 +149,8 @@ void Sample::CreateCells()
 		}
 	}
 }
+
+#include "geom_helper.h"
 
 void Sample::SimCells()
 {
@@ -180,9 +182,22 @@ void Sample::SimCells()
 				n.Normalize();
 
 				// reposition at contact point (and use as new test point)
-				ipos = m_cells[j].pos + n * (r+0.01f);	
+				ipos = m_cells[j].pos + n * (r+0.001f);	
+							
+				// note: ideally, find the point along vel where i just touches j, not along the vector n. 
+				// using line-circle intersection, where the circle is size R (r1+r2) centered at j.
+				
+				/* Vector3DF v = m_cells[i].vel; v.Normalize();
+				double cdn = v.Dot ( m_cells[j].pos - m_cells[i].pos );
+				double dd = m_cells[j].pos.Dot ( m_cells[j].pos );
+				double cc = m_cells[i].pos.Dot ( m_cells[i].pos );
+				double rr = double(r)*r;
+				float t1 = cdn - sqrt (cdn*cdn - (dd + cc - rr - 2*m_cells[i].pos.Dot(m_cells[j].pos) ) );
+				float t2 = cdn + sqrt (cdn*cdn - (dd + cc - rr - 2*m_cells[i].pos.Dot(m_cells[j].pos) ) );
+				ipos = m_cells[i].pos + v * (std::min(t1,t2) - 0.0001f);
+				n = ipos - m_cells[j].pos; n.Normalize(); */
 
-				dst = 0.1 + 4.0 * dst * dst;				
+				dst = 0.1 + 4.0 * dst * dst;								
 
 				a1 = m_cells[i].vel.Dot ( n );			// reflect around  normal (elastic)
 				a2 = m_cells[j].vel.Dot ( n );
@@ -223,15 +238,15 @@ void Sample::SimCells()
 		
 		// temperature
 		if ( m_cells[i].temp != 0 && m_temp) {
-			if (r > m_temp_radius + 0.4) m_cells[i].temp -= 0.021;
-			if (r < m_temp_radius - 0.4) m_cells[i].temp += 0.021;
+			if (r > m_temp_radius + 0.5) m_cells[i].temp -= 0.021;
+			if (r < m_temp_radius - 0.5) m_cells[i].temp += 0.021;
 			if ( m_cells[i].temp < -1 ) m_cells[i].temp = -1;
 			if (m_cells[i].temp > 1) m_cells[i].temp = 1;
 		}
 
 		// convection (inward & outward)
 		r -= m_stable_radius;
-		if ( m_temp ) m_cells[i].force += n * (r * r) * 2.0f * m_cells[i].temp * (1.0f-m_cells[i].radius);
+		if ( m_temp ) m_cells[i].force += n * (r * r) * 1.5f * m_cells[i].temp * (0.5f-m_cells[i].radius);
 		if ( m_stable_radius > 0) m_cells[i].force += n * (r * r * r) * -0.5f;
 
 		// update velocity
@@ -290,8 +305,8 @@ void Sample::drawCells()
 
 	drawCircle3D ( m_center, m_center+Vector3DF(0,1,0), m_stable_radius, Vector4DF(0.0,0.5,0.0,1));
 	if ( m_temp ) {
-		drawCircle3D(m_center, m_center + Vector3DF(0, 1, 0), m_temp_radius+0.4, Vector4DF(0.0,0.0,0.5, 1));
-		drawCircle3D(m_center, m_center + Vector3DF(0, 1, 0), m_temp_radius- 0.4, Vector4DF(0.5, 0.0, 0.0, 1));
+		drawCircle3D(m_center, m_center + Vector3DF(0, 1, 0), m_temp_radius+ 0.5, Vector4DF(0.0,0.0,0.5, 1));
+		drawCircle3D(m_center, m_center + Vector3DF(0, 1, 0), m_temp_radius- 0.5, Vector4DF(0.5, 0.0, 0.0, 1));
 	}
 	dbgprintf ( "%f %f %f\n", m_center.x, m_center.y, m_center.z );
 
