@@ -1080,51 +1080,7 @@ int BeliefPropagation::init(int Rx, int Ry, int Rz) {
 //----
 
 int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_fn) {
-  int i, j, ret;
-
-  m_rate = 0.98;
-
-  //std::string name_fn = "examples/stair_name.csv";
-  //std::string rule_fn = "examples/stair_rule.csv";
-  //std::vector< std::string > tile_name;
-  //std::vector< std::vector<float> > tile_rule;
-
-  init_dir_desc();
-
-  m_dir_inv[0] = 1;
-  m_dir_inv[1] = 0;
-  m_dir_inv[2] = 3;
-  m_dir_inv[3] = 2;
-  m_dir_inv[4] = 5;
-  m_dir_inv[5] = 4;
-
-  ret = init_F_CSV(rule_fn, name_fn);
-  if (ret<0) { return ret; }
-
-  //---
-
-  m_rand.seed ( m_seed++ );  
-
-  m_bpres.Set ( R, R, R );
-  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
-  m_num_values = m_tile_name.size();
-  m_res.Set ( R, R, R );
-
-  ConstructTileIdx();
-  ConstructConstraintBuffers();
-
-  ConstructMU();
-  NormalizeMU ();
-
-  AllocBPVec( BUF_BELIEF, m_num_values );
-
-  AllocViz ( BUF_VIZ, m_num_verts );
-
-  // options
-  //  
-  m_run_cuda  = false;
-
-  return 0;
+  return init_CSV(R, R, R, name_fn, rule_fn);
 }
 
 int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, std::string &rule_fn) {
@@ -1309,13 +1265,6 @@ int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
       cb(NULL);
     }
 
-    /*
-    if ((step_iter>0) && ((step_iter%10)==0)) {
-      printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
-      if (m_verbose > 2) { gp_state_print(); }
-    }
-    */
-
     if (fabs(d) < _eps) { break; }
   }
 
@@ -1327,7 +1276,7 @@ int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
   // (success) end condition, all cell positions have exactly
   // one tile in them.
   //
-  if (ret==0 ) { return 0; }
+  if (ret==0) { return 0; }
 
   ret = tileIdxCollapse( cell, tile_idx );
   if (ret < 0) { return -2; }

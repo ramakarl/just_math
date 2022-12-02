@@ -1083,6 +1083,15 @@ int run_test(int test_num) {
 uchar*    m_img;
 DataPtr   m_vol[4];
 
+Camera3D  m_cam;
+Vector3DI m_vres;
+
+const char VOL=0;
+
+int m_iresx,
+    m_iresy;
+
+
 void alloc_img (int xres, int yres) {
   // RGB, 3 bytes/pix
   int sz = xres * yres * 3;
@@ -1178,6 +1187,21 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
       set_pixel(img, x, y, xres, yres, clr.x, clr.y, clr.z );
     }
   }
+}
+
+//WIP
+//
+BeliefPropagation *g_bpc;
+void bp_cb( void * dat ) {
+  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+
+  visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
+
+  raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+  snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  printf ( "  output: %s\n", imgfile );
+  save_png ( imgfile, m_img, iresx, iresy, 3 );
+
 }
 
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
@@ -1358,7 +1382,7 @@ int main(int argc, char **argv) {
   int iresx=0, iresy=0;
   Vector3DI vres (X, Y, Z);
   Camera3D cam;
-  const char VOL=0;
+  //const char VOL=0;
 
   std::string base_png = "out";
   char imgfile[512] = {0};
@@ -1371,6 +1395,8 @@ int main(int argc, char **argv) {
   BeliefPropagation bpc;
 
   int arg=1;
+
+  g_bpc = &bpc;
 
   //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
   while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
@@ -1535,7 +1561,8 @@ int main(int argc, char **argv) {
     ret = bpc.start();
 
     for (int64_t it=0; it < bpc.m_num_verts; it++) {
-      ret = bpc.single_realize(it);
+      //ret = bpc.single_realize_cb(it, NULL);
+      ret = bpc.single_realize_cb(it, bp_cb);
       if (ret<=0) { break; }
 
       if ( raycast )  {

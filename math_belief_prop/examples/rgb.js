@@ -1850,7 +1850,28 @@ function filter_steeple(template) {
 
 }
 
+
+function _has_nei(template, name, dir) {
+  let v = template.admissible_nei[name][dir];
+
+  for (let key in v) {
+    if (v[key].conn)  { return true; }
+  }
+  return false;
+}
+
 function csv_name(template, fn) {
+
+  let _an = template.admissible_nei;
+
+  let dir = [
+    "1:0:0",
+    "-1:0:0",
+    "0:1:0",
+    "0:-1:0",
+    "0:0:1",
+    "0:0:-1"
+  ];
 
   //let fp = fs.openSync(fn, "w");
 
@@ -1858,8 +1879,18 @@ function csv_name(template, fn) {
   let s = "#id,name\n" ;
   //fp.writeFileSync(s);
   for (let i=0; i<template.tile_name.length; i++) {
+
+    let conn_vec = [0,0,0,0,0,0];
+
+    for (let j=0; j<6; j++) {
+      if (_has_nei(template, template.tile_name[i], dir[j])) {
+        conn_vec[j] = 1;
+      }
+    }
+
+
     //console.log(i + "," + template.tile_name[i]);
-    s += i + "," + template.tile_name[i] + "\n";
+    s += i + "," + template.tile_name[i] + "," + conn_vec.join(",") + "\n";
     //fp.writeFileSync(s);
   }
 
