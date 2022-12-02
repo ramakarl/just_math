@@ -1873,6 +1873,8 @@ function csv_name(template, fn) {
     "0:0:-1"
   ];
 
+  let colors = [ "#000000", "#ff0000", "#00ff00", "#0000ff" ];
+
   //let fp = fs.openSync(fn, "w");
 
   //console.log("#id,name");
@@ -1882,6 +1884,11 @@ function csv_name(template, fn) {
 
     let conn_vec = [0,0,0,0,0,0];
 
+    let c = colors[0];
+    if (i>0) {
+      c = colors[Math.floor((i)*3/template.tile_name.length) + 1];
+    }
+
     for (let j=0; j<6; j++) {
       if (_has_nei(template, template.tile_name[i], dir[j])) {
         conn_vec[j] = 1;
@@ -1889,8 +1896,9 @@ function csv_name(template, fn) {
     }
 
 
+
     //console.log(i + "," + template.tile_name[i]);
-    s += i + "," + template.tile_name[i] + "," + conn_vec.join(",") + "\n";
+    s += i + "," + template.tile_name[i] + "," + conn_vec.join(",") + "," + c + "\n";
     //fp.writeFileSync(s);
   }
 
