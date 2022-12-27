@@ -180,6 +180,7 @@ int64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr ) {
 
 void BeliefPropagation::ConstructTileIdx() {
   int i, j;
+
   AllocVeci32( BUF_TILE_IDX, m_num_verts * m_num_values );
   AllocVeci32( BUF_TILE_IDX_N, m_num_verts );
   for (i=0; i<m_num_verts; i++) {
@@ -788,8 +789,12 @@ int _read_line(FILE *fp, std::string &line) {
 int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
   int i, idx;
   FILE *fp;
+
   std::string line, tok, _s;
   std::vector<std::string> toks;
+
+  int xn,xp, yn,yp, zn,zp;
+  std::string _color;
 
   fp = fopen(fn.c_str(), "r");
   if (!fp) { return -1; }
@@ -814,7 +819,8 @@ int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
     }
     toks.push_back(tok);
 
-    if (toks.size() != 2) { continue; }
+    //if (toks.size() != 2) { continue; }
+    if (toks.size() < 2) { continue; }
 
     idx = atoi(toks[0].c_str());
     if (idx <= name.size()) {
@@ -824,6 +830,13 @@ int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
       }
     }
     name[idx] = toks[1];
+
+    if (toks.size() > 2) { xn = atoi(toks[2].c_str()); }
+    if (toks.size() > 3) { xp = atoi(toks[3].c_str()); }
+    if (toks.size() > 4) { yn = atoi(toks[4].c_str()); }
+    if (toks.size() > 5) { yp = atoi(toks[5].c_str()); }
+    if (toks.size() > 6) { zn = atoi(toks[6].c_str()); }
+    if (toks.size() > 7) { _color = toks[7]; }
   }
 
   fclose(fp);
@@ -1003,6 +1016,12 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
     }
 
     n = getVali( BUF_TILE_IDX_N, pos );
+
+    //DEBUG
+    //printf("## filter_constraint: pos: %i, n: %i, tile_id: %i, %i / (constraint_list.size() %i)\n",
+    //    (int)pos, (int)n, (int)tile_id,
+    //    (int)i, (int)constraint_list.size());
+
     SetVali( BUF_TILE_IDX, pos, n,  tile_id );
     n++;
     SetVali( BUF_TILE_IDX_N, pos, n );
@@ -1020,6 +1039,7 @@ int BeliefPropagation::init_F_CSV(std::string &rule_fn, std::string &name_fn) {
 
   ret = _read_name_csv(name_fn, m_tile_name);
   if (ret < 0) { return ret; }
+
   ret = _read_rule_csv(rule_fn, tile_rule);
   if (ret < 0) { return ret; }
 
@@ -1033,7 +1053,7 @@ int BeliefPropagation::init_F_CSV(std::string &rule_fn, std::string &name_fn) {
   }
   m_num_values = maxb+1;
 
-  printf(">>>> %i %i (%i)\n", (int)m_num_values, (int)(maxb+1), maxb);
+  //printf(">>>> %i %i (%i)\n", (int)m_num_values, (int)(maxb+1), maxb);
 
   //---
 

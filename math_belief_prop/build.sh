@@ -11,7 +11,6 @@
 #  belief_propagation.cpp \
 #  main_belief_propagation.cpp \
 #  -o bpc.debug
-#
 #exit
 
 g++ -O3 -I../libmin/include/ \

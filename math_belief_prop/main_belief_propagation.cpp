@@ -1191,17 +1191,45 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
 
 //WIP
 //
+void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres );
+
 BeliefPropagation *g_bpc;
 void bp_cb( void * dat ) {
+  char imgfile[512];
+  std::string base_png = "out";
+  int it=0;
+  static int base_it = -1;
+
+  m_iresx = 512;
+  m_iresy = 512;
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+
+  it = (int)g_bpc->m_state_info_iter;
+
   printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
 
-  visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
+  //visualize_belief ( g_bpc, BUF_BELIEF, VOL, g_bpc->m_vres );
+  visualize_belief ( *g_bpc, BUF_BELIEF, VOL, m_vres );
 
+  //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
   raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
-  snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
   printf ( "  output: %s\n", imgfile );
-  save_png ( imgfile, m_img, iresx, iresy, 3 );
+  save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
 
+}
+
+void bp_cb_0(void *dat) {
+  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+}
+
+void bp_cb_v0(void *dat) {
+  static int base_it = -1;
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+  printf("[%i.%i]\n", base_it, (int)g_bpc->m_state_info_iter);
 }
 
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
@@ -1353,6 +1381,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
+  fprintf(fp, "  -r       enable raycast visualization\n");
 
   fprintf(fp, "  -v       show version\n");
   fprintf(fp, "  -h       help (this screen)\n");
@@ -1396,6 +1425,8 @@ int main(int argc, char **argv) {
 
   int arg=1;
 
+  void (*_cb_f)(void *) = NULL;
+
   g_bpc = &bpc;
 
   //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
@@ -1419,6 +1450,10 @@ int main(int argc, char **argv) {
         raycast = 1;
         iresx = atoi(optarg);
         iresy = iresx;
+
+        m_iresx = iresx;
+        m_iresy = iresy;
+
         printf ("raycast enabled\n");
         break;
 
@@ -1497,7 +1532,7 @@ int main(int argc, char **argv) {
   }
 
   if ((X<=0) || (Y<=0) || (Z<=0)) {
-    printf("dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
+    fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
     show_usage(stderr);
     exit(-1);
   }
@@ -1507,18 +1542,25 @@ int main(int argc, char **argv) {
   if (constraint_fn) {
     constraint_fn_str = constraint_fn;
     _read_constraint_csv(constraint_fn_str, constraint_list);
-    printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+
+    if (bpc.m_verbose > 0) {
+      printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+    }
   }
 
-  printf ( "bpc init csv.\n" );
+  if (bpc.m_verbose > 0) {
+    printf ( "bpc init csv. (%s, %s)\n", name_fn_str.c_str(), rule_fn_str.c_str() ); fflush(stdout);
+  }
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
   if (ret<0) {
-    printf("error loading CSV\n");
+    fprintf(stderr, "error loading CSV\n"); fflush(stderr);
     exit(-1);
   }
 
   if (constraint_fn) {
-    printf ( "filter constraints.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "filter constraints.\n" );
+    }
     bpc.filter_constraint(constraint_list);
   }
 
@@ -1532,52 +1574,80 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
+  if (bpc.m_verbose > 0) {
+    _cb_f = bp_cb_v0;
+  }
+
+  //_cb_f = bp_cb_0;
+
   // prepare raycast [optional]
   //
   if (raycast) {
+
+    _cb_f = bp_cb;
 
     vres.x = X;
     vres.y = Y;
     vres.z = Z;
 
-    printf ( "preparing raycast.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "preparing raycast.\n" );
+    }
     alloc_img (iresx, iresy);
     alloc_volume (VOL, vres, 4);
     cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
-    printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
+
+    if (bpc.m_verbose > 0) {
+      printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
+    }
   }
 
   if (wfc_flag) {
 
-    printf ( "wfc realize.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "wfc realize.\n" );
+    }
     ret = bpc.wfc();
-    printf("# wfc got: %i\n", ret);
-    bpc.debugPrint();
+
+    if (bpc.m_verbose > 0) {
+      printf("# wfc got: %i\n", ret);
+      bpc.debugPrint();
+    }
 
   }
   else {
 
-    printf ( "bpc realize.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "bpc realize.\n" );
+    }
     ret = bpc.start();
 
     for (int64_t it=0; it < bpc.m_num_verts; it++) {
+
       //ret = bpc.single_realize_cb(it, NULL);
-      ret = bpc.single_realize_cb(it, bp_cb);
+      //ret = bpc.single_realize_cb(it, bp_cb);
+      ret = bpc.single_realize_cb(it, _cb_f);
+
       if (ret<=0) { break; }
 
       if ( raycast )  {
         visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
         raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
         snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
-        printf ( "  output: %s\n", imgfile );
+
+        if (bpc.m_verbose > 0) {
+          printf ( "  output: %s\n", imgfile );
+        }
         save_png ( imgfile, m_img, iresx, iresy, 3 );
       }
     }
 
-    printf("# bp realize got: %i\n", ret);
+    if (bpc.m_verbose > 0) {
+      printf("# bp realize got: %i\n", ret);
 
-    printf("####################### DEBUG PRINT\n" );
-    bpc.debugPrint();
+      printf("####################### DEBUG PRINT\n" );
+      bpc.debugPrint();
+    }
 
   }
 
