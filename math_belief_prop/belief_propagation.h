@@ -54,7 +54,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.1.1"
+#define BELIEF_PROPAGATION_VERSION "0.1.2"
 
 #define BUF_VOL         0    // volume: n^3
 #define BUF_G           1    // beliefprop, G(a) vector
@@ -69,6 +69,8 @@
 #define BUF_VISITED     10  // visited/picked
 #define BUF_NOTE        11
 #define BUF_VIZ         12  
+
+#define BUF_MU_RESIDUE  13
 
 class BeliefPropagation {
 public:

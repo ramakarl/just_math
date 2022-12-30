@@ -232,6 +232,7 @@ void BeliefPropagation::ConstructGH () {
 void BeliefPropagation::ConstructMU () {
   AllocBPMtx ( BUF_MU, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_NXT, 6, m_num_verts, m_num_values );
+  AllocBPMtx ( BUF_MU_RESIDUE, 6, m_num_verts, m_num_values );
 
   float w;
   float *mu = (float*) m_buf[BUF_MU].getData();
@@ -1428,6 +1429,12 @@ int BeliefPropagation::realize() {
 float BeliefPropagation::step() {
   float max_diff = -1.0;
 
+  int m_calc_residue = 1;
+  int64_t n_dir, dir_idx, cell_idx,
+          val_idx_n, val_idx, val,
+          nei_cell_idx;
+  float mu0, mu1;
+
   // run main bp, store in BUF_MU_NXT
   //
   BeliefProp();
@@ -1435,6 +1442,32 @@ float BeliefPropagation::step() {
   // renormalize BUF_MU_NXT
   //
   NormalizeMU( BUF_MU_NXT );
+
+  if (m_calc_residue) {
+
+    n_dir = getNumNeighbors(0);
+    for (cell_idx=0; cell_idx < m_num_verts; cell_idx++) {
+
+      val_idx_n = getVali( BUF_TILE_IDX_N, cell_idx );
+      for (val_idx=0; val_idx < val_idx_n; val_idx++) {
+
+        val = getVali( BUF_TILE_IDX, cell_idx, val_idx );
+
+        for (dir_idx=0; dir_idx < n_dir; dir_idx++) {
+          nei_cell_idx = getNeighbor( cell_idx, dir_idx );
+          if (nei_cell_idx < 0) { continue; }
+
+          mu0 = getVal( BUF_MU_NXT, dir_idx, cell_idx, val );
+          mu1 = getVal( BUF_MU    , dir_idx, cell_idx, val );
+
+          SetVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val, fabs(mu0-mu1) );
+        }
+
+      }
+
+    }
+
+  }
 
   // calculate the difference between
   // BUF_MU_NXT and BUF_MU

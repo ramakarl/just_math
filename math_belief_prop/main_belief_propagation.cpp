@@ -1214,8 +1214,10 @@ void bp_cb( void * dat ) {
 
   //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
   raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+
   //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
   snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
+
   printf ( "  output: %s\n", imgfile );
   save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
 
@@ -1232,50 +1234,121 @@ void bp_cb_v0(void *dat) {
   printf("[%i.%i]\n", base_it, (int)g_bpc->m_state_info_iter);
 }
 
+void bp_cb_v1(void *dat) {
+  char imgfile[512];
+  std::string base_png = "out";
+  int it=0;
+  static int base_it = -1;
+
+  int64_t cell_idx, val_idx,
+          n_dir, val_idx_n,
+          nei_cell_idx,
+          dir_idx;
+  float residue, t_f;
+
+  int vol_id = VOL,
+      val;
+
+
+  Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+
+  //m_iresx = 512;
+  //m_iresy = 512;
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+
+  it = (int)g_bpc->m_state_info_iter;
+
+  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+
+  n_dir = g_bpc->getNumNeighbors(0);
+  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
+
+    t_f = -1.0;
+    residue = 0.0;
+
+    val_idx_n = g_bpc->getVali( BUF_TILE_IDX_N, cell_idx );
+    for (val_idx=0; val_idx < val_idx_n; val_idx++) {
+
+      val = g_bpc->getVali( BUF_TILE_IDX, cell_idx, val_idx );
+
+      for (dir_idx=0; dir_idx < n_dir; dir_idx++) {
+        nei_cell_idx = g_bpc->getNeighbor( cell_idx, dir_idx );
+        if (nei_cell_idx < 0) { continue; }
+
+        residue = g_bpc->getVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val );
+
+        if (residue > t_f) { residue = t_f; }
+      }
+
+    }
+
+    if (residue < 0.0) { residue = 0.0; }
+    if (residue > 1.0) { residue = 1.0; }
+
+    vox->x = residue;
+    vox->y = 0.0;
+    vox->z = 0.0;
+    vox->w = residue;
+
+    vox++;
+  }
+
+  //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
+  raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+
+  //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
+  printf ( "  output: %s\n", imgfile );
+  save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
+
+}
+
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
 
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-   float maxv;
+  Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+  float maxv;
 
-   int N = (int)(src.m_tile_name.size());;
+  int N = (int)(src.m_tile_name.size());;
 
-   int r_l = 1,
-       r_u = (N-1)/3;
-   int g_l = r_u+1,
-       g_u = 2*(N-1)/3;
-   int b_l = g_u,
-       b_u = N-1;
+  int r_l = 1,
+      r_u = (N-1)/3;
+  int g_l = r_u+1,
+      g_u = 2*(N-1)/3;
+  int b_l = g_u,
+      b_u = N-1;
 
-   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
+  // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
 
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     src.getVertexBelief (j);
+  // map belief to RGBA voxel
+  for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
+    src.getVertexBelief (j);
 
-     // red
-     maxv = 0.0;
-     for (int k=r_l; k <= r_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->x = maxv;
+    // red
+    maxv = 0.0;
+    for (int k=r_l; k <= r_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->x = maxv;
 
-     // green
-     maxv = 0.0;
-     for (int k=g_l; k <= g_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->y = maxv;
+    // green
+    maxv = 0.0;
+    for (int k=g_l; k <= g_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->y = maxv;
 
-     // blue
-     maxv = 0.0;
-     for (int k=b_l; k <= b_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->z = maxv;
+    // blue
+    maxv = 0.0;
+    for (int k=b_l; k <= b_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->z = maxv;
 
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
-     vox++;
-   }
+    vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+    vox++;
+  }
+
 }
 
 void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
@@ -1337,29 +1410,6 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 // DEBUG MAIN
 //
 
-
-/*
-bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg ) {
-   if (arg >= argc) return false;
-
-   char dash = argv[arg][0];
-   if (dash=='-') {
-     ch = argv[arg][1];
-     optarg = argv[ arg+1 ];
-     printf ( "arg: %d, ch: %c, opt: %s\n", arg, ch, optarg);
-     arg += 2;
-   } else {
-     ch = argv[arg][0];
-     optarg = 0;
-     printf ( "arg: %d, ch: %c, no opt\n", arg, ch);
-     arg++;
-   }
-   return (arg <= argc);
-}
-*/
-
-// #include "getopt.h"
-
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
   fprintf(fp, "\n");
@@ -1395,7 +1445,6 @@ void show_version(FILE *fp) {
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
-  //char* optarg;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str, rule_fn_str, constraint_fn_str;
@@ -1411,7 +1460,6 @@ int main(int argc, char **argv) {
   int iresx=0, iresy=0;
   Vector3DI vres (X, Y, Z);
   Camera3D cam;
-  //const char VOL=0;
 
   std::string base_png = "out";
   char imgfile[512] = {0};
@@ -1429,7 +1477,6 @@ int main(int argc, char **argv) {
 
   g_bpc = &bpc;
 
-  //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
   while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
     switch (ch) {
       case 'h':
@@ -1454,9 +1501,8 @@ int main(int argc, char **argv) {
         m_iresx = iresx;
         m_iresy = iresy;
 
-        printf ("raycast enabled\n");
+        //printf ("raycast enabled\n");
         break;
-
 
       case 'e':
         eps_converge = atof(optarg);
@@ -1516,6 +1562,7 @@ int main(int argc, char **argv) {
       default:
         show_usage(stderr);
         exit(-1);
+        break;
     }
   }
 
@@ -1575,16 +1622,15 @@ int main(int argc, char **argv) {
   }
 
   if (bpc.m_verbose > 0) {
-    _cb_f = bp_cb_v0;
+    //_cb_f = bp_cb_v0;
   }
-
-  //_cb_f = bp_cb_0;
 
   // prepare raycast [optional]
   //
   if (raycast) {
 
-    _cb_f = bp_cb;
+    //_cb_f = bp_cb;
+    _cb_f = bp_cb_v1;
 
     vres.x = X;
     vres.y = Y;
@@ -1600,6 +1646,16 @@ int main(int argc, char **argv) {
     if (bpc.m_verbose > 0) {
       printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
     }
+
+    m_vres.x = X;
+    m_vres.y = X;
+    m_vres.z = X;
+
+    m_cam.setOrbit( 30, 20, 0, m_vres/2.0f, 50, 1 );
+
+    m_iresx = iresx;
+    m_iresy = iresy;
+
   }
 
   if (wfc_flag) {
@@ -1631,15 +1687,16 @@ int main(int argc, char **argv) {
       if (ret<=0) { break; }
 
       if ( raycast )  {
+
         visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
+
         raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
         snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
 
-        if (bpc.m_verbose > 0) {
-          printf ( "  output: %s\n", imgfile );
-        }
+        if (bpc.m_verbose > 0) { printf ( "  output: %s\n", imgfile ); }
         save_png ( imgfile, m_img, iresx, iresy, 3 );
       }
+
     }
 
     if (bpc.m_verbose > 0) {
