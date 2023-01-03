@@ -39,6 +39,16 @@
 #include "pd_getopt.h"
 extern char *optarg;
 
+typedef struct _opt_t {
+  float alpha;
+  int alg_idx;
+  std::string fn_name;
+  std::string fn_rule;
+
+} opt_t;
+
+opt_t g_opt;
+
 //------------------------------------//
 //  _            _   _                //
 // | |_ ___  ___| |_(_)_ __   __ _    //
@@ -51,8 +61,12 @@ extern char *optarg;
 // custom size (basic test)
 //
 int test0() {
+  int ret;
+
   BeliefPropagation bp;
-  bp.init(4,3,1);
+  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+  //bp.init(4,3,1);
   bp.debugPrint();
   return 0;
 }
@@ -60,6 +74,7 @@ int test0() {
 // test filterDiscard
 //
 int test1() {
+  int ret;
   std::vector<int32_t> discard_list;
 
   discard_list.push_back(35);
@@ -74,7 +89,9 @@ int test1() {
   discard_list.push_back(44);
 
   BeliefPropagation bp;
-  bp.init(4,3,1);
+  //bp.init(4,3,1);
+  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
 
   bp.filterDiscard(6, discard_list);
   bp.debugPrint();
@@ -84,6 +101,7 @@ int test1() {
 // test filterKeep
 //
 int test2() {
+  int ret;
   std::vector<int32_t> keep_list;
 
   keep_list.push_back(1);
@@ -94,7 +112,10 @@ int test2() {
   keep_list.push_back(6);
 
   BeliefPropagation bp;
-  bp.init(4,3,1);
+  //bp.init(4,3,1);
+  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   bp.filterKeep(6, keep_list);
   bp.debugPrint();
@@ -102,9 +123,13 @@ int test2() {
 }
 
 int test3() {
+  int ret;
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(4,3,1);
+  //bp.init(4,3,1);
+  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -188,11 +213,15 @@ int test3() {
 }
 
 int test4_() {
+  int ret;
 
   float maxdiff;
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(4,3,1);
+  //bp.init(4,3,1);
+  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -302,6 +331,7 @@ int test4_() {
 }
 
 int test4() {
+  int ret;
 
   // expect:
   //
@@ -314,7 +344,10 @@ int test4() {
   float maxdiff;
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -403,6 +436,7 @@ int test4() {
 // test run until converged
 //
 int test5() {
+  int ret;
 
   // expect:
   //
@@ -416,7 +450,10 @@ int test5() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -492,6 +529,7 @@ int test5() {
 // test run until converged
 //
 int test5_1() {
+  int ret;
 
   // expect:
   //
@@ -505,7 +543,10 @@ int test5_1() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -600,7 +641,10 @@ int test_cull0() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(2,2,1);
+  //bp.init(2,2,1);
+  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -629,7 +673,10 @@ int test_cull1() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -658,7 +705,10 @@ int test_cull2() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -699,7 +749,10 @@ int test_cull3() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,2);
+  //bp.init(3,3,2);
+  ret = bp.init_CSV(3,3,2, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -761,7 +814,10 @@ int test_cull4() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(2,2,1);
+  //bp.init(2,2,1);
+  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -808,6 +864,7 @@ int test_cull4() {
 // cull boundary
 //
 int test6() {
+  int ret;
 
   // expect:
   //
@@ -821,7 +878,10 @@ int test6() {
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
-  bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   bp.CullBoundary();
 
@@ -908,8 +968,11 @@ int test_realize0() {
 
   bp.m_seed = 18;
 
-  bp.init(2,2,1);
+  //bp.init(2,2,1);
   //bp.init(3,3,1);
+  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //bp.debugPrintC();
   //bp.debugPrintS();
@@ -933,8 +996,11 @@ int test_realize1() {
 
   bp.m_seed = 18;
 
-  bp.init(3,3,1);
   //bp.init(3,3,1);
+  //bp.init(3,3,1);
+  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
 
   //bp.debugPrintC();
   //bp.debugPrintS();
@@ -956,7 +1022,10 @@ int test_realize2(int x, int y, int z) {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.init(x,y,z);
+  //bp.init(x,y,z);
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
   ret = bp.realize();
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
@@ -974,7 +1043,10 @@ int test_wfc0(int x, int y, int z) {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.init(x,y,z);
+  //bp.init(x,y,z);
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
   ret = bp.wfc();
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
@@ -1086,7 +1158,7 @@ DataPtr   m_vol[4];
 Camera3D  m_cam;
 Vector3DI m_vres;
 
-const char VOL=0;
+const char VIZ_VOL=0;
 
 int m_iresx,
     m_iresy;
@@ -1207,13 +1279,13 @@ void bp_cb( void * dat ) {
 
   it = (int)g_bpc->m_state_info_iter;
 
-  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+  //printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
 
-  //visualize_belief ( g_bpc, BUF_BELIEF, VOL, g_bpc->m_vres );
-  visualize_belief ( *g_bpc, BUF_BELIEF, VOL, m_vres );
+  //visualize_belief ( g_bpc, BUF_BELIEF, VIZ_VOL, g_bpc->m_vres );
+  visualize_belief ( *g_bpc, BUF_BELIEF, VIZ_VOL, m_vres );
 
-  //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
-  raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+  //raycast_cpu ( g_bpc->m_vres, &m_cam, VIZ_VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
+  raycast_cpu ( m_vres, &m_cam, VIZ_VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
 
   //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
   snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
@@ -1244,28 +1316,23 @@ void bp_cb_v1(void *dat) {
           n_dir, val_idx_n,
           nei_cell_idx,
           dir_idx;
-  float residue, t_f;
+  float residue,
+        max_residue,
+        t_f;
 
-  int vol_id = VOL,
+  int vol_id = VIZ_VOL,
       val;
 
-
   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-
-  //m_iresx = 512;
-  //m_iresy = 512;
 
   if (g_bpc->m_state_info_iter==0) { base_it++; }
 
   it = (int)g_bpc->m_state_info_iter;
 
-  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
-
   n_dir = g_bpc->getNumNeighbors(0);
-  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
 
-    t_f = -1.0;
-    residue = 0.0;
+  max_residue = 0.0;
+  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
 
     val_idx_n = g_bpc->getVali( BUF_TILE_IDX_N, cell_idx );
     for (val_idx=0; val_idx < val_idx_n; val_idx++) {
@@ -1278,24 +1345,57 @@ void bp_cb_v1(void *dat) {
 
         residue = g_bpc->getVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val );
 
-        if (residue > t_f) { residue = t_f; }
+        if (max_residue < residue) { max_residue = residue; }
+      }
+
+    }
+  }
+
+  if (max_residue < (1/((1024.0*1024.0)))) { max_residue = 1.0; }
+
+  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
+
+    t_f = 0.0;
+    residue = -1.0;
+
+    val_idx_n = g_bpc->getVali( BUF_TILE_IDX_N, cell_idx );
+    for (val_idx=0; val_idx < val_idx_n; val_idx++) {
+
+      val = g_bpc->getVali( BUF_TILE_IDX, cell_idx, val_idx );
+
+      for (dir_idx=0; dir_idx < n_dir; dir_idx++) {
+        nei_cell_idx = g_bpc->getNeighbor( cell_idx, dir_idx );
+        if (nei_cell_idx < 0) { continue; }
+
+        t_f = g_bpc->getVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val );
+        if (t_f > residue) { residue = t_f; }
       }
 
     }
 
-    if (residue < 0.0) { residue = 0.0; }
+    residue = (residue/max_residue);
+
+    //printf("%i: %f / %f\n", (int)cell_idx, residue, max_residue);
+
+    //residue = powf( residue, 0.5 );
+    residue = powf( residue, g_opt.alpha );
+
+    //printf("%f\n", residue);
+
+    //if (residue < 0.0) { residue = -residue; }
     if (residue > 1.0) { residue = 1.0; }
 
     vox->x = residue;
     vox->y = 0.0;
     vox->z = 0.0;
-    vox->w = residue;
+    //vox->w = residue;
+    vox->w = 0.25;
 
     vox++;
   }
 
   //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
-  raycast_cpu ( m_vres, &m_cam, VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+  raycast_cpu ( m_vres, &m_cam, VIZ_VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
 
   //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
   snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
@@ -1318,13 +1418,13 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
   int b_l = g_u,
       b_u = N-1;
 
-  // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
-
   // map belief to RGBA voxel
+  //
   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
     src.getVertexBelief (j);
 
     // red
+    //
     maxv = 0.0;
     for (int k=r_l; k <= r_u; k++) {
       maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1332,6 +1432,7 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
     vox->x = maxv;
 
     // green
+    //
     maxv = 0.0;
     for (int k=g_l; k <= g_u; k++) {
       maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1339,6 +1440,7 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
     vox->y = maxv;
 
     // blue
+    //
     maxv = 0.0;
     for (int k=b_l; k <= b_u; k++) {
       maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1365,13 +1467,13 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
    int b_l = g_u,
        b_u = N-1;
 
-   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
-
    // map belief to RGBA voxel
+   //
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      src.getVertexBelief (j);
 
      // red
+     //
      maxv = 0.0;
      for (int k=r_l; k <= r_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1379,6 +1481,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->x = maxv;
 
      // green
+     //
      maxv = 0.0;
      for (int k=g_l; k <= g_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1386,6 +1489,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->y = maxv;
 
      // blue
+     //
      maxv = 0.0;
      for (int k=b_l; k <= b_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1395,6 +1499,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->w = std::max(vox->x, std::max(vox->y, vox->z));
      vox++;
    }
+
 }
 
 //------------//
@@ -1425,6 +1530,11 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
+  fprintf(fp, "  -G <#>   algorithm choice\n");
+  fprintf(fp, "    0      fix maximum belief tile (default)\n");
+  fprintf(fp, "    1      fix minimum entropy cell\n");
+  fprintf(fp, "    2      remove (single tile) minimum belief\n");
+  fprintf(fp, "  -A <#>   alpha (for visualization)\n");
   fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
@@ -1465,7 +1575,7 @@ int main(int argc, char **argv) {
   char imgfile[512] = {0};
 
   float eps_zero = -1.0, eps_converge = -1.0;
-  int max_iter = -1;
+  int max_iter = -1, it, n_it;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
@@ -1477,7 +1587,9 @@ int main(int argc, char **argv) {
 
   g_bpc = &bpc;
 
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
+  g_opt.alpha = 0.5;
+  g_opt.alg_idx = 0;
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1501,7 +1613,13 @@ int main(int argc, char **argv) {
         m_iresx = iresx;
         m_iresy = iresy;
 
-        //printf ("raycast enabled\n");
+        break;
+
+      case 'A':
+        g_opt.alpha = atof(optarg);
+        break;
+      case 'G':
+        g_opt.alg_idx = atoi(optarg);
         break;
 
       case 'e':
@@ -1525,9 +1643,13 @@ int main(int argc, char **argv) {
 
       case 'N':
         name_fn = strdup(optarg);
+
+        g_opt.fn_name = name_fn;
         break;
       case 'R':
         rule_fn = strdup(optarg);
+
+        g_opt.fn_rule = rule_fn;
         break;
       case 'C':
         constraint_fn = strdup(optarg);
@@ -1640,7 +1762,7 @@ int main(int argc, char **argv) {
       printf ( "preparing raycast.\n" );
     }
     alloc_img (iresx, iresy);
-    alloc_volume (VOL, vres, 4);
+    alloc_volume (VIZ_VOL, vres, 4);
     cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
 
     if (bpc.m_verbose > 0) {
@@ -1648,8 +1770,8 @@ int main(int argc, char **argv) {
     }
 
     m_vres.x = X;
-    m_vres.y = X;
-    m_vres.z = X;
+    m_vres.y = Y;
+    m_vres.z = Z;
 
     m_cam.setOrbit( 30, 20, 0, m_vres/2.0f, 50, 1 );
 
@@ -1678,19 +1800,34 @@ int main(int argc, char **argv) {
     }
     ret = bpc.start();
 
-    for (int64_t it=0; it < bpc.m_num_verts; it++) {
+    n_it = bpc.m_num_verts * bpc.m_num_values;
+
+    //for (int64_t it=0; it < bpc.m_num_verts; it++) {
+    for (it=0; it < n_it; it++) {
 
       //ret = bpc.single_realize_cb(it, NULL);
       //ret = bpc.single_realize_cb(it, bp_cb);
-      ret = bpc.single_realize_cb(it, _cb_f);
+
+      if (g_opt.alg_idx == 1) {
+        ret = bpc.single_realize_min_entropy_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 2) {
+        ret = bpc.single_realize_min_belief_cb(it, _cb_f);
+      }
+      else {
+        //ret = bpc.single_realize_cb(it, _cb_f);
+        ret = bpc.single_realize_max_belief_cb(it, _cb_f);
+      }
 
       if (ret<=0) { break; }
 
       if ( raycast )  {
 
-        visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
+        //DEBUG
+        printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
+        visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
 
-        raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+        raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
         snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
 
         if (bpc.m_verbose > 0) { printf ( "  output: %s\n", imgfile ); }

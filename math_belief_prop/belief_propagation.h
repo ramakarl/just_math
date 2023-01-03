@@ -78,10 +78,12 @@ public:
     m_seed = 17;
     m_verbose = 0;
     m_eps_converge = (1.0/(1024.0));
-    m_eps_zero = (1.0/(1024.0*1024.0));
+    //m_eps_zero = (1.0/(1024.0*1024.0));
+    m_eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
     m_max_iteration = 1024;
 
-    m_step_cb = 10;
+    //m_step_cb = 10;
+    m_step_cb = 1;
     m_state_info_d = -1;
     m_state_info_iter = 0;
   };
@@ -149,8 +151,18 @@ public:
   //---
 
   int   start();
-  int   single_realize(int64_t it);
+
+  int   single_realize (int64_t it);
   int   single_realize_cb (int64_t it, void (*cb)(void *));
+  //int   single_realize_lest_belief_cb (int64_t it, void (*cb)(void *));
+
+  int   single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
+  int   single_realize_min_belief_cb(int64_t it, void (*cb)(void *));
+  int   single_realize_min_entropy_cb(int64_t it, void (*cb)(void *));
+
+  int   _pick_tile(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+
+
   int    realize();
   int    wfc();
   int    wfc_start();
@@ -166,7 +178,10 @@ public:
 
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+  int     chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
+
   int     chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+  int     chooseMinEntropyBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
   float   MaxDiffMU();
   void    ComputeDiffMUField ();
@@ -213,8 +228,10 @@ public:
   void ConstructConstraintBuffers();
   int cellConstraintPropagate();
   void cellFillAccessed(uint64_t vtx, int32_t note_idx);
+  int cellFillSingle(uint64_t vtx, int32_t note_idx);
 
   int tileIdxCollapse(uint64_t pos, int32_t tile_idx);
+  int tileIdxRemove(uint64_t pos, int32_t tile_idx);
 
   // note_idx is the 'plane' of BUF_NOTE to unwind
   //
@@ -242,7 +259,6 @@ public:
   int64_t   m_step_cb;
   float     m_state_info_d;
   int64_t   m_state_info_iter;
-
 
 };
 
