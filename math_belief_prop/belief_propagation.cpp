@@ -521,8 +521,44 @@ void BeliefPropagation::cellUpdateBelief(int64_t anch_cell) {
 
 }
 
-
 int BeliefPropagation::_pick_tile(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief) {
+  return _pick_tile_max_belief(anch_cell, max_cell, max_tile, max_tile_idx, max_belief);
+}
+
+int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief) {
+  float f, max_p=-1.0;
+  int64_t anch_tile_idx,
+          anch_tile_idx_n,
+          anch_tile ;
+
+  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  if (anch_tile_idx_n==0) { return -1; }
+  //if (anch_tile_idx_n==1) { continue; }
+
+  for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+
+    f = getVal( BUF_BELIEF, anch_tile );
+
+    if (m_verbose > 2) {
+      printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
+          f, max_p, (int)anch_cell, (int)anch_tile, (int)anch_tile_idx);
+    }
+
+    if ( max_p < f ) {
+      max_p = f;
+      *max_cell = anch_cell;
+      *max_tile = anch_tile;
+      *max_tile_idx = anch_tile_idx;
+      *max_belief = f;
+    }
+  }
+
+  return 0;
+
+}
+
+int BeliefPropagation::_pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief) {
   float p, f, sum_p;
   int64_t anch_tile_idx,
           anch_tile_idx_n,
@@ -595,25 +631,42 @@ int BeliefPropagation::chooseMinEntropyBelief(int64_t *max_cell, int32_t *max_ti
     }
 
     //DEBUG
-    printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
-    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      f = getVal( BUF_BELIEF, anch_tile );
-      printf(" (%i)%f", (int)anch_tile, f);
+    if (m_verbose > 2) {
+      printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        f = getVal( BUF_BELIEF, anch_tile );
+        printf(" (%i)%f", (int)anch_tile, f);
+      }
+      printf("\n");
     }
-    printf("\n");
 
     // if it's the first time we're doing an entropy calculation,
     // set initial value
     //
-    if ( _min_entropy < 0 ) { _min_entropy = _entropy_sum; }
+    if ( _min_entropy < 0 ) {
+      _min_entropy = _entropy_sum;
+
+      _pick_tile( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
+      count=1;
+
+      //DEBUG
+      if (m_verbose > 2) {
+        printf("  ## (i) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
+      }
+
+      continue;
+    }
 
     // if we trigger a new minimum entroyp...
     //
     if ( _entropy_sum < (_min_entropy + _eps) ) {
 
-      printf("  !! picking cell %i (entropy_sum %f < _min_entropy %f + %f)\n", (int)anch_cell,
-          _entropy_sum, _min_entropy, _eps);
+      if (m_verbose > 2) {
+        printf("  !! picking cell %i (entropy_sum %f < _min_entropy %f + %f)\n", (int)anch_cell,
+            _entropy_sum, _min_entropy, _eps);
+      }
 
       p = m_rand.randF();
 
@@ -625,8 +678,10 @@ int BeliefPropagation::chooseMinEntropyBelief(int64_t *max_cell, int32_t *max_ti
         count=1;
 
         //DEBUG
-        printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f\n",
-            (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief);
+        if (m_verbose > 2) {
+          printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+              (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
+        }
       }
 
       // else we've seen the same minimum entropy, so decide whether we want
@@ -639,9 +694,11 @@ int BeliefPropagation::chooseMinEntropyBelief(int64_t *max_cell, int32_t *max_ti
         if ( p < (1.0/(float)count) ) {
           _pick_tile( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
 
-          //DEBUG
-          printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f\n",
-              (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief);
+          if (m_verbose > 2) {
+            //DEBUG
+            printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
+          }
 
         }
       }
@@ -651,13 +708,16 @@ int BeliefPropagation::chooseMinEntropyBelief(int64_t *max_cell, int32_t *max_ti
 
   }
 
-  if (max_cell) { *max_cell = _max_cell; }
-  if (max_tile) { *max_tile = _max_tile; }
-  if (max_tile_idx)  { *max_tile_idx = _max_tile_idx; }
-  if (max_belief) { *max_belief = _max_belief; }
+  if (max_cell)     { *max_cell     = _max_cell; }
+  if (max_tile)     { *max_tile     = _max_tile; }
+  if (max_tile_idx) { *max_tile_idx = _max_tile_idx; }
+  if (max_belief)   { *max_belief   = _max_belief; }
+
+  if (m_verbose > 2) {
+    printf("?? count:%i\n", (int)count);
+  }
 
   return count;
-
 }
 
 int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief) {
@@ -681,13 +741,15 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
     if (anch_tile_idx_n==1) { continue; }
 
     //DEBUG
-    printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
-    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      f = getVal( BUF_BELIEF, anch_tile );
-      printf(" (%i)%f", (int)anch_tile, f);
+    if (m_verbose > 2) {
+      printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        f = getVal( BUF_BELIEF, anch_tile );
+        printf(" (%i)%f", (int)anch_tile, f);
+      }
+      printf("\n");
     }
-    printf("\n");
 
 
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
