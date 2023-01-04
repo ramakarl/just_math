@@ -765,6 +765,14 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
           _max_tile_idx = anch_tile_idx;
           _max_belief = f;
           count=1;
+
+          if (m_verbose > 2) {
+            //DEBUG
+            printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
+          }
+
+
         }
 
         // randomize 'equal' choices
@@ -773,10 +781,19 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
           count++;
           p = m_rand.randF();
           if ( p < (1.0/(float)count) ) {
+
             _max_cell = anch_cell;
             _max_tile = anch_tile;
             _max_tile_idx = anch_tile_idx;
             _max_belief = f;
+
+            if (m_verbose > 2) {
+              //DEBUG
+              printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                  (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
+            }
+
+
           }
         }
 
@@ -815,15 +832,15 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
     if (anch_tile_idx_n==1) { continue; }
 
     //DEBUG
-    /*
-    printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
-    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      f = getVal( BUF_BELIEF, anch_tile );
-      printf(" (%i)%f", (int)anch_tile, f);
+    if (m_verbose > 2) {
+      printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        f = getVal( BUF_BELIEF, anch_tile );
+        printf(" (%i)%f", (int)anch_tile, f);
+      }
+      printf("\n");
     }
-    printf("\n");
-    */
 
 
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -841,6 +858,14 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
           _min_tile_idx = anch_tile_idx;
           _min_belief = f;
           count=1;
+
+          if (m_verbose > 2) {
+            //DEBUG
+            printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
+          }
+
+
         }
 
         // randomize 'equal' choices
@@ -853,6 +878,14 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
             _min_tile = anch_tile;
             _min_tile_idx = anch_tile_idx;
             _min_belief = f;
+
+            if (m_verbose > 2) {
+              //DEBUG
+              printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                  (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
+            }
+
+
           }
         }
 
@@ -2164,6 +2197,14 @@ int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
   if (tile_idx >= n) { return -1; }
   if (n<=1) { return -1; }
 
+  if (m_verbose > 2) {
+    printf("tileIdxRemove before:");
+    for (idx=0; idx<n; idx++) {
+      printf(" (%i)idx:%i", (int)getVali(BUF_TILE_IDX, pos, idx), (int)idx);
+    }
+    printf("\n");
+  }
+
   n--;
 
   tile_val = getVali( BUF_TILE_IDX, pos, tile_idx );
@@ -2171,6 +2212,15 @@ int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
   SetVali( BUF_TILE_IDX, pos, n, tile_val );
   SetVali( BUF_TILE_IDX, pos, tile_idx, tv );
   SetVali( BUF_TILE_IDX_N, pos, n );
+
+  if (m_verbose > 2) {
+    printf("tileIdxRemove after:");
+    n = getVali( BUF_TILE_IDX_N, pos );
+    for (idx=0; idx<n; idx++) {
+      printf(" (%i)idx:%i", (int)getVali(BUF_TILE_IDX, pos, idx), (int)idx);
+    }
+    printf("\n");
+  }
 
   return 0;
 }
