@@ -487,7 +487,7 @@ float BeliefPropagation::BeliefProp () {
                
         for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
 
-          // now getNeighbor is ONLY being used to check if _neinei_cell is out of bounds. should be eliminated
+          // getNeighbor is ONLY being used to check if _neinei_cell is out of bounds. eliminated with WriteBoundaryMU
           //_neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
 
           // Hij(a) = gi(a) * PROD mu{ki}_a
@@ -495,7 +495,7 @@ float BeliefPropagation::BeliefProp () {
           if (nei_in_idx != nei_in_ignore) {
             H_ij_a *= *currMu;
           }
-          currMu++;   // MU buffer reorganized with 'nbr' as linear memory unit
+          currMu++;   // MU buffer reorganized with 'nbr' as linear memory variable
         } 
         SetVal (BUF_H, nei_tile, H_ij_a);
       }
