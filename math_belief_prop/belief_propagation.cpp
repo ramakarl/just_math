@@ -160,6 +160,7 @@ Vector3DI BeliefPropagation::getVertexPos(int64_t j) {
   return p;
 }
 
+
 // get 3D grid neighbor 
 //
 int64_t BeliefPropagation::getNeighbor( uint64_t j, Vector3DI jp, int nbr ) {  
@@ -344,6 +345,57 @@ void BeliefPropagation::NormalizeMU (int id) {
   }
 }
 
+void BeliefPropagation::WriteBoundaryMU ()
+{
+    Vector3DI jp;
+    int64_t j;
+    int nbr, tile;    
+    // 0=x+ 
+    // 1=x-
+    // 2=y+
+    // 3=y-
+    // 4=z+
+    // 5=z-
+
+    // Set MU values on all boundary planes 
+    // to 1.0 in the direction of out-of-bounds
+
+    for (int tile=0; tile < m_num_values; tile++) {
+
+        // X plane
+        for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
+          for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
+              jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 1, j, tile, 1.0f ); 
+              jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 0, j, tile, 1.0f );
+          }
+        }
+
+        // Y plane
+        for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
+          for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
+              jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 3, j, tile, 1.0f ); 
+              jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 2, j, tile, 1.0f );
+          }
+        }
+
+
+        // Z plane
+        for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
+          for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
+              jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 5, j, tile, 1.0f ); 
+              jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
+              SetVal ( BUF_MU, 4, j, tile, 1.0f );
+          }
+        }
+    }
+}
+
+
 float BeliefPropagation::BeliefProp () {  
   int64_t anch_cell=0, nei_cell=0;
   int a_idx, a_idx_n;
@@ -414,9 +466,13 @@ float BeliefPropagation::BeliefProp () {
         }
         continue;
       }
-
       Vector3DI jp = getVertexPos(nei_cell);
+      int numbrs = getNumNeighbors(nei_cell);
+      
+      // cache direction in which to ignore anch_cell
+      int nei_in_ignore = getOppositeDir( anch_in_idx );  
 
+      // process all tiles for current nei_cell
       for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
         nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
@@ -424,21 +480,26 @@ float BeliefPropagation::BeliefProp () {
         // first compute Hij_t
         // initialize Hij(a) = gi(a)
         //
-        H_ij_a = getVal(BUF_G, nei_tile);        
-        
-        for (nei_in_idx=0; nei_in_idx < getNumNeighbors(nei_cell); nei_in_idx++ ) {
-          _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
+        H_ij_a = getVal(BUF_G, nei_tile);   
+
+        // starting MU for nei_cell and tile
+        float* currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);   
+               
+        for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
+
+          // now getNeighbor is ONLY being used to check if _neinei_cell is out of bounds. should be eliminated
+          //_neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
 
           // Hij(a) = gi(a) * PROD mu{ki}_a
           //
-          if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-            H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-          }        
-        }  
-
+          if (nei_in_idx != nei_in_ignore) {
+            H_ij_a *= *currMu;
+          }
+          currMu++;   // MU buffer reorganized with 'nbr' as linear memory unit
+        } 
         SetVal (BUF_H, nei_tile, H_ij_a);
-
       }
+
 
       // now compute mu_ij_t+1 = Fij * hij
       // b = rows in f{ij}(a,b), also elements of mu(b)/
@@ -1315,9 +1376,15 @@ int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
   //
   NormalizeMU();
 
+  
+
   // iterate bp until converged
   //
   for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+
+    // set boundary MU to 1.0 in out-of-bounds directions
+    WriteBoundaryMU ();
+
     d = step();
 
     if (cb && ((step_iter % m_step_cb) == 0)) {

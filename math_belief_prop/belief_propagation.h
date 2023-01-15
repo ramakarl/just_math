@@ -118,6 +118,8 @@ public:
   Vector3DI  getVertexPos(int64_t j);
   int64_t  getVertex(int x, int y, int z);
   int      getTilesAtVertex ( int64_t vtx );
+  int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
+
 
   inline int      getNumNeighbors(int j)        {return 6;}     
   inline int      getNumValues(int j)          {return m_num_values;}
@@ -128,8 +130,13 @@ public:
   // belief matrix packing
   inline float   getVal(int id, int a)        {return *(float*) m_buf[id].getPtr (a);}            // G and H vectors, size B
   inline void    SetVal(int id, int a, float val)  {*(float*) m_buf[id].getPtr(a) = val;}
-  inline float   getVal(int id, int n, int j, int a) {return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }  // mu matrix, NxDxB, where D=R^3, N=nbrs=6
-  inline void    SetVal(int id, int n, int j, int a, float val ) { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
+
+  // MU matrix
+  // n=nbr (0-6), j=vertex (D), a=tile (B)
+  inline float*  getPtr(int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
+  inline float   getVal(int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
+  inline void    SetVal(int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
+
   inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }  // belief mapping (f), BxB
   inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ) = val; }
 
@@ -165,6 +172,8 @@ public:
   void    cellUpdateBelief(int64_t anch_cell);
   int     chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int     chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+
+  void    WriteBoundaryMU ();
 
   float   MaxDiffMU();
   void    ComputeDiffMUField ();
