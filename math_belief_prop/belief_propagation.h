@@ -114,7 +114,7 @@ public:
   void    AllocVeci32(int, int);
   void    AllocVeci32(int, int, int);
 
-  int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
+  int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
   Vector3DI  getVertexPos(int64_t j);
   int64_t  getVertex(int x, int y, int z);
   int      getTilesAtVertex ( int64_t vtx );

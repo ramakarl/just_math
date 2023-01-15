@@ -40,6 +40,8 @@
 #include "geom_helper.h"
 #include "string_helper.h"
 
+#include <time.h>
+
 #include "belief_propagation.h"
 
 #ifdef USE_OPENGL
@@ -110,7 +112,8 @@ public:
   bool      m_save;
   float     m_frame;
   int       m_peak_iter;
- 
+
+  clock_t   m_t1, m_t2;
 };
 Sample obj;
 
@@ -383,9 +386,11 @@ void Sample::Restart()
 }
 
 
+
 bool Sample::init()
 {
   int i, ret;
+
 
   addSearchPath(ASSET_PATH);
 
@@ -453,6 +458,7 @@ bool Sample::init()
         exit(-1);
       }
       // start wfc
+      m_t1 = clock();
       ret = wfc.start (); 
   } 
   
@@ -481,7 +487,12 @@ void Sample::display()
       ret = bpc.single_realize(m_it);
       if ( ret <= 0) {
         switch (ret) {
-        case  0: printf ( "BPC DONE.\n" ); m_run=false; break;
+        case  0: printf ( "BPC DONE.\n" ); {
+            m_t2 = clock();
+            float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
+            printf ( "Elapsed time: %f msec\n", elapsed);
+            m_run=false; 
+            } break;
         case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
         case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
@@ -516,12 +527,12 @@ void Sample::display()
 
   if ( m_run_bpc ) {
       Vector3DF bpc_off(0,0,0);      
-      VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      //VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
+      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
       
       //-- regular belief viz
-      //VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
-      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }  
 
   // optional write to disk

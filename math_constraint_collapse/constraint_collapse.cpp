@@ -100,6 +100,8 @@ int64_t ConstraintCollapse::getFace (int64_t a, int nbr )
 
 void ConstraintCollapse::start ()
 {
+    m_seed = 2;
+
     m_rand.seed( m_seed );
 
     randomize ();
@@ -114,23 +116,44 @@ void ConstraintCollapse::start ()
 
 void ConstraintCollapse::single_step ()
 {
+    // check constraints (energy) and 
+    // increase temperature if we get stuck
     int cnt = check_constraints ();
+    
     if (cnt >= m_cnt) {
         m_stuck_cnt++;
-        if (m_stuck_cnt > 5) {
-            m_temp -= 0.01;
-            if (m_temp < 0) m_temp = 0;
+        if (m_stuck_cnt > 3) {
+            // stuck - increase temp to add noise
+            m_temp += 0.01;     
+            if (m_temp > 1.0) m_temp = 1;    
             //decimate();
             m_stuck_cnt=0;
         }
     } else {
-        m_temp += 0.001;
-        if (m_temp > 1.0) m_temp = 1;
+        // gradually decrease temp
+        // (do not reset stuck_cnt here because that can oscillate also)
+        m_temp -= 0.001;
+        if (m_temp < 0) m_temp = 0;         
     }
-    dbgprintf ( "step %d, constrain %d, stuck %d, energy %f\n", m_step, cnt, m_stuck_cnt, m_temp);
+
+    dbgprintf ( "step %d, constraints %d, noise %f, stuck %d\n", m_step, cnt, m_temp, m_stuck_cnt);
    
     if (cnt > 0 )
       fix_constraints ( cnt==m_cnt );
+
+    /*int q;
+    float r;
+    int freq = m_temp*5;
+    if ( m_temp > 0.99) freq = 0;
+    if ( freq > 0 && m_step % freq == 0 ) {    
+        dbgprintf ( "empty\n" );
+        q = m_rand.randF() * getNumVerts();        
+        r = getVal(BUF_R,q);
+        if (r < 1.0) {
+            SetVal( BUF_T, q, 0 );
+            SetVal( BUF_R, q, 0 );
+        }
+    }*/
 
    // m_resolve -= 0.001;
     m_cnt = cnt;
@@ -314,13 +337,13 @@ void ConstraintCollapse::fix_constraints (bool stuck)
     int save_t, save_mask, start_t;
     int new_t, new_mask;
     int best_t, best_mask, best_cnt;
-    
+
     for (p=0; p< getNumVerts(); p++) {
         v = getVertexPos(p);
         
         // process on checkerboard grid
-        //chk = (v.x + v.y + v.z + m_flip) % 2;  
-        //if (chk==0) continue;
+        // chk = (v.x + v.y + v.z + m_flip) % 2;  
+        // if (chk==0) continue;
 
         // check if fully resolved
         r = getVal( BUF_R, p );   
@@ -340,6 +363,8 @@ void ConstraintCollapse::fix_constraints (bool stuck)
         best_r = r;
         save_mask = best_mask;  // save current configuration
         save_t = best_t;
+
+        // MC - basic monte-carlo. test tile values at random.
         start_t = save_t + m_rand.randF() * m_num_values;
 
         // run through tile values and find one that solves the most constraints               
@@ -347,25 +372,42 @@ void ConstraintCollapse::fix_constraints (bool stuck)
 
             new_t = (start_t + t) % m_num_values;
             if (new_t == save_t) continue;
+            
+            //if ( new_t >=43 ) continue;             // skip green & blue
 
             if ( (new_t >= 1 && new_t < 13) || 
                  (new_t >=43 && new_t < 55) ||
                  (new_t >=85 && new_t < 97) ) 
-                   continue;                            // major hack to eliminate end tiles
+                   continue;                           // major hack to eliminate end tiles
 
+            // test a different tile value
             SetVal ( BUF_T, p, new_t );  
 
-            check_constraints ( p );
-            
-            new_mask = GetVertexConstraints( p );  
+            // check face constraints at this vertex
+            check_constraints ( p );            
+            new_mask = GetVertexConstraints( p );
             
             // count number of constraints resolved            
-            GetMaxResolved ( p, save_mask, new_mask, fix_r, new_r ); 
+            // fix   = number of new face constraints resolved
+            // fix_r = resolved value of the best fixed face            
             int fix = CountBits(best_mask) - CountBits(new_mask);
+            GetMaxResolved ( p, save_mask, new_mask, fix_r, new_r );   
             
-            if (new_t==0) empty = (r + m_rand.randF()*0.20) > m_temp; else empty = false;
-            noise = (r + m_rand.randF()*0.01) > m_temp;
+            // introduce noise tied to temperature to escape local minima
+            //if (new_t==0) empty = (r + m_rand.randF()*0.50) < m_temp; else empty = false;
+            //noise = (r + m_rand.randF()*0.01) < m_temp;
+
+            if (new_t==0) empty = m_rand.randF()*m_temp > 0.05; else empty = false;
+            noise = m_rand.randF()*m_temp > r;    // add noise to less resolved tiles                       
             
+            // MCMC - Markov Chain Monte Carlo - next step should fix more constraints than current.            
+            // Accept tile.. if:
+            // - (fix>1) ==> tile value solves 2 or more faces, accept immediately
+            // - (fix>=0 && fix_r>best_r) ==> tile value solves 1 face, usually multiple, accept the tile value with the best r
+            // Simulated Annealing - introduced by 'noise and empty'                        
+            // - (stuck && fix>=0 && noise) ==> solver stuck. fix=0 means its no better or worse than what we had. try /w noise.
+            // - (stuck && fix>=-1 && empty) ==>solver stuck. fix=-1 means OK to make worse! >IF< its the empty tile. try /w noise.
+            //
             if ( fix > 1 || (fix>=0 && fix_r > best_r) || (fix>=0 && stuck && noise) || (fix>=-1 && stuck && empty) ) { 
                 best_mask = new_mask;
                 best_cnt = CountBits(new_mask);
@@ -678,6 +720,8 @@ int ConstraintCollapse::read_constraints (std::string &fn) {
 
   fp = fopen(fn.c_str(), "r");
   if (!fp) { return -1; }
+  
+  int tmax=0;
 
   while (!feof(fp)) {
     line.clear();
@@ -702,20 +746,25 @@ int ConstraintCollapse::read_constraints (std::string &fn) {
     z = atoi(toks[2].c_str());
     tileid = atoi(toks[3].c_str());
 
-    p = getVertex (x,y,z);
-    it = histogram.find ( p );
-    if (it != histogram.end() )
-        it->second++;
-    else 
-        histogram.insert ( std::pair<int64_t,int>( p, 1 ) );
+    if ( x >=0 && x < m_res.x && y >=0 && y < m_res.y && z >=0 && z < m_res.z) {
+        // histogram admissable tiles
+        p = getVertex (x,y,z);
+        it = histogram.find ( p );
+        if (it != histogram.end() ) {
+            it->second++; 
+            if (it->second > tmax) tmax = it->second;
+        } else {
+            histogram.insert ( std::pair<int64_t,int>( p, 1 ) );
+        }
 
-    v32.clear();
-    v32.push_back(x);
-    v32.push_back(y);
-    v32.push_back(z);
-    v32.push_back(tileid);
+        v32.clear();
+        v32.push_back(x);
+        v32.push_back(y);
+        v32.push_back(z);
+        v32.push_back(tileid);
 
-    temp_admit.push_back(v32); 
+        temp_admit.push_back(v32); 
+    }
   }
   fclose (fp);
 
@@ -723,13 +772,14 @@ int ConstraintCollapse::read_constraints (std::string &fn) {
   //
   Vector3DI vec;
   m_admissible.clear();
+  dbgprintf ( " max admit: %d\n", tmax );
   for (int n=0; n < temp_admit.size(); n++) {
     v32 = temp_admit[n];
     p = getVertex( v32[0], v32[1], v32[2] );
     it = histogram.find( p );
-    if ( it->second != 91 ) {
+    if ( it->second != tmax ) {
         vec = getVertexPos(p);
-        dbgprintf ( "admissible: %d %d %d => %d\n", vec.x, vec.y, vec.z, v32[3] );    
+        dbgprintf ( " admissible: %d %d %d => %d\n", vec.x, vec.y, vec.z, v32[3] );    
         m_admissible.push_back ( v32 );
     }
   }

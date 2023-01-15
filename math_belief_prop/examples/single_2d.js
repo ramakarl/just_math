@@ -3,15 +3,15 @@
 
 var fs = require("fs");
 
-var setname = "rgb";
+var setname = "single2d";
 
-// Template Tiles.
+// Template tiles.
 // These will be rotated to build the whole tile library.
 // The endpoints are there so that we can weed out duplicates
 // (from our brute force rotate) and so we can see how each
 // tile can join with the others.
 //
-// Fundamental:
+// fundamental:
 //  . = empty (null)
 //  t = cap (terminal)
 //  | = straight
@@ -19,13 +19,13 @@ var setname = "rgb";
 //  T = tee
 //  + = cross
 //
-// Generated:
+// generated:
 //  p = 
 //  s = 
 //  ^ = 
 //  / = stair?
 //  - = straight horiz.
-//
+
 let _template = {
 
   "admissible_pos" : [
@@ -35,9 +35,7 @@ let _template = {
     { "dv_key" : "0:1:0"  , "dv": [ 0,  1,  0] },
     { "dv_key" : "0:-1:0" , "dv": [ 0, -1,  0] },
 
-    { "dv_key" : "0:0:1"  , "dv": [ 0,  0,  1] },
-    { "dv_key" : "0:0:-1" , "dv": [ 0,  0, -1] }
-  ],
+ ],
 
   "oppo" :  {
     "-1:0:0" :  "1:0:0",
@@ -46,61 +44,23 @@ let _template = {
     "0:-1:0" :  "0:1:0",
     "0:1:0"  : "0:-1:0",
 
-    "0:0:-1" : "0:0:1",
-    "0:0:1"  : "0:0:-1"
-  },
-
+ },
+ 
   "weight": {
     //"d": 0,
     ".": 1,
-
-    "s": 1,
-    "|": 1,
-    "r": 1,
-    "^": 1,
-
     "t": 1,
-    "-": 1,
-    "/": 1,
-    "~": 1,
 
-    "u": 1,
-    "L": 1,
-    "!": 1,
-    "`": 1
-
-    //"|": 1,
-    //"+": 1,
-    //"T": 1,
-    //"r": 1,
-    //"p": 1,
-    //"^": 1
+    "|": 1,
+    "r": 1
   },
 
   "pdf":  {
     ".": -1,
-
-    "s": 1,
-    "|": 1,
-    "r": 1,
-    "^": 1,
-
     "t": 1,
-    "-": 1,
-    "/": 1,
-    "~": 1,
 
-    "u": 1,
-    "!": 1,
-    "L": 1,
-    "`": 1
-
-    //"|": -1,
-    //"+": -1,
-    //"T": -1,
-    //"r": -1,
-    //"p": -1,
-    //"^": -1
+    "|": 1,
+    "r": 1
   },
 
   "cdf": [],
@@ -115,6 +75,7 @@ let _template = {
   "endpoint": {}
 
 };
+
 
 
 //
@@ -571,8 +532,6 @@ function init_template(template) {
   template["endpoint"] = {};
   template["endpoint"]["."] = [];
 
-  //---
-
   _g_w = 1/3; _g_h = 1/5;
   let w_s = widget_xy_d0(_g_w,_g_h);
   template["endpoint"]["s"] = [];
@@ -600,18 +559,6 @@ function init_template(template) {
     template["endpoint"]["r"].push(w_sb1[i]);
   }
 
-  let w_sS0 = widget_xy_d3(_g_w,_g_h);
-  let w_sS1 = widget_xz_d4(_g_w,_g_h);
-  template["endpoint"]["^"] = [];
-  for (let i=0; i<w_sS0.length; i++) {
-    template["endpoint"]["^"].push(w_sS0[i]);
-  }
-  for (let i=0; i<w_sS1.length; i++) {
-    template["endpoint"]["^"].push(w_sS1[i]);
-  }
-
-
-  //---
 
   _g_w = 1/7; _g_h = 1/11;
   let w_t = widget_xy_d0(_g_w,_g_h);
@@ -620,11 +567,8 @@ function init_template(template) {
     template["endpoint"]["t"].push(w_t[i]);
   }
 
-  // try and match symbol with representation
-  // +-x
-  //
-  let w_tr0 = widget_xy_d0(_g_w,_g_h);
-  let w_tr1 = widget_xy_d1(_g_w,_g_h);
+  let w_tr0 = widget_xy_d2(_g_w,_g_h);
+  let w_tr1 = widget_xy_d3(_g_w,_g_h);
   template["endpoint"]["-"] = [];
   for (let i=0; i<w_tr0.length; i++) {
     template["endpoint"]["-"].push(w_tr0[i]);
@@ -633,8 +577,6 @@ function init_template(template) {
     template["endpoint"]["-"].push(w_tr1[i]);
   }
 
-  // +x -y
-  //
   let w_tb0 = widget_xy_d0(_g_w,_g_h);
   let w_tb1 = widget_xy_d3(_g_w,_g_h);
   template["endpoint"]["/"] = [];
@@ -643,63 +585,6 @@ function init_template(template) {
   }
   for (let i=0; i<w_tb1.length; i++) {
     template["endpoint"]["/"].push(w_tb1[i]);
-  }
-
-  let w_tS0 = widget_xy_d3(_g_w,_g_h);
-  let w_tS1 = widget_xz_d4(_g_w,_g_h);
-  template["endpoint"]["~"] = [];
-  for (let i=0; i<w_tS0.length; i++) {
-    template["endpoint"]["~"].push(w_tS0[i]);
-  }
-  for (let i=0; i<w_tS1.length; i++) {
-    template["endpoint"]["~"].push(w_tS1[i]);
-  }
-
-
-  //---
-
-  _g_w = 1/13; _g_h = 1/17;
-  let w_u = widget_xy_d0(_g_w,_g_h);
-  template["endpoint"]["u"] = [];
-  for (let i=0; i<w_u.length; i++) {
-    template["endpoint"]["u"].push(w_u[i]);
-  }
-
-  // +-y
-  //
-  let w_ur0 = widget_xy_d2(_g_w,_g_h);
-  let w_ur1 = widget_xy_d3(_g_w,_g_h);
-  template["endpoint"]["!"] = [];
-  for (let i=0; i<w_ur0.length; i++) {
-    template["endpoint"]["!"].push(w_ur0[i]);
-  }
-  for (let i=0; i<w_ur1.length; i++) {
-    template["endpoint"]["!"].push(w_ur1[i]);
-  }
-
-
-
-  // try and match symbol better with actual endpoint
-  // +x +y
-  //
-  let w_ub0 = widget_xy_d0(_g_w,_g_h);
-  let w_ub1 = widget_xy_d2(_g_w,_g_h);
-  template["endpoint"]["L"] = [];
-  for (let i=0; i<w_ub0.length; i++) {
-    template["endpoint"]["L"].push(w_ub0[i]);
-  }
-  for (let i=0; i<w_ub1.length; i++) {
-    template["endpoint"]["L"].push(w_ub1[i]);
-  }
-
-  let w_uS0 = widget_xy_d3(_g_w,_g_h);
-  let w_uS1 = widget_xz_d4(_g_w,_g_h);
-  template["endpoint"]["`"] = [];
-  for (let i=0; i<w_uS0.length; i++) {
-    template["endpoint"]["`"].push(w_uS0[i]);
-  }
-  for (let i=0; i<w_uS1.length; i++) {
-    template["endpoint"]["`"].push(w_uS1[i]);
   }
 
 
@@ -1867,30 +1752,7 @@ function filter_steeple(template) {
 
 }
 
-
-function _has_nei(template, name, dir) {
-  let v = template.admissible_nei[name][dir];
-
-  for (let key in v) {
-    if (v[key].conn)  { return true; }
-  }
-  return false;
-}
-
 function csv_name(template, fn) {
-
-  let _an = template.admissible_nei;
-
-  let dir = [
-    "1:0:0",
-    "-1:0:0",
-    "0:1:0",
-    "0:-1:0",
-    "0:0:1",
-    "0:0:-1"
-  ];
-
-  let colors = [ "#000000", "#ff0000", "#00ff00", "#0000ff" ];
 
   //let fp = fs.openSync(fn, "w");
 
@@ -1898,24 +1760,8 @@ function csv_name(template, fn) {
   let s = "#id,name\n" ;
   //fp.writeFileSync(s);
   for (let i=0; i<template.tile_name.length; i++) {
-
-    let conn_vec = [0,0,0,0,0,0];
-
-    let c = colors[0];
-    if (i>0) {
-      c = colors[Math.floor((i)*3/template.tile_name.length) + 1];
-    }
-
-    for (let j=0; j<6; j++) {
-      if (_has_nei(template, template.tile_name[i], dir[j])) {
-        conn_vec[j] = 1;
-      }
-    }
-
-
-
     //console.log(i + "," + template.tile_name[i]);
-    s += i + "," + template.tile_name[i] + "," + conn_vec.join(",") + "," + c + "\n";
+    s += i + "," + template.tile_name[i] + "\n";
     //fp.writeFileSync(s);
   }
 
@@ -1967,96 +1813,58 @@ function csv_rule(template, fn) {
 }
 
 function csv_constraint(template, fn, dist) {
-  let n=11, m=11, z=3;
-
-  let remove_list = [];
-
-  let tile_name_idx_map = template.tile_name_idx;
-  let tile_name_list = template.tile_name;
-
-  let admissible_tile_id = [];
-
-  let stu = [];
-
-  for (let tn in tile_name_idx_map) {
-    if ((tn.charAt(0) == 'u') ||
-        (tn.charAt(0) == 's') ||
-        (tn.charAt(0) == 't')) {
-      continue;
-    }
-    admissible_tile_id.push( tile_name_idx_map[tn] );
-  }
-
-  stu.push( tile_name_idx_map["s000"] );
-  stu.push( tile_name_idx_map["s002"] );
-
-  stu.push( tile_name_idx_map["t000"] );
-  stu.push( tile_name_idx_map["t002"] );
-
-  stu.push( tile_name_idx_map["u000"] );
-  stu.push( tile_name_idx_map["u002"] );
+  let n=5, m=5;
 
   let gr = [];
   for (let i=0; i<n; i++) {
     gr.push([]);
     for (let j=0; j<m; j++) {
-      gr[i].push([]);
-      for (let k=0; k<z; k++) {
-        gr[i][j].push(admissible_tile_id);
-      }
+      gr[i].push([0,
+        13, 14,
+        19, 20, 21, 22,
+        43, 44,
+        49, 50, 51, 52]);
     }
   }
 
-  gr[  1][  1][0] = [ stu[0] ];
-  //gr[n-2][  1][0] = [ stu[1] ];
-  gr[n-2][m-2][0] = [ stu[1] ];
+  gr[1][1] = [1];
+  gr[1][3] = [31];
 
-  //gr[3][  1][0] = [ stu[1] ];
+  //gr[dist][1] = [3];
+  //gr[dist][3] = [33];
 
-  gr[  1][  5][0] = [ stu[2] ];
-  gr[n-2][  5][0] = [ stu[3] ];
+  gr[dist][3] = [3];
+  gr[dist][1] = [33];
 
-  //gr[3][  5][0] = [ stu[3] ];
+  //gr[3][1] = [3];
+  //gr[3][3] = [33];
 
-  gr[  1][m-2][0] = [ stu[4] ];
-  //gr[n-2][m-2][0] = [ stu[5] ];
-  gr[n-2][  1][0] = [ stu[5] ];
-
-  //gr[4][m-2][0] = [ stu[5] ];
-
-  //---
+  //let fp = fs.openSync(fn, "w");
 
   let s = "";
 
   for (let i=0; i<gr.length; i++) {
     for (let j=0; j<gr[i].length; j++) {
       for (let k=0; k<gr[i][j].length; k++) {
-        for (let l=0; l<gr[i][j][k].length; l++) {
-          s += "" + i.toString() + "," + j.toString() + "," + k.toString() + "," + gr[i][j][k][l].toString() + "\n";
-        }
+        //console.log(i + "," + j + ",0," + gr[i][j][k]);
+        s += "" + i.toString() + "," + j.toString() + ",0," + gr[i][j][k].toString() + "\n";
+        //fp.writeFileSync(s);
       }
     }
   }
 
+
   fs.writeFileSync(fn, s);
-}
 
-function json_write(template, fn) {
-  fs.writeFileSync(fn,JSON.stringify(template, null, 2));
+  //fp.close();
 }
-
 
 init_template(_template);
 build_tile_library(_template);
 
-//_print(_template);
-//process.exit();
-
 csv_name(_template, setname + "_name.csv");
 csv_rule(_template, setname + "_rule.csv");
-csv_constraint(_template, setname + "_constraint.csv", 8);
+csv_constraint(_template, setname + "_constraint.csv", 3);
 
-json_write(_template, setname + ".json");
 
 //console.log(JSON.stringify(_template, null, 2));
-
