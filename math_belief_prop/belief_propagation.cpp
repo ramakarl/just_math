@@ -466,7 +466,7 @@ float BeliefPropagation::BeliefProp () {
         }
         continue;
       }
-      Vector3DI jp = getVertexPos(nei_cell);
+      //Vector3DI jp = getVertexPos(nei_cell);
       int numbrs = getNumNeighbors(nei_cell);
       
       // cache direction in which to ignore anch_cell
@@ -508,18 +508,19 @@ float BeliefPropagation::BeliefProp () {
         anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
 
         u_nxt_b = 0.0;
+        nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
 
         // a = cols in f{ij}(a,b), also elements of h(a)
-        //
-        for (d=0; d < m_num_values; d++) {
+        //        
+        // optimize F and H access using pointers
+        float* currH = getPtr(BUF_H, 0);
+        float* currF = getPtr(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
 
-        // experimental
-        //for (nei_tile_idx=0; nei_tile_idx<nei_tile_idx_n; nei_tile_idx++) {
-        //  d = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
-        // experimental
-
-          nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
-          u_nxt_b += getValF(BUF_F, d, anch_tile, nei_to_anch_dir_idx) * getVal(BUF_H, d);
+        for (d=0; d < m_num_values; d++) {          
+          //u_nxt_b += getValF(BUF_F, d, anch_tile, nei_to_anch_dir_idx) * getVal(BUF_H, d);
+          u_nxt_b += (*currF) * (*currH);
+          currF++;    
+          currH++;   // tile value (d) is the linear memory variable for F and H
         }
         u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
 

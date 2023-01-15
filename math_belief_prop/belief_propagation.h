@@ -128,21 +128,25 @@ public:
   //---
 
   // belief matrix packing
-  inline float   getVal(int id, int a)        {return *(float*) m_buf[id].getPtr (a);}            // G and H vectors, size B
-  inline void    SetVal(int id, int a, float val)  {*(float*) m_buf[id].getPtr(a) = val;}
-
+  
+  // G and H vectors, size B
+  inline float*  getPtr(int id, int a)                  {return  (float*) m_buf[id].getPtr (a);}            
+  inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
+  inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
+  
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
   inline float*  getPtr(int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
   inline float   getVal(int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
   inline void    SetVal(int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
-
-  inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }  // belief mapping (f), BxB
-  inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ) = val; }
+  
+  // Belief mapping (F), BxB
+  inline float*  getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
+  inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
+  inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ) = val; }
 
   inline int32_t getVali(int id, int i)                { return *(int32_t *) m_buf[id].getPtr (i); }
-  inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;
-  }
+  inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }
 
   inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
   inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val;
