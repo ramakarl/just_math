@@ -602,7 +602,7 @@ int test5_1() {
   bp.NormalizeMU();
   for (iter=0; iter<max_iter; iter++) {
 
-    maxdiff = bp.step();
+    maxdiff = bp.step(1);
 
     /*
     bp.NormalizeMU();
@@ -1532,8 +1532,10 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -S <#>   seed\n");
   fprintf(fp, "  -G <#>   algorithm choice\n");
   fprintf(fp, "    0      fix maximum belief tile (default)\n");
-  fprintf(fp, "    1      fix minimum entropy cell\n");
-  fprintf(fp, "    2      remove (single tile) minimum belief\n");
+  fprintf(fp, "    1      remove minimum belief tile\n");
+  fprintf(fp, "    2      fix maximum belief tile in minimum entropy cell\n");
+  fprintf(fp, "    3      remove min. belief tile from minimum entropy cell\n");
+  fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
   fprintf(fp, "  -d       debug print\n");
 
@@ -1809,10 +1811,16 @@ int main(int argc, char **argv) {
       //ret = bpc.single_realize_cb(it, bp_cb);
 
       if (g_opt.alg_idx == 1) {
-        ret = bpc.single_realize_min_entropy_cb(it, _cb_f);
+        ret = bpc.single_realize_min_belief_cb(it, _cb_f);
       }
       else if (g_opt.alg_idx == 2) {
-        ret = bpc.single_realize_min_belief_cb(it, _cb_f);
+        ret = bpc.single_realize_min_entropy_max_belief_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 3) {
+        ret = bpc.single_realize_min_entropy_min_belief_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 4) {
+        ret = bpc.single_realize_residue_cb(it, _cb_f);
       }
       else {
         //ret = bpc.single_realize_cb(it, _cb_f);
