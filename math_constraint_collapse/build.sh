@@ -9,11 +9,9 @@ g++ -g -I../libmin/include/ \
   ../libmin/src/mersenne.cpp \
   ../libmin/src/common_defs.cpp \
   belief_propagation.cpp \
-  tests_belief_propagation.cpp \
   main_belief_propagation.cpp \
   -o bpc.debug
 
-exit
 
 g++ -O3 -I../libmin/include/ \
   ../libmin/src/camera3d.cpp \
@@ -24,7 +22,6 @@ g++ -O3 -I../libmin/include/ \
   ../libmin/src/mersenne.cpp \
   ../libmin/src/common_defs.cpp \
   belief_propagation.cpp \
-  tests_propagation.cpp \
   main_belief_propagation.cpp \
   -o bpc
 

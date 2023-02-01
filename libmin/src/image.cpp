@@ -191,6 +191,32 @@ void Image::AddChannel ( std::string name, int xr, int yr, ImageOp::Format eForm
 }
 */
 
+Vector4DF Image::GetPixelFilteredUV (float x, float y)
+{
+	float u = x * (getInfo()->mXres - 1);
+	float v = y * (getInfo()->mYres - 1);
+	int xu = u;
+	int yu = v;
+	u -= xu;
+	v -= yu;
+	
+	XBYTE r,g,b,a;
+	Vector4DF c[7];
+
+	(this->*m_GetPixelFunc) ( xu,    yu, r,g,b,a ); c[0] = Vector4DF(r,g,b,a);
+	(this->*m_GetPixelFunc) ( xu+1,  yu, r,g,b,a ); c[1] = Vector4DF(r,g,b,a);
+	(this->*m_GetPixelFunc) ( xu,  yu+1, r,g,b,a ); c[2] = Vector4DF(r,g,b,a);
+	(this->*m_GetPixelFunc) ( xu+1,yu+1, r,g,b,a ); c[3] = Vector4DF(r,g,b,a);
+	
+	// bi-linear filtering
+	c[4] = c[0] + (c[1]-c[0]) * u;
+	c[5] = c[2] + (c[3]-c[2]) * u;
+	c[6] = c[4] + (c[5]-c[4]) * v;	
+	
+	return Vector4DF(c[6].x/255.0f,c[6].y/255.0f,c[6].z/255.0f,c[6].w/255.0f); 
+}
+
+
 void Image::SetFormatFunc ( int chan )
 {
 	ImageInfo* info = getInfo ();

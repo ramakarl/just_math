@@ -40,9 +40,7 @@
 #include "geom_helper.h"
 #include "string_helper.h"
 
-#include <time.h>
-
-#include "belief_propagation.h"
+#include "constraint_collapse.h"
 
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -77,10 +75,9 @@ public:
   // Belief Propagation
   void      Restart();
 
-  BeliefPropagation bpc;
-  BeliefPropagation wfc;
+  ConstraintCollapse cc;
 
-  bool m_run_bpc, m_run_wfc;
+  bool m_run_cc;
   int m_X, m_Y, m_Z, m_D;
   int64_t m_it;
   std::string   m_name_fn;
@@ -90,10 +87,8 @@ public:
   std::vector< std::vector<float> > m_tile_rule;
   
   // Volume rendering
-  void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
-  void      VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id );
-  void      VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id );
-
+  void      Visualize ( ConstraintCollapse& src, int bp_id, int vol_id );
+  
   void      AllocVolume(int id, Vector3DI res, int chan=1);
   float     getVoxel ( int id, int x, int y, int z );
   Vector4DF getVoxel4 ( int id, int x, int y, int z );
@@ -112,8 +107,8 @@ public:
   bool      m_save;
   float     m_frame;
   int       m_peak_iter;
-
-  clock_t   m_t1, m_t2;
+  int       m_show;
+ 
 };
 Sample obj;
 
@@ -132,28 +127,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
     switch (ch) {      
       case 'd':
        // debug_print = 1;
-        break;
-      case 'V':
-        bpc.m_verbose = strToI(optarg);
-        break;
-      case 'e':
-        valf = strToF(optarg);
-        if (valf > 0.0) {
-          bpc.m_eps_converge = valf;
-        }
-        break;
-      case 'z':
-        valf = strToF(optarg);
-        if (valf > 0.0) {
-          bpc.m_eps_zero = valf;
-        }
-        break;
-      case 'I':
-        vali  = strToI(optarg);
-        if (vali > 0) {
-          bpc.m_max_iteration = (int64_t) vali;
-        }
-        break;
+        break;        
       case 'N':
         name_fn = optarg;
         break;
@@ -163,16 +137,13 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       case 'C':
         constraint_fn = optarg;
         break;
-
       case 'S':
         seed = strToI(optarg);
-        bpc.m_seed = seed;
+        cc.m_seed = seed;
         break;
-
       case 'T':
         test_num = strToI(optarg);
         break;
-
       case 'D':
         m_D = strToI(optarg);
         break;
@@ -213,103 +184,18 @@ Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 }
 
 
-void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
+void Sample::Visualize ( ConstraintCollapse& src, int bp_id, int vol_id ) {
 
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
 
    float maxv;
    float dmu;
-
    float scalar = 50.0;
+   int t;
 
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
-     dmu =  std::min(1.0f, scalar * src.getVal ( bp_id, j ) );
-
-     vox->x = dmu;
-     vox->y = dmu;
-     vox->z = dmu;     
-     vox->w = dmu;
-     vox++;
-   }
-}
-
-
-void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
-
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-
-   float maxv;
-
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
-     src.getVertexBelief (j);
-
-     // red
-     maxv = 0.0;
-     for (int k=1; k <= 30; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->x = maxv;
-     
-     // green
-     maxv = 0.0;
-     for (int k=31; k <= 60; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->y = maxv;
-
-     // blue
-     maxv = 0.0;
-     for (int k=61; k <= 90; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->z = maxv;
-     //vox->z = 0.0;
-
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
-     vox++;
-   }
-}
-
-
-void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
-
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-
-   float maxv;
-   int cnt;
-
-   // dbgprintf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), m_vres.x, m_vres.y, m_vres.z);
-
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
-     cnt = src.getTilesAtVertex( j );
-
-     // red
-     maxv = 0.0;
-     for (int k=1; k <= 30; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->x = maxv;
-     
-     // green
-     maxv = 0.0;
-     for (int k=31; k <= 60; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->y = maxv;
-
-     // blue
-     maxv = 0.0;
-     for (int k=61; k <= 90; k++) {  
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->z = maxv;
-     //vox->z = 0.0;
-
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
-
+     *vox = src.getSample ( bp_id, j );
      vox++;
    }
 }
@@ -386,17 +272,14 @@ void Sample::Restart()
 }
 
 
-
 bool Sample::init()
 {
   int i, ret;
 
-
   addSearchPath(ASSET_PATH);
 
-  m_run_bpc = true;
-  m_run_wfc = false;
-
+  m_run_cc = true;
+  
   // Render volume  
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
   AllocVolume ( BUF_VOL, m_vres, 4 );
@@ -433,38 +316,24 @@ bool Sample::init()
   getFileLocation ( "rgb_rule.csv", m_rule_fn );
   getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
  
-  if (m_run_bpc) {
+  if (m_run_cc) {
       // init belief prop
-      ret = bpc.init_CSV(m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      ret = cc.init (m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
       if (ret<0) {
         fprintf(stderr, "bpc error loading CSV\n");
         exit(-1);
       }
-      // constrain belief prop
-      std::vector< std::vector< int32_t > > constraint_list;
+      // constrain belief prop      
       if (!m_constraint_fn.empty()) {
-        _read_constraint_csv ( m_constraint_fn, constraint_list );
-        bpc.filter_constraint( constraint_list );    
+        cc.read_constraints ( m_constraint_fn );        
       }
       // start belief prop
-      ret = bpc.start (); 
+      cc.start (); 
   }
-  
-  if (m_run_wfc) {
-      // init wfc
-      ret = wfc.init_CSV( m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
-      if (ret<0) {
-        fprintf(stderr, "wfc error loading CSV\n");
-        exit(-1);
-      }
-      // start wfc
-      m_t1 = clock();
-      ret = wfc.start (); 
-  } 
   
   m_it = 0;
 
-  m_run = true;
+  m_run = false;
 
   return true;
 }
@@ -482,36 +351,11 @@ void Sample::display()
   // Run Belief Propagation  
   //
   if (m_run) {
+     //m_run = false;  // single step
     
-    if ( m_run_bpc) { 
-      ret = bpc.single_realize(m_it);
-      if ( ret <= 0) {
-        switch (ret) {
-        case  0: printf ( "BPC DONE.\n" ); {
-            m_t2 = clock();
-            float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
-            printf ( "Elapsed time: %f msec\n", elapsed);
-            m_run=false; 
-            } break;
-        case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-        case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-        case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-        };
-      }  
-    }
+    if ( m_run_cc ) 
+      cc.single_step();
 
-    if ( m_run_wfc) {
-      ret = wfc.wfc_step(m_it);
-      if ( ret <= 0) {
-        switch (ret) {
-        case  0: printf ( "WFC DONE.\n" );  break;
-        case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
-        case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
-        case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
-        };
-      } 
-    }
-  
     m_it++;
     fflush(stdout);
   }
@@ -519,20 +363,9 @@ void Sample::display()
   // Raycast  
   ClearImg (m_img);
   
-  if ( m_run_wfc ) {
-      Vector3DF wfc_off(0,0,-10);
-      VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
-  }  
-
-  if ( m_run_bpc ) {
-      Vector3DF bpc_off(0,0,0);      
-      //VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
-      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-      
-      //-- regular belief viz
-      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+  if ( m_run_cc ) {     
+      Visualize ( cc, m_show, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, Vector3DF(0,0,0), Vector3DF(m_vres) );      // raycast volume
   }  
 
   // optional write to disk
@@ -626,6 +459,8 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   switch (keycode) {
   case ' ':  m_run = !m_run;  break;
   case 'g':  printf("??\n"); fflush(stdout); Restart();  break;
+  case '.':  m_show++; if (m_show>2) m_show=0; break;
+  case ',':  m_show--; if (m_show<0) m_show=2; break;
   };
 }
 
