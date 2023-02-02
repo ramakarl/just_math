@@ -34,10 +34,10 @@ TODO
 
 Path forward:
 
-* tests (automated)
+* ~tests (automated)~
 * checkerboard
 * svd
-* code refactor/optimizations
+* ~code refactor/optimizations~
 
 ---
 
@@ -51,8 +51,8 @@ So `(256*88*(8*18-25)) / (10*10*10*46) ~= 58.73`, so looking to speed it up by 6
 
 Checkerboard might give 2x, SVD might give 3x for a total of 6x.
 
-Residual bp might give 4x (speculative), with SVD at 3x gives 12x.
+Residual BP might give 4x (speculative), with SVD at 3x gives 12x.
 
 ---
 
-https://gamedev.stackexchange.com/questions/178443/resolving-contradictions-in-wfc-more-efficiently-than-naive-backtracking
+* [gamedev SO on contradictions in WFC](https://gamedev.stackexchange.com/questions/178443/resolving-contradictions-in-wfc-more-efficiently-than-naive-backtracking)
