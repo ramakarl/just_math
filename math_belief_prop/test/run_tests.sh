@@ -54,4 +54,71 @@ elif [[ "$verbosity" > 0 ]] ; then
 fi
 
 
+####
+# test for simple example and that it converges
+# to the distribution we think it should
+#
+
+test_num=4
+$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test4.py
+res="$?"
+
+if [[ "$res" != 0 ]] ; then
+  echo "TEST $test_num FAILED: expected '1' got '$res'"
+  exit -1
+elif [[ "$verbosity" > 0 ]] ; then
+  echo "# test $test_num passed"
+fi
+
+
+####
+# test for simple example and that it converges
+# to the distribution we think it should
+#
+
+test_num=5
+$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test5.py
+res="$?"
+
+if [[ "$res" != 0 ]] ; then
+  echo "TEST $test_num FAILED: expected '1' got '$res'"
+  exit -1
+elif [[ "$verbosity" > 0 ]] ; then
+  echo "# test $test_num passed"
+fi
+
+####
+# test for simple example and that it converges
+# to the distribution we think it should
+#
+
+test_num=12
+$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test12.py
+res="$?"
+
+if [[ "$res" != 0 ]] ; then
+  echo "TEST $test_num FAILED: expected '1' got '$res'"
+  exit -1
+elif [[ "$verbosity" > 0 ]] ; then
+  echo "# test $test_num passed"
+fi
+
+
+####
+# test for simple example and that it converges
+# to the distribution we think it should
+#
+
+test_num=13
+$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 | ./test13.py
+res="$?"
+
+if [[ "$res" != 0 ]] ; then
+  echo "TEST $test_num FAILED: expected '1' got '$res'"
+  exit -1
+elif [[ "$verbosity" > 0 ]] ; then
+  echo "# test $test_num passed"
+fi
+
+
 exit 0

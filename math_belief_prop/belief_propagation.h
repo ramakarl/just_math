@@ -78,6 +78,7 @@ public:
     m_seed = 17;
     m_verbose = 0;
     m_eps_converge = (1.0/(1024.0));
+    //m_eps_converge = (1.0/(1024.0*1024.0));
     //m_eps_zero = (1.0/(1024.0*1024.0));
     m_eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
     m_max_iteration = 1024;
@@ -86,6 +87,8 @@ public:
     m_step_cb = 1;
     m_state_info_d = -1;
     m_state_info_iter = 0;
+
+    m_rate = 0.998;
   };
 
   bool _init();
@@ -133,18 +136,18 @@ public:
   //---
 
   // belief matrix packing
-  
+
   // G and H vectors, size B
   inline float*  getPtr(int id, int a)                  {return  (float*) m_buf[id].getPtr (a);}            
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
-  
+
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
   inline float*  getPtr(int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
   inline float   getVal(int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
   inline void    SetVal(int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
-  
+
   // Belief mapping (F), BxB
   inline float*  getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
   inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
@@ -204,6 +207,8 @@ public:
   int     chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
   void    WriteBoundaryMU ();
+  void    WriteBoundaryMUbuf(int buf_id);
+  void    TransferBoundaryMU (int src_id, int dst_id);
 
   float   MaxDiffMU();
   float   MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);

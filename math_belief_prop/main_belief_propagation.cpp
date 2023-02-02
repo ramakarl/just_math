@@ -447,6 +447,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -w <#>   set (update) reate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
 
@@ -481,7 +482,7 @@ int main(int argc, char **argv) {
   std::string base_png = "out";
   char imgfile[512] = {0};
 
-  float eps_zero = -1.0, eps_converge = -1.0;
+  float eps_zero = -1.0, eps_converge = -1.0, step_factor = 1.0;
   int max_iter = -1, it, n_it;
 
   std::vector< std::vector< int32_t > > constraint_list;
@@ -496,7 +497,7 @@ int main(int argc, char **argv) {
 
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -545,6 +546,12 @@ int main(int argc, char **argv) {
         max_iter = atoi(optarg);
         if (max_iter > 0) {
           bpc.m_max_iteration = (int64_t)max_iter;
+        }
+        break;
+      case 'w':
+        step_factor = atof(optarg);
+        if (step_factor > 0.0) {
+          bpc.m_rate = step_factor;
         }
         break;
 
