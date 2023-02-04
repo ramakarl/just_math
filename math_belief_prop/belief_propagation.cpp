@@ -34,10 +34,6 @@
 #include "mersenne.h"
 #include "dataptr.h"
 
-// #define RUN_OPT_MUPTR
-// #define RUN_OPT_FH
-// #define RUN_OPT_MUBOUND
-
 /*
 #ifdef USE_OPENGL
   #include <GL/glew.h>

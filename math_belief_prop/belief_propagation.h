@@ -56,6 +56,12 @@
 
 #define BELIEF_PROPAGATION_VERSION "0.2.0"
 
+#define RUN_OPT_PTRS
+#define RUN_OPT_MUPTR
+#define RUN_OPT_FH
+#define RUN_OPT_MUBOUND
+
+
 #define BUF_VOL         0     // volume: n^3
 #define BUF_G           1     // beliefprop, G(a) vector
 #define BUF_H           2     // beliefprop, H(a) vector
@@ -142,7 +148,6 @@ public:
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
 
-// #define RUN_OPT_PTRS
 
 #ifdef RUN_OPT_PTRS
   // Optimized: Closest values in memory are most used in inner loops
