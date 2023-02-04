@@ -540,8 +540,8 @@ void Sample::display()
       //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
       
       //-- regular belief viz
-      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      //VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }  
 
   // optional write to disk

@@ -866,9 +866,14 @@ float BeliefPropagation::BeliefProp () {
             // Optimized: F and H access using pointers
             float* currH = getPtr(BUF_H, 0);
             float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
+
             for (d=0; d < m_num_values; d++) {
                 u_nxt_b += (*currF) * (*currH);
+
+                currF++;
+                currH++;
             }
+
         #else
             // Non-optimized
             for (d=0; d < m_num_values; d++) {
@@ -2508,7 +2513,7 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
 
     d = step(1);
 
-    if (m_verbose > 0) {
+    if (m_verbose > 1) {
       if ((step_iter>0) && ((step_iter % 10)==0)) {
         printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
         if (m_verbose > 2) { gp_state_print(); }
@@ -2574,7 +2579,7 @@ int BeliefPropagation::single_realize (int64_t it) {
   for (step_iter=0; step_iter<max_step_iter; step_iter++) {
     d = step(1);
 
-    if (m_verbose > 0) {
+    if (m_verbose > 1) {
       if ((step_iter>0) && ((step_iter%10)==0)) {
         printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
         if (m_verbose > 2) { gp_state_print(); }
@@ -2672,11 +2677,13 @@ float BeliefPropagation::step(int update_mu) {
 
   // initial boundary condiitions
   //
-  WriteBoundaryMU();
-  WriteBoundaryMUbuf(BUF_MU_NXT);
-
-  //EXPERIMENTS
-  NormalizeMU( BUF_MU );
+    #ifdef RUN_OPT_MUBOUND
+        WriteBoundaryMU();
+        WriteBoundaryMUbuf(BUF_MU_NXT);
+    
+        //EXPERIMENTS
+        NormalizeMU( BUF_MU );
+    #endif
 
 
   // run main bp, store in BUF_MU_NXT
