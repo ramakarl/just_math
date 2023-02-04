@@ -175,6 +175,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
 
       case 'D':
         m_D = strToI(optarg);
+        m_X = m_Y = m_Z = m_D;
         break;
       case 'X':
         m_X = strToI(optarg);
@@ -241,27 +242,33 @@ void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
 
    float maxv;
 
+   // tile value ranges
+   int N = (int) src.m_num_values;
+   int r_l = 1, r_u = (N-1)/3;          // red tiles
+   int g_l = r_u+1, g_u = 2*(N-1)/3;    // green tiles
+   int b_l = g_u, b_u = N-1;            // blue tiles
+
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
      src.getVertexBelief (j);
 
      // red
      maxv = 0.0;
-     for (int k=1; k <= 30; k++) {  
+     for (int k=r_l; k <= r_u; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->x = maxv;
      
      // green
      maxv = 0.0;
-     for (int k=31; k <= 60; k++) {  
+     for (int k=g_l; k <= g_u; k++) {  
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
-     for (int k=61; k <= 90; k++) {  
+     for (int k=b_l; k <= b_u; k++) {  
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->z = maxv;
@@ -429,9 +436,9 @@ bool Sample::init()
 
   // Initiate Belief Propagation
   m_constraint_fn = "";
-  getFileLocation ( "rgb_name.csv", m_name_fn );
-  getFileLocation ( "rgb_rule.csv", m_rule_fn );
-  getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
+  getFileLocation ( "stair_name.csv", m_name_fn );
+  getFileLocation ( "stair_rule.csv", m_rule_fn );
+  //getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
  
   if (m_run_bpc) {
       // init belief prop
@@ -479,12 +486,14 @@ void Sample::display()
   Vector3DF a, b, c;
   Vector3DF p, q, d;
 
+  void (*_cb_f)(void *) = NULL;
+
   // Run Belief Propagation  
   //
   if (m_run) {
     
     if ( m_run_bpc) { 
-      ret = bpc.single_realize(m_it);
+      ret = bpc.single_realize_max_belief_cb (m_it, _cb_f );
       if ( ret <= 0) {
         switch (ret) {
         case  0: printf ( "BPC DONE.\n" ); {
