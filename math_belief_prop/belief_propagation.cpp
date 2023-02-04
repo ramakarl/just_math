@@ -2675,6 +2675,10 @@ float BeliefPropagation::step(int update_mu) {
   WriteBoundaryMU();
   WriteBoundaryMUbuf(BUF_MU_NXT);
 
+  //EXPERIMENTS
+  NormalizeMU( BUF_MU );
+
+
   // run main bp, store in BUF_MU_NXT
   //
   BeliefProp();
