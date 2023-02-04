@@ -125,8 +125,8 @@ fi
 #
 
 test_num=16
-expect_res='33af54a68424f210e24ad593ac5027c229e4b04345b508b30981172573f3e68f'
-actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 | sha256sum | cut -f1 -d' '`
+expect_res=`sha256sum bp_test16_output.txt | cut -f1 -d' '`
+actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | sha256sum | cut -f1 -d' '`
 #res="$?"
 
 if [[ "$expect_res" != "$actual_res" ]] ; then
