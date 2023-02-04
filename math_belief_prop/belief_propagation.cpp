@@ -2490,6 +2490,13 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
 
     d = step(1);
 
+    if (m_verbose > 1) {
+      if ((step_iter>0) && ((step_iter%10)==0)) {
+        printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
+        if (m_verbose > 2) { gp_state_print(); }
+      }
+    }
+
     if (cb && ((step_iter % m_step_cb) == 0)) {
       m_state_info_d = d;
       m_state_info_iter = step_iter;
@@ -2649,6 +2656,10 @@ float BeliefPropagation::step(int update_mu) {
   //
   WriteBoundaryMU();
   WriteBoundaryMUbuf(BUF_MU_NXT);
+
+  //EXPERIMENTS
+  NormalizeMU( BUF_MU );
+
 
   // run main bp, store in BUF_MU_NXT
   //
