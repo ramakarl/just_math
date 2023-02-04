@@ -54,7 +54,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.1.2"
+#define BELIEF_PROPAGATION_VERSION "0.2.0"
 
 #define BUF_VOL         0     // volume: n^3
 #define BUF_G           1     // beliefprop, G(a) vector

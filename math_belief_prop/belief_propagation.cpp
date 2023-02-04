@@ -806,40 +806,42 @@ float BeliefPropagation::BeliefProp () {
         // inner loop over neighbors of nei_cell
         for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
 
-            // compute: Hij(a) = gi(a) * PROD mu{ki}_a
+          // compute: Hij(a) = gi(a) * PROD mu{ki}_a
 
-            #ifdef RUN_OPT_MUBOUND
-                // Optimized:                                
-                // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1                            
-                // - Use direction instead of cell pos to eliminate anchor cell              
+          #ifdef RUN_OPT_MUBOUND
+            // Optimized:
+            // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
+            // - Use direction instead of cell pos to eliminate anchor cell
 
-                #ifdef RUN_OPT_MUPTR                        
-                    // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable. 
-                    if (nei_in_idx != nei_in_ignore) {
-                        H_ij_a *= *currMu;
-                    }
-                    currMu++;
-                #else                        
-                    if (nei_in_idx != nei_in_ignore) 
-                        H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-                #endif  
-
+            #ifdef RUN_OPT_MUPTR
+              // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
+              if (nei_in_idx != nei_in_ignore) {
+                H_ij_a *= *currMu;
+              }
+              currMu++;
             #else
-                // Non-Optimized Bound:
-                // - Original bounds check /w getNeighbor
-                _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
-
-                #ifdef RUN_OPT_MUPTR                                            
-                    // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable. 
-                    if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-                        H_ij_a *= *currMu;
-                    }                    
-                    currMu++;
-                #else                        
-                    if ((_neinei_cell != -1) && (_neinei_cell != anch_cell))
-                        H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-                #endif  
+              if (nei_in_idx != nei_in_ignore) {
+                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
+              }
             #endif
+
+          #else
+            // Non-Optimized Bound:
+            // - Original bounds check /w getNeighbor
+            _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
+
+            #ifdef RUN_OPT_MUPTR
+              // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
+              if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
+                H_ij_a *= *currMu;
+              }
+              currMu++;
+            #else
+              if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
+                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
+              }
+            #endif
+          #endif
         }
 
         //DEBUG
@@ -861,22 +863,22 @@ float BeliefPropagation::BeliefProp () {
 
         // a = cols in f{ij}(a,b), also elements of h(a)
         //
-        
+
         #ifdef RUN_OPT_FH
-            // Optimized: F and H access using pointers
-            float* currH = getPtr(BUF_H, 0);
-            float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
-            for (d=0; d < m_num_values; d++) {
-                u_nxt_b += (*currF) * (*currH);
-            }
+          // Optimized: F and H access using pointers
+          float* currH = getPtr(BUF_H, 0);
+          float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
+          for (d=0; d < m_num_values; d++) {
+            u_nxt_b += (*currF) * (*currH);
+          }
         #else
-            // Non-optimized
-            for (d=0; d < m_num_values; d++) {
-                // in orig code nei_to_arch_dir_idx computed here even though it is ok outside this loop
-                nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
-                u_nxt_b += getValF(BUF_F, d, anch_tile, nei_to_anch_dir_idx) * getVal(BUF_H, d); 
-            }         
-        #endif      
+          // Non-optimized
+          for (d=0; d < m_num_values; d++) {
+            // in orig code nei_to_arch_dir_idx computed here even though it is ok outside this loop
+            nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
+            u_nxt_b += getValF(BUF_F, d, anch_tile, nei_to_anch_dir_idx) * getVal(BUF_H, d);
+          }
+        #endif
 
           //DEBUG
           //printf("    > anch[cell:%i,tile:%i,d:%i (~%i)], nei[cell:%i,tile:%i] f(%i,%i):%f, h_ij: %f  => u_nxt_b %f\n",
