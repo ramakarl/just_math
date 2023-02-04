@@ -35,1037 +35,14 @@
 #include "dataptr.h"
 
 #include "belief_propagation.h"
+#include "main_belief_propagation.h"
 
 #include "pd_getopt.h"
 extern char *optarg;
 
-//------------------------------------//
-//  _            _   _                //
-// | |_ ___  ___| |_(_)_ __   __ _    //
-// | __/ _ \/ __| __| | '_ \ / _` |   //
-// | ||  __/\__ \ |_| | | | | (_| |   //
-//  \__\___||___/\__|_|_| |_|\__, |   //
-//                           |___/    //
-//------------------------------------//
+opt_t g_opt;
 
-// custom size (basic test)
-//
-int test0() {
-  BeliefPropagation bp;
-  bp.init(4,3,1);
-  bp.debugPrint();
-  return 0;
-}
 
-// test filterDiscard
-//
-int test1() {
-  std::vector<int32_t> discard_list;
-
-  discard_list.push_back(35);
-  discard_list.push_back(36);
-  discard_list.push_back(37);
-  discard_list.push_back(38);
-  discard_list.push_back(39);
-  discard_list.push_back(40);
-  discard_list.push_back(41);
-  discard_list.push_back(42);
-  discard_list.push_back(43);
-  discard_list.push_back(44);
-
-  BeliefPropagation bp;
-  bp.init(4,3,1);
-
-  bp.filterDiscard(6, discard_list);
-  bp.debugPrint();
-  return 0;
-}
-
-// test filterKeep
-//
-int test2() {
-  std::vector<int32_t> keep_list;
-
-  keep_list.push_back(1);
-  keep_list.push_back(2);
-  keep_list.push_back(3);
-  keep_list.push_back(4);
-  keep_list.push_back(5);
-  keep_list.push_back(6);
-
-  BeliefPropagation bp;
-  bp.init(4,3,1);
-
-  bp.filterKeep(6, keep_list);
-  bp.debugPrint();
-  return 0;
-}
-
-int test3() {
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(4,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"+000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(3,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(3,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(3,0,0), keep_list);
-
-  //---
-
-  bp.NormalizeMU();
-
-  bp.debugPrint();
-
-  return 0;
-}
-
-int test4_() {
-
-  float maxdiff;
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(4,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"+000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(3,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(3,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(3,0,0), keep_list);
-
-  //---
-
-  bp.NormalizeMU();
-
-  printf("---\nBEFORE:\n");
-  bp.debugPrint();
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[0] got diff: %f\n", maxdiff);
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[1] got diff: %f\n", maxdiff);
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[2] got diff: %f\n", maxdiff);
-
-  printf("\n\n---\nAFTER:\n");
-  bp.debugPrint();
-  printf("---\n\n");
-
-  return 0;
-}
-
-int test4() {
-
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
-  float maxdiff;
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-  //---
-
-  bp.NormalizeMU();
-
-  printf("---\nBEFORE:\n");
-  bp.debugPrint();
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[0] got diff: %f\n", maxdiff);
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[1] got diff: %f\n", maxdiff);
-
-  bp.BeliefProp();
-  bp.NormalizeMU(BUF_MU_NXT);
-  maxdiff = bp.MaxDiffMU();
-  bp.UpdateMU();
-
-  printf("[2] got diff: %f\n", maxdiff);
-
-  printf("\n\n---\nAFTER:\n");
-  bp.debugPrint();
-  printf("---\n\n");
-
-  return 0;
-}
-
-// test run until converged
-//
-int test5() {
-
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-  //---
-
-  for (iter=0; iter<max_iter; iter++) {
-    bp.NormalizeMU();
-
-    printf("---\nBEFORE:\n");
-    bp.debugPrint();
-
-    bp.BeliefProp();
-    bp.NormalizeMU(BUF_MU_NXT);
-    maxdiff = bp.MaxDiffMU();
-    bp.UpdateMU();
-
-    if (fabs(maxdiff) < _eps) { break; }
-  }
-
-  printf("count: %i\n", iter);
-  bp.debugPrint();
-
-  return 0;
-}
-
-// test run until converged
-//
-int test5_1() {
-
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-  //---
-
-  bp.NormalizeMU();
-  for (iter=0; iter<max_iter; iter++) {
-
-    maxdiff = bp.step();
-
-    /*
-    bp.NormalizeMU();
-
-    printf("---\nBEFORE:\n");
-    bp.debugPrint();
-
-    bp.BeliefProp();
-    bp.NormalizeMU(BUF_MU_NXT);
-    maxdiff = bp.MaxDiffMU();
-    bp.UpdateMU();
-    */
-
-    if (fabs(maxdiff) < _eps) { break; }
-  }
-
-  printf("count: %i\n", iter);
-  bp.debugPrint();
-
-  return 0;
-}
-
-
-
-// cull 2x2 grid with 0,0 fixed with r003
-// result should be:
-//
-//  (0,1)r000  (1,1)r001
-//  (0,0)r003  (1,0)r002
-//
-//
-int test_cull0() {
-
-  int ret = 0;
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(2,2,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  ret = bp.cellConstraintPropagate();
-
-  printf("ret: %i\n", ret);
-  bp.debugPrint();
-
-  return 0;
-}
-
-// cull 3x3 grid with 0,0 fixed with r003
-//
-//
-//
-int test_cull1() {
-
-  int ret = 0;
-  int iter=0, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  ret = bp.cellConstraintPropagate();
-
-  printf("ret: %i\n", ret );
-  bp.debugPrint();
-
-  return 0;
-}
-
-// cull 3x3 grid with 0,0 fixed with r003
-//
-//
-//
-int test_cull2() {
-
-  int ret = 0;
-  int iter=0, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-  bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-  bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  ret = bp.cellConstraintPropagate();
-
-  printf("ret: %i\n", ret );
-  bp.debugPrint();
-
-  return 0;
-}
-
-// cull 3x3x2 grid with 0,0 fixed with r003
-//
-//
-//
-int test_cull3() {
-
-  int ret = 0;
-  int iter=0, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,2);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-  bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  bp.filterKeep( bp.getVertex(1,1,1), keep_list);
-  bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,1), keep_list);
-  bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,1), keep_list);
-  bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  ret = bp.cellConstraintPropagate();
-
-  printf("ret: %i\n", ret );
-  bp.debugPrint();
-
-  return 0;
-}
-
-// cull 2x2x1 to test an issue with directionality of
-// rule constraints.
-//
-// Set up with `.`, `.r` and `^`. All `^` should be culled.
-//
-//
-//
-int test_cull4() {
-
-  int ret = 0;
-  int iter=0, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(2,2,1);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"^012") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"^011") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-  bp.cellFillAccessed(1, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"^013") );
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-  bp.cellFillAccessed(2, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"^010") );
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-  bp.cellFillAccessed(3, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
-
-  ret = bp.cellConstraintPropagate();
-
-  printf("ret: %i\n", ret );
-  bp.debugPrint();
-
-  return 0;
-}
-
-// cull boundary
-//
-int test6() {
-
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  bp.CullBoundary();
-
-  bp.debugPrint();
-  return 0;
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r000") );
-  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T003") );
-  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"T000") );
-  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)".000") );
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  keep_list.push_back( bp.tileName2ID((char *)"r003") );
-  keep_list.push_back( bp.tileName2ID((char *)"T002") );
-  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|001") );
-  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
-
-  //--
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r001") );
-  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"|000") );
-  keep_list.push_back( bp.tileName2ID((char *)"T001") );
-  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
-
-  keep_list.clear();
-  keep_list.push_back( bp.tileName2ID((char *)"r002") );
-  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
-
-  //---
-
-  for (iter=0; iter<max_iter; iter++) {
-    bp.NormalizeMU();
-
-    printf("---\nBEFORE:\n");
-    bp.debugPrint();
-
-    bp.BeliefProp();
-    bp.NormalizeMU(BUF_MU_NXT);
-    maxdiff = bp.MaxDiffMU();
-    bp.UpdateMU();
-
-    if (fabs(maxdiff) < _eps) { break; }
-  }
-
-  printf("count: %i\n", iter);
-  bp.debugPrint();
-
-  return 0;
-}
-
-int test_realize0() {
-  int ret;
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-
-  bp.m_seed = 18;
-
-  bp.init(2,2,1);
-  //bp.init(3,3,1);
-
-  //bp.debugPrintC();
-  //bp.debugPrintS();
-
-  ret = bp.realize();
-
-  //bp.CullBoundary();
-
-  printf("got: %i\n", ret);
-
-  bp.debugPrint();
-  return 0;
-}
-
-int test_realize1() {
-  int ret;
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-
-  bp.m_seed = 18;
-
-  bp.init(3,3,1);
-  //bp.init(3,3,1);
-
-  //bp.debugPrintC();
-  //bp.debugPrintS();
-
-  ret = bp.realize();
-
-  //bp.CullBoundary();
-
-  printf("got: %i\n", ret);
-
-  bp.debugPrint();
-  return 0;
-}
-
-int test_realize2(int x, int y, int z) {
-  int ret;
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-
-  bp.init(x,y,z);
-  ret = bp.realize();
-
-  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
-
-  bp.debugPrint();
-  return 0;
-}
-
-
-
-int test_wfc0(int x, int y, int z) {
-  int ret;
-  int iter, max_iter=10;
-  float maxdiff, _eps = (1.0/(1024*1024));
-  std::vector<int32_t> keep_list;
-  BeliefPropagation bp;
-
-  bp.init(x,y,z);
-  ret = bp.wfc();
-
-  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
-
-  bp.debugPrint();
-  return 0;
-}
-
-
-
-void _debugstate() {
-  int a, b, i, j, k, d;
-
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  for (a=0; a<bp.m_num_values; a++) {
-    for (b=0; b<bp.m_num_values; b++) {
-      for (i=0; i<6; i++) {
-        printf("%s(%i) -(%s(%i))-> %s(%i): %f\n",
-            bp.m_tile_name[a].c_str(), a,
-            bp.m_dir_desc[i].c_str(), i,
-            bp.m_tile_name[b].c_str(), b,
-            bp.getValF(BUF_F, a, b, i));
-      }
-    }
-
-  }
-}
-
-int run_test(int test_num) {
-  switch(test_num) {
-    case 0:
-      test0();
-      break;
-    case 1:
-      test1();
-      break;
-    case 2:
-      test2();
-      break;
-    case 3:
-      test3();
-      break;
-    case 4:
-      test4();
-      break;
-    case 5:
-      test5();
-      break;
-    case 6:
-      test6();
-      break;
-
-    case 7:
-      test_cull0();
-      break;
-    case 8:
-      test_cull1();
-      break;
-    case 9:
-      test_cull2();
-      break;
-    case 10:
-      test_cull3();
-      break;
-    case 11:
-      test_cull4();
-      break;
-
-    case 12:
-      test_realize0();
-      break;
-    case 13:
-      test_realize1();
-      break;
-    case 14:
-      test_realize2(4,4,4);
-      break;
-
-    case 15:
-      test_wfc0(4,4,4);
-      break;
-
-    default:
-      return -1;
-
-  }
-
-  return 0;
-}
 
 //--------------------------------------//
 //  _____     _                         //
@@ -1082,6 +59,15 @@ int run_test(int test_num) {
 
 uchar*    m_img;
 DataPtr   m_vol[4];
+
+Camera3D  m_cam;
+Vector3DI m_vres;
+
+const char VIZ_VOL=0;
+
+int m_iresx,
+    m_iresy;
+
 
 void alloc_img (int xres, int yres) {
   // RGB, 3 bytes/pix
@@ -1180,50 +166,196 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
   }
 }
 
+//WIP
+//
+void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres );
+
+BeliefPropagation *g_bpc;
+void bp_cb( void * dat ) {
+  char imgfile[512];
+  std::string base_png = "out";
+  int it=0;
+  static int base_it = -1;
+
+  m_iresx = 512;
+  m_iresy = 512;
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+
+  it = (int)g_bpc->m_state_info_iter;
+
+  //printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+
+  //visualize_belief ( g_bpc, BUF_BELIEF, VIZ_VOL, g_bpc->m_vres );
+  visualize_belief ( *g_bpc, BUF_BELIEF, VIZ_VOL, m_vres );
+
+  //raycast_cpu ( g_bpc->m_vres, &m_cam, VIZ_VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
+  raycast_cpu ( m_vres, &m_cam, VIZ_VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+
+  //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
+
+  printf ( "  output: %s\n", imgfile );
+  save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
+
+}
+
+void bp_cb_0(void *dat) {
+  printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
+}
+
+void bp_cb_v0(void *dat) {
+  static int base_it = -1;
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+  printf("[%i.%i]\n", base_it, (int)g_bpc->m_state_info_iter);
+}
+
+void bp_cb_v1(void *dat) {
+  char imgfile[512];
+  std::string base_png = "out";
+  int it=0;
+  static int base_it = -1;
+
+  int64_t cell_idx, val_idx,
+          n_dir, val_idx_n,
+          nei_cell_idx,
+          dir_idx;
+  float residue,
+        max_residue,
+        t_f;
+
+  int vol_id = VIZ_VOL,
+      val;
+
+  Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+
+  if (g_bpc->m_state_info_iter==0) { base_it++; }
+
+  it = (int)g_bpc->m_state_info_iter;
+
+  n_dir = g_bpc->getNumNeighbors(0);
+
+  max_residue = 0.0;
+  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
+
+    val_idx_n = g_bpc->getVali( BUF_TILE_IDX_N, cell_idx );
+    for (val_idx=0; val_idx < val_idx_n; val_idx++) {
+
+      val = g_bpc->getVali( BUF_TILE_IDX, cell_idx, val_idx );
+
+      for (dir_idx=0; dir_idx < n_dir; dir_idx++) {
+        nei_cell_idx = g_bpc->getNeighbor( cell_idx, dir_idx );
+        if (nei_cell_idx < 0) { continue; }
+
+        residue = g_bpc->getVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val );
+
+        if (max_residue < residue) { max_residue = residue; }
+      }
+
+    }
+  }
+
+  if (max_residue < (1/((1024.0*1024.0)))) { max_residue = 1.0; }
+
+  for (cell_idx=0; cell_idx < g_bpc->getNumVerts(); cell_idx++) {
+
+    t_f = 0.0;
+    residue = -1.0;
+
+    val_idx_n = g_bpc->getVali( BUF_TILE_IDX_N, cell_idx );
+    for (val_idx=0; val_idx < val_idx_n; val_idx++) {
+
+      val = g_bpc->getVali( BUF_TILE_IDX, cell_idx, val_idx );
+
+      for (dir_idx=0; dir_idx < n_dir; dir_idx++) {
+        nei_cell_idx = g_bpc->getNeighbor( cell_idx, dir_idx );
+        if (nei_cell_idx < 0) { continue; }
+
+        t_f = g_bpc->getVal( BUF_MU_RESIDUE, dir_idx, cell_idx, val );
+        if (t_f > residue) { residue = t_f; }
+      }
+
+    }
+
+    residue = (residue/max_residue);
+
+    //printf("%i: %f / %f\n", (int)cell_idx, residue, max_residue);
+
+    //residue = powf( residue, 0.5 );
+    residue = powf( residue, g_opt.alpha );
+
+    //printf("%f\n", residue);
+
+    //if (residue < 0.0) { residue = -residue; }
+    if (residue > 1.0) { residue = 1.0; }
+
+    vox->x = residue;
+    vox->y = 0.0;
+    vox->z = 0.0;
+    //vox->w = residue;
+    vox->w = 0.25;
+
+    vox++;
+  }
+
+  //raycast_cpu ( g_bpc->m_vres, &m_cam, VOL, g_bpc->m_img, g_bpc->m_iresx, g_bpc->m_iresy, Vector3DF(0,0,0), Vector3DF(g_bpc->m_vres) );
+  raycast_cpu ( m_vres, &m_cam, VIZ_VOL, m_img, m_iresx, m_iresy, Vector3DF(0,0,0), Vector3DF(m_vres) );
+
+  //snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+  snprintf ( imgfile, 511, "%s%04d.%04d.png", base_png.c_str(), (int) base_it, (int) it );
+  printf ( "  output: %s\n", imgfile );
+  save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
+
+}
+
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
 
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-   float maxv;
+  Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+  float maxv;
 
-   int N = (int)(src.m_tile_name.size());;
+  int N = (int)(src.m_tile_name.size());;
 
-   int r_l = 1,
-       r_u = (N-1)/3;
-   int g_l = r_u+1,
-       g_u = 2*(N-1)/3;
-   int b_l = g_u,
-       b_u = N-1;
+  int r_l = 1,
+      r_u = (N-1)/3;
+  int g_l = r_u+1,
+      g_u = 2*(N-1)/3;
+  int b_l = g_u,
+      b_u = N-1;
 
-   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
+  // map belief to RGBA voxel
+  //
+  for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
+    src.getVertexBelief (j);
 
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     src.getVertexBelief (j);
+    // red
+    //
+    maxv = 0.0;
+    for (int k=r_l; k <= r_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->x = maxv;
 
-     // red
-     maxv = 0.0;
-     for (int k=r_l; k <= r_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->x = maxv;
+    // green
+    //
+    maxv = 0.0;
+    for (int k=g_l; k <= g_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->y = maxv;
 
-     // green
-     maxv = 0.0;
-     for (int k=g_l; k <= g_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->y = maxv;
+    // blue
+    //
+    maxv = 0.0;
+    for (int k=b_l; k <= b_u; k++) {
+      maxv = std::max(maxv, src.getVal( bp_id, k ));
+    }
+    vox->z = maxv;
 
-     // blue
-     maxv = 0.0;
-     for (int k=b_l; k <= b_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
-     }
-     vox->z = maxv;
+    vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+    vox++;
+  }
 
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
-     vox++;
-   }
 }
 
 void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
@@ -1240,13 +372,13 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
    int b_l = g_u,
        b_u = N-1;
 
-   // printf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), vres.x, vres.y, vres.z);
-
    // map belief to RGBA voxel
+   //
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      src.getVertexBelief (j);
 
      // red
+     //
      maxv = 0.0;
      for (int k=r_l; k <= r_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1254,6 +386,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->x = maxv;
 
      // green
+     //
      maxv = 0.0;
      for (int k=g_l; k <= g_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1261,6 +394,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->y = maxv;
 
      // blue
+     //
      maxv = 0.0;
      for (int k=b_l; k <= b_u; k++) {
         maxv = std::max(maxv, src.getVal( bp_id, k ));
@@ -1270,6 +404,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      vox->w = std::max(vox->x, std::max(vox->y, vox->z));
      vox++;
    }
+
 }
 
 //------------//
@@ -1284,29 +419,6 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 // DEBUG MAIN
 //
-
-
-/*
-bool handle_args ( int& arg, int argc, char **argv, char& ch, char*& optarg ) {
-   if (arg >= argc) return false;
-
-   char dash = argv[arg][0];
-   if (dash=='-') {
-     ch = argv[arg][1];
-     optarg = argv[ arg+1 ];
-     printf ( "arg: %d, ch: %c, opt: %s\n", arg, ch, optarg);
-     arg += 2;
-   } else {
-     ch = argv[arg][0];
-     optarg = 0;
-     printf ( "arg: %d, ch: %c, no opt\n", arg, ch);
-     arg++;
-   }
-   return (arg <= argc);
-}
-*/
-
-// #include "getopt.h"
 
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
@@ -1323,12 +435,21 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
+  fprintf(fp, "  -G <#>   algorithm choice\n");
+  fprintf(fp, "    0      fix maximum belief tile (default)\n");
+  fprintf(fp, "    1      remove minimum belief tile\n");
+  fprintf(fp, "    2      fix maximum belief tile in minimum entropy cell\n");
+  fprintf(fp, "    3      remove min. belief tile from minimum entropy cell\n");
+  fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
+  fprintf(fp, "  -A <#>   alpha (for visualization)\n");
   fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -w <#>   set (update) reate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
+  fprintf(fp, "  -r       enable raycast visualization\n");
 
   fprintf(fp, "  -v       show version\n");
   fprintf(fp, "  -h       help (this screen)\n");
@@ -1342,7 +463,6 @@ void show_version(FILE *fp) {
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
-  //char* optarg;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str, rule_fn_str, constraint_fn_str;
@@ -1358,13 +478,12 @@ int main(int argc, char **argv) {
   int iresx=0, iresy=0;
   Vector3DI vres (X, Y, Z);
   Camera3D cam;
-  const char VOL=0;
 
   std::string base_png = "out";
   char imgfile[512] = {0};
 
-  float eps_zero = -1.0, eps_converge = -1.0;
-  int max_iter = -1;
+  float eps_zero = -1.0, eps_converge = -1.0, step_factor = 1.0;
+  int max_iter = -1, it, n_it;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
@@ -1372,8 +491,13 @@ int main(int argc, char **argv) {
 
   int arg=1;
 
-  //while ( handle_args ( arg, argc, argv, ch, optarg ) ) {
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:")) != EOF) {
+  void (*_cb_f)(void *) = NULL;
+
+  g_bpc = &bpc;
+
+  g_opt.alpha = 0.5;
+  g_opt.alg_idx = 0;
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1393,9 +517,18 @@ int main(int argc, char **argv) {
         raycast = 1;
         iresx = atoi(optarg);
         iresy = iresx;
-        printf ("raycast enabled\n");
+
+        m_iresx = iresx;
+        m_iresy = iresy;
+
         break;
 
+      case 'A':
+        g_opt.alpha = atof(optarg);
+        break;
+      case 'G':
+        g_opt.alg_idx = atoi(optarg);
+        break;
 
       case 'e':
         eps_converge = atof(optarg);
@@ -1415,12 +548,22 @@ int main(int argc, char **argv) {
           bpc.m_max_iteration = (int64_t)max_iter;
         }
         break;
+      case 'w':
+        step_factor = atof(optarg);
+        if (step_factor > 0.0) {
+          bpc.m_rate = step_factor;
+        }
+        break;
 
       case 'N':
         name_fn = strdup(optarg);
+
+        g_opt.fn_name = name_fn;
         break;
       case 'R':
         rule_fn = strdup(optarg);
+
+        g_opt.fn_rule = rule_fn;
         break;
       case 'C':
         constraint_fn = strdup(optarg);
@@ -1455,6 +598,7 @@ int main(int argc, char **argv) {
       default:
         show_usage(stderr);
         exit(-1);
+        break;
     }
   }
 
@@ -1471,7 +615,7 @@ int main(int argc, char **argv) {
   }
 
   if ((X<=0) || (Y<=0) || (Z<=0)) {
-    printf("dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
+    fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
     show_usage(stderr);
     exit(-1);
   }
@@ -1481,18 +625,25 @@ int main(int argc, char **argv) {
   if (constraint_fn) {
     constraint_fn_str = constraint_fn;
     _read_constraint_csv(constraint_fn_str, constraint_list);
-    printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+
+    if (bpc.m_verbose > 0) {
+      printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+    }
   }
 
-  printf ( "bpc init csv.\n" );
+  if (bpc.m_verbose > 0) {
+    printf ( "bpc init csv. (%s, %s)\n", name_fn_str.c_str(), rule_fn_str.c_str() ); fflush(stdout);
+  }
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
   if (ret<0) {
-    printf("error loading CSV\n");
+    fprintf(stderr, "error loading CSV\n"); fflush(stderr);
     exit(-1);
   }
 
   if (constraint_fn) {
-    printf ( "filter constraints.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "filter constraints.\n" );
+    }
     bpc.filter_constraint(constraint_list);
   }
 
@@ -1506,51 +657,111 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
+  if (bpc.m_verbose > 0) {
+    //_cb_f = bp_cb_v0;
+  }
+
   // prepare raycast [optional]
   //
   if (raycast) {
+
+    //_cb_f = bp_cb;
+    _cb_f = bp_cb_v1;
 
     vres.x = X;
     vres.y = Y;
     vres.z = Z;
 
-    printf ( "preparing raycast.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "preparing raycast.\n" );
+    }
     alloc_img (iresx, iresy);
-    alloc_volume (VOL, vres, 4);
+    alloc_volume (VIZ_VOL, vres, 4);
     cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
-    printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
+
+    if (bpc.m_verbose > 0) {
+      printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
+    }
+
+    m_vres.x = X;
+    m_vres.y = Y;
+    m_vres.z = Z;
+
+    m_cam.setOrbit( 30, 20, 0, m_vres/2.0f, 50, 1 );
+
+    m_iresx = iresx;
+    m_iresy = iresy;
+
   }
 
   if (wfc_flag) {
 
-    printf ( "wfc realize.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "wfc realize.\n" );
+    }
     ret = bpc.wfc();
-    printf("# wfc got: %i\n", ret);
-    bpc.debugPrint();
+
+    if (bpc.m_verbose > 0) {
+      printf("# wfc got: %i\n", ret);
+      bpc.debugPrint();
+    }
 
   }
   else {
 
-    printf ( "bpc realize.\n" );
+    if (bpc.m_verbose > 0) {
+      printf ( "bpc realize.\n" );
+    }
     ret = bpc.start();
 
-    for (int64_t it=0; it < bpc.m_num_verts; it++) {
-      ret = bpc.single_realize(it);
+    n_it = bpc.m_num_verts * bpc.m_num_values;
+
+    //for (int64_t it=0; it < bpc.m_num_verts; it++) {
+    for (it=0; it < n_it; it++) {
+
+      //ret = bpc.single_realize_cb(it, NULL);
+      //ret = bpc.single_realize_cb(it, bp_cb);
+
+      if (g_opt.alg_idx == 1) {
+        ret = bpc.single_realize_min_belief_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 2) {
+        ret = bpc.single_realize_min_entropy_max_belief_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 3) {
+        ret = bpc.single_realize_min_entropy_min_belief_cb(it, _cb_f);
+      }
+      else if (g_opt.alg_idx == 4) {
+        ret = bpc.single_realize_residue_cb(it, _cb_f);
+      }
+      else {
+        //ret = bpc.single_realize_cb(it, _cb_f);
+        ret = bpc.single_realize_max_belief_cb(it, _cb_f);
+      }
+
       if (ret<=0) { break; }
 
       if ( raycast )  {
-        visualize_belief ( bpc, BUF_BELIEF, VOL, vres );
-        raycast_cpu ( vres, &cam, VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+
+        //DEBUG
+        printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
+        visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
+
+        raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
         snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
-        printf ( "  output: %s\n", imgfile );
+
+        if (bpc.m_verbose > 0) { printf ( "  output: %s\n", imgfile ); }
         save_png ( imgfile, m_img, iresx, iresy, 3 );
       }
+
     }
 
-    printf("# bp realize got: %i\n", ret);
+    if (bpc.m_verbose > 0) {
+      printf("# bp realize got: %i\n", ret);
 
-    printf("####################### DEBUG PRINT\n" );
-    bpc.debugPrint();
+      printf("####################### DEBUG PRINT\n" );
+      bpc.debugPrint();
+    }
 
   }
 
