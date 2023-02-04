@@ -1130,7 +1130,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
 
       //DEBUG
       if (m_verbose > 2) {
-        printf("  ## (i) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+        printf("  ## (i.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
             (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
       }
 
@@ -1157,7 +1157,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
 
         //DEBUG
         if (m_verbose > 2) {
-          printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+          printf("  ## (a.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
         }
       }
@@ -1174,7 +1174,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
 
           if (m_verbose > 2) {
             //DEBUG
-            printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            printf("  ## (b.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
           }
 
@@ -1258,7 +1258,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
       //DEBUG
       if (m_verbose > 2) {
-        printf("  ## (i) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+        printf("  ## (i.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
             (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
       }
 
@@ -1285,7 +1285,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
         //DEBUG
         if (m_verbose > 2) {
-          printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+          printf("  ## (a.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
         }
       }
@@ -1302,7 +1302,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
           if (m_verbose > 2) {
             //DEBUG
-            printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            printf("  ## (b.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
           }
 
@@ -1375,7 +1375,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
 
           if (m_verbose > 2) {
             //DEBUG
-            printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            printf("  ## (a.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
           }
 
@@ -1396,7 +1396,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
 
             if (m_verbose > 2) {
               //DEBUG
-              printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+              printf("  ## (b.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
             }
 
@@ -1413,6 +1413,11 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
 
     }
 
+  }
+
+  if (m_verbose > 1) {
+    printf("## chooseMaxBelief: choosing cell:%i, tile:%i, tile_idx:%i, max_belief:%f, count:%i\n",
+        (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
   }
 
   if (max_cell) { *max_cell = _max_cell; }
@@ -1473,7 +1478,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
 
           if (m_verbose > 2) {
             //DEBUG
-            printf("  ## (a) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            printf("  ## (a.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
           }
 
@@ -1493,7 +1498,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
 
             if (m_verbose > 2) {
               //DEBUG
-              printf("  ## (b) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+              printf("  ## (b.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
             }
 
