@@ -88,7 +88,7 @@ public:
     m_state_info_d = -1;
     m_state_info_iter = 0;
 
-    m_rate = 0.998;
+    m_rate = 0.98;
   };
 
   bool _init();
