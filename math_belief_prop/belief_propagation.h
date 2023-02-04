@@ -142,6 +142,10 @@ public:
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
 
+// #define RUN_OPT_PTRS
+
+#ifdef RUN_OPT_PTRS
+  // Optimized: Closest values in memory are most used in inner loops
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
   inline float*  getPtr(int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
@@ -152,6 +156,18 @@ public:
   inline float*  getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
   inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
   inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ) = val; }
+
+#else
+  // MU matrix
+  inline float*  getPtr(int id, int n, int j, int a)                {return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline float   getVal(int id, int n, int j, int a)                {return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline void    SetVal(int id, int n, int j, int a, float val )    { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
+  
+  // Belief mapping (F), BxB
+  inline float*  getPtrF(int id, int a, int b, int n)               { return  (float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }
+  inline float   getValF(int id, int a, int b, int n)               { return *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }
+  inline void    SetValF(int id, int a, int b, int n, float val )   { *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n) = val; }
+#endif
 
   inline int32_t getVali(int id, int i)                { return *(int32_t *) m_buf[id].getPtr (i); }
   inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }

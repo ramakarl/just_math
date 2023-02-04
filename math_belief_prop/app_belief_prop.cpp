@@ -536,12 +536,12 @@ void Sample::display()
 
   if ( m_run_bpc ) {
       Vector3DF bpc_off(0,0,0);      
-      //VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
-      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
       
       //-- regular belief viz
-      //VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
-      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }  
 
   // optional write to disk
