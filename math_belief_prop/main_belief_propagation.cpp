@@ -441,6 +441,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    2      fix maximum belief tile in minimum entropy cell\n");
   fprintf(fp, "    3      remove min. belief tile from minimum entropy cell\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
+  fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
   fprintf(fp, "  -d       debug print\n");
 
@@ -497,7 +498,7 @@ int main(int argc, char **argv) {
 
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:E")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -593,6 +594,10 @@ int main(int argc, char **argv) {
 
       case 'W':
         wfc_flag = 1;
+        break;
+
+      case 'E':
+        bpc.m_use_svd = 1;
         break;
 
       default:

@@ -37,6 +37,12 @@
 #include "mersenne.h"
 #include "dataptr.h"
 
+//extern "C" {
+//#include "lib/svdlib.h"
+//}
+
+#include <Eigen/SVD>
+
 /*
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -54,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.2.0"
+#define BELIEF_PROPAGATION_VERSION "0.3.0"
 
 #define RUN_OPT_PTRS
 #define RUN_OPT_MUPTR
@@ -78,6 +84,10 @@
 
 #define BUF_MU_RESIDUE  13
 
+#define BUF_SVD_U       14
+#define BUF_SVD_Vt      15
+#define BUF_SVD_VEC     16
+
 class BeliefPropagation {
 public:
   BeliefPropagation() {
@@ -95,6 +105,8 @@ public:
     m_state_info_iter = 0;
 
     m_rate = 0.98;
+
+    m_use_svd = 0;
   };
 
   bool _init();
@@ -102,6 +114,8 @@ public:
   int init_CSV(int, std::string &, std::string &);
   int init_CSV(int, int, int, std::string &, std::string &);
   int init_F_CSV(std::string &, std::string &);
+
+  int init_SVD(void);
 
   //DEBUG
   //DEBUG
@@ -126,6 +140,8 @@ public:
 
   void    AllocVeci32(int, int);
   void    AllocVeci32(int, int, int);
+
+  void    AllocSVD(int, int, int, int);
 
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
   int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
@@ -214,6 +230,8 @@ public:
 
   float   BeliefProp();
   float   BeliefProp_cell(int64_t);
+  float   BeliefProp_svd ();
+
   void    UpdateMU ();
 
   float    getVertexBelief ( uint64_t j );
@@ -250,6 +268,12 @@ public:
   Vector3DI m_res;        // volume res
 
   DataPtr  m_buf[128];      // data buffers (CPU & GPU)
+
+  // SVD number of non singular values in each direction
+  //
+  int       m_use_svd;
+  int64_t   m_svd_nsv[6];
+
 
   bool      m_run_cuda=0;
   int       m_seed;
