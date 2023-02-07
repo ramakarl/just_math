@@ -733,9 +733,12 @@ float BeliefPropagation::BeliefProp_svd () {
   float H_ij_a;
   float u_nxt_b, u_prev_b;
   float mu_j, du;
+  float mu_val;
 
   float rate = 1.0,
         max_diff=-1.0;
+
+  int   odd_even_cell = -1;
 
   rate = m_rate;
 
@@ -747,6 +750,20 @@ float BeliefPropagation::BeliefProp_svd () {
 
     anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
     jp = getVertexPos(anch_cell);
+
+    if (m_use_checkerboard) {
+      odd_even_cell = (jp.x + jp.y + jp.z)%2;
+      if (odd_even_cell==0) {
+        for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+          for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+            anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+            mu_val = getVal( BUF_MU, anch_in_idx, anch_cell, anch_tile );
+            SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, mu_val );
+          }
+        }
+        continue;
+      }
+    }
 
     // 6 neighbors of j in 3D
     //
@@ -984,6 +1001,11 @@ float BeliefPropagation::BeliefProp () {
   float rate = 1.0,
         max_diff=-1.0;
 
+  float mu_val;
+  int   odd_even_cell = -1;
+
+
+
   rate = m_rate;
 
   Vector3DI jp;
@@ -994,6 +1016,22 @@ float BeliefPropagation::BeliefProp () {
 
     anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
     jp = getVertexPos(anch_cell);
+
+    if (m_use_checkerboard) {
+      odd_even_cell = (jp.x + jp.y + jp.z)%2;
+      if (odd_even_cell==0) {
+        for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+          for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+            anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+            mu_val = getVal( BUF_MU, anch_in_idx, anch_cell, anch_tile );
+            SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, mu_val );
+          }
+        }
+        continue;
+      }
+    }
+
+
 
     // 6 neighbors of j in 3D
     //

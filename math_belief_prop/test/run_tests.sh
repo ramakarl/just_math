@@ -166,5 +166,18 @@ elif [[ "$verbosity" > 0 ]] ; then
   echo "# test $test_num passed"
 fi
 
+### test svd
+
+test_num=19
+$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | ./test19
+res="$?"
+
+if [[ "$res" != 0 ]] ; then
+  echo "TEST $test_num FAILED: expected '1', got '$res'"
+  exit -1
+elif [[ "$verbosity" > 0 ]] ; then
+  echo "# test $test_num passed"
+fi
+
 
 exit 0

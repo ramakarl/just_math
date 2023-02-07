@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+
+import sys
+import os
+import re
+import math
+
+verbosity = 0
+
+expect_sequence_idx = 0
+expect_sequence = [
+  [3, 25],
+  [4,24],
+  [-1,-1]
+]
+
+expect_realize = {
+  "[0,0,0](0):" : "r003(10)",
+  "[1,0,0](1):" : "|001( 2)",
+  "[2,0,0](2):" : "r002( 9)",
+  "[0,1,0](3):" : "T003(25)",
+  "[1,1,0](4):" : "T002(24)",
+  "[2,1,0](5):" : "T001(23)",
+  "[0,2,0](6):" : "r000( 7)",
+  "[1,2,0](7):" : "T000(22)",
+  "[2,2,0](8):" : "r001( 8)"
+}
+
+cur_cell = ""
+cur_tile = ""
+
+for _line in sys.stdin:
+  line = _line.strip()
+  if len(line)==0: continue
+
+  m = re.search( 'chooseMaxBelief: .* cell:(-?\d+), tile:(-?\d+), tile_idx:(-?\d+), max_belief:([^,]*), count:(\d+)', line )
+
+  if m:
+
+    cell=m.group(1)
+    tile=m.group(2)
+    #print("found:", cell, tile)
+
+    if expect_sequence_idx < len(expect_sequence):
+
+      expect_cell = expect_sequence[expect_sequence_idx][0]
+      expect_tile = expect_sequence[expect_sequence_idx][1]
+
+      if ((int(cell) != expect_cell) or
+          (int(tile) != expect_tile)):
+        print("ERROR, expected cell,tile (", expect_cell, expect_tile, "), got (", cell, tile, ")")
+        sys.exit(-1)
+      expect_sequence_idx+=1
+
+      continue
+
+  m = re.search( "^(\[[^:]*:)", line )
+
+
+  if m:
+    cur_cell = m.group(1)
+    continue
+
+  m = re.search( "^  (....\([^:]*):", _line )
+
+  if m:
+    cur_tile = m.group(1)
+
+    if not cur_tile in expect_realize[cur_cell]:
+      if cur_cell in expect_realize:
+        print("ERROR: expected tile", expect_realize[cur_cell], "at", cur_cell, "but got", cur_tile)
+        sys.exit(-1)
+      else:
+        print("ERROR: unexpected cell", cur_cell)
+        sys.exit(-1)
+    continue
+
+
+if verbosity > 0:
+  print("ok")
+
+sys.exit(0)

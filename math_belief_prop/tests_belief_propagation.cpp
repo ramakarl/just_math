@@ -1348,6 +1348,214 @@ int test_step2() {
 }
 
 
+// test checkerboard on simple example
+//
+int test_step3() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=100;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.m_use_svd = 0;
+  bp.m_use_checkerboard = 1;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  bp.m_eps_converge = 1.0/1024.0;
+
+  bp.m_verbose = 3;
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
+  n_it = bp.m_num_verts * bp.m_num_values;
+  for (it=0; it<n_it; it++) {
+    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    if (ret<=0) { break; }
+  }
+
+  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  bp.debugPrint();
+
+  return ret;
+}
+
+
+
+// test checkerboard on simple example
+// with svd
+//
+int test_step4() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=100;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.m_use_svd = 1;
+  bp.m_use_checkerboard = 1;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  bp.m_eps_converge = 1.0/1024.0;
+
+  bp.m_verbose = 3;
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
+  n_it = bp.m_num_verts * bp.m_num_values;
+  for (it=0; it<n_it; it++) {
+    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    if (ret<=0) { break; }
+  }
+
+  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  bp.debugPrint();
+
+  return ret;
+}
+
+
 
 int test_wfc0(int x, int y, int z) {
   int ret;
@@ -1454,6 +1662,14 @@ int run_test(int test_num) {
 
     case 18:
       test_step2();
+      break;
+
+    case 19:
+      test_step3();
+      break;
+
+    case 20:
+      test_step4();
       break;
 
     default:

@@ -107,6 +107,7 @@ public:
     m_rate = 0.98;
 
     m_use_svd = 0;
+    m_use_checkerboard = 0;
   };
 
   bool _init();
@@ -274,6 +275,7 @@ public:
   int       m_use_svd;
   int64_t   m_svd_nsv[6];
 
+  int       m_use_checkerboard;
 
   bool      m_run_cuda=0;
   int       m_seed;
