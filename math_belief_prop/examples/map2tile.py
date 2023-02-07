@@ -10,10 +10,22 @@
 # work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 #
 
+# Create a tileset and tilemap from an input "example" image file.
+#
+# The intent is to use it on an example level, from an old 8-bit
+# game like Pacman, Super Mario Bros or The (Original) Legend of Zelda,
+# and automatically create a tileset and tilemap from it.
+#
+# For example, using the `demo_pacman.png`, run as follows:
+#
+#   ./map2tile.py -f demo_pacman.png -s 8
+#
 
 import os
 import sys
+import json
 from PIL import Image
+import png
 
 import getopt
 
@@ -62,21 +74,100 @@ for o,a in opts:
     info["offset"][0] = int(a)
     info["offset"][1] = int(a)
 
-#if len(sys.argv)<2:
 if len(fn) == 0:
   sys.stderr.write("provide input map (png)\n")
   usage(sys.stderr)
-  #print("provide input map (png)")
   sys.exit(-1)
-#fn = sys.argv[1]
 
-#if len(sys.argv)>2:
-#  _stride = int(sys.argv[2])
-#  info["stride"][0] = _stride
-#  info["stride"][1] = _stride
+def debug_print_tilemap(tile_map):
+  tile_x = len(tile_map)
+  tile_y = len(tile_map[0])
 
+  #for ity in range(tile_y-1,-1,-1):
+  for ity in range(tile_y):
+    row = []
+    for itx in range(tile_x):
+      chr_code = '.'
+      if tile_map[itx][ity] < len(id2chr_map):
+        chr_code = id2chr_map[tile_map[itx][ity]]
+      #row.append( str(tile_map[itx][ity]) )
+      row.append( chr_code )
+    print( " ".join(row) )
 
-#print(fn)
+def export_tiled_json(info, tm):
+
+  stride_x = info["stride"][0]
+  stride_y = info["stride"][1]
+
+  tile_x = len(tm)
+  tile_y = len(tm[0])
+
+  if not ("tileset" in info):
+    info["tileset"] = { }
+  if not ("fn" in info):
+    info["tileset"]["fn"] = "/dev/stdout"
+  if not ("width" in info):
+    info["tileset"]["width"] = -1
+  if not ("height" in info):
+    info["tileset"]["height"] = -1
+
+  tiled_map_template = {
+    "backgroundcolor" : "#ffffff",
+    #"class": "-",
+    "height": tile_y,
+    "width": tile_x,
+    "layers": [],
+    "nextobjectid": 1,
+    "orientation": "orthogonal",
+    "properties": [ ],
+    "renderorder" : "right-down",
+    "tileheight": stride_y,
+    "tilewidth": stride_x,
+    "tilesets": [],
+    "version": 1,
+    "tiledversion":"1.0.3"
+  }
+
+  tiled_layer_template = {
+    "data": [],
+    "height" : tile_y,
+    "width": tile_x,
+    "name": "main",
+    "opacity": 1,
+    "properties": [],
+    "type":"ilelayer",
+    "visible":True,
+    "x": 0,
+    "y": 0
+  }
+
+  tiled_tileset_template = {
+    "firstgid": 0,
+    "columns": -1,
+    "name":"",
+    "image": info["tileset"]["fn"],
+    "imageheight": info["tileset"]["height"],
+    "imagewidth": info["tileset"]["width"],
+    "margin": 0,
+    "properties":[],
+    "spacing":1,
+    "tilecount":-1,
+    "tileheight": -1,
+    "tilewidth": -1
+  }
+
+  json_data = tiled_map_template
+  json_data["layers"].append( tiled_layer_template )
+
+  for ity in range(tile_y):
+    row = []
+    for itx in range(tile_x):
+      json_data["layers"][0]["data"].append( tile_map[itx][ity] )
+
+  #print(json.dumps(json_data, indent=2))
+
+  return json_data
+
 
 img = Image.open(fn)
 pxl = img.load()
@@ -94,6 +185,9 @@ uniq_tile_key_id = {}
 
 uniq_tile_id = 0
 
+pxl_tileset = {}
+#pxl_tile_cur = []
+
 tile_map = []
 
 for itx in range(tile_x):
@@ -104,6 +198,8 @@ for itx in range(tile_x):
 for itx in range(tile_x):
   for ity in range(tile_y):
     tile_a = []
+
+    pxl_tile_cur = []
     for u in range(sx):
       for v in range(sy):
         rgb = pxl[ itx*sx + u, ity*sy + v ]
@@ -121,8 +217,14 @@ for itx in range(tile_x):
           uniq_pixel[key] = 0
         uniq_pixel[key]+=1
 
+        pxl_tile_cur.append( rgb[0] )
+        pxl_tile_cur.append( rgb[1] )
+        pxl_tile_cur.append( rgb[2] )
+
     tile_key = "".join(tile_a)
     if not (tile_key in uniq_tile):
+      pxl_tileset[str(uniq_tile_id)] = pxl_tile_cur
+
       uniq_tile[tile_key] = 0
       uniq_tile_key_id[tile_key] = uniq_tile_id
       uniq_tile_id+=1
@@ -133,28 +235,16 @@ for itx in range(tile_x):
 
 uniq_count = 0
 for key in uniq_pixel:
-  #print(key, uniq_pixel[key])
   uniq_count+=1
-#print(uniq_count)
 
 uniq_tile_count = 0
 for tile_key in uniq_tile:
-  #print(tile_key, uniq_tile[tile_key])
   uniq_tile_count+=1
-#print(uniq_tile_count)
 
+td_map = export_tiled_json(info, tile_map)
 
-print("# size:", sz, ", tile:[", tile_x, tile_y, "], uniqe_tile_count:", uniq_tile_count)
+## DEBUG
+print(json.dumps(td_map, indent=2))
+debug_print_tilemap(tile_map)
 
-
-#for ity in range(tile_y-1,-1,-1):
-for ity in range(tile_y):
-  row = []
-  for itx in range(tile_x):
-    chr_code = '.'
-    if tile_map[itx][ity] < len(id2chr_map):
-      chr_code = id2chr_map[tile_map[itx][ity]]
-    #row.append( str(tile_map[itx][ity]) )
-    row.append( chr_code )
-  print( " ".join(row) )
 
