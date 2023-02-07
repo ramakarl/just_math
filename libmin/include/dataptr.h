@@ -62,9 +62,11 @@
 					#endif			
 					}
 		~DataPtr();
-
+		
+		// Buffer operations
 		void			Resize ( int stride, uint64_t cnt, char* dat=0x0, uchar dest_flags=DT_CPU );
 		int				Append ( int stride, uint64_t cnt, char* dat=0x0, uchar dest_flags=DT_CPU );
+		void			UseMax ()	{ mNum = mMax; }
 		void			SetUsage ( uchar dt, uchar flags=DT_MISC, int rx=-1, int ry=-1, int rz=-1 );		// special usage (2D,3D,GLtex,GLvbo,etc.)
 		void			UpdateUsage ( uchar flags );		
 		void			ReallocateCPU ( uint64_t oldsz, uint64_t newsz );
@@ -74,16 +76,23 @@
 		void			Retrieve ();		
 		void			Clear ();
 
+		// Data access
 		int				getStride ( uchar dtype );
 		uint64_t		getDataSz ( int cnt, int stride )	{ return (uint64_t) cnt * stride; }
-
 		int				getNum()	{ return mNum; }
 		int				getMax()	{ return mMax; }
 		char*			getData()	{ return mCpu; }
 		#ifdef USE_CUDA
 			CUdeviceptr		getGPU()	{ return mGpu; }		
 		#endif
-		char*			getPtr(uint64_t n)	{ return mCpu + n*mStride; }
+		void			SetElem(uint64_t n,  void* dat)	{ memcpy ( mCpu+n*mStride, dat, mStride); }
+		char*			getPtr(uint64_t n)		{ return mCpu + n*mStride; }		
+
+		// Helper functions		
+		void			SetElemInt(uint64_t n, int val)	{ * (int*) (mCpu+n*mStride) = val; }
+		int				getElemInt(uint64_t n)			{ return * (int*) (mCpu+n*mStride); }
+
+		
 
 	public:
 		uint64_t		mNum=0, mMax=0, mSize=0;
