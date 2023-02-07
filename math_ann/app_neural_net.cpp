@@ -2,6 +2,15 @@
 // JUST MATH:
 // Artificial Neural Network
 //
+// This example uses the NeuralNet class to train a simple
+// network to learn real-valued 1D functions.
+// Training instances are generated for f(x) = sin(x)
+// with the learning process visualized interactively. 
+//
+// The interactive display loop does:
+//    TrainInstance (10) - train the network with 10 more random instances
+//    Evaluate () - evaluate the network over all plot points
+//    drawLine..  - draw the current learned function on screen
 //
 
 //--------------------------------------------------------------------------------
