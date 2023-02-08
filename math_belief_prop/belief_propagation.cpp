@@ -2370,14 +2370,11 @@ int BeliefPropagation::init_SVD(void) {
     U = svd.matrixU();
     V = svd.matrixV();
 
-
-    /*
-    printf("S(%i,%i), U(%i,%i), V(%i,%i)\n",
-        (int)S.rows(), (int)S.cols(),
-        (int)U.rows(), (int)U.cols(),
-        (int)V.rows(), (int)V.cols());
-    printf("idir[%i]:", idir);
-    */
+    //printf("S(%i,%i), U(%i,%i), V(%i,%i)\n",
+    //    (int)S.rows(), (int)S.cols(),
+    //    (int)U.rows(), (int)U.cols(),
+    //    (int)V.rows(), (int)V.cols());
+    //printf("idir[%i] S:", idir);
 
     m_svd_nsv[idir] = 0;
     for (i=0; i<S.rows(); i++) {
@@ -2388,7 +2385,7 @@ int BeliefPropagation::init_SVD(void) {
 
       //printf(" %f", S(i,0));
     }
-    //printf(" (((%i)))\n", m_svd_nsv[idir]);
+    //printf(" (((%i)))\n", (int)m_svd_nsv[idir]);
 
 
     // U * (S * V^t)
