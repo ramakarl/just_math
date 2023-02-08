@@ -76,9 +76,10 @@ public:
 
   DataPtr   m_indata;
   DataPtr   m_outdata;
-  int       m_inst;
+  int       m_numinst;
+  double    m_error;
   
-  Vector3DF m_pnt[512];
+  Vector3DF m_pnt[512];  
   int       m_numpnts;  
   int       m_frame; 
 
@@ -128,8 +129,9 @@ void Sample::TrainInstances ( int iter )
 
         // Backpropagate to learn the weights relative to expected output
         ann.Backprop ( m_outdata );
+
     }
-    m_inst += iter;
+    m_numinst += iter;
 }
 
 double Sample::Evaluate ()
@@ -186,13 +188,14 @@ bool Sample::init()
 
     // Clear plot pnts
     m_frame = 0;
+    m_error = 0;
     m_numpnts = 256;
     for (int n=0; n < m_numpnts; n++) {
         m_pnt[n] = Vector3DF(0,0,0);
     }
 
     // Create training data buffers
-    m_inst = 0;
+    m_numinst = 0;
     m_indata.Resize( sizeof(double), 1, 0, DT_CPU );
     m_outdata.Resize( sizeof(double), 1, 0, DT_CPU );
 
@@ -223,17 +226,24 @@ bool Sample::init()
 void Sample::display()
 {
     int ret;
-    float md= 0.0;
+    float md= 0.0;    
     char savename[256] = {'\0'};
-    double error;
+    
 
-    // Train network
-    TrainInstances( 10 );
+    if (m_run) {
 
-    // Retrieve output by evaluating network
-    error = Evaluate();
-    if ( m_frame/4 < m_numpnts) 
-        m_pnt[ m_frame/4 ].y = error;
+        // Train network
+        TrainInstances( 10 );
+
+        // Retrieve output by evaluating network
+        m_error = Evaluate();
+
+        // Plot error vs. iteration
+        if ( m_frame/4 < m_numpnts) 
+            m_pnt[ m_frame/4 ].y = m_error;
+
+        m_frame++;
+    }
 
     // Interactive rendering (opengl only)
     #ifdef USE_OPENGL
@@ -242,14 +252,25 @@ void Sample::display()
         setview2D(getWidth(), getHeight());  
 
         char msg[256];
-        sprintf ( msg, "Training instances: %d\n", m_inst );
+        sprintf ( msg, "Training instances: %d\n", m_numinst );
         drawText ( 10, 10, msg, 1,1,1,1);
-        sprintf ( msg, "Mean squared error: %f\n", (float) error );
+        sprintf ( msg, "Mean squared error: %f\n", (float) m_error );
         drawText ( 10, 30, msg, 1,1,1,1);        
 
         int h = getHeight()/2;
         int w = getWidth();
+        float y, yl = 0;
         float sz, x, dx = float(w) / m_numpnts;        
+
+        // Plot target function
+        x = 0;
+        sz = h*0.8;
+        for (int p=1; p < m_numpnts; p++) {                    
+            y = sin(float(p)*3.1415*2/m_numpnts);
+            drawLine ( x, h - y*sz, x-dx, h - yl*sz, 0,.3,.3,1);
+            x += dx;
+            yl = y;
+        }
 
         // Plot network output points
         x = 0;
@@ -272,8 +293,6 @@ void Sample::display()
     end2D();
     draw2D();                    // complete 2D rendering to OpenGL
     #endif
-
-    m_frame++;
 
     appPostRedisplay();    
 }
