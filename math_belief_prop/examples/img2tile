@@ -33,6 +33,10 @@ import getopt
 id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@#$%^&*()_-+=[]{}\\|;:'\",.<>/?"
 
 info = {
+  "opt": {
+    "basedir": "./",
+    "debug": False
+  },
   "tilemap": {"fn":"out_tilemap.json", "width":-1, "height":-1 },
   "tileset": {"fn": "out_tileset.png", "width":-1, "height":-1, "stride":[-1,-1], "count":0 },
   "offset": [0,0],
@@ -47,9 +51,11 @@ def usage(fp):
   fp.write("  -i        input file (png)\n")
   fp.write("  -s        stride (default " + str(info["stride"][0]) + ") (width,height)\n")
   fp.write("  -o        offset (default 0)\n")
+  fp.write("  -d        base directory (default './')\n")
   fp.write("  -M <fn>   output tilemap filename (JSON)\n")
   fp.write("  -S <fn>   output tileset (PNG)\n")
   fp.write("  -V        verbose\n")
+  fp.write("  -D        debug\n")
   fp.write("  -h        help (this screen)\n")
   fp.write("\n")
 
@@ -57,7 +63,7 @@ def usage(fp):
 fn = ""
 
 try:
-  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:", ["help", "version"])
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:", ["help", "version"])
 except getopt.GetoptError as err:
   print(err)
   usage(sys.stderr)
@@ -82,6 +88,10 @@ for o,a in opts:
     info["tileset"]["fn"] = a
   elif o == "-M":
     info["tilemap"]["fn"] = a
+  elif o == "-d":
+    info["opt"]["basedir"] = a
+  elif o == "-D":
+    info["opt"]["debug"] = True
 
 if len(fn) == 0:
   sys.stderr.write("provide input map (png)\n")
@@ -89,17 +99,15 @@ if len(fn) == 0:
   sys.exit(-1)
 
 def debug_print_tilemap(tile_map):
-  tile_x = len(tile_map)
-  tile_y = len(tile_map[0])
+  tile_r = len(tile_map)
+  tile_c = len(tile_map[0])
 
-  #for ity in range(tile_y-1,-1,-1):
-  for ity in range(tile_y):
+  for it_r in range(tile_r):
     row = []
-    for itx in range(tile_x):
+    for it_c in range(tile_c):
       chr_code = '.'
-      if tile_map[itx][ity] < len(id2chr_map):
-        chr_code = id2chr_map[tile_map[itx][ity]]
-      #row.append( str(tile_map[itx][ity]) )
+      if tile_map[it_r][it_c] < len(id2chr_map):
+        chr_code = id2chr_map[tile_map[it_r][it_c]]
       row.append( chr_code )
     print( " ".join(row) )
 
@@ -241,8 +249,13 @@ def export_tiled_json(info, tm):
   ofp.close()
   return json_data
 
+def export_tile_name_csv(ofn, tile_info):
+  pass
 
-img = Image.open(fn)
+def export_tile_rule_csv(ofn, tile_info):
+  pass
+
+img = Image.open(fn).convert("RGB")
 pxl = img.load()
 sz = img.size
 
@@ -322,10 +335,10 @@ for tile_key in uniq_tile:
 td_map = export_tiled_json(info, tile_map)
 
 
-## DEBUG
-#print(json.dumps(td_map, indent=2))
-#debug_print_tilemap(tile_map)
+if info["opt"]["debug"]:
+  #print(json.dumps(td_map, indent=2))
+  debug_print_tilemap(tile_map)
 
-print(">>", info["tilemap"]["fn"], info["tileset"]["fn"] )
+#print(">>", info["tilemap"]["fn"], info["tileset"]["fn"] )
 
 
