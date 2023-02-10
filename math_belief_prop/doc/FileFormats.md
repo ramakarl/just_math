@@ -27,6 +27,10 @@ Here are the first few lines of an example name file:
 2,|001
 ```
 
+Note that the CSV parsing is simple and fields with quotes or commas won't
+be interpreted properly.
+
+
 Rule File
 ---
 
@@ -75,6 +79,8 @@ Here are the first few lines of an example rule file:
 0,6,0,1
 0,7,0,1
 ```
+Note that the CSV parsing is simple and fields with quotes or commas won't
+be interpreted properly.
 
 Constraints File
 ---
@@ -117,4 +123,5 @@ Here are the first few lines of an example constraints file:
 0,0,0,18
 ```
 
-
+Note that the CSV parsing is simple and fields with quotes or commas won't
+be interpreted properly.

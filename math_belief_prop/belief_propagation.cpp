@@ -2544,24 +2544,24 @@ bool BeliefPropagation::_init() {
 
 int BeliefPropagation::wfc() {
 
-    int ret = 1;
+  int ret = 1;
 
-    wfc_start();
+  wfc_start();
 
-    for (int64_t it = 0; it < m_num_verts; it++) {
-        ret = wfc_step ( it );
+  for (int64_t it = 0; it < m_num_verts; it++) {
+    ret = wfc_step ( it );
 
-        if ( ret==0 ) break;
+    if ( ret==0 ) break;
 
-        if ( ret < 0) {
-          switch (ret) {
-          case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
-          case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
-          case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
-          };
-        }
+    if ( ret < 0) {
+      switch (ret) {
+      case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
+      case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
+      case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
+      };
     }
-    return ret;
+  }
+  return ret;
 }
 
 int BeliefPropagation::wfc_start() {
@@ -2584,8 +2584,10 @@ int BeliefPropagation::wfc_step(int64_t it) {
   if (ret < 0) { return -1; }
   if (ret==0) { return 0; }
 
-  printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
-    (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
+  if (m_verbose > 1) {
+    printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
+      (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
+  }
 
   ret = tileIdxCollapse( cell, tile_idx );
   if (ret < 0) { return -2; }

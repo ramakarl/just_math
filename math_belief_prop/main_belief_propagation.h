@@ -8,6 +8,15 @@ typedef struct _opt_t {
   std::string fn_name;
   std::string fn_rule;
 
+  std::string tileset_fn,
+              tilemap_fn;
+  int32_t tileset_stride_x,
+          tileset_stride_y;
+  int32_t tileset_margin,
+          tileset_spacing;
+  int32_t tileset_width,
+          tileset_height;
+
 } opt_t;
 
 extern opt_t g_opt;

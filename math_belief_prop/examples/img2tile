@@ -34,11 +34,15 @@ id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@
 
 info = {
   "opt": {
+    "tile_zero_boundary_condition":True,
     "basedir": "./",
     "debug": False
   },
-  "tilemap": {"fn":"out_tilemap.json", "width":-1, "height":-1 },
-  "tileset": {"fn": "out_tileset.png", "width":-1, "height":-1, "stride":[-1,-1], "count":0 },
+  "tilemap": {"fn":"out_tilemap.json", "width":-1, "height":-1, "realize": False },
+  "tileset": {"fn": "out_tileset.png", "width":-1, "height":-1, "stride":[-1,-1], "count":0, "realize":False },
+  "tilerule": {"fn":"out_rule.csv", "realize":False },
+  "tilename": {"fn":"out_name.csv", "realize":False },
+  "firstgid": -1,
   "offset": [0,0],
   "stride": [16,16]
 }
@@ -54,16 +58,17 @@ def usage(fp):
   fp.write("  -d        base directory (default './')\n")
   fp.write("  -M <fn>   output tilemap filename (JSON)\n")
   fp.write("  -S <fn>   output tileset (PNG)\n")
+  fp.write("  -N <fn>   outpt tile name file (CSV)\n")
+  fp.write("  -R <fn>   outpt tile rule file (CSV)\n")
   fp.write("  -V        verbose\n")
   fp.write("  -D        debug\n")
   fp.write("  -h        help (this screen)\n")
   fp.write("\n")
 
-
 fn = ""
 
 try:
-  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:", ["help", "version"])
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:", ["help", "version"])
 except getopt.GetoptError as err:
   print(err)
   usage(sys.stderr)
@@ -84,12 +89,24 @@ for o,a in opts:
   elif o == "-o":
     info["offset"][0] = int(a)
     info["offset"][1] = int(a)
-  elif o == "-S":
-    info["tileset"]["fn"] = a
-  elif o == "-M":
-    info["tilemap"]["fn"] = a
+
   elif o == "-d":
     info["opt"]["basedir"] = a
+
+  elif o == "-S":
+    info["tileset"]["fn"] = a
+    info["tileset"]["realize"] = True
+  elif o == "-M":
+    info["tilemap"]["fn"] = a
+    info["tilemap"]["realize"] = True
+
+  elif o == "-R":
+    info["tilerule"]["fn"] = a
+    info["tilerule"]["realize"] = True
+  elif o == "-N":
+    info["tilename"]["fn"] = a
+    info["tilename"]["realize"] = True
+
   elif o == "-D":
     info["opt"]["debug"] = True
 
@@ -119,15 +136,11 @@ def create_tileset_png(info, pxl_lib, tilecount_map):
   tile_a = []
   for key in tilecount_map:
     tile_a.append( { "key": key, "count": tilecount_map[key], "start_pos": [-1,-1] } )
-  #tile_a.sort(key=countVal, reverse=True)
-  #tileset_dim = int(math.floor( math.sqrt(float(uniq_tile_id)) + 0.5 ))
   tileset_dim = int(math.ceil( math.sqrt(float(uniq_tile_id)) ))
 
   info["tileset"]["count"] = len(tile_a)
-
   info["tileset"]["width"] = tileset_dim
   info["tileset"]["height"] = tileset_dim
-
   info["tileset"]["stride"] = [ stride_c, stride_r ]
 
   for idx,ele in enumerate(tile_a):
@@ -138,9 +151,6 @@ def create_tileset_png(info, pxl_lib, tilecount_map):
 
   png_row = tileset_dim * stride_r
   png_col = tileset_dim * stride_c
-
-  #print("tileset info: count:", len(tile_a), "dim:", tileset_dim, "stride_r:", stride_r, "stride_c:", stride_c)
-  #print("  png_row:", png_row, "png_col:", png_col)
 
   pxl_dat = []
   for r in range(png_row):
@@ -162,8 +172,6 @@ def create_tileset_png(info, pxl_lib, tilecount_map):
         _r = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
         _g = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
         _b = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
-
-        #print(len(pxl_dat), len(pxl_dat[0]), pxl_r, pxl_c)
 
         pxl_dat[pxl_r][pxl_c+0] = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
         pxl_dat[pxl_r][pxl_c+1] = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
@@ -215,7 +223,8 @@ def export_tiled_json(info, tm):
   }
 
   tiled_tileset_template = {
-    "firstgid": 1,
+    #"firstgid": 1,
+    "firstgid": info["firstgid"],
     "columns": info["tileset"]["width"],
     "name":"tileset",
     #"name":"",
@@ -230,8 +239,6 @@ def export_tiled_json(info, tm):
     "tilewidth": info["tileset"]["stride"][0]
   }
 
-  #print(json.dumps(tiled_tileset_template, indent=2))
-
   json_data = tiled_map_template
   json_data["layers"].append( tiled_layer_template )
   json_data["tilesets"].append( tiled_tileset_template )
@@ -239,21 +246,98 @@ def export_tiled_json(info, tm):
   for it_r in range(tile_r):
     row = []
     for it_c in range(tile_c):
-      #json_data["layers"][0]["data"].append( tile_map[it_r][it_c] )
       json_data["layers"][0]["data"].append( tm[it_r][it_c] )
-
-  #print(json.dumps(json_data, indent=2))
 
   ofp = open( info["tilemap"]["fn"], "wb" )
   ofp.write( json.dumps( json_data, indent=2 ).encode() )
   ofp.close()
   return json_data
 
-def export_tile_name_csv(ofn, tile_info):
-  pass
+def export_tile_name_csv(info, tile_map):
+  ofn = info["tilename"]["fn"]
+  max_tile_idx = info["max_tile_id"]
+  fp = open(ofn, "w")
+  for tile_idx in range(max_tile_idx+1):
+    fp.write( "%i,%i\n" % (tile_idx, tile_idx))
+  fp.close()
 
-def export_tile_rule_csv(ofn, tile_info):
-  pass
+def export_tile_rule_csv(info, tile_map):
+  ofn = info["tilerule"]["fn"]
+
+  tile_r = len(tile_map)
+  tile_c = len(tile_map[0])
+
+  tile_rule = {}
+
+  for idx_r in range(tile_r):
+    for idx_c in range(tile_c):
+
+      src_tile = tile_map[idx_r][idx_c]
+      cp = idx_c+1
+      cn = idx_c-1
+      rp = idx_r+1
+      rn = idx_r-1
+
+      if cp < tile_c:
+        dst_tile = tile_map[idx_r][cp]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 0)
+        tile_rule[key] = 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 1)
+        tile_rule[key] = 1
+
+      if cn >= 0:
+        dst_tile = tile_map[idx_r][cn]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 1)
+        tile_rule[key] = 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 0)
+        tile_rule[key] = 1
+
+      if rp < tile_r:
+        dst_tile = tile_map[rp][idx_c]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 2)
+        tile_rule[key] = 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 3)
+        tile_rule[key] = 1
+
+      if rn >= 0:
+        dst_tile = tile_map[rn][idx_c]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 3)
+        tile_rule[key] = 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 2)
+        tile_rule[key] = 1
+
+  if info["opt"]["tile_zero_boundary_condition"]:
+    for idx_r in range(tile_r):
+      l_tile = tile_map[idx_r][0]
+      key = "%i,%i,%i" % (0, l_tile, 0)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (l_tile, 0, 1)
+      tile_rule[key] = 1
+
+      r_tile = tile_map[idx_r][tile_c-1]
+      key = "%i,%i,%i" % (r_tile, 0, 0)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (0, r_tile, 1)
+      tile_rule[key] = 1
+
+    for idx_c in range(tile_c):
+      u_tile = tile_map[0][idx_c]
+      key = "%i,%i,%i" % (0, u_tile, 3)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (u_tile, 0, 2)
+      tile_rule[key] = 1
+
+      b_tile = tile_map[tile_r-1][idx_c]
+      key = "%i,%i,%i" % (0, b_tile, 2)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (b_tile, 0, 3)
+      tile_rule[key] = 1
+
+  ofp = open(ofn, "w")
+  for key in tile_rule:
+    ofp.write( "%s,%i\n" % (key, tile_rule[key]) )
+  ofp.close()
+
 
 img = Image.open(fn).convert("RGB")
 pxl = img.load()
@@ -269,11 +353,11 @@ uniq_pixel = {}
 uniq_tile = {}
 uniq_tile_key_id = {}
 
-#uniq_tile_id = 0
 uniq_tile_id = 1
 
+info["firstgid"] = uniq_tile_id
+
 pxl_tileset = {}
-#pxl_tile_cur = []
 
 tile_map = []
 
@@ -289,7 +373,6 @@ for it_r in range(tile_r):
     pxl_tile_cur = []
     for r in range(sr):
       for c in range(sc):
-        #rgb = pxl[ it_r*sr + r, it_c*sc + c ]
         rgb = pxl[ it_c*sc + c , it_r*sr + r ]
 
         s_r = "%0.2x" % rgb[0]
@@ -311,7 +394,6 @@ for it_r in range(tile_r):
 
     tile_key = "".join(tile_a)
     if not (tile_key in uniq_tile):
-      #pxl_tileset[str(uniq_tile_id)] = pxl_tile_cur
       pxl_tileset[tile_key] = pxl_tile_cur
 
       uniq_tile[tile_key] = 0
@@ -321,6 +403,7 @@ for it_r in range(tile_r):
     uniq_tile[tile_key]+=1
     tile_map[it_r][it_c] = uniq_tile_key_id[tile_key]
 
+info["max_tile_id"] = uniq_tile_id
 
 create_tileset_png(info, pxl_tileset, uniq_tile)
 
@@ -332,13 +415,13 @@ uniq_tile_count = 0
 for tile_key in uniq_tile:
   uniq_tile_count+=1
 
-td_map = export_tiled_json(info, tile_map)
+if info["tilemap"]["realize"] or info["tileset"]["realize"]:
+  td_map = export_tiled_json(info, tile_map)
 
+if info["tilerule"]["realize"] or info["tilename"]["realize"]:
+  export_tile_name_csv(info, tile_map)
+  export_tile_rule_csv(info, tile_map)
 
 if info["opt"]["debug"]:
-  #print(json.dumps(td_map, indent=2))
   debug_print_tilemap(tile_map)
-
-#print(">>", info["tilemap"]["fn"], info["tileset"]["fn"] )
-
 
