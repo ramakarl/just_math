@@ -36,6 +36,7 @@ info = {
   "opt": {
     "tile_zero_boundary_condition":True,
     "basedir": "./",
+    "rule_weight": False,
     "debug": False
   },
   "tilemap": {"fn":"out_tilemap.json", "width":-1, "height":-1, "realize": False },
@@ -253,15 +254,22 @@ def export_tiled_json(info, tm):
   ofp.close()
   return json_data
 
-def export_tile_name_csv(info, tile_map):
+def export_tile_name_csv(info, tile_map, tile_count):
   ofn = info["tilename"]["fn"]
   max_tile_idx = info["max_tile_id"]
   fp = open(ofn, "w")
   for tile_idx in range(max_tile_idx+1):
-    fp.write( "%i,%i\n" % (tile_idx, tile_idx))
+
+    u = tile_count[tile_idx]
+    u = 1 + int( math.sqrt(float(tile_count[tile_idx])) )
+    if tile_idx==0: u=0
+    #u=1
+    fp.write( "%i,%i,%i\n" % (tile_idx, tile_idx, u) )
+
+    #fp.write( "%i,%i,%i\n" % (tile_idx, tile_idx, tile_count[tile_idx]))
   fp.close()
 
-def export_tile_rule_csv(info, tile_map):
+def __export_tile_rule_csv(info, tile_map):
   ofn = info["tilerule"]["fn"]
 
   tile_r = len(tile_map)
@@ -306,6 +314,17 @@ def export_tile_rule_csv(info, tile_map):
         key = "%i,%i,%i" % (dst_tile, src_tile, 2)
         tile_rule[key] = 1
 
+      key = "%i,%i,%i" % (0, src_tile, 4)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (0, src_tile, 5)
+      tile_rule[key] = 1
+
+      key = "%i,%i,%i" % (src_tile, 0, 4)
+      tile_rule[key] = 1
+      key = "%i,%i,%i" % (src_tile, 0, 5)
+      tile_rule[key] = 1
+
+
   if info["opt"]["tile_zero_boundary_condition"]:
     for idx_r in range(tile_r):
       l_tile = tile_map[idx_r][0]
@@ -338,6 +357,125 @@ def export_tile_rule_csv(info, tile_map):
     ofp.write( "%s,%i\n" % (key, tile_rule[key]) )
   ofp.close()
 
+def export_tile_rule_csv(info, tile_map):
+  ofn = info["tilerule"]["fn"]
+
+  tile_r = len(tile_map)
+  tile_c = len(tile_map[0])
+
+  tile_rule = {}
+
+  # pngs and tilemap have the Y direction
+  # going downwards, so we need to interpret
+  # the 'row positive' (rp) and 'row negative' (rn)
+  # approrpriately
+  #
+
+  for idx_r in range(tile_r):
+    for idx_c in range(tile_c):
+
+      src_tile = tile_map[idx_r][idx_c]
+      cp = idx_c+1
+      cn = idx_c-1
+      rp = idx_r-1
+      rn = idx_r+1
+
+      if cp < tile_c:
+        dst_tile = tile_map[idx_r][cp]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 0)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 1)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+
+      if cn >= 0:
+        dst_tile = tile_map[idx_r][cn]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 1)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 0)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+
+      if rp >= 0:
+        dst_tile = tile_map[rp][idx_c]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 2)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 3)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+
+      if rn < tile_r:
+        dst_tile = tile_map[rn][idx_c]
+        key = "%i,%i,%i" % (src_tile, dst_tile, 3)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+        key = "%i,%i,%i" % (dst_tile, src_tile, 2)
+        if not (key in tile_rule): tile_rule[key] = 0
+        tile_rule[key] += 1
+
+      key = "%i,%i,%i" % (0, src_tile, 4)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (0, src_tile, 5)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+      key = "%i,%i,%i" % (src_tile, 0, 4)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (src_tile, 0, 5)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+
+  if info["opt"]["tile_zero_boundary_condition"]:
+    for idx_r in range(tile_r):
+      l_tile = tile_map[idx_r][0]
+      key = "%i,%i,%i" % (0, l_tile, 0)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (l_tile, 0, 1)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+      r_tile = tile_map[idx_r][tile_c-1]
+      key = "%i,%i,%i" % (r_tile, 0, 0)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (0, r_tile, 1)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+    for idx_c in range(tile_c):
+      u_tile = tile_map[0][idx_c]
+      key = "%i,%i,%i" % (0, u_tile, 3)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (u_tile, 0, 2)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+      b_tile = tile_map[tile_r-1][idx_c]
+      key = "%i,%i,%i" % (0, b_tile, 2)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+      key = "%i,%i,%i" % (b_tile, 0, 3)
+      if not (key in tile_rule): tile_rule[key] = 0
+      tile_rule[key] += 1
+
+  ofp = open(ofn, "w")
+
+  if info["opt"]["rule_weight"]:
+    for key in tile_rule:
+      ofp.write( "%s,%i\n" % (key, tile_rule[key]) )
+  else:
+    for key in tile_rule:
+      ofp.write( "%s,%i\n" % (key, 1) )
+  ofp.close()
+
 
 img = Image.open(fn).convert("RGB")
 pxl = img.load()
@@ -349,6 +487,7 @@ tile_r = int(sz[1]/info["stride"][1])
 sc = info["stride"][0]
 sr = info["stride"][1]
 
+tile_count = []
 uniq_pixel = {}
 uniq_tile = {}
 uniq_tile_key_id = {}
@@ -400,10 +539,20 @@ for it_r in range(tile_r):
       uniq_tile_key_id[tile_key] = uniq_tile_id
       uniq_tile_id+=1
 
+
+
     uniq_tile[tile_key]+=1
     tile_map[it_r][it_c] = uniq_tile_key_id[tile_key]
 
-info["max_tile_id"] = uniq_tile_id
+for i in range(uniq_tile_id):
+  tile_count.append(0)
+for tile_key in uniq_tile_key_id:
+  tile_id = uniq_tile_key_id[tile_key]
+  count = uniq_tile[tile_key]
+  tile_count[ tile_id ] = count
+
+
+info["max_tile_id"] = uniq_tile_id-1
 
 create_tileset_png(info, pxl_tileset, uniq_tile)
 
@@ -419,7 +568,7 @@ if info["tilemap"]["realize"] or info["tileset"]["realize"]:
   td_map = export_tiled_json(info, tile_map)
 
 if info["tilerule"]["realize"] or info["tilename"]["realize"]:
-  export_tile_name_csv(info, tile_map)
+  export_tile_name_csv(info, tile_map, tile_count)
   export_tile_rule_csv(info, tile_map)
 
 if info["opt"]["debug"]:

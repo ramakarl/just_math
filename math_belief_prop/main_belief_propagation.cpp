@@ -418,8 +418,8 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   FILE *fp;
-  int i, j, n;
-  int tileset_size;
+  int i, j, n, tileset_size;
+  int64_t vtx;
 
   opt.tileset_width = ceil( sqrt( (double)bpc.m_tile_name.size() ) );
   opt.tileset_height = opt.tileset_width;
@@ -438,6 +438,22 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   fprintf(fp, "    \"data\": [");
 
+  // tiled expects y to increment in the negative direction
+  // so we need to reverse the y direction when exporting
+  //
+
+  for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
+    for (j=0; j<(int)bpc.m_res.x; j++) {
+      vtx = bpc.getVertex(j, i, 0);
+
+      fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+      if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+      else                                { fprintf(fp, "%s", ","); }
+    }
+    fprintf(fp, "\n  ");
+  }
+
+  /*
   n = bpc.m_num_verts;
   for (i=0; i<n; i++) {
     if ((i%(int)bpc.m_res.x)==0) {
@@ -445,7 +461,19 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
     }
     fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
   }
-  fprintf(fp, "\n    ]}\n");
+  */
+
+  fprintf(fp, "\n    ],\n");
+  fprintf(fp, "    \"name\":\"main\",\n");
+  fprintf(fp, "    \"opacity\":1,\n");
+  fprintf(fp, "    \"type\":\"tilelayer\",\n");
+  fprintf(fp, "    \"visible\":true,\n");
+  fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
+  fprintf(fp, "    \"x\":0,\n");
+  fprintf(fp, "    \"y\":0\n");
+
+  fprintf(fp, "  }\n");
 
   fprintf(fp, "  ],\n");
   fprintf(fp, "  \"nextobjectid\": %i,\n", 1);

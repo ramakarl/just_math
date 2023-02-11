@@ -338,7 +338,7 @@ public:
 };
 
 int _read_line(FILE *fp, std::string &line);
-int _read_name_csv(std::string &fn, std::vector<std::string> &name);
+int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector<float> &weight);
 int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
 int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile);
 

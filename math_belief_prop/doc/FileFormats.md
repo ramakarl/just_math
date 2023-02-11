@@ -27,6 +27,30 @@ Here are the first few lines of an example name file:
 2,|001
 ```
 
+There are additional fields that can be specified.
+As of now, the only extra field is the probability:
+
+```
+# tile_id,tile_name,weight
+0,.000,1
+1,|000,2
+2,|001,1
+```
+
+Where the weight will be renormalized into a probability.
+
+As a currently unimplemented but future feature, we might
+add direction and color information:
+
+
+```
+# tile_id,tile_name,weight,dir_idx,note
+0,.000,1,0,#ff0000
+1,|000,2,5,#00ff00
+2,|001,1,1,#0000ff
+```
+
+
 Note that the CSV parsing is simple and fields with quotes or commas won't
 be interpreted properly.
 

@@ -2029,14 +2029,16 @@ int _read_line(FILE *fp, std::string &line) {
   return count;
 }
 
-int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
+int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector< float > &weight) {
   int i, idx;
   FILE *fp;
+  float w = 1.0;
 
   std::string line, tok, _s;
   std::vector<std::string> toks;
 
-  int xn,xp, yn,yp, zn,zp;
+  int xn,xp, yn,yp, zn,zp,
+      dir_idx;
   std::string _color;
 
   fp = fopen(fn.c_str(), "r");
@@ -2070,19 +2072,24 @@ int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
       for (i=name.size(); i<=idx; i++) {
         _s.clear();
         name.push_back(_s);
+        weight.push_back(0.0);
       }
     }
     name[idx] = toks[1];
 
-    if (toks.size() > 2) { xn = atoi(toks[2].c_str()); }
-    if (toks.size() > 3) { xp = atoi(toks[3].c_str()); }
-    if (toks.size() > 4) { yn = atoi(toks[4].c_str()); }
-    if (toks.size() > 5) { yp = atoi(toks[5].c_str()); }
-    if (toks.size() > 6) { zn = atoi(toks[6].c_str()); }
-    if (toks.size() > 7) { _color = toks[7]; }
+    w = 1.0;
+    if (toks.size() > 2) { w = atof(toks[2].c_str()); }
+    weight[idx] = w;
+
+    if (toks.size() > 3) { dir_idx  = atoi(toks[3].c_str()); }
+    if (toks.size() > 4) { _color = toks[4]; }
   }
 
   fclose(fp);
+
+  w = 0.0;
+  for (i=0; i<weight.size(); i++) { w += weight[i]; }
+  for (i=0; i<weight.size(); i++) { weight[i] /= w; }
 
   return 0;
 }
@@ -2274,13 +2281,14 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
   return 0;
 }
 
-int BeliefPropagation::init_F_CSV(std::string &rule_fn, std::string &name_fn) {
+int BeliefPropagation::init_F_CSV(std::string &name_fn, std::string &rule_fn) {
   int i, ret;
   int b, maxb=-1, B;
 
   std::vector< std::vector<float> > tile_rule;
+  std::vector< float > tile_weight;
 
-  ret = _read_name_csv(name_fn, m_tile_name);
+  ret = _read_name_csv(name_fn, m_tile_name, tile_weight);
   if (ret < 0) { return ret; }
 
   ret = _read_rule_csv(rule_fn, tile_rule);
@@ -2311,6 +2319,12 @@ int BeliefPropagation::init_F_CSV(std::string &rule_fn, std::string &name_fn) {
   }
 
   ConstructGH();
+
+  for (i=0; i<m_num_values; i++) {
+    if (i < tile_weight.size()) {
+      SetVal( BUF_G, i, tile_weight[i] );
+    }
+  }
 
   return 0;
 }
@@ -2449,7 +2463,7 @@ int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, st
   m_dir_inv[4] = 5;
   m_dir_inv[5] = 4;
 
-  ret = init_F_CSV(rule_fn, name_fn);
+  ret = init_F_CSV(name_fn, rule_fn);
   if (ret<0) { return ret; }
 
   //---
@@ -2502,8 +2516,9 @@ bool BeliefPropagation::_init() {
   std::string rule_fn = "examples/stair_rule.csv";
   std::vector< std::string > tile_name;
   std::vector< std::vector<float> > tile_rule;
+  std::vector< float > tile_weight;
 
-  _read_name_csv(name_fn, tile_name);
+  _read_name_csv(name_fn, tile_name, tile_weight);
   _read_rule_csv(rule_fn, tile_rule);
 
   //---
@@ -2559,6 +2574,7 @@ int BeliefPropagation::wfc() {
       case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
       case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
       };
+      break;
     }
   }
   return ret;
@@ -3318,12 +3334,12 @@ void BeliefPropagation::debugPrintS() {
 }
 
 void BeliefPropagation::debugPrint() {
-  int i=0, n=3, m=7, jnbr=0, a=0;
+  int i=0, j=0, n=3, m=7, jnbr=0, a=0;
   int a_idx=0, a_idx_n=0;
   uint64_t u=0;
   Vector3DI p;
   double v=0.0;
-  float _vf = 0.0;
+  float _vf = 0.0, f, _eps;
 
   int __a = 0;
 
@@ -3331,6 +3347,8 @@ void BeliefPropagation::debugPrint() {
   int32_t max_tile=-1, max_tile_idx=-1;
   float max_belief=-1.0;
   int count=-1;
+
+  _eps = m_eps_zero;
 
   std::vector< std::string > _dp_desc;
 
@@ -3354,6 +3372,38 @@ void BeliefPropagation::debugPrint() {
     printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
   }
   printf("\n\n");
+
+  //---
+  /*
+  for (jnbr=0; jnbr<6; jnbr++) {
+    for (i=0; i<m_num_values; i++) {
+      for (j=0; j<m_num_values; j++) {
+        f = getVal(BUF_F, i, j, jnbr);
+      }
+    }
+  }
+  */
+
+  for (jnbr=0; jnbr<6; jnbr++) {
+    printf("dir[%i]:\n", jnbr);
+
+    for (i=0; i<m_num_values; i++) {
+      printf(" ");
+      for (j=0; j<m_num_values; j++) {
+        f = getValF(BUF_F, i, j, jnbr);
+        if (f > _eps) {
+          printf(" %5.2f", (float)getValF(BUF_F, i, j, jnbr));
+        }
+        else {
+          printf("      ");
+        }
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+
+  //---
 
   for (u=0; u<m_num_verts; u++) {
     p = getVertexPos(u);
@@ -3810,6 +3860,12 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
+            if (m_verbose > 1) {
+              printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
+                  (int)anch_b_val, (int)anch_cell,
+                  (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+            }
+
             removeTileIdx(anch_cell, anch_b_idx);
             cellFillAccessed(anch_cell, 1-m_grid_note_idx);
 
@@ -3856,11 +3912,16 @@ int BeliefPropagation::cellConstraintPropagate() {
                     m_dir_desc[i].c_str(), (int)i);
               }
 
-
               return -1;
             }
 
             tile_valid = 0;
+
+            if (m_verbose > 1) {
+              printf("# removing tile %i from cell %i (invalid conn dir:%i(%s), tile:%i)\n",
+                  (int)anch_b_val, (int)anch_cell,
+                  (int)i, (char *)m_dir_desc[i].c_str(), (int)nei_a_val);
+            }
 
             removeTileIdx(anch_cell, anch_b_idx);
             cellFillAccessed(anch_cell, 1-m_grid_note_idx);
