@@ -36,7 +36,9 @@ info = {
   "opt": {
     "tile_zero_boundary_condition":True,
     "basedir": "./",
-    "rule_weight": False,
+    "rule_weight": False, #True,
+    "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
+    "neighbor_type": 0,
     "debug": False
   },
   "tilemap": {"fn":"out_tilemap.json", "width":-1, "height":-1, "realize": False },
@@ -45,6 +47,7 @@ info = {
   "tilename": {"fn":"out_name.csv", "realize":False },
   "firstgid": -1,
   "offset": [0,0],
+  "size": [0,0],
   "stride": [16,16]
 }
 
@@ -61,6 +64,7 @@ def usage(fp):
   fp.write("  -S <fn>   output tileset (PNG)\n")
   fp.write("  -N <fn>   outpt tile name file (CSV)\n")
   fp.write("  -R <fn>   outpt tile rule file (CSV)\n")
+  fp.write("  -T <#>    type of tilemap to use ('simple', 'cross', 'square')\n")
   fp.write("  -V        verbose\n")
   fp.write("  -D        debug\n")
   fp.write("  -h        help (this screen)\n")
@@ -69,7 +73,7 @@ def usage(fp):
 fn = ""
 
 try:
-  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:", ["help", "version"])
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:T:", ["help", "version"])
 except getopt.GetoptError as err:
   print(err)
   usage(sys.stderr)
@@ -111,6 +115,9 @@ for o,a in opts:
   elif o == "-D":
     info["opt"]["debug"] = True
 
+  elif o == "-T":
+    info["opt"]["neighbor_type"] = a
+
 if len(fn) == 0:
   sys.stderr.write("provide input map (png)\n")
   usage(sys.stderr)
@@ -132,12 +139,14 @@ def debug_print_tilemap(tile_map):
 def countVal(ele): return ele["count"]
 def create_tileset_png(info, pxl_lib, tilecount_map):
 
+  max_tile_id = info["max_tile_id"]
+
   stride_c, stride_r  = info["stride"][0], info["stride"][1]
 
   tile_a = []
   for key in tilecount_map:
     tile_a.append( { "key": key, "count": tilecount_map[key], "start_pos": [-1,-1] } )
-  tileset_dim = int(math.ceil( math.sqrt(float(uniq_tile_id)) ))
+  tileset_dim = int(math.ceil( math.sqrt(float(max_tile_id)) ))
 
   info["tileset"]["count"] = len(tile_a)
   info["tileset"]["width"] = tileset_dim
@@ -165,6 +174,62 @@ def create_tileset_png(info, pxl_lib, tilecount_map):
   for ele in tile_a:
     key = ele["key"]
     tile_dat = pxl_lib[key]
+    for idx_r in range(stride_r):
+      for idx_c in range(stride_c):
+        pxl_r = ele["start_pos"][0] + idx_r
+        pxl_c = 3*ele["start_pos"][1] + 3*idx_c
+
+        _r = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
+        _g = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
+        _b = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
+
+        pxl_dat[pxl_r][pxl_c+0] = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
+        pxl_dat[pxl_r][pxl_c+1] = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
+        pxl_dat[pxl_r][pxl_c+2] = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
+
+  ofn = info["tileset"]["fn"]
+
+  w = png.Writer( png_col, png_row, greyscale=False )
+  png_ofp = open(ofn, "wb")
+  w.write(png_ofp, pxl_dat)
+  png_ofp.close()
+
+def create_tileset_png_1(info, tile_id_pxl):
+
+  max_tile_id = info["max_tile_id"]
+
+  stride_c, stride_r  = info["stride"][0], info["stride"][1]
+
+  tile_a = []
+  for tile_id in range(1, len(tile_id_pxl)):
+    tile_a.append( { "tile_id": tile_id, "start_pos": [-1,-1], "pxl_dat": tile_id_pxl[tile_id] } )
+  tileset_dim = int(math.ceil( math.sqrt(float(max_tile_id)) ))
+
+  info["tileset"]["count"] = len(tile_a)
+  info["tileset"]["width"] = tileset_dim
+  info["tileset"]["height"] = tileset_dim
+  info["tileset"]["stride"] = [ stride_c, stride_r ]
+
+  for idx,ele in enumerate(tile_a):
+    sc = (idx % tileset_dim)*stride_c
+    sr = int(idx / tileset_dim)*stride_c
+    tile_a[idx]["start_pos"][0] = sr
+    tile_a[idx]["start_pos"][1] = sc
+
+  png_row = tileset_dim * stride_r
+  png_col = tileset_dim * stride_c
+
+  pxl_dat = []
+  for r in range(png_row):
+    pxl_row = []
+    for c in range(png_col):
+      pxl_row.append(0)
+      pxl_row.append(0)
+      pxl_row.append(0)
+    pxl_dat.append(pxl_row)
+
+  for ele in tile_a:
+    tile_dat = ele["pxl_dat"]
     for idx_r in range(stride_r):
       for idx_c in range(stride_c):
         pxl_r = ele["start_pos"][0] + idx_r
@@ -260,11 +325,29 @@ def export_tile_name_csv(info, tile_map, tile_count):
   fp = open(ofn, "w")
   for tile_idx in range(max_tile_idx+1):
 
-    u = tile_count[tile_idx]
-    u = 1 + int( math.sqrt(float(tile_count[tile_idx])) )
+    u = 1
+    if info["opt"]["tile_weight"] == "sqrt":
+      u = 1 + int( math.sqrt(float(tile_count[tile_idx])) )
+    elif info["opt"]["tile_weight"] == "linear":
+      u = tile_count[tile_idx]
+    elif info["opt"]["tile_weight"] == "inverse":
+      if tile_count[tile_idx] == 0:
+        u = 0
+      else:
+        u = 1.0/float(tile_count[tile_idx])
+    elif info["opt"]["tile_weight"] == "inversesqrt":
+      if tile_count[tile_idx] == 0:
+        u = 0
+      else:
+        u = math.sqrt(float(tile_count[tile_idx]))
+        u = 1.0/float(u)
+
+        ## DEBUG
+        u = math.pow(float(tile_count[tile_idx]), -1.0/4.0)
+
     if tile_idx==0: u=0
-    #u=1
-    fp.write( "%i,%i,%i\n" % (tile_idx, tile_idx, u) )
+    #fp.write( "%i,%i,%i\n" % (tile_idx, tile_idx, u) )
+    fp.write( "%i,%i,%f\n" % (tile_idx, tile_idx, float(u)) )
 
     #fp.write( "%i,%i,%i\n" % (tile_idx, tile_idx, tile_count[tile_idx]))
   fp.close()
@@ -480,97 +563,392 @@ def export_tile_rule_csv(info, tile_map):
 img = Image.open(fn).convert("RGB")
 pxl = img.load()
 sz = img.size
+img.close()
+
+info["size"] = sz
 
 tile_c = int(sz[0]/info["stride"][0])
 tile_r = int(sz[1]/info["stride"][1])
 
-sc = info["stride"][0]
-sr = info["stride"][1]
-
-tile_count = []
-uniq_pixel = {}
-uniq_tile = {}
-uniq_tile_key_id = {}
+#tile_count = []
+#uniq_pixel = {}
+#uniq_tile = {}
+#uniq_tile_key_id = {}
+#pxl_tileset = {}
+#tile_map = []
 
 uniq_tile_id = 1
-
 info["firstgid"] = uniq_tile_id
 
-pxl_tileset = {}
+## simple tilemap that uses independent neighbor
+##
+def compute_tilemap_0(data):
+  uniq_tile_id = data["uniq_tile_id"]
+  tile_count = data["tile_count"]
+  tile_map = data["tile_map"]
+  uniq_tile = data["uniq_tile"]
+  uniq_tile_key_id = data["uniq_tile_key_id"]
+  pxl_tileset = data["pxl_tileset"]
+  uniq_pixel = data["uniq_pixel"]
 
-tile_map = []
+  tile_id_pxl = []
 
-for it_r in range(tile_r):
-  tile_map.append([])
-  for it_c in range(tile_c):
-    tile_map[it_r].append(-1)
+  pxl = data["pxl"]
 
-for it_r in range(tile_r):
-  for it_c in range(tile_c):
-    tile_a = []
+  info = data["info"]
+  sc = info["stride"][0]
+  sr = info["stride"][1]
 
-    pxl_tile_cur = []
-    for r in range(sr):
-      for c in range(sc):
-        rgb = pxl[ it_c*sc + c , it_r*sr + r ]
-
-        s_r = "%0.2x" % rgb[0]
-        s_g = "%0.2x" % rgb[1]
-        s_b = "%0.2x" % rgb[1]
-
-        tile_a.append(s_r)
-        tile_a.append(s_g)
-        tile_a.append(s_b)
-
-        key = str(rgb[0]) + ":" + str(rgb[1]) + ":" + str(rgb[2])
-        if not (key in uniq_pixel):
-          uniq_pixel[key] = 0
-        uniq_pixel[key]+=1
-
-        pxl_tile_cur.append( rgb[0] )
-        pxl_tile_cur.append( rgb[1] )
-        pxl_tile_cur.append( rgb[2] )
-
-    tile_key = "".join(tile_a)
-    if not (tile_key in uniq_tile):
-      pxl_tileset[tile_key] = pxl_tile_cur
-
-      uniq_tile[tile_key] = 0
-      uniq_tile_key_id[tile_key] = uniq_tile_id
-      uniq_tile_id+=1
+  sz = info["size"]
+  tile_c = int(sz[0]/info["stride"][0])
+  tile_r = int(sz[1]/info["stride"][1])
 
 
+  for it_r in range(tile_r):
+    tile_map.append([])
+    for it_c in range(tile_c):
+      tile_map[it_r].append(-1)
 
-    uniq_tile[tile_key]+=1
-    tile_map[it_r][it_c] = uniq_tile_key_id[tile_key]
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      tile_a = []
 
-for i in range(uniq_tile_id):
-  tile_count.append(0)
-for tile_key in uniq_tile_key_id:
-  tile_id = uniq_tile_key_id[tile_key]
-  count = uniq_tile[tile_key]
-  tile_count[ tile_id ] = count
+      pxl_tile_cur = []
+      for r in range(sr):
+        for c in range(sc):
+          rgb = pxl[ it_c*sc + c , it_r*sr + r ]
 
+          s_r = "%0.2x" % rgb[0]
+          s_g = "%0.2x" % rgb[1]
+          s_b = "%0.2x" % rgb[1]
+
+          tile_a.append(s_r)
+          tile_a.append(s_g)
+          tile_a.append(s_b)
+
+          key = str(rgb[0]) + ":" + str(rgb[1]) + ":" + str(rgb[2])
+          if not (key in uniq_pixel):
+            uniq_pixel[key] = 0
+          uniq_pixel[key]+=1
+
+          pxl_tile_cur.append( rgb[0] )
+          pxl_tile_cur.append( rgb[1] )
+          pxl_tile_cur.append( rgb[2] )
+
+      tile_key = "".join(tile_a)
+      if not (tile_key in uniq_tile):
+        pxl_tileset[tile_key] = pxl_tile_cur
+
+        uniq_tile[tile_key] = 0
+        uniq_tile_key_id[tile_key] = uniq_tile_id
+        uniq_tile_id+=1
+
+      n = len(tile_id_pxl)
+      for idx in range(n, uniq_tile_key_id[tile_key] + 1):
+        tile_id_pxl.append( {} )
+
+      tile_id_pxl[ uniq_tile_key_id[tile_key] ] = pxl_tileset[tile_key]
+
+      uniq_tile[tile_key]+=1
+      tile_map[it_r][it_c] = uniq_tile_key_id[tile_key]
+
+  for i in range(uniq_tile_id):
+    tile_count.append(0)
+  for tile_key in uniq_tile_key_id:
+    tile_id = uniq_tile_key_id[tile_key]
+    count = uniq_tile[tile_key]
+    tile_count[ tile_id ] = count
+
+  data["uniq_tile_id"] = uniq_tile_id
+  data["base_pxl_tileset"] = pxl_tileset
+  data["base_uniq_tile"] = uniq_tile
+  data["tile_id_pxl"] = tile_id_pxl
+
+## cross pattern neighbor (non diagonal neighbor)
+##
+def compute_tilemap_1(data):
+
+  base_data = {
+    "info" : data["info"],
+
+    "pxl": data["pxl"],
+    "pxl_tileset": {},
+    "uniq_pixel": {},
+
+    "uniq_tile_id": 1,
+    "tile_count": [],
+
+    "uniq_tile": {},
+    "uniq_tile_key_id": {},
+
+    "base_uniq_tile" : {},
+    "base_pxl_tileset": {},
+
+
+    "tile_map": []
+  }
+
+
+  compute_tilemap_0(base_data)
+
+  data["base_pxl_tileset"] = base_data["pxl_tileset"]
+  data["base_uniq_tile"] = base_data["uniq_tile"]
+  data["base_tile_map"] = base_data["tile_map"]
+  data["uniq_pixel"] = base_data["uniq_pixel"]
+
+  uniq_tile_id = data["uniq_tile_id"]
+  tile_count = data["tile_count"]
+  tile_map = data["tile_map"]
+  uniq_tile = data["uniq_tile"]
+  uniq_tile_key_id = data["uniq_tile_key_id"]
+
+  info = data["info"]
+  window_c = 3
+  window_r = 3
+
+  window_c0 = int(window_c/2)
+  window_r0 = int(window_r/2)
+
+  sz = info["size"]
+  tile_c = int(sz[0]/info["stride"][0])
+  tile_r = int(sz[1]/info["stride"][1])
+
+  window_nei = [ [-1,0], [0,-1], [0,0], [0,1], [1,0] ]
+
+  #tile_map = []
+
+  for it_r in range(tile_r):
+    tile_map.append([])
+    for it_c in range(tile_c):
+      tile_map[it_r].append(-1)
+
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      tile_a = []
+
+      block_key_a = []
+
+      for nei in window_nei:
+        pos_r = it_r + nei[0]
+        pos_c = it_c + nei[1]
+
+        if ((pos_c < 0) or
+            (pos_r < 0) or
+            (pos_c >= tile_c) or
+            (pos_r >= tile_r)):
+          block_key_a.append( str(-1) )
+        else:
+          block_key_a.append( str(base_data["tile_map"][pos_r][pos_c]) )
+
+      block_key = ":".join(block_key_a)
+
+      if not (block_key in uniq_tile):
+        uniq_tile[block_key] = 0
+        uniq_tile_key_id[block_key] = uniq_tile_id
+        uniq_tile_id+=1
+      uniq_tile[block_key]+=1
+      tile_map[it_r][it_c] = uniq_tile_key_id[block_key]
+
+      #print("adding", it_r, it_c, uniq_tile_key_id[block_key], "(", block_key, ")")
+
+  for i in range(uniq_tile_id):
+    tile_count.append(0)
+  for block_key in uniq_tile_key_id:
+    tile_id = uniq_tile_key_id[block_key]
+    count = uniq_tile[block_key]
+    tile_count[ tile_id ] = count
+
+  data["uniq_tile_id"] = uniq_tile_id
+
+  ## reconstruct tileset png info
+  ##
+  tile_id_pxl = []
+  for i in range(uniq_tile_id):
+    tile_id_pxl.append({})
+
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      base_tile_id = base_data["tile_map"][it_r][it_c]
+      cur_tile_id = tile_map[it_r][it_c]
+
+      tile_id_pxl[ cur_tile_id ] = base_data["tile_id_pxl"][base_tile_id]
+
+      #print(it_r, it_c, cur_tile_id)
+    #print("")
+
+
+  data["tile_id_pxl"] = tile_id_pxl
+  data["tile_map"] = tile_map
+
+## 3x3 pattern neighbor
+##
+def compute_tilemap_2(data):
+
+  base_data = {
+    "info" : data["info"],
+
+    "pxl": data["pxl"],
+    "pxl_tileset": {},
+    "uniq_pixel": {},
+
+    "uniq_tile_id": 1,
+    "tile_count": [],
+
+    "uniq_tile": {},
+    "uniq_tile_key_id": {},
+
+    "base_uniq_tile" : {},
+    "base_pxl_tileset": {},
+
+
+    "tile_map": []
+  }
+
+
+  compute_tilemap_0(base_data)
+
+  data["base_pxl_tileset"] = base_data["pxl_tileset"]
+  data["base_uniq_tile"] = base_data["uniq_tile"]
+  data["base_tile_map"] = base_data["tile_map"]
+  data["uniq_pixel"] = base_data["uniq_pixel"]
+
+  uniq_tile_id = data["uniq_tile_id"]
+  tile_count = data["tile_count"]
+  tile_map = data["tile_map"]
+  uniq_tile = data["uniq_tile"]
+  uniq_tile_key_id = data["uniq_tile_key_id"]
+
+  info = data["info"]
+  window_c = 3
+  window_r = 3
+
+  window_c0 = int(window_c/2)
+  window_r0 = int(window_r/2)
+
+  sz = info["size"]
+  tile_c = int(sz[0]/info["stride"][0])
+  tile_r = int(sz[1]/info["stride"][1])
+
+  #tile_map = []
+
+  for it_r in range(tile_r):
+    tile_map.append([])
+    for it_c in range(tile_c):
+      tile_map[it_r].append(-1)
+
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      tile_a = []
+
+      block_key_a = []
+
+      for idx_r in range(window_r):
+        for idx_c in range(window_c):
+          pos_c = it_c - window_c0 + idx_c
+          pos_r = it_r - window_r0 + idx_r
+
+          if ((pos_c < 0) or
+              (pos_r < 0) or
+              (pos_c >= tile_c) or
+              (pos_r >= tile_r)):
+            block_key_a.append( str(-1) )
+          else:
+            block_key_a.append( str(base_data["tile_map"][pos_r][pos_c]) )
+
+      block_key = ":".join(block_key_a)
+
+      if not (block_key in uniq_tile):
+        uniq_tile[block_key] = 0
+        uniq_tile_key_id[block_key] = uniq_tile_id
+        uniq_tile_id+=1
+      uniq_tile[block_key]+=1
+      tile_map[it_r][it_c] = uniq_tile_key_id[block_key]
+
+      print("adding", it_r, it_c, uniq_tile_key_id[block_key], "(", block_key, ")")
+
+  for i in range(uniq_tile_id):
+    tile_count.append(0)
+  for block_key in uniq_tile_key_id:
+    tile_id = uniq_tile_key_id[block_key]
+    count = uniq_tile[block_key]
+    tile_count[ tile_id ] = count
+
+  data["uniq_tile_id"] = uniq_tile_id
+
+  ## reconstruct tileset png info
+  ##
+  tile_id_pxl = []
+  for i in range(uniq_tile_id):
+    tile_id_pxl.append({})
+
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      base_tile_id = base_data["tile_map"][it_r][it_c]
+      cur_tile_id = tile_map[it_r][it_c]
+
+      tile_id_pxl[ cur_tile_id ] = base_data["tile_id_pxl"][base_tile_id]
+
+      #print(it_r, it_c, cur_tile_id)
+    #print("")
+
+
+  data["tile_id_pxl"] = tile_id_pxl
+  data["tile_map"] = tile_map
+
+####
+####
+####
+
+
+data = {
+  "info" : info,
+
+  "pxl": pxl,
+  "pxl_tileset": {},
+  "uniq_pixel": {},
+
+  "uniq_tile_id": 1,
+  "tile_count": [],
+
+  "uniq_tile": {},
+  "uniq_tile_key_id": {},
+
+  "tile_map": []
+}
+
+if info["opt"]["neighbor_type"] == "cross":
+  compute_tilemap_1(data)
+elif info["opt"]["neighbor_type"] == "square":
+  compute_tilemap_2(data)
+else:
+  compute_tilemap_0(data)
+uniq_tile_id = data["uniq_tile_id"]
+
+## DEBUG
+#for it_r in range(len(data["tile_map"])):
+#  for it_c in range(len(data["tile_map"][0])):
+#    print(it_r, it_c, data["tile_map"][it_r][it_c])
+#  print("")
 
 info["max_tile_id"] = uniq_tile_id-1
 
-create_tileset_png(info, pxl_tileset, uniq_tile)
+#create_tileset_png(data["info"], data["pxl_tileset"], data["uniq_tile"])
+#create_tileset_png(data["info"], data["base_pxl_tileset"], data["base_uniq_tile"])
 
-uniq_count = 0
-for key in uniq_pixel:
-  uniq_count+=1
+
+create_tileset_png_1(data["info"], data["tile_id_pxl"])
 
 uniq_tile_count = 0
-for tile_key in uniq_tile:
+for tile_key in data["uniq_tile"]:
   uniq_tile_count+=1
 
 if info["tilemap"]["realize"] or info["tileset"]["realize"]:
-  td_map = export_tiled_json(info, tile_map)
+  td_map = export_tiled_json(data["info"], data["tile_map"])
 
 if info["tilerule"]["realize"] or info["tilename"]["realize"]:
-  export_tile_name_csv(info, tile_map, tile_count)
-  export_tile_rule_csv(info, tile_map)
+  export_tile_name_csv(data["info"], data["tile_map"], data["tile_count"])
+  export_tile_rule_csv(data["info"], data["tile_map"])
 
 if info["opt"]["debug"]:
-  debug_print_tilemap(tile_map)
+  debug_print_tilemap(data["tile_map"])
 

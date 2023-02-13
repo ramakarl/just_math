@@ -421,7 +421,11 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   int i, j, n, tileset_size;
   int64_t vtx;
 
-  opt.tileset_width = ceil( sqrt( (double)bpc.m_tile_name.size() ) );
+  int tilecount = (int)bpc.m_tile_name.size();
+  tilecount--;
+
+  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
+  opt.tileset_width = ceil( sqrt( (double)tilecount ) );
   opt.tileset_height = opt.tileset_width;
 
   opt.tileset_width *= opt.tileset_stride_x;
@@ -492,7 +496,8 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   fprintf(fp, "    \"imagewidth\": %i,\n", (int)opt.tileset_width);
   fprintf(fp, "    \"margin\": %i,\n", (int)opt.tileset_margin);
   fprintf(fp, "    \"spacing\": %i,\n", (int)opt.tileset_spacing);
-  fprintf(fp, "    \"tilecount\": %i,\n", (int)bpc.m_tile_name.size());
+  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
+  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
   fprintf(fp, "    \"tileheight\": %i,\n", (int)opt.tileset_stride_y);
   fprintf(fp, "    \"tilewidth\": %i\n", (int)opt.tileset_stride_x);
 
@@ -539,7 +544,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
-  fprintf(fp, "  -w <#>   set (update) reate\n");
+  fprintf(fp, "  -w <#>   set (update) rate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
 
@@ -835,6 +840,16 @@ int main(int argc, char **argv) {
       printf ( "bpc realize.\n" );
     }
     ret = bpc.start();
+    if (ret < 0) {
+      printf("ERROR: bpc.start() failed (%i)\n", ret);
+
+      if (bpc.m_verbose > 0) {
+        printf("####################### DEBUG PRINT\n" );
+        bpc.debugPrint();
+      }
+
+      exit(-1);
+    }
 
     n_it = bpc.m_num_verts * bpc.m_num_values;
 

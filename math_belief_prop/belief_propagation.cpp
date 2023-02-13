@@ -2561,7 +2561,12 @@ int BeliefPropagation::wfc() {
 
   int ret = 1;
 
-  wfc_start();
+  ret = wfc_start();
+  if (ret < 0) {
+    printf("ERROR: start failed (%i)\n", ret);
+    return ret;
+  }
+
 
   for (int64_t it = 0; it < m_num_verts; it++) {
     ret = wfc_step ( it );
@@ -2581,10 +2586,10 @@ int BeliefPropagation::wfc() {
 }
 
 int BeliefPropagation::wfc_start() {
+  int ret=0;
 
-  CullBoundary();
-
-  return 1;
+  ret = CullBoundary();
+  return ret;
 }
 
 int BeliefPropagation::wfc_step(int64_t it) {
@@ -2622,8 +2627,10 @@ int BeliefPropagation::wfc_step(int64_t it) {
 
 
 int BeliefPropagation::start () {
-  CullBoundary();
-  return 1;
+  int ret=0;
+
+  ret = CullBoundary();
+  return ret;
 }
 
 // WIP
@@ -3061,7 +3068,11 @@ void BeliefPropagation::gp_state_print() {
 int BeliefPropagation::realize() {
   int ret = 1;
 
-  start();
+  ret = start();
+  if (ret != 0) {
+    printf("ERROR: start failed (%i)\n", ret);
+    return ret;
+  }
 
   // process all verts
   //
@@ -3348,6 +3359,8 @@ void BeliefPropagation::debugPrint() {
   float max_belief=-1.0;
   int count=-1;
 
+  int print_rule = 0;
+
   _eps = m_eps_zero;
 
   std::vector< std::string > _dp_desc;
@@ -3359,11 +3372,18 @@ void BeliefPropagation::debugPrint() {
   _dp_desc.push_back("0:0:+1");
   _dp_desc.push_back("0:0:-1");
 
+  printf("bp version: %s\n", BELIEF_PROPAGATION_VERSION);
+  printf("m_verbose: %i\n", m_verbose);
+
   printf("m_res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
   printf("m_bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
   printf("m_num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
-  printf("m_eps_converge: %f, m_eps_zero: %f\n",
-      (float)m_eps_converge, (float)m_eps_zero);
+  printf("m_run_cuda: %i, m_use_svd: %i, m_use_checkerboard: %i\n",
+      (int)m_run_cuda, (int)m_use_svd, (int)m_use_checkerboard);
+  printf("m_eps_converge: %f, m_eps_zero: %f, m_rate: %f, m_max_iteration: %i, seed: %i\n",
+      (float)m_eps_converge, (float)m_eps_zero,
+      (float)m_rate, (int)m_max_iteration,
+      (int)m_seed);
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
@@ -3384,23 +3404,25 @@ void BeliefPropagation::debugPrint() {
   }
   */
 
-  for (jnbr=0; jnbr<6; jnbr++) {
-    printf("dir[%i]:\n", jnbr);
+  if (print_rule) {
+    for (jnbr=0; jnbr<6; jnbr++) {
+      printf("dir[%i]:\n", jnbr);
 
-    for (i=0; i<m_num_values; i++) {
-      printf(" ");
-      for (j=0; j<m_num_values; j++) {
-        f = getValF(BUF_F, i, j, jnbr);
-        if (f > _eps) {
-          printf(" %5.2f", (float)getValF(BUF_F, i, j, jnbr));
+      for (i=0; i<m_num_values; i++) {
+        printf(" ");
+        for (j=0; j<m_num_values; j++) {
+          f = getValF(BUF_F, i, j, jnbr);
+          if (f > _eps) {
+            printf(" %5.2f", (float)getValF(BUF_F, i, j, jnbr));
+          }
+          else {
+            printf("      ");
+          }
         }
-        else {
-          printf("      ");
-        }
+        printf("\n");
       }
       printf("\n");
     }
-    printf("\n");
   }
 
   //---
@@ -3523,7 +3545,7 @@ int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
 
 
 int BeliefPropagation::CullBoundary() {
-  int i;
+  int i, ret=0;
   int64_t x, y, z, vtx;
   Vector3DI vp;
 
@@ -3590,9 +3612,9 @@ int BeliefPropagation::CullBoundary() {
     }
   }
 
-  cellConstraintPropagate();
+  ret = cellConstraintPropagate();
 
-  return 0;
+  return ret;
 }
 
 int BeliefPropagation::_CullBoundary() {
