@@ -136,6 +136,16 @@ def debug_print_tilemap(tile_map):
       row.append( chr_code )
     print( " ".join(row) )
 
+  print("---")
+  for it_r in range(tile_r):
+    row = []
+    for it_c in range(tile_c):
+      row.append( "%3i" % (tile_map[it_r][it_c]) )
+    print( " ".join(row) )
+  print("---")
+
+
+
 
 def debug_print_adj(data):
 
@@ -903,17 +913,41 @@ def block_overlap(idir, b0,b1):
         if b0[r][c] != b1[r][c+1]: return False
 
   elif idir==2:
+
+    b0yrev = []
+    b1yrev = []
+
+    for r in range(n_r):
+      b0yrev.append( b0[n_r-r-1] )
+      b1yrev.append( b1[n_r-r-1] )
+
     for r in range(1,n_r):
       for c in range(n_c):
-        if b0[r][c] != b1[r-1][c]: return False
+        if b0yrev[r][c] != b1yrev[r-1][c]: return False
+
+    #for r in range(1,n_r):
+    #  for c in range(n_c):
+    #    if b0[r][c] != b1[r-1][c]: return False
     #for r in range(0,n_r-1):
     #  for c in range(n_c):
     #    if b0[r][c] != b1[r+1][c]: return False
 
-  elif idir==2:
+  elif idir==3:
+
+    b0yrev = []
+    b1yrev = []
+
+    for r in range(n_r):
+      b0yrev.append( b0[n_r-r-1] )
+      b1yrev.append( b1[n_r-r-1] )
+
     for r in range(0,n_r-1):
       for c in range(n_c):
-        if b0[r][c] != b1[r+1][c]: return False
+        if b0yrev[r][c] != b1yrev[r+1][c]: return False
+
+    #for r in range(0,n_r-1):
+    #  for c in range(n_c):
+    #    if b0[r][c] != b1[r+1][c]: return False
     #for r in range(1,n_r):
     #  for c in range(n_c):
     #    if b0[r][c] != b1[r-1][c]: return False
