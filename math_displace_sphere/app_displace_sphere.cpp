@@ -111,7 +111,7 @@ bool Sample::init()
 
 	// load displacement map 
 	std::string fpath;
-	getFileLocation ( "bump_barnacles.png", fpath );
+	getFileLocation ( "bump_weave.png", fpath );
 	dbgprintf ("loading: %s\n", fpath.c_str() );
 	m_bump_img = new Image;									// create image
 	if ( !m_bump_img->Load ( fpath ) ) {
