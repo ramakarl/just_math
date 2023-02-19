@@ -256,7 +256,7 @@ void Sample::RaycastMesh ( Vector3DF p, float r, float bump_depth, Vector3DF lgt
 				if (c.x > 255 || c.y > 255 || c.z > 255) c = Vector3DF(255,255,255);
 					
 				img->SetPixel ( x, y, c.x, c.y, c.z, 255.0 );	
-			}
+			} 
 		}
 	}
 
@@ -376,7 +376,7 @@ void Sample::PrecomputePrisms ( float d )
 	}
 }
 
-#define EPS		0.0
+#define EPS		0.01
 
 void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, Vector3DF lgt, Image* img )
 {
@@ -598,11 +598,11 @@ void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, V
 				else {
 					//best_f = -2;
 				}
-			} 		
+			} 	
+			
+			bc = best_bc;
 
 			if ( best_f >= 0 ) {				
-
-				bc = best_bc;
 
 				// Get the best hit prism 
 				f = (AttrV3*) m_mesh->GetElem (BFACEV3, best_f );
@@ -620,6 +620,9 @@ void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, V
 				uv =   s->v[VUV+0]   * (bc.x) + s->v[VUV+1]   * (bc.y) + s->v[VUV+2]   * (1-bc.x-bc.y);			
 				q[0] = s->v[VBASE+0] * (bc.x) + s->v[VBASE+1] * (bc.y) + s->v[VBASE+2] * (1-bc.x-bc.y);
 				q[0] += norm * (doff + m_bump_img->GetPixelFilteredUV ( uv.x, uv.y ).x * d); 
+				
+				// get color sample here
+				tx = m_bump_img->GetPixelFilteredUV ( uv.x, uv.y ).x;
 
 				// sample along barycentric u
 				uv =   s->v[VUV+0]   * (bc.x+dpu) + s->v[VUV+1]   * (bc.y) + s->v[VUV+2]   * (1-(bc.x+dpu)-bc.y);
@@ -635,8 +638,6 @@ void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, V
 				q[1] -= q[0];	q[1].Normalize();
 				q[2] -= q[0];	q[2].Normalize();
 				norm = q[2].Cross (q[1]); norm.Normalize();					
-
-				tx = m_bump_img->GetPixelFilteredUV ( uv.x, uv.y ).x;
 				
 				// Diffuse shading
 				lgtdir = q[0] - lgt; lgtdir.Normalize();					
@@ -658,7 +659,7 @@ void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, V
 
 				img->SetPixel ( x, y, c.x, c.y, c.z, 255.0 );
 
-			} else {
+			} else {				
 				
 				if (best_f==-2) img->SetPixel ( x, y, 0, 255, 255, 255.0 );
 				if (best_f==-3) img->SetPixel ( x, y, 255, 0, 0, 255.0 );				
