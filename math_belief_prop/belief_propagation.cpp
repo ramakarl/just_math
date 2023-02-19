@@ -1513,6 +1513,8 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
   float _min_entropy = -1.0,
         _entropy_sum = 0.0;
 
+  Vector3DI vp;
+
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
 
@@ -1553,7 +1555,9 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
       //DEBUG
       if (m_verbose > 2) {
-        printf("  ## (i.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+        vp = getVertexPos(_min_cell);
+        printf("  ## (i.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            (int)vp.x, (int)vp.y, (int)vp.z,
             (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
       }
 
@@ -1580,7 +1584,8 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
         //DEBUG
         if (m_verbose > 2) {
-          printf("  ## (a.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+          printf("  ## (a.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+              (int)vp.x, (int)vp.y, (int)vp.z,
               (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
         }
       }
@@ -1597,7 +1602,8 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
           if (m_verbose > 2) {
             //DEBUG
-            printf("  ## (b.1) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+            printf("  ## (b.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
+                (int)vp.x, (int)vp.y, (int)vp.z,
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
           }
 
@@ -2728,6 +2734,7 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
           max_step_iter = m_max_iteration;
 
   float _eps = m_eps_converge;
+  Vector3DI vp;
 
   // after we've propagated constraints, BUF_MU
   // needs to be renormalized
@@ -2756,6 +2763,13 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
   //
   ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
   if (ret < 0) { return -1; }
+
+  if (m_verbose > 1) {
+    vp = getVertexPos(cell);
+    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i)\n",
+        (int)vp.x, (int)vp.y, (int)vp.z,
+        (int)cell, (int)tile, (float)belief, (int)tile_idx);
+  }
 
   // (success) end condition, all cell positions have exactly
   // one tile in them.

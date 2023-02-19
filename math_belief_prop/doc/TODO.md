@@ -84,3 +84,14 @@ Alternatives:
 
 * [eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page) ([mpl2 license](https://www.mozilla.org/en-US/MPL/2.0/FAQ/))
 * [armadillow](https://arma.sourceforge.net/faq.html) ([apache2](https://opensource.org/licenses/Apache-2.0))
+
+---
+
+References
+---
+
+* [WFC tutorial](https://medium.com/swlh/wave-function-collapse-tutorial-with-a-basic-exmaple-implementation-in-python-152d83d5cdb1)
+* [procjam WFC](https://www.procjam.com/tutorials/wfc/)
+* [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
+* [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+
