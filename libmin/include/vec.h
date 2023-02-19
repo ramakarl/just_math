@@ -874,5 +874,4 @@
 	#undef VNAME
 	#undef VTYPE
 
-
 #endif

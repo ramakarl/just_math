@@ -81,8 +81,6 @@
 	HELPAPI std::string strSplitRight ( std::string& str, std::string sep );										// "left,right" --> return "right", str="left"	
 	HELPAPI std::string strParseOut(std::string& str, std::string lsep, std::string rsep = " ");					// "data<1492> | time", <> --> return 1492, str="date | time"
 
-	
-
 
 	//----------- original api
 	HELPAPI std::string strParse ( std::string str, std::string lstr, std::string rstr, std::string lsep, std::string rsep );

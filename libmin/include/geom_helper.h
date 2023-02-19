@@ -23,3 +23,4 @@
 	HELPAPI Vector3DF	moveHit3D(Camera3D* cam, int x, int y, Vector3DF target, Vector3DF plane_norm);
   
 #endif
+
