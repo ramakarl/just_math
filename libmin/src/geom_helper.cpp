@@ -139,30 +139,6 @@ bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector
 	return true;
 }
 
-/*	Vector3DF e1 = v1 - v0;
-	Vector3DF e2 = v2 - v0;
-	Vector3DF h = dir.Cross ( e2 );	
-
-	// Backface cull (acceleration)
-	if (backcull) {		
-		if ( h.Dot( dir ) >= 0 ) return false;
-	}
-
-	// Moller-Trumbore algorithm	
-	a = e1.Dot ( h );			// determinant
-	if ( a > -EPS && a < EPS ) {t=0; return false;}
-	a = 1.0/a;					// inv determinant
-	s = orig - v0;
-	u = a * s.Dot ( h );
-	if ( u < 0.0 || u > 1.0 ) {t=0; return false;}
-	q = s.Cross ( e1 );
-	v = a * dir.Dot ( q );
-	if ( v < 0.0 || u+v > 1.0) {t=0; return false;}
-	
-	t = a * e2.Dot ( q );
-	if ( t < EPS ) { t=0; return false; }
-	hit = orig + dir * t;*/
-
 
 //--- test where point projects within the inf prism of triangle
 bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& u, float& v)
