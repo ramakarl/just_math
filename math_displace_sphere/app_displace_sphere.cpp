@@ -330,7 +330,7 @@ void Sample::RaycastDisplacementSphere ( Vector3DF p, float r, float bump_depth,
 					h0 = r + tx * bump_depth;			// recompute start point depth with filtering					
 					t1 = (hit - rpos).Length();			
 					t0 = t1 - dt;	
-					u = (cr0-h0) / ((cr0-h0)-(cr1-h1));
+					u = (cr0-h0) / ((cr0-h0)+(h1-cr1));
 					t1 = t0 + (t1 - t0) * u;			// interpolate between start t and end t based on zero crossing
 					hit = rpos + rdir * t1;				// get interpolated hit point */
 

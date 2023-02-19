@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 #if defined(__ANDROID__)
     #include <android/log.h>               // for Android printf logs  
@@ -61,19 +62,32 @@ char getPathDelim()
         return '/';
     #endif
 }
+char getPathDelimOpposite()
+{
+    #ifdef _WIN32
+        return '/';
+    #else
+        return '\\';
+    #endif
+}
+
+
 
 void addSearchPath ( const char* path )
 {
-    std::string pathstr = path;
+    std::string p = path;
+    
+    // replace to match platform
+    std::replace ( p.begin(), p.end(), getPathDelimOpposite(), getPathDelim() );
+    
     // every search path must be terminated with a delimiter. add one if needed
-    if ( pathstr.at( pathstr.length()-1) != getPathDelim() ) {
-        pathstr = pathstr + getPathDelim();
-    }
-    // add the path
-    //dbgprintf ( "Added search path: %s\n", pathstr.c_str() );
+    if ( p.at( p.length()-1) != getPathDelim() ) {
+        p = p + getPathDelim();
+    }    
 
-    gPaths.push_back ( pathstr );
+    gPaths.push_back ( p );
 }
+
 bool getFileLocation ( const char* filename, char* outpath )
 {
     bool result = getFileLocation ( filename, outpath, gPaths );

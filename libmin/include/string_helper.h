@@ -60,18 +60,18 @@
 	HELPAPI std::string wsToStr ( const std::wstring& str );
 	HELPAPI std::wstring strToWs (const std::string& s);
 
-	HELPAPI bool strToVec(std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec, int cpt = 3);
-	HELPAPI bool strToVec3(std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec);
-	HELPAPI bool strToVec4(std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec);
-	HELPAPI Vector3DF strToVec3(std::string str, std::string sep);
-	HELPAPI Vector4DF strToVec4(std::string str, std::string sep);
+	HELPAPI bool strToVec(std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec, int cpt = 3);
+	HELPAPI bool strToVec3(std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec);
+	HELPAPI bool strToVec4(std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec);
+	HELPAPI Vector3DF strToVec3(std::string str, uchar sep);
+	HELPAPI Vector4DF strToVec4(std::string str, uchar sep);
 
 	//----------- Boolean returns
 	
 	HELPAPI bool		strSplit ( std::string str, std::string sep, std::string& left, std::string& right );		// "left,right" --> left="left", right="right", str=unchanged
 	HELPAPI bool		strSplitLeft(std::string str, std::string sep, std::string& key, std::string& val);			// "left,right" --> key="left", val="right", str=unchanged
 	HELPAPI bool		strParseOut(std::string str, std::string lsep, std::string rsep, std::string& result, std::string& rest); // "data<1492> | time", <> --> result 1492, str="date | time"
-	HELPAPI bool		strParseKeyVal(std::string& str, std::string lsep, std::string rsep, std::string& key, std::string& val); // "obj<car>,more" --> key="obj", val="car", str="more"
+	HELPAPI bool		strParseKeyVal(std::string& str, uchar lsep, uchar rsep, std::string& key, std::string& val); // "obj<car>,more" --> key="obj", val="car", str="more"
 	HELPAPI bool		strFileSplit(std::string str, std::string& path, std::string& name, std::string& ext);
 	HELPAPI int			strSplitMultiple(std::string str, std::string sep, std::vector<std::string>& list);		// obj1,obj2,obj3.. list={ob1, obj2, obj3}
 

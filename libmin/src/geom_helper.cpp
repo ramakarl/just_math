@@ -51,7 +51,7 @@ Vector3DF intersectLineLine(Vector3DF p1, Vector3DF p2, Vector3DF p3, Vector3DF 
 	return p2;
 }
 
-Vector3DF intersectLineBox(Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax)
+bool intersectLineBox (Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax, float& t)
 {
 	// p1 = ray position, p2 = ray direction
 	register float ht[8];
@@ -64,8 +64,28 @@ Vector3DF intersectLineBox(Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF
 	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
 	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));	
 	ht[6] = (ht[6] < 0 ) ? 0.0 : ht[6];
-	return Vector3DF( ht[6], ht[7], (ht[7]<ht[6] || ht[7]<0) ? -1 : 0 );
+	if ( ht[7]<ht[6] || ht[7]<0 ) return false;
+	t = ht[6];
+	return true;
 }
+
+/*bool intersectLineBox (Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax, float& t)
+{
+	// p1 = ray position, p2 = ray direction
+	register float ht[8];
+	ht[0] = (bmin.x - p1.x)/p2.x;
+	ht[1] = (bmax.x - p1.x)/p2.x;
+	ht[2] = (bmin.y - p1.y)/p2.y;
+	ht[3] = (bmax.y - p1.y)/p2.y;
+	ht[4] = (bmin.z - p1.z)/p2.z;
+	ht[5] = (bmax.z - p1.z)/p2.z;
+	ht[6] = fmax(fmax(fmin(ht[0], ht[1]), fmin(ht[2], ht[3])), fmin(ht[4], ht[5]));
+	ht[7] = fmin(fmin(fmax(ht[0], ht[1]), fmax(ht[2], ht[3])), fmax(ht[4], ht[5]));		
+	if (ht[7] < 0 || ht[6] > ht[7]) return false;
+	t = ht[6];
+	return true; 
+}
+*/
 
 Vector3DF intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF pnorm)
 {
@@ -87,30 +107,109 @@ Vector3DF intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF
 	return u;
 }
 
-bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit )
+bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, bool backcull )
 {
-	Vector3DF e1, e2, h, s, q;
-	float a, u, v;
+	Vector3DF s, q;
+	double a, u, v;
+	Vector3DF e0 = v1 - v0;
+	Vector3DF e1 = v0 - v2;
+	Vector3DF h = e1.Cross ( dir );	
 
-	// Moller-Trumbore algorithm
-	e1 = v1 - v0;
-	e2 = v2 - v0;
-	h = h.Cross ( dir, e2 );		
+	// Backface cull (acceleration)
+	if (backcull) {		
+		s = e1.Cross ( v2-v1 );
+		if ( s.Dot( dir ) < 0 ) return false;
+	}
+
+	// Moller-Trumbore algorithm	
+	a = e0.Dot ( h );			// determinant
+	if ( a > -EPS && a < EPS ) {t=0; return false;}
+	a = 1.0/a;					// inv determinant
+	s = orig - v0;
+	u = a * s.Dot ( h );
+	if ( u < 0.0 || u > 1.0 ) {t=0; return false;}
+	q = s.Cross ( e0 );
+	v = a * dir.Dot ( q );
+	if ( v < 0.0 || u+v > 1.0) {t=0; return false;}
+	
+	t = -a * e1.Dot ( q );
+	if ( t < EPS ) { t=0; return false; }
+	hit = orig + dir * t;
+	
+	return true;
+}
+
+/*	Vector3DF e1 = v1 - v0;
+	Vector3DF e2 = v2 - v0;
+	Vector3DF h = dir.Cross ( e2 );	
+
+	// Backface cull (acceleration)
+	if (backcull) {		
+		if ( h.Dot( dir ) >= 0 ) return false;
+	}
+
+	// Moller-Trumbore algorithm	
 	a = e1.Dot ( h );			// determinant
 	if ( a > -EPS && a < EPS ) {t=0; return false;}
 	a = 1.0/a;					// inv determinant
 	s = orig - v0;
 	u = a * s.Dot ( h );
 	if ( u < 0.0 || u > 1.0 ) {t=0; return false;}
-	q = q.Cross ( s, e1 );
+	q = s.Cross ( e1 );
 	v = a * dir.Dot ( q );
 	if ( v < 0.0 || u+v > 1.0) {t=0; return false;}
 	
 	t = a * e2.Dot ( q );
-	//if ( t < EPS ) { t=0; return false; }
-	hit = orig + dir * t;
-	
-	return true;
+	if ( t < EPS ) { t=0; return false; }
+	hit = orig + dir * t;*/
+
+
+//--- test where point projects within the inf prism of triangle
+bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& u, float& v)
+{    
+    Vector3DF e0 = v2 - v1;
+    Vector3DF e1 = v0 - v2;
+    Vector3DF n = e0.Cross ( e1 );
+	float ndot = n.Dot(n);    
+    // Barycentric coordinates of the projection P' of P onto T:
+	u = e0.Cross(pnt-v1).Dot(n) / ndot;    
+	v = e1.Cross(pnt-v2).Dot(n) / ndot;
+    float a = 1 - u - v;
+    // The point P' lies inside T if:
+    return ((0 <= a) && (a <= 1) &&
+            (0 <= u)  && (u  <= 1) &&
+            (0 <= v) && (v <= 1));
+}
+
+bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, float& u, float& v )    
+{
+	Vector3DF edge, vp;
+
+    // compute the plane's normal
+    Vector3DF e0 = v2 - v1;
+    Vector3DF e1 = v0 - v2;
+    Vector3DF n = e0.Cross ( e1 );
+    float ndot = n.Dot(n);
+    
+    // Step 1: Find hit point
+    // check if the ray and plane are parallel. ndotr = normal dot ray direction
+    float ndotr = n.Dot (dir);
+    if (fabs(ndotr) < EPS) 
+        return false; // they are parallel so they don't intersect! 
+	// compute t
+	float d = -n.Dot (v0);
+    t = -(n.Dot(orig) + d) / ndotr;
+    if (t < 0) return false; // the triangle is behind
+    hit = orig + dir * t;
+ 
+    // Step 2: Inside-outside test    	    
+	u = e0.Cross(hit-v1).Dot(n) / ndot;    
+	v = e1.Cross(hit-v2).Dot(n) / ndot;
+
+	float a = (1-u-v);
+    return ((0 <= a) && (a <= 1) &&
+            (0 <= u)  && (u  <= 1) &&
+            (0 <= v) && (v <= 1)); 
 }
 
 Vector3DF projectPointLine(Vector3DF p, Vector3DF p0, Vector3DF p1 )
@@ -124,13 +223,24 @@ Vector3DF projectPointLine(Vector3DF p, Vector3DF dir, float& t )
 	return dir * t;
 }
 
+Vector3DF projectPointPlane(Vector3DF p, Vector3DF p0, Vector3DF pn )
+{
+	// plane: p0=orig, pn=normal	
+	return p - pn * (float) pn.Dot( p - p0 );
+}
+
+float distancePointPlane(Vector3DF p, Vector3DF p0, Vector3DF pn )
+{
+	return pn.Dot( p - p0 );
+}
+
 bool checkHit3D(Camera3D* cam, int x, int y, Vector3DF target, float radius)
 {
 	Vector3DF dir = cam->inverseRay(x, y, cam->mXres, cam->mYres);	dir.Normalize();
 	Vector3DF bmin = target - Vector3DF(radius*0.5f, radius*0.5, radius*0.5);
 	Vector3DF bmax = target + Vector3DF(radius*0.5f, radius*0.5, radius*0.5);
-	Vector3DF t = intersectLineBox(cam->getPos(), dir, bmin, bmax);
-	return (t.z >= 0);
+	float t;
+	return intersectLineBox(cam->getPos(), dir, bmin, bmax, t);
 }
 
 Vector3DF moveHit3D(Camera3D* cam, int x, int y, Vector3DF target, Vector3DF plane_norm)

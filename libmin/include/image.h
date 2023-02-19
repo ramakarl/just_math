@@ -89,9 +89,9 @@
 		Vector4DF GetPixelFilteredUV (float x, float y);
 		inline Vector4DF GetPixelUV (float x, float y)	{ XBYTE r,g,b,a; (this->*m_GetPixelFunc) ( (int) (x*(getInfo()->mXres-1)), (int) (y*(getInfo()->mYres-1)),r,g,b,a); return Vector4DF(r/255.0f,g/255.0f,b/255.0f,a/255.0f); }
 		inline float GetPixelUV16 ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) (r+(g/255.0f))/255.0f; }
-		inline float GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }
-		
-		int  GetPixel (int x, int y )											{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) (x,y,r,g,b,a); return (int) r; }
+		inline float GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }		
+		inline Vector3DF GetPixel ( int x, int y )								{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) (x,y,r,g,b,a); return Vector3DF(r,g,b); }
+
 		void GetPixel (int x, int y, XBYTE& i)									{ XBYTE g,b,a;	(this->*m_GetPixelFunc) (x, y, i, g, b, a); }
 		void GetPixel (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b)				{ XBYTE a;		(this->*m_GetPixelFunc) (x, y, r, g, b, a); }
 		void GetPixel (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a)	{				(this->*m_GetPixelFunc) (x, y, r, g, b, a); }

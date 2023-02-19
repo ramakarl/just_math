@@ -129,8 +129,8 @@ void Sample::TrainInstances ( int iter )
 
         // Backpropagate to learn the weights relative to expected output
         ann.Backprop ( m_outdata );
-
     }
+
     m_numinst += iter;
 }
 

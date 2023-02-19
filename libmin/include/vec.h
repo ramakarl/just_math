@@ -143,25 +143,30 @@
 		 Vector2DF &operator+= (const Vector3DI &op);
 		 Vector2DF &operator+= (const Vector3DF &op);
 		 Vector2DF &operator+= (const Vector4DF &op);
+		 Vector2DF  operator+  (const float op)		{ return Vector2DF(x + op, y + op); }
+		 Vector2DF  operator+  (const Vector2DF &op) { return Vector2DF(x + op.x, y + op.y); }
 
 		 Vector2DF &operator-= (const Vector2DI &op);
 		 Vector2DF &operator-= (const Vector2DF &op);
 		 Vector2DF &operator-= (const Vector3DI &op);
 		 Vector2DF &operator-= (const Vector3DF &op);
 		 Vector2DF &operator-= (const Vector4DF &op);
+		 Vector2DF  operator-  (const float op)		{ return Vector2DF(x - op, y - op); }
+		 Vector2DF  operator-  (const Vector2DF &op) { return Vector2DF(x - op.x, y - op.y); }
 
 		 Vector2DF &operator*= (const Vector2DI &op);
 		 Vector2DF &operator*= (const Vector2DF &op);
 		 Vector2DF &operator*= (const Vector3DI &op);
 		 Vector2DF &operator*= (const Vector3DF &op);
 		 Vector2DF &operator*= (const Vector4DF &op);
+		 Vector2DF &operator*= (const float op)		{ x *= op; y *= op; return *this; }
+		 Vector2DF  operator*  (const float op)		{ return Vector2DF(x * op, y * op); }		 
 
 		 Vector2DF &operator/= (const Vector2DI &op);
 		 Vector2DF &operator/= (const Vector2DF &op);
 		 Vector2DF &operator/= (const Vector3DI &op);
 		 Vector2DF &operator/= (const Vector3DF &op);
 		 Vector2DF &operator/= (const Vector4DF &op);
-
 		 Vector2DF &operator/= (const double v)		{x /= (float) v; y /= (float) v; return *this;}
 
 		// Note: Cross product does not exist for 2D vectors (only 3D)
@@ -298,6 +303,7 @@
 		// Member Functions
 		Vector3DF &operator= (const int op);
 		Vector3DF &operator= (const double op);
+		Vector3DF &operator= (const Vector2DF &op);
 		Vector3DF &operator= (const Vector3DI &op);
 		Vector3DF &operator= (const Vector3DF &op);
 		Vector3DF &operator= (const Vector4DF &op);
@@ -329,23 +335,23 @@
 		Vector3DF &operator/= (const Vector4DF &op);
 
 		// Slow operations - require temporary variables
-		Vector3DF operator+ (int op)			{ return Vector3DF(x+float(op), y+float(op), z+float(op)); }
-		Vector3DF operator+ (float op)		{ return Vector3DF(x+op, y+op, z+op); }
+		Vector3DF operator+ (int op)				{ return Vector3DF(x+float(op), y+float(op), z+float(op)); }
+		Vector3DF operator+ (float op)				{ return Vector3DF(x+op, y+op, z+op); }
 		Vector3DF operator+ (const Vector3DF &op)	{ return Vector3DF(x+op.x, y+op.y, z+op.z); }
 		Vector3DF operator+ (const Vector3DI &op)	{ return Vector3DF(x+op.x, y+op.y, z+op.z); }
-		Vector3DF operator- (int op)			{ return Vector3DF(x-float(op), y-float(op), z-float(op)); }
-		Vector3DF operator- (float op)		{ return Vector3DF(x-op, y-op, z-op); }
+		Vector3DF operator- (int op)				{ return Vector3DF(x-float(op), y-float(op), z-float(op)); }
+		Vector3DF operator- (float op)		{		 return Vector3DF(x-op, y-op, z-op); }
 		Vector3DF operator- (const Vector3DF &op)	{ return Vector3DF(x-op.x, y-op.y, z-op.z); }
 		Vector3DF operator- (const Vector3DI &op)	{ return Vector3DF(x-op.x, y-op.y, z-op.z); }
-		Vector3DF operator* (int op)			{ return Vector3DF(x*float(op), y*float(op), z*float(op)); }
-		Vector3DF operator* (float op)		{ return Vector3DF(x*op, y*op, z*op); }
+		Vector3DF operator* (int op)				{ return Vector3DF(x*float(op), y*float(op), z*float(op)); }
+		Vector3DF operator* (float op)				{ return Vector3DF(x*op, y*op, z*op); }
 		Vector3DF operator* (const Vector3DF &op)	{ return Vector3DF(x*op.x, y*op.y, z*op.z); }		
 		Vector3DF operator* (const Vector3DI &op)	{ return Vector3DF(x*op.x, y*op.y, z*op.z); }				
 		Vector3DF operator* (const Matrix4F& op);
 		Vector3DF operator* (const Quaternion& op);
 
-		Vector3DF operator/ (int op)			{ return Vector3DF(x*float(op), y*float(op), z*float(op)); }
-		Vector3DF operator/ (float op)		{ return Vector3DF(x/op, y/op, z/op); }
+		Vector3DF operator/ (int op)				{ return Vector3DF(x/float(op), y/float(op), z/float(op)); }
+		Vector3DF operator/ (float op)				{ return Vector3DF(x/op, y/op, z/op); }
 		Vector3DF operator/ (const Vector3DF &op)	{ return Vector3DF(x/op.x, y/op.y, z/op.z); }		
 		Vector3DF operator/ (const Vector3DI &op)	{ return Vector3DF(x/float(op.x), y/float(op.y), z/float(op.z)); }		
 		// --
@@ -356,27 +362,10 @@
 		bool Equal ( const Vector3DF& op ) { return (x==op.x && y==op.y && z==op.z ); }
 		bool NotEqual ( const Vector3DF& op ) { return !(x==op.x && y==op.y && z==op.z ); }
 
-		inline Vector3DF& Cross (const Vector3DI &v) {
-			float ax=x, ay=y, az=z;
-			x = (VTYPE) (ay * v.z - az * v.y); 
-			y = (VTYPE) (-ax * v.z + az * v.x); 
-			z = (VTYPE) (ax * v.y - ay * v.x); 
-			return *this;
-		}
-		inline Vector3DF& Cross (const Vector3DF &v) {
-			float ax=x, ay=y, az=z;
-			x = (VTYPE) (ay * v.z - az * v.y); 
-			y = (VTYPE) (-ax * v.z + az * v.x); 
-			z = (VTYPE) (ax * v.y - ay * v.x); 
-			return *this;
-		}	
-		inline Vector3DF& Cross (const Vector3DF& v1, const Vector3DF& v2) 
-		{
-			x = (VTYPE)(v1.y * v2.z - v1.z * v2.y);
-			y = (VTYPE)(-v1.x * v2.z + v1.z * v2.x);
-			z = (VTYPE)(v1.x * v2.y - v1.y * v2.x);
-			return *this;
-		}
+		Vector3DF Cross (const Vector3DI &v);
+		Vector3DF Cross (const Vector3DF &v);
+		Vector3DF Cross (const Vector3DF& v1, const Vector3DF& v2);
+
 		// --
 		static Vector3DF CrossFunc (const Vector3DI &v1, const Vector3DI &v2) {
 			Vector3DF c;

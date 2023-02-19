@@ -404,7 +404,7 @@ return set(c.x, c.y, c.z, s * 0.5f).normalize();*/
 void Quaternion::rotationFromTo(Vector3DF from, Vector3DF to)
 {
 	Vector3DF axis = to;	
-	axis.Cross( from, to );						// axis of rotation between vectors (from and to unmodified)
+	axis = axis.Cross( from, to );						// axis of rotation between vectors (from and to unmodified)
 	axis.Normalize();							
 	fromAngleAxis(acos(from.Dot(to)), axis);	// dot product = angle of rotation between 'from' and 'to' vectors
 	normalize();								// normalize quaternion

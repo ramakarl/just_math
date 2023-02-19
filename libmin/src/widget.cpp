@@ -697,7 +697,7 @@ bool Widgets::IntersectBox3D ( Vector3DF pos, Vector3DF piv, Vector3DF scale, Qu
 	c1 -= pos; c1 = rot.rotateVec(c1);
 	c2 = rot.rotateVec(c2);	c2.Normalize();
 
-	Vector3DF t = intersectLineBox ( c1, c1+c2, piv*scale, scale );
+	float t;
 
-	return (t.x != 0.0f);
+	return  intersectLineBox ( c1, c1+c2, piv*scale, scale, t );
 }

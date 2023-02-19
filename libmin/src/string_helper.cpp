@@ -215,12 +215,14 @@ std::string strFilepath ( std::string str )
 
 // Parse string inside two separators. 
 //   e.g. "object<car>,other".. str='other', key='object', val='car'
-bool strParseKeyVal ( std::string& str,  std::string lsep, std::string rsep, std::string& key, std::string& val )
+// Parse string inside two separators. 
+//   e.g. "object<car>,other".. str='other', key='object', val='car'
+bool strParseKeyVal ( std::string& str, uchar lsep, uchar rsep, std::string& key, std::string& val )
 {
 	std::string result;
 	size_t lfound, rfound;
 
-	if ( lsep.empty() && rsep.empty() ) {
+	if (lsep=='*' || rsep=='*' ) {
 		key = "";
 		val = str;
 		return true;
@@ -237,6 +239,7 @@ bool strParseKeyVal ( std::string& str,  std::string lsep, std::string rsep, std
 	}
 	return false;
 }
+
 
 
 // Get string from inside two separators. Input is unchanged.
@@ -523,7 +526,8 @@ float strToNum ( std::string str )
 {
 	return (float) atof ( str.c_str() );
 }
-bool strToVec ( std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec, int cpt )
+
+bool strToVec ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec, int cpt )
 {
 	size_t l, r, p;
 	std::string key, vstr;
@@ -543,26 +547,26 @@ bool strToVec ( std::string& str, std::string lsep, std::string insep, std::stri
 	return true;
 }
 
-bool strToVec3 ( std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec )
+bool strToVec3 ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec )
 {
 	return strToVec ( str, lsep, insep, rsep, vec, 3 );	
 }
-bool strToVec4 ( std::string& str, std::string lsep, std::string insep, std::string rsep, float* vec )
+bool strToVec4 ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec )
 {
 	return strToVec ( str, lsep, insep, rsep, vec, 4 );	
 }
-Vector3DF strToVec3(std::string str, std::string sep)
+Vector3DF strToVec3(std::string str, uchar sep)
 {
 	Vector3DF v;
 	float* vec = &v.x;
-	strToVec ( str, "<", sep, ">", vec, 3);
+	strToVec ( str, '<', sep, '>', vec, 3);
 	return v;
 }
-Vector4DF strToVec4(std::string str, std::string sep)
+Vector4DF strToVec4(std::string str, uchar sep)
 {
 	Vector4DF v;
 	float* vec = &v.x;
-	strToVec(str, "<", sep, ">", vec, 4);
+	strToVec(str, '<', sep, '>', vec, 4);
 	return v;
 }
 

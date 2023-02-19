@@ -458,10 +458,10 @@ void Camera3D::updateMatricies (bool compute_view)
 		dir_vec -= from_pos;				// eye = from_pos in gluLookAt docs
 		dir_vec.Normalize ();
 		side_vec = dir_vec;
-		side_vec.Cross ( up_dir );
+		side_vec = side_vec.Cross ( up_dir );
 		side_vec.Normalize ();
 		up_vec = side_vec;
-		up_vec.Cross ( dir_vec );
+		up_vec = up_vec.Cross ( dir_vec );
 		up_vec.Normalize();
 		dir_vec *= -1;
 

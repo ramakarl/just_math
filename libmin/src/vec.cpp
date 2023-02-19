@@ -357,6 +357,7 @@ Vector3DF &Vector3DF::Set (const VTYPE xa, const VTYPE ya, const VTYPE za)
 // Member Functions
 Vector3DF &Vector3DF::operator= (const int op) {x= (VTYPE) op; y= (VTYPE) op; z= (VTYPE) op; return *this;}
 Vector3DF &Vector3DF::operator= (const double op) {x= (VTYPE) op; y= (VTYPE) op; z= (VTYPE) op; return *this;}
+Vector3DF &Vector3DF::operator= (const Vector2DF &op) {x=(VTYPE) op.x; y=(VTYPE) op.y; z= 0; return *this;}
 Vector3DF &Vector3DF::operator= (const Vector3DI &op) {x=(VTYPE) op.x; y=(VTYPE) op.y; z=(VTYPE) op.z; return *this;}
 Vector3DF &Vector3DF::operator= (const Vector3DF &op) {x=(VTYPE) op.x; y=(VTYPE) op.y; z=(VTYPE) op.z; return *this;}
 Vector3DF &Vector3DF::operator= (const Vector4DF &op) {x=(VTYPE) op.x; y=(VTYPE) op.y; z=(VTYPE) op.z; return *this;}	
@@ -397,6 +398,28 @@ double Vector3DF::DistSq (const Vector3DI &v)		{ double a,b,c; a = (double) x - 
 double Vector3DF::DistSq (const Vector3DF &v)		{ double a,b,c; a = (double) x - (double) v.x; b = (double) y - (double) v.y; c = (double) z - (double) v.z; return (a*a + b*b + c*c);}
 double Vector3DF::DistSq (const Vector4DF &v)		{ double a,b,c; a = (double) x - (double) v.x; b = (double) y - (double) v.y; c = (double) z - (double) v.z; return (a*a + b*b + c*c);}
 
+Vector3DF Vector3DF::Cross(const Vector3DI& v) {
+	Vector3DF c;
+	c.x = (VTYPE)(y * v.z - z * v.y);
+	c.y = (VTYPE)(z * v.x - x * v.z);
+	c.z = (VTYPE)(x * v.y - y * v.x);
+	return c;
+}
+Vector3DF Vector3DF::Cross(const Vector3DF& v) {
+	Vector3DF c;
+	c.x = (VTYPE)(y * v.z - z * v.y);
+	c.y = (VTYPE)(z * v.x - x * v.z);
+	c.z = (VTYPE)(x * v.y - y * v.x);
+	return c;
+}
+Vector3DF Vector3DF::Cross(const Vector3DF& v1, const Vector3DF& v2)
+{
+	Vector3DF c;
+	c.x = (VTYPE)(v1.y * v2.z - v1.z * v2.y);
+	c.y = (VTYPE)(v1.z * v2.x - v1.x * v2.z);
+	c.z = (VTYPE)(v1.x * v2.y - v1.y * v2.x);
+	return c;
+}
 
 Vector3DF &Vector3DF::Normalize (void) {
 	double n = (double) x*x + (double) y*y + (double) z*z;
@@ -1031,10 +1054,10 @@ Matrix4F &Matrix4F::normalizedBasis (const Vector3DF &fwd)
 {
 	Vector3DF binorm, tang;
 	binorm.Set ( 0.0, 1.0, 0 );		// up vector
-	binorm.Cross ( fwd );	
+	binorm = binorm.Cross ( fwd );	
 	binorm.Normalize ();
 	tang = binorm;
-	tang.Cross (fwd);
+	tang = tang.Cross (fwd);
 	//tang *= -1;
 	tang.Normalize ();
 	
