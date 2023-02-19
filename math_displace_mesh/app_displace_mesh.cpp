@@ -1,9 +1,19 @@
 //--------------------------------------------------------
 // JUST MATH:
-// Displace Mesh- raycast displacement mapping on a triangle mesh
+// Displace Mesh - raycast displacement mapping on a triangle mesh
 //
-// Inspired by the paper:
+// Inspired by the papers:
+//    Shell Maps, D.Porumbescu et al, 2005
+//    Interactive Smooth and Curved Shell Mapping, S. Jeschke et al, 2007
 //    Tesselation-Free Displacement Mapping for Raytracing, Thonat et al, 2021
+//
+// This sample implements tesselation-free displacement mapping on CPU.
+//
+// A key observation in the above papers is that, while sampling along a 
+// ray in world space is linear the projection of those samples down to a base triangle
+// is non-linear in barycentric coordinates. Identifying the correct UV samples to 
+// evaluate the bump surface for comparison to ray height is an interesting challenge.
+// Ray marching over prism geometry gives true silhouettes with deep displacements.
 //
 //--------------------------------------------------------
 
@@ -68,8 +78,7 @@ public:
 	void		PrecomputePrisms ( float d );
 
 	void		RaycastMesh ( Vector3DF p, float r, float bump_depth, Vector3DF lgt, Image* img );
-	void		RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, Vector3DF lgt, Image* img );
-	void		RaycastDisplacementMeshORIG ( Vector3DF p, float r, float bump_depth, Vector3DF lgt, Image* img );
+	void		RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, Vector3DF lgt, Image* img );	
 
 	void		DrawMesh ( float bump_depth );
 	void		DrawGrid ();	
@@ -79,8 +88,7 @@ public:
 	Camera3D*	m_cam;				// camera
 	Image*		m_bump_img;			// bump map
 	Image*		m_color_img;		// color map
-	Image*		m_out_img;
-	Image*		m_hit_img;
+	Image*		m_out_img;	
 
 	MeshX*		m_mesh;
 	std::vector<Prism>	m_prisms;
@@ -114,7 +122,7 @@ bool Sample::init()
 
 	m_rand.seed ( 123 );
 
-	int res = 1024;
+	int res = 512;
 
 	// create a camera
 	m_cam = new Camera3D;								
@@ -153,9 +161,6 @@ bool Sample::init()
 	// create output image
 	m_out_img = new Image;
 	m_out_img->ResizeImage ( res, res, ImageOp::RGBA32 );	
-	
-	m_hit_img = new Image;
-	m_hit_img->ResizeImage ( res, res, ImageOp::F8 );
 	
 	UpdateCamera();
 
@@ -411,7 +416,7 @@ void Sample::RaycastDisplacementMesh ( Vector3DF p, float r, float bump_depth, V
 	m_rand.seed ( m_samples );
 
 	float d = m_bump_depth;
-	float dt = 0.03;
+	float dt = 0.06;
 	float doff = 0.0;
 	bool used;
 
@@ -779,9 +784,10 @@ void Sample::display()
 void Sample::UpdateCamera()
 {
 	// clear the output image
-	memset ( m_out_img->GetData(), 0, m_out_img->GetSize() );
-	memset ( m_hit_img->GetData(), 127, m_hit_img->GetSize() );
-	m_samples = 1;			// reset samples
+	memset ( m_out_img->GetData(), 0, m_out_img->GetSize() );	
+	
+	m_samples = 1;			// reset samples	
+
 	appPostRedisplay();		// update display
 }
 
