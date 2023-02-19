@@ -370,6 +370,7 @@ void Sample::RaycastDisplacementSphere ( Vector3DF p, float r, float bump_depth,
 		}
 	}
 
+
 	m_samples++;
 
 	// commit image to OpenGL (hardware gl texture) for on-screen display
