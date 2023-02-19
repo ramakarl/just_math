@@ -13,7 +13,6 @@
 //    drawLine..  - draw the current learned function on screen
 //
 
-
 //--------------------------------------------------------------------------------
 // Copyright 2019-2023 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
 //
@@ -104,7 +103,6 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       }
     }
 }
-
 
 
 void Sample::Restart()
