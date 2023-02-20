@@ -538,6 +538,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -M <fn>  output tilemap (JSON)\n");
   fprintf(fp, "  -Q <fn>  tileset filename (PNG)\n");
   fprintf(fp, "  -s <#>   png tile stride\n");
+  fprintf(fp, "  -c <#>   cull tile id\n");
 
   fprintf(fp, "  -d       debug print\n");
 
@@ -584,6 +585,8 @@ int main(int argc, char **argv) {
 
   std::vector< std::vector< int32_t > > constraint_list;
 
+  std::vector< int32_t > cull_list;
+
   BeliefPropagation bpc;
 
   int arg=1;
@@ -594,7 +597,7 @@ int main(int argc, char **argv) {
 
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -688,6 +691,10 @@ int main(int argc, char **argv) {
         Z = atoi(optarg);
         break;
 
+      case 'c':
+        cull_list.push_back( (int32_t)atoi(optarg) );
+        break;
+
       case 'W':
         wfc_flag = 1;
         break;
@@ -767,11 +774,43 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
+
   if (constraint_fn) {
     if (bpc.m_verbose > 0) {
-      printf ( "filter constraints.\n" );
+      printf ( "#filter constraints.\n" );
     }
     bpc.filter_constraint(constraint_list);
+  }
+
+  if (cull_list.size() > 0) {
+    int cull_idx;
+    int64_t tile_idx, pos;
+    int32_t tile_id, n, cull_tile_id;
+    if (bpc.m_verbose > 0) {
+      printf( "#culling tile ids\n" );
+    }
+    for (cull_idx=0; cull_idx<cull_list.size(); cull_idx++) {
+      cull_tile_id = cull_list[cull_idx];
+
+      for (pos=0; pos<bpc.m_num_verts; pos++) {
+        n = bpc.getVali( BUF_TILE_IDX_N, pos );
+        for (tile_idx=0; tile_idx<n; tile_idx++) {
+          if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
+            break;
+          }
+        }
+        if (tile_idx < n) {
+          if (bpc.m_verbose > 0) {
+            printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
+          }
+          tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
+          bpc.SetVali( BUF_TILE_IDX, pos, n-1, cull_tile_id );
+          bpc.SetVali( BUF_TILE_IDX, pos, tile_idx, tile_id );
+          n--;
+          bpc.SetVali( BUF_TILE_IDX_N, pos, n );
+        }
+      }
+    }
   }
 
   if (debug_print) {

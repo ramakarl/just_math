@@ -501,11 +501,13 @@ def construct_block_tile(data):
   #null_pxl = [0,0,0]
   cur_tile_id = 0
 
-  row_idx = 0
-  col_idx = 1
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
 
   id_block_map = {}
   block_id_map = {}
+
+  #border_tile = {}
 
   supertile_a = []
 
@@ -525,14 +527,25 @@ def construct_block_tile(data):
 
   s_c = stride[col_idx] - window[col_idx]
   n_c = sz[col_idx] + window[col_idx] - stride[col_idx] 
+  #s_c = 0
+  #n_c = sz[col_idx]
 
   s_r = stride[row_idx] - window[row_idx]
   n_r = sz[row_idx] + window[row_idx] - stride[row_idx]
+  #s_r = 0
+  #n_r = sz[row_idx]
 
   #print("s_c:", s_c, "n_c:", n_c, "s_r:", s_r, "n_r:", n_r)
 
   for r in range(s_r, n_r, stride[row_idx]):
     for c in range(s_c, n_c, stride[col_idx]):
+
+      #border_dir = [ [0.0, 0.0], [0.0,0.0] ]
+
+      #if (r <= 0): border_dir[0][1] = -1.0
+      #if (r >= sz[row_idx]): border_dir[0][1] = 1.0
+      #if (c <= 0): border_dir[1][0] = -1.0
+      #if (c >= sz[col_idx]): border_dir[1][0] = 1.0
 
       st_key = []
       supertile = []
@@ -558,10 +571,32 @@ def construct_block_tile(data):
       for flip_idx in range(2):
         for rot_idx in range(4):
 
+          #_bd = [ [ border_dir[0][0], border_dir[0][1] ], [ border_dir[1][0], border_dir[1][1] ] ]
+
           st = supertile
           if flip_idx == 1:
             st = pixel_tile_flip_y(st, window[row_idx], window[col_idx])
+
+            #_bd[0][1] = -_bd[0][1]
+            #_bd[1][1] = -_bd[1][1]
+
           st = pixel_tile_rotate(st, rot_idx, window[row_idx], window[col_idx])
+
+          #for _ii in range(rot_idx):
+          #  _bd[0] = [ -_bd[0][1], _bd[0][0] ]
+          #  _bd[1] = [ -_bd[1][1], _bd[1][0] ]
+
+          # discard tile that has null tile as it's
+          # representative
+          #
+          #if ((st[0] == null_pxl[0]) and
+          #    (st[1] == null_pxl[1]) and
+          #    (st[2] == null_pxl[2])):
+
+            ## DEBUG
+            #print("discarding:", flip_idx, rot_idx, cur_tile_id)
+
+          #  continue
 
           st_key_a = []
           for idx in range(0, len(st), 3):
@@ -581,6 +616,26 @@ def construct_block_tile(data):
 
             supertile_a.append(st)
 
+            # mark which tiles are on the border to use when
+            # constructing rules.
+            # This is to signal which tiles need explicit 'null_tile'
+            # rules
+            #
+            #if not (cur_tile_id in border_tile):
+            #  border_tile[cur_tile_id] = [ 0, 0, 0, 0, 1, 1 ]
+            #if (_bd[0][0] < -0.5): border_tile[cur_tile_id][1] = 1
+            #if (_bd[1][0] < -0.5): border_tile[cur_tile_id][1] = 1
+
+            #if (_bd[1][0] >  0.5): border_tile[cur_tile_id][0] = 1
+            #if (_bd[0][0] >  0.5): border_tile[cur_tile_id][0] = 1
+
+
+            #if (_bd[0][1] < -0.5): border_tile[cur_tile_id][3] = 1
+            #if (_bd[1][1] < -0.5): border_tile[cur_tile_id][3] = 1
+
+            #if (_bd[0][1] >  0.5): border_tile[cur_tile_id][2] = 1
+            #if (_bd[1][1] >  0.5): border_tile[cur_tile_id][2] = 1
+
             cur_tile_id+=1
 
       ## DEBUG
@@ -599,6 +654,7 @@ def construct_block_tile(data):
 
   data["block_id_map"] = block_id_map
   data["id_block_map"] = id_block_map
+  #data["border_tile"] = border_tile
 
   data["n_block"] = cur_tile_id
 
@@ -641,8 +697,20 @@ def construct_block_nei(data):
     [ [stride[row_idx], window[row_idx]] , [0, window[col_idx] ] ]
   ]
 
-  oppo = [ 1, 0, 3, 2 ]
+  #se = [
+  #  [ [0, window[row_idx] ], [0, window[col_idx + stride[] ] ],
+  #  [ [0, window[row_idx] ], [0, window[col_idx] ] ],
+  #  [ [0, window[row_idx] ], [0, window[col_idx] ] ],
+  #  [ [0, window[row_idx] ], [0, window[col_idx] ] ]
+  #]
 
+  oppo = [ 1, 0, 3, 2, 5, 4 ]
+  revmap = [ 0, 1, 3, 2, 4, 5 ]
+  rev_y = True
+
+  # construct overlapping pixel region as keys for easy
+  # lookup
+  #
   for tile_id in range(n_block):
 
     block_pxl = id_block_map[tile_id]
@@ -664,29 +732,51 @@ def construct_block_nei(data):
           nei_key_a.append(rgb[2])
         nei_key_a.append("\n")
       nei_key = "".join(nei_key_a)
-      id_nei_key_map[tile_id][idx] = nei_key
 
-      if not (nei_key in nei_id_map[idx]):
-        nei_id_map[idx][nei_key] = {}
-      if not (tile_id in nei_id_map[idx][nei_key]):
-        nei_id_map[idx][nei_key][tile_id] = 1
+      dir_idx = idx
+      if rev_y: dir_idx = revmap[idx]
+
+      id_nei_key_map[tile_id][dir_idx] = nei_key
+
+      if not (nei_key in nei_id_map[dir_idx]):
+        nei_id_map[dir_idx][nei_key] = {}
+      if not (tile_id in nei_id_map[dir_idx][nei_key]):
+        nei_id_map[dir_idx][nei_key][tile_id] = 1
 
       #print("... tile_id:", tile_id, "nei_idx:", idx, nei_desc[idx])
       #print(nei_key)
 
+  # do an N^2 consideration to find which tiles are next
+  # to which, using the overlapping pixels as keys for
+  # deterination
+  #
   for src_tile_id in range(n_block):
     for dst_tile_id in range(n_block):
-      for src_nei_idx in range(4):
-        dst_nei_idx = oppo[ src_nei_idx ]
 
-        src_key = id_nei_key_map[src_tile_id][src_nei_idx]
+      # ignore null to null tile rules
+      #
+      #if (src_tile_id == 0) and (dst_tile_id==0): continue
+
+      for src_nei_idx in range(4):
+        src_dir_idx = src_nei_idx
+        if rev_y: src_dir_idx = revmap[src_nei_idx]
+        dst_nei_idx = oppo[ src_dir_idx ]
+
+        src_key = id_nei_key_map[src_tile_id][src_dir_idx]
         dst_key = id_nei_key_map[dst_tile_id][dst_nei_idx]
 
         if src_key == dst_key:
           #print( src_tile_id, nei_desc[src_nei_idx], nei_desc[dst_nei_idx], dst_tile_id )
 
-          id_id_nei_map[src_tile_id][dst_tile_id][src_nei_idx] = 1
+          id_id_nei_map[src_tile_id][dst_tile_id][src_dir_idx] = 1
           id_id_nei_map[dst_tile_id][src_tile_id][dst_nei_idx] = 1
+
+  #border_tile = data["border_tile"]
+  #for tile_id in border_tile:
+  #  for dir_idx in range(6):
+  #    if border_tile[tile_id][dir_idx] == 1:
+  #      id_id_nei_map[tile_id][0][dir_idx] = 1
+  #      id_id_nei_map[0][tile_id][oppo[dir_idx]] = 1
 
   for tile_id in range(1, n_block):
     id_id_nei_map[0][tile_id][4] = 1
@@ -695,6 +785,79 @@ def construct_block_nei(data):
     id_id_nei_map[tile_id][0][5] = 1
 
   data["id_id_nei_map"] = id_id_nei_map
+
+def dedup_block(data):
+
+  n_block = data["n_block"]
+
+  id_block_map = data["id_block_map"]
+  block_id_map = data["block_id_map"]
+  id_id_nei_map = data["id_id_nei_map"]
+
+  id_nei_key_map = {}
+
+  pxltile = data["pxltile"]
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  window = pxltile["window"]
+  stride = pxltile["stride"]
+
+  null_pxl = data["null_pixel"]
+
+  src_id_dedup_id_map = {}
+
+  dedup_id_rule = {}
+  dedup_id_block_map = {}
+  dedup_id_block_map[0] = id_block_map[0]
+
+  # find number of deduplicated tiles
+  # and save where they came from
+  #
+  n_dedup_id = 1
+  for src_tile_id in range(n_block):
+    src_pxl = id_block_map[src_tile_id]
+    if ((src_pxl[0] == null_pxl[0]) and
+        (src_pxl[1] == null_pxl[1]) and
+        (src_pxl[2] == null_pxl[2])):
+      src_id_dedup_id_map[src_tile_id] = 0
+      continue
+    dedup_id_block_map[n_dedup_id] = id_block_map[src_tile_id]
+    src_id_dedup_id_map[src_tile_id] = n_dedup_id
+    n_dedup_id += 1
+
+  # init dedup rule map
+  #
+  for a in range(n_dedup_id):
+    dedup_id_rule[a] = {}
+    for b in range(n_dedup_id):
+      dedup_id_rule[a][b] = {}
+      for nei_idx in range(6):
+        dedup_id_rule[a][b][nei_idx] = 0
+
+  # transfer rules from non deduplicated rules
+  # to deduplicated rules
+  #
+  for src_tile_id_a in range(n_block):
+    for src_tile_id_b in range(n_block):
+
+      dedup_id_a = src_id_dedup_id_map[src_tile_id_a]
+      dedup_id_b = src_id_dedup_id_map[src_tile_id_b]
+
+      for dir_idx in range(6):
+        if id_id_nei_map[src_tile_id_a][src_tile_id_b][dir_idx] == 1:
+          dedup_id_rule[dedup_id_a][dedup_id_b][dir_idx] = id_id_nei_map[src_tile_id_a][src_tile_id_b][dir_idx]
+
+  data["n_dedup_id"] = n_dedup_id
+  data["dedup_id_rule"] = dedup_id_rule
+  data["src_id_dedup_id_map"] = src_id_dedup_id_map
+  data["dedup_id_block_map"] = dedup_id_block_map
+
+  #DEBUG
+  for idx in range(n_dedup_id):
+    barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], "tmp/" + str(idx) + ".png")
+
 
 def debug_print_rule(data):
 
@@ -708,9 +871,9 @@ def debug_print_rule(data):
 
           print( str(src_tile_id) + "," + str(dst_tile_id) + "," + str(src_nei_idx) + ",1")
 
-def write_rule_csv(data, ofn):
-  n_block = data["n_block"]
-  id_id_nei_map = data["id_id_nei_map"]
+def write_rule_csv(id_id_nei_map, n_block, ofn):
+  #n_block = data["n_block"]
+  #id_id_nei_map = data["id_id_nei_map"]
   ofp = open(ofn, "w")
   ofp.write("#tile_id_a,tile_id_b,dir_idx,val\n")
   for src_tile_id in range(n_block):
@@ -720,18 +883,22 @@ def write_rule_csv(data, ofn):
           ofp.write( str(src_tile_id) + "," + str(dst_tile_id) + "," + str(src_nei_idx) + ",1\n")
   ofp.close()
 
-def write_name_csv(data, ofn):
-  n_block = data["n_block"]
+def write_name_csv(n_block, ofn):
+  #n_block = data["n_block"]
   ofp = open(ofn, "w")
   ofp.write("#tile_id,tile_name\n")
   for tile_id in range(n_block):
     ofp.write( str(tile_id) + "," + str(tile_id) + "\n" )
   ofp.close()
 
-def write_tileset_png(data, ofn):
+def write_tileset_png(data, ofn, use_dedup):
 
   n_block = data["n_block"]
   id_block_map = data["id_block_map"]
+
+  if use_dedup:
+    n_block = data["n_dedup_id"]
+    id_block_map = data["dedup_id_block_map"]
 
   row_idx = data["row_idx"]
   col_idx = data["col_idx"]
@@ -792,10 +959,12 @@ data = {
     "base" : [0,0]
   },
 
-  "null_pixel": [7,7,7],
+  "null_pixel": [127,126,125],
 
-  "row_idx" : 0,
-  "col_idx" : 1,
+  #"border_tile": {},
+
+  "row_idx" : 1,
+  "col_idx" : 0,
 
   "n_block": -1,
 
@@ -814,11 +983,17 @@ load_image(data, fn)
 construct_block_tile(data)
 construct_block_nei(data)
 
+dedup_block(data)
+
+## DEBUG
+#for tile_id in data["border_tile"]:
+#  print("tile_id:", tile_id, data["border_tile"][tile_id])
+
 #debug_print_rule(data)
 
-write_name_csv(data, "x_name.csv")
-write_rule_csv(data, "x_rule.csv")
-write_tileset_png(data, "x_tileset.png")
+write_name_csv(data["n_dedup_id"], "x_name.csv")
+write_rule_csv(data["dedup_id_rule"], data["n_dedup_id"], "x_rule.csv")
+write_tileset_png(data, "x_tileset.png", True)
 
 sys.exit(0)
 
