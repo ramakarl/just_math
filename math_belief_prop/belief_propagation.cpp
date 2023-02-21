@@ -573,9 +573,11 @@ void BeliefPropagation::WriteBoundaryMU () {
     // Y plane
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = 0;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetVal ( BUF_MU, 3, j, tile, 1.0f );
-        jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = m_bpres.y-1;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetVal ( BUF_MU, 2, j, tile, 1.0f );
       }
     }
@@ -584,9 +586,11 @@ void BeliefPropagation::WriteBoundaryMU () {
     // Z plane
     for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
+        jp.z = 0;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetVal ( BUF_MU, 5, j, tile, 1.0f );
-        jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.z = m_bpres.z-1;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetVal ( BUF_MU, 4, j, tile, 1.0f );
       }
     }

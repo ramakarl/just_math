@@ -34,6 +34,7 @@ id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@
 
 info = {
   "opt": {
+    "tile_symmetry": True,
     "tile_zero_boundary_condition":True,
     "basedir": "./",
     "rule_weight": False, #True,
@@ -78,6 +79,7 @@ def debug_print_info(info):
   print("debug info:")
   print("info.opt.tile_zero_boundary_condition:", info["opt"]["tile_zero_boundary_condition"])
   print("info.opt.basedir:", info["opt"]["basedir"])
+  print("info.opt.tile_symmetry:", info["opt"]["tile_symmetry"])
   print("info.tilemap.fn:", info["tilemap"]["fn"], "[w:", info["tilemap"]["width"], "h:", info["tilemap"]["height"], "] (", info["tilemap"]["realize"], ")")
   print("info.tileset.fn:", info["tileset"]["fn"], "[w:", info["tileset"]["width"], "h:", info["tileset"]["height"], "] (", info["tileset"]["realize"], ")")
   print("info.tilerule.fn:", info["tilerule"]["fn"], "(", info["tilerule"]["realize"], ")")
@@ -111,7 +113,7 @@ def parse_param_2_1(a):
   return [x,y]
 
 try:
-  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:w:", ["help", "version"])
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:w:t:", ["help", "version"])
 except getopt.GetoptError as err:
   print(err)
   usage(sys.stderr)
@@ -168,6 +170,10 @@ for o,a in opts:
     info["tilename"]["fn"] = a
     info["tilename"]["realize"] = True
 
+  elif o == "-t":
+    _t = int(a)
+    if _t == 0: info["opt"]["tile_symmetry"] = False
+    else:       info["opt"]["tile_symmetry"] = True
   elif o == "-D":
     info["opt"]["debug"] = True
 
@@ -355,14 +361,9 @@ def construct_id_pxl_map(data):
         uniq_pxl_tile_key_id[tile_key] = tile_key_id
 
         id_pxl_map[ tile_key_id ] = pxl_tile_cur
-
         id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
                                           -1, -1, -1, -1 ]
-
-
         tile_key_id += 1
-
-  #for _key in uniq_pxl_tile: print(">>>", _key)
 
   # find mapping of symmetries of basic tiles to
   # tile already in lib or make a new pixel tile
@@ -370,7 +371,6 @@ def construct_id_pxl_map(data):
   #
   _tmp_max_id = tile_key_id
   for tile_id in range(1, _tmp_max_id):
-    #print(tile_id)
 
     pxl = id_pxl_map[ tile_id ]
 
@@ -385,15 +385,9 @@ def construct_id_pxl_map(data):
 
         id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
                                           -1, -1, -1, -1 ]
-
-        ## DEBUG
-        #print("not found, adding:", tile_key_id, z_key)
-
         tile_key_id += 1
 
       else:
-        ## DEBUG
-        #print("ok, in")
         pass
 
       z = pixel_tile_flip_y(pxl)
@@ -407,15 +401,9 @@ def construct_id_pxl_map(data):
 
         id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
                                           -1, -1, -1, -1 ]
-
-        ## DEBUG
-        print("not found flip, nrot:", nrot, "adding:", tile_key_id, z_key)
-
         tile_key_id += 1
 
       else:
-        ## DEBUG
-        #print("ok, in")
         pass
 
   data["max_tile_id"] = tile_key_id - 1
@@ -492,24 +480,10 @@ def id_pxl_map_to_png_tileset(data, ofn):
         pxl_dat[pxl_r][pxl_c+1] = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
         pxl_dat[pxl_r][pxl_c+2] = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
 
-  #ofn = info["tileset"]["fn"]
-
   w = png.Writer( png_col, png_row, greyscale=False )
   png_ofp = open(ofn, "wb")
   w.write(png_ofp, pxl_dat)
   png_ofp.close()
-
-#def debug_print_data(data):
-#
-#  pxltile = data["pxltile"]
-#  print("pxltile info")
-#  print("  window:", pxltile["window"])
-#  print("  stride:", pxltile["stride"])
-#  print("  base:", pxltile["base"])
-#
-#  imginfo = data["img"]
-#  print("img info:")
-#  print("  size:", imginfo["size"])
 
 def barf_supertile(pxl, png_row, png_col, ofn):
 
@@ -529,7 +503,6 @@ def barf_supertile(pxl, png_row, png_col, ofn):
       pxl_dat[r][3*c+1] = pxl[ 3*(r*png_col + c) + 1 ]
       pxl_dat[r][3*c+2] = pxl[ 3*(r*png_col + c) + 2 ]
 
-  #print("writing:", ofn, png_row, png_col)
   w = png.Writer( png_col, png_row, greyscale=False )
   png_ofp = open(ofn, "wb")
   w.write(png_ofp, pxl_dat)
@@ -606,13 +579,17 @@ def construct_block_tile(data):
           supertile.append( rgb[1] )
           supertile.append( rgb[2] )
 
-      for flip_idx in range(2):
-        for rot_idx in range(4):
+      flip_range = 2
+      rot_range = 4
+      if data["tile_symmetry"]:
+        flip_range = 1
+        rot_range = 1
+      for flip_idx in range(flip_range):
+        for rot_idx in range(rot_range):
 
           st = supertile
           if flip_idx == 1:
             st = pixel_tile_flip_y(st, window[row_idx], window[col_idx])
-
           st = pixel_tile_rotate(st, rot_idx, window[row_idx], window[col_idx])
 
           st_key_a = []
@@ -630,9 +607,7 @@ def construct_block_tile(data):
           if not (st_key in block_id_map):
             block_id_map[st_key] = cur_tile_id
             id_block_map[cur_tile_id] = st
-
             supertile_a.append(st)
-
             cur_tile_id+=1
 
   data["block_id_map"] = block_id_map
@@ -986,6 +961,8 @@ data = {
   "col_idx" : 0,
 
   "n_block": -1,
+
+  "tile_symmetry": info["opt"]["tile_symmetry"],
 
   "block_id_map": {},
   "id_block_map": {},

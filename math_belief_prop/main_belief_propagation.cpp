@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
           }
         }
         if (tile_idx < n) {
-          if (bpc.m_verbose > 0) {
+          if (bpc.m_verbose > 1) {
             printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
           }
           tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
