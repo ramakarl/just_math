@@ -204,11 +204,13 @@ void bp_cb_0(void *dat) {
   printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
 }
 
-void bp_cb_v0(void *dat) {
+void bp_cb_V2(void *dat) {
   static int base_it = -1;
 
   if (g_bpc->m_state_info_iter==0) { base_it++; }
-  printf("[%i.%i]\n", base_it, (int)g_bpc->m_state_info_iter);
+  if ( (g_bpc->m_state_info_iter % 100) == 0) {
+    printf("# [base_it:%i.m_state_info_iter:%i]\n", base_it, (int)g_bpc->m_state_info_iter);
+  }
 }
 
 void bp_cb_v1(void *dat) {
@@ -421,6 +423,8 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   int i, j, n, tileset_size;
   int64_t vtx;
 
+  int sy, ey_inc;
+
   int tilecount = (int)bpc.m_tile_name.size();
   tilecount--;
 
@@ -430,6 +434,7 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   opt.tileset_width *= opt.tileset_stride_x;
   opt.tileset_height *= opt.tileset_stride_y;
+
 
   fp = fopen( opt.tilemap_fn.c_str(), "w");
   if (!fp) { return -1; }
@@ -446,15 +451,33 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   // so we need to reverse the y direction when exporting
   //
 
-  for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
-    for (j=0; j<(int)bpc.m_res.x; j++) {
-      vtx = bpc.getVertex(j, i, 0);
 
-      fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
-      if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-      else                                { fprintf(fp, "%s", ","); }
+  if (opt.tiled_reverse_y) {
+
+    for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
     }
-    fprintf(fp, "\n  ");
+
+  }
+  else {
+    for (i=0; i<(int)(bpc.m_res.y); i++) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+
   }
 
   /*
@@ -518,6 +541,10 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -N <fn>  CSV name file\n");
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
+  fprintf(fp, "  -e <#>   set convergence epsilon\n");
+  fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -w <#>   set (update) rate\n");
+  fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -W       run 'wave function collapse' instead of belief propagation\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
@@ -537,16 +564,13 @@ void show_usage(FILE *fp) {
 
   fprintf(fp, "  -M <fn>  output tilemap (JSON)\n");
   fprintf(fp, "  -Q <fn>  tileset filename (PNG)\n");
+  fprintf(fp, "  -u       reverse y for tiled output (default 0)\n");
   fprintf(fp, "  -s <#>   png tile stride\n");
   fprintf(fp, "  -c <#>   cull tile id\n");
 
   fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
-  fprintf(fp, "  -e <#>   set convergence epsilon\n");
-  fprintf(fp, "  -z <#>   set zero epsilon\n");
-  fprintf(fp, "  -w <#>   set (update) rate\n");
-  fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
 
   fprintf(fp, "  -v       show version\n");
@@ -595,9 +619,10 @@ int main(int argc, char **argv) {
 
   g_bpc = &bpc;
 
+  g_opt.tiled_reverse_y = 0;
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:u")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -716,6 +741,9 @@ int main(int argc, char **argv) {
         g_opt.tileset_stride_x = atoi(optarg);
         g_opt.tileset_stride_y = g_opt.tileset_stride_x;
         break;
+      case 'u':
+        g_opt.tiled_reverse_y = 1;
+        break;
 
       default:
         show_usage(stderr);
@@ -823,8 +851,8 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  if (bpc.m_verbose > 0) {
-    //_cb_f = bp_cb_v0;
+  if (bpc.m_verbose > 1) {
+    _cb_f = bp_cb_V2;
   }
 
   // prepare raycast [optional]

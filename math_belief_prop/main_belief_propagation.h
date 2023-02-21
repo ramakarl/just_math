@@ -17,6 +17,8 @@ typedef struct _opt_t {
   int32_t tileset_width,
           tileset_height;
 
+  int tiled_reverse_y;
+
 } opt_t;
 
 extern opt_t g_opt;
