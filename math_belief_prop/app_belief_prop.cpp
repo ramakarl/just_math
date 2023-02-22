@@ -11,6 +11,7 @@
 // To render the result, the belief is estimated at each vertex (voxel), and
 // raytraced as a density volume where value probabilities are mapped to color.
 //
+//
 
 //--------------------------------------------------------------------------------
 // Copyright 2019-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
@@ -331,11 +332,11 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   Vector3DF rpos, rdir;
   Vector4DF clr;
 
-  Vector3DF wp, dwp, p, dp, t;
+  Vector3DF wp, dwp, p, dp;
   Vector3DF vdel = m_vres;
   Vector4DF val;
   int iter;
-  float alpha, k;
+  float alpha, k, t;
   float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
   float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
@@ -354,11 +355,13 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
       rdir.Normalize();
 
       // intersect with volume box
-      t = intersectLineBox ( rpos, rdir, vmin, vmax );
+
       clr.Set(0,0,0,0);
-      if ( t.z >= 0 ) {
+
+      if ( intersectLineBox ( rpos, rdir, vmin, vmax, t ) ) {
+
         // hit volume, start raycast...
-        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space
+        wp = rpos + rdir * (t + pStep);                     // starting point in world space
         dwp = (vmax-vmin) * rdir * pStep;                     // ray sample stepping in world space
         p = Vector3DF(m_vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume
         dp = rdir * pStep;                // step delta along ray
@@ -436,8 +439,8 @@ bool Sample::init()
 
   // Initiate Belief Propagation
   m_constraint_fn = "";
-  getFileLocation ( "stair_name.csv", m_name_fn );
-  getFileLocation ( "stair_rule.csv", m_rule_fn );
+  getFileLocation ( "pm_tilename.csv", m_name_fn );
+  getFileLocation ( "pm_tilerule.csv", m_rule_fn );
   //getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
 
   if (m_run_bpc) {
@@ -493,7 +496,7 @@ void Sample::display()
   if (m_run) {
 
     if ( m_run_bpc) {
-      ret = bpc.single_realize_max_belief_cb (m_it, _cb_f );
+      ret = bpc.single_realize_min_entropy_max_belief_cb ( m_it, _cb_f );
       if ( ret <= 0) {
         switch (ret) {
         case  0: printf ( "BPC DONE.\n" ); {

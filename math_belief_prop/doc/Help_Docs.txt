@@ -1,0 +1,24 @@
+
+
+How to Generate Tilesets
+-------------------------
+
+Windows:
+* Install Python
+* Retrieve Pip installer. https://bootstrap.pypa.io/get-pip.py
+* Install Pip. >python get-pip.py
+* Install PIL. >pip install pillow
+* Install png. >pip install pypng
+
+
+> cd /math_belief_prop/examples
+> python img2tile -i demo_pacman.png -s 8 -w 16 -S pm_tileset.png -N pm_tilename.csv -R pm_tilerule.csv -t 0
+> python img2tile -i demo_mario.png -s 16 -w 32 -S smb_tileset.png -N smb_tilename.csv -R smb_tilerule.csv
+
+
+How to Run
+--------------
+Args:
+
+
+> bp -S 0 -X 8 -Y 8 -Z 1 -N pm_tilename.csv -R pm_tilerule.csv
