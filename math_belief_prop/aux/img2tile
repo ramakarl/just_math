@@ -34,7 +34,7 @@ id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@
 
 info = {
   "opt": {
-    "tile_symmetry": True,
+    "tile_symmetry": False,
     "tile_zero_boundary_condition":True,
     "basedir": "./",
     "rule_weight": False, #True,
@@ -68,6 +68,7 @@ def usage(fp):
   fp.write("  -N <fn>   outpt tile name file (CSV)\n")
   fp.write("  -R <fn>   outpt tile rule file (CSV)\n")
   #fp.write("  -T <#>    type of tilemap to use ('simple', 'cross', 'square', 's2x2')\n")
+  fp.write("  -t <#>    tile symmetry option ( 0 = no tile symmetry (default), 1 = flip and rotate symmetry )\n")
   fp.write("  -V        verbose\n")
   fp.write("  -D        debug\n")
   fp.write("  -h        help (this screen)\n")
@@ -579,11 +580,11 @@ def construct_block_tile(data):
           supertile.append( rgb[1] )
           supertile.append( rgb[2] )
 
-      flip_range = 2
-      rot_range = 4
-      if data["tile_symmetry"]:
-        flip_range = 1
-        rot_range = 1
+      flip_range = 1
+      rot_range = 1
+      if data["tile_symmetry"] == 1:
+        flip_range = 2
+        rot_range = 4
       for flip_idx in range(flip_range):
         for rot_idx in range(rot_range):
 

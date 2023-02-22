@@ -1461,7 +1461,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
         }
       }
 
-      // else we've seen the same minimum entropy, so decide whether we want
+      // else we've seen the same minimum entropy, decide whether we want
       // to keep the entry we've already chosen or redraw from the current
       // cell
       //
@@ -1489,10 +1489,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
   if (max_tile)     { *max_tile     = _max_tile; }
   if (max_tile_idx) { *max_tile_idx = _max_tile_idx; }
   if (max_belief)   { *max_belief   = _max_belief; }
-
-  if (m_verbose > 2) {
-    printf("?? count:%i\n", (int)count);
-  }
 
   return count;
 }
@@ -2731,7 +2727,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   int64_t cell=-1;
-  int32_t tile=-1, tile_idx=-1;
+  int32_t tile=-1, tile_idx=-1, n_idx=-1;
   float belief=-1.0, d = -1.0;
 
   int64_t step_iter=0,
@@ -2770,9 +2766,10 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
 
   if (m_verbose > 1) {
     vp = getVertexPos(cell);
-    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i)\n",
+    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
         (int)vp.x, (int)vp.y, (int)vp.z,
-        (int)cell, (int)tile, (float)belief, (int)tile_idx);
+        (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
   }
 
   // (success) end condition, all cell positions have exactly

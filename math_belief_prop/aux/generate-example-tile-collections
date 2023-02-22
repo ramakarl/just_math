@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+
+
+echo 'generating "pm" tile collection'
+./img2tile \
+  -s 8 -w 16 \
+  -i example_image/demo_pacman.png \
+  -S example_tile_collection/pm_tileset.png \
+  -N example_tile_collection/pm_tilename.csv \
+  -R example_tile_collection/pm_tilerule.csv
+
+echo 'generating "smb" tile collection'
+./img2tile \
+  -s 16 -w 32 \
+  -i ./example_image/demo_mario.png \
+  -S example_tile_collection/smb_tileset.png \
+  -N ./example_tile_collection/smb_tilename.csv \
+  -R ./example_tile_collection/smb_tilerule.csv
+
+echo 'generating "oloz" tile collection'
+./img2tile \
+  -s 16 -w 32 \
+  -i example_image/oloz_overworld.png \
+  -S ./example_tile_collection/oloz_tileset.png \
+  -N ./example_tile_collection/oloz_tilename.csv \
+  -R ./example_tile_collection/oloz_tilerule.csv
+
+echo 'generating "amarelo" tile collection'
+./img2tile \
+  -s 8 -w 16 \
+  -i ./example_image/amarelo.png \
+  -S example_tile_collection/amarelo_tileset.png \
+  -N ./example_tile_collection/amarelo_tilename.csv \
+  -R ./example_tile_collection/amarelo_tilerule.csv
+
+echo 'generating "blowhard" tile collection'
+./img2tile \
+  -s 16 -w 32 \
+  -i example_image/blowhard_sms_map_0.png \
+  -S example_tile_collection/blowhard_tileset.png \
+  -N example_tile_collection/blowhard_tilename.csv \
+  -R example_tile_collection/blowhard_tilerule.csv
+
+
