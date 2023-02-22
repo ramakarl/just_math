@@ -28,6 +28,25 @@ TODO
 * merge optimizations from upstream repo
 * implement checkerboard updating
 * implement automated tests
+* add other 2d tilesets for testing and demos (from oga):
+  - https://opengameart.org/content/gameboy-tileset
+  - https://opengameart.org/content/zelda-like-tilesets-and-sprites
+  - https://opengameart.org/content/blowhard-2-blow-harder
+  - https://opengameart.org/content/8x8-tileset-by-soundlust
+  - https://opengameart.org/content/16x16-fantasy-tileset
+  - https://opengameart.org/content/zoria-tileset
+  - https://opengameart.org/content/overhead-action-rpg-forest
+  - https://opengameart.org/content/micro-tileset-overworld-and-dungeon
+  - https://opengameart.org/content/a-blocky-dungeon
+  - https://opengameart.org/content/dungeon-tileset
+  - https://opengameart.org/content/1-bit-pack
+  - https://opengameart.org/content/micro-roguelike
+  - https://opengameart.org/content/monochrome-rpg
+* add 3d tilesets and figure out reasonable export/import format (vox?):
+  - https://opengameart.org/content/marble-kit
+  - https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt
+  - goxel looks like a nice FOSS alternative
+
 
 
 ---
@@ -35,8 +54,8 @@ TODO
 Path forward:
 
 * ~tests (automated)~
-* checkerboard
-* svd
+* ~checkerboard~
+* ~svd~
 * ~code refactor/optimizations~
 
 ---
@@ -56,3 +75,23 @@ Residual BP might give 4x (speculative), with SVD at 3x gives 12x.
 ---
 
 * [gamedev SO on contradictions in WFC](https://gamedev.stackexchange.com/questions/178443/resolving-contradictions-in-wfc-more-efficiently-than-naive-backtracking)
+
+---
+
+Running into errors with `svdlibc` (`example_f2.mat` hangs).
+
+Alternatives:
+
+* [eigen3](https://eigen.tuxfamily.org/index.php?title=Main_Page) ([mpl2 license](https://www.mozilla.org/en-US/MPL/2.0/FAQ/))
+* [armadillow](https://arma.sourceforge.net/faq.html) ([apache2](https://opensource.org/licenses/Apache-2.0))
+
+---
+
+References
+---
+
+* [WFC tutorial](https://medium.com/swlh/wave-function-collapse-tutorial-with-a-basic-exmaple-implementation-in-python-152d83d5cdb1)
+* [procjam WFC](https://www.procjam.com/tutorials/wfc/)
+* [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
+* [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+

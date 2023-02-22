@@ -1,0 +1,997 @@
+#!/usr/bin/python3
+#
+# LICENSE: CC0
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+# Create a tileset and tilemap from an input "example" image file.
+#
+# The intent is to use it on an example level, from an old 8-bit
+# game like Pacman, Super Mario Bros or The (Original) Legend of Zelda,
+# and automatically create a tileset and tilemap from it.
+#
+# For example, using the `demo_pacman.png`, run as follows:
+#
+#   ./map2tile.py -i demo_pacman.png -s 8
+#
+
+import os
+import sys
+import json
+from PIL import Image
+import png
+import math
+
+import getopt
+
+id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@#$%^&*()_-+=[]{}\\|;:'\",.<>/?"
+
+info = {
+  "opt": {
+    "tile_symmetry": True,
+    "tile_zero_boundary_condition":True,
+    "basedir": "./",
+    "rule_weight": False, #True,
+    "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
+    #"neighbor_type": 0,
+    "debug": False
+  },
+  "tilemap":  {"fn":"out_tilemap.json", "width":-1, "height":-1, "realize": False },
+  "tileset":  {"fn": "out_tileset.png", "width":-1, "height":-1, "stride":[-1,-1], "count":0, "realize":False },
+  "tilerule": {"fn":"out_rule.csv", "realize":False },
+  "tilename": {"fn":"out_name.csv", "realize":False },
+  "firstgid": -1,
+  "window":   [16,16],
+  "offset":   [ 0, 0],
+  "size":     [ 0, 0],
+  "stride":   [ 8, 8]
+}
+
+def usage(fp):
+  fp.write("\nusage:\n")
+  fp.write("\n")
+  fp.write("  map2tile [-h] [-v] [-V] [-i inputfile] [-s stride] [-o offset]\n")
+  fp.write("\n")
+  fp.write("  -i        input file (png)\n")
+  fp.write("  -s        stride (default " + str(info["stride"][0]) + ") (width,height)\n")
+  fp.write("  -o        offset (default 0)\n")
+  fp.write("  -w        window (default " + str(info["window"][0]) + "))\n")
+  fp.write("  -d        base directory (default './')\n")
+  fp.write("  -M <fn>   output tilemap filename (JSON)\n")
+  fp.write("  -S <fn>   output tileset (PNG)\n")
+  fp.write("  -N <fn>   outpt tile name file (CSV)\n")
+  fp.write("  -R <fn>   outpt tile rule file (CSV)\n")
+  #fp.write("  -T <#>    type of tilemap to use ('simple', 'cross', 'square', 's2x2')\n")
+  fp.write("  -V        verbose\n")
+  fp.write("  -D        debug\n")
+  fp.write("  -h        help (this screen)\n")
+  fp.write("\n")
+
+fn = ""
+
+def debug_print_info(info):
+  print("debug info:")
+  print("info.opt.tile_zero_boundary_condition:", info["opt"]["tile_zero_boundary_condition"])
+  print("info.opt.basedir:", info["opt"]["basedir"])
+  print("info.opt.tile_symmetry:", info["opt"]["tile_symmetry"])
+  print("info.tilemap.fn:", info["tilemap"]["fn"], "[w:", info["tilemap"]["width"], "h:", info["tilemap"]["height"], "] (", info["tilemap"]["realize"], ")")
+  print("info.tileset.fn:", info["tileset"]["fn"], "[w:", info["tileset"]["width"], "h:", info["tileset"]["height"], "] (", info["tileset"]["realize"], ")")
+  print("info.tilerule.fn:", info["tilerule"]["fn"], "(", info["tilerule"]["realize"], ")")
+  print("info.tilename.fn:", info["tilename"]["fn"], "(", info["tilename"]["realize"], ")")
+  print("info.offset: [", info["offset"][0], info["offset"][1], "]")
+  print("info.size: [", info["size"][0], info["size"][1], "]")
+  print("info.stride: [", info["stride"][0], info["stride"][1], "]")
+  print("info.window: [", info["window"][0], info["window"][1], "]")
+
+def debug_print_data(data):
+  print("debug data:")
+
+  print("pxltile.window: [", data["pxltile"]["window"][0], data["pxltile"]["window"][1], "]")
+  print("pxltile.stride: [", data["pxltile"]["stride"][0], data["pxltile"]["stride"][1], "]")
+  print("pxltile.base: [", data["pxltile"]["base"][0], data["pxltile"]["base"][1], "]")
+  print("pxltilenull_pixel: [", data["null_pixel"][0], data["null_pixel"][1], data["null_pixel"][2], "]")
+  print("row_idx:", data["row_idx"], "col_idx:", data["col_idx"])
+
+def parse_param_2_1(a):
+  tok = a.split(",")
+  x,y = -1,-1
+  if len(tok)==2:
+    x,y = int(tok[0]), int(tok[1])
+  elif len(tok)==1:
+    x,y = int(tok[0]), int(tok[0])
+  else:
+    return [-1,-1]
+
+  if x <= 0: return [-1,-1]
+  if y <= 0: return [-1,-1]
+  return [x,y]
+
+try:
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:w:t:", ["help", "version"])
+except getopt.GetoptError as err:
+  print(err)
+  usage(sys.stderr)
+  sys.exit(-1)
+
+for o,a in opts:
+  if o in ("-h", "--help"):
+    usage(sys.stdout)
+    sys.exit(0)
+  elif o in ("-v", "--version"):
+    usage(sys.stdout)
+    sys.exit(0)
+  elif o == "-i":
+    fn = a
+  elif o == "-s":
+    _xy = parse_param_2_1(a)
+    if _xy[0] < 0:
+      sys.stderr.write("provide valid stride\n")
+      usage(sys.stderr)
+      sys.exit(-1)
+    info["stride"][0] = _xy[0]
+    info["stride"][1] = _xy[1]
+  elif o == "-o":
+    _xy = parse_param_2_1(a)
+    if _xy[0] < 0:
+      sys.stderr.write("provide valid offset\n")
+      usage(sys.stderr)
+      sys.exit(-1)
+    info["offset"][0] = _xy[0]
+    info["offset"][1] = _xy[1]
+  elif o == "-w":
+    _xy = parse_param_2_1(a)
+    if _xy[0] < 0:
+      sys.stderr.write("provide valid offset\n")
+      usage(sys.stderr)
+      sys.exit(-1)
+    info["window"][0] = _xy[0]
+    info["window"][1] = _xy[1]
+
+  elif o == "-d":
+    info["opt"]["basedir"] = a
+
+  elif o == "-S":
+    info["tileset"]["fn"] = a
+    info["tileset"]["realize"] = True
+  elif o == "-M":
+    info["tilemap"]["fn"] = a
+    info["tilemap"]["realize"] = True
+
+  elif o == "-R":
+    info["tilerule"]["fn"] = a
+    info["tilerule"]["realize"] = True
+  elif o == "-N":
+    info["tilename"]["fn"] = a
+    info["tilename"]["realize"] = True
+
+  elif o == "-t":
+    _t = int(a)
+    if _t == 0: info["opt"]["tile_symmetry"] = False
+    else:       info["opt"]["tile_symmetry"] = True
+  elif o == "-D":
+    info["opt"]["debug"] = True
+
+  #elif o == "-T":
+  #  info["opt"]["neighbor_type"] = a
+
+if len(fn) == 0:
+  sys.stderr.write("provide input map (png)\n")
+  usage(sys.stderr)
+  sys.exit(-1)
+
+def load_image(data, fn):
+  info = data["info"]
+  img = Image.open(fn).convert("RGB")
+  pxl = img.load()
+  sz = img.size
+  img.close()
+
+  info["size"] = sz
+
+  tile_c = int(sz[0]/info["stride"][0])
+  tile_r = int(sz[1]/info["stride"][1])
+
+  uniq_tile_id = 1
+  info["firstgid"] = uniq_tile_id
+
+  data["img"] = {
+    "pxl":pxl,
+    "size": sz
+  }
+
+  data["pxl_src_img"] = pxl
+  data["stride"] = [ info["stride"][0], info["stride"][1] ]
+
+def pixel_tile_rotate(pxl, nrot, n_r, n_c):
+  _eps = 1.0/(1024.0*1024.0)
+  n = int(len(pxl)/3)
+  #n_r = int(math.sqrt(n))
+  #n_c = int(math.sqrt(n))
+
+  m_xy = [ float(n_r-1)/2.0, float(n_c-1)/2.0 ]
+
+  dst = []
+  for i in range(len(pxl)):
+    dst.append( pxl[i] )
+
+  a = float(nrot) * math.pi / 2.0
+
+  u = [
+    [ math.cos(a), -math.sin(a) ],
+    [ math.sin(a),  math.cos(a) ]
+  ]
+  
+  for r in range(n_r):
+    for c in range(n_c):
+      v = [ float(r) - m_xy[1], float(c) - m_xy[0] ]
+      w = [
+        v[0]*u[0][0] + v[1]*u[0][1],
+        v[0]*u[1][0] + v[1]*u[1][1]
+      ]
+      w[0] += m_xy[0]
+      w[1] += m_xy[1]
+
+      iw = [ int(w[0] + _eps), int(w[1] + _eps) ]
+
+      dst[ 3*(iw[0]*n_c + iw[1]) + 0 ] = pxl[ 3*(r*n_c + c) + 0 ]
+      dst[ 3*(iw[0]*n_c + iw[1]) + 1 ] = pxl[ 3*(r*n_c + c) + 1 ]
+      dst[ 3*(iw[0]*n_c + iw[1]) + 2 ] = pxl[ 3*(r*n_c + c) + 2 ]
+
+  return dst
+
+def pixel_tile_flip_y(pxl, n_r, n_c):
+  _eps = 1.0/(1024.0*1024.0)
+  n = int(len(pxl)/3)
+  #n_r = int(math.sqrt(n))
+  #n_c = int(math.sqrt(n))
+
+  m_xy = [ float(n_r-1)/2.0, float(n_c-1)/2.0 ]
+
+  dst = []
+  for i in range(len(pxl)):
+    dst.append( pxl[i] )
+
+  nrot = 0
+
+  a = float(nrot) * math.pi / 2.0
+
+  u = [
+    [ math.cos(a), -math.sin(a) ],
+    [ math.sin(a),  math.cos(a) ]
+  ]
+  
+  for r in range(n_r):
+    for c in range(n_c):
+      f_r = n_r - r - 1
+      iw = [ f_r, c ]
+
+      dst[ 3*(iw[0]*n_c + iw[1]) + 0 ] = pxl[ 3*(r*n_c + c) + 0 ]
+      dst[ 3*(iw[0]*n_c + iw[1]) + 1 ] = pxl[ 3*(r*n_c + c) + 1 ]
+      dst[ 3*(iw[0]*n_c + iw[1]) + 2 ] = pxl[ 3*(r*n_c + c) + 2 ]
+
+  return dst
+
+def pxl_key(pxl):
+  n = int(len(pxl)/3)
+  n_r = int(math.sqrt(n))
+  n_c = int(math.sqrt(n))
+
+  tile_a = []
+  for r in range(n_r):
+    for c in range(n_c):
+      _r = pxl[ 3*(r*n_c + c) + 0 ]
+      _g = pxl[ 3*(r*n_c + c) + 1 ]
+      _b = pxl[ 3*(r*n_c + c) + 2 ]
+
+      s_r = "%0.2x" % _r
+      s_g = "%0.2x" % _g
+      s_b = "%0.2x" % _b
+
+      tile_a.append(s_r)
+      tile_a.append(s_g)
+      tile_a.append(s_b)
+
+  return "".join(tile_a)
+
+
+def construct_id_pxl_map(data):
+
+  pxl = data["img"]["pxl"]
+  stride = data["stride"]
+
+  sc = stride[0]
+  sr = stride[1]
+
+  sz = data["img"]["size"]
+  tile_c = int(sz[0]/info["stride"][0])
+  tile_r = int(sz[1]/info["stride"][1])
+
+  uniq_pixel = {}
+  uniq_pxl_tile = {}
+  uniq_pxl_tile_key_id = {}
+
+  id_pxl_map = {}
+
+  sym_info = [ "00", "01", "02", "03",
+               "y0", "y1", "y2", "y3" ]
+  id_sym_pxl_map = {}
+
+  tile_key_id = 1
+
+  ## constructe base tile_id -> pxl_tile
+  ##
+  for it_r in range(tile_r):
+    for it_c in range(tile_c):
+      tile_a = []
+
+      # take a tile stride x stride
+      #
+      pxl_tile_cur = []
+      for r in range(sr):
+        for c in range(sc):
+          rgb = pxl[ it_c*sc + c , it_r*sr + r ]
+
+          s_r = "%0.2x" % rgb[0]
+          s_g = "%0.2x" % rgb[1]
+          s_b = "%0.2x" % rgb[2]
+
+          tile_a.append(s_r)
+          tile_a.append(s_g)
+          tile_a.append(s_b)
+
+          key = str(rgb[0]) + ":" + str(rgb[1]) + ":" + str(rgb[2])
+          if not (key in uniq_pixel):
+            uniq_pixel[key] = 0
+          uniq_pixel[key]+=1
+
+          pxl_tile_cur.append( rgb[0] )
+          pxl_tile_cur.append( rgb[1] )
+          pxl_tile_cur.append( rgb[2] )
+
+      tile_key = "".join(tile_a)
+      if not (tile_key in uniq_pxl_tile):
+
+        uniq_pxl_tile[tile_key] = pxl_tile_cur
+        uniq_pxl_tile_key_id[tile_key] = tile_key_id
+
+        id_pxl_map[ tile_key_id ] = pxl_tile_cur
+        id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
+                                          -1, -1, -1, -1 ]
+        tile_key_id += 1
+
+  # find mapping of symmetries of basic tiles to
+  # tile already in lib or make a new pixel tile
+  # if not found
+  #
+  _tmp_max_id = tile_key_id
+  for tile_id in range(1, _tmp_max_id):
+
+    pxl = id_pxl_map[ tile_id ]
+
+    for nrot in range(4):
+      z = pixel_tile_rotate(pxl, nrot)
+      z_key = pxl_key(z)
+
+      if not (z_key in uniq_pxl_tile):
+        uniq_pxl_tile[z_key] = z
+        uniq_pxl_tile_key_id[z_key] = tile_key_id
+        id_pxl_map[tile_key_id] = z
+
+        id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
+                                          -1, -1, -1, -1 ]
+        tile_key_id += 1
+
+      else:
+        pass
+
+      z = pixel_tile_flip_y(pxl)
+      z = pixel_tile_rotate(z, nrot)
+      z_key = pxl_key(z)
+
+      if not (z_key in uniq_pxl_tile):
+        uniq_pxl_tile[z_key] = z
+        uniq_pxl_tile_key_id[z_key] = tile_key_id
+        id_pxl_map[tile_key_id] = z
+
+        id_sym_pxl_map[ tile_key_id ] = [ tile_key_id, -1, -1, -1,
+                                          -1, -1, -1, -1 ]
+        tile_key_id += 1
+
+      else:
+        pass
+
+  data["max_tile_id"] = tile_key_id - 1
+  data["id_pxl_map"] = id_pxl_map
+  data["uniq_pxl_tile_key_id"] = uniq_pxl_tile_key_id
+  data["uniq_pxl_tile"] = uniq_pxl_tile
+
+#  pass
+# from tile_id_pxl, create a tileset PNG
+# (map from tile id to (stride_r x stride_c)
+# tile png)
+#
+#def create_tileset_png(info, tile_id_pxl):
+#
+def id_pxl_map_to_png_tileset(data, ofn):
+  max_tile_id = data["max_tile_id"]
+  info = {
+    "tileset": {
+      "count": -1,
+      "width": -1,
+      "height": -1,
+      "stride": [ -1, -1 ]
+    }
+  }
+
+  stride_c, stride_r  = data["stride"][0], data["stride"][1]
+
+  null_tile_pxl = []
+  for p in range(3*stride_c*stride_r):
+    null_tile_pxl.append(0)
+
+  tile_a = [ { "tile_id": 0, "start_pos": [-1,-1], "pxl_dat": null_tile_pxl } ]
+  #for tile_id in range(1, len(tile_id_pxl)):
+  #  tile_a.append( { "tile_id": tile_id, "start_pos": [-1,-1], "pxl_dat": tile_id_pxl[tile_id] } )
+  for tile_id in range(1, max_tile_id+1):
+    tile_a.append( {"tile_id": tile_id, "start_pos": [-1,-1], "pxl_dat": data["id_pxl_map"][tile_id] } )
+  tileset_dim = int(math.ceil( math.sqrt(float(max_tile_id)) ))
+
+  info["tileset"]["count"] = len(tile_a)
+  info["tileset"]["width"] = tileset_dim
+  info["tileset"]["height"] = tileset_dim
+  info["tileset"]["stride"] = [ stride_c, stride_r ]
+
+  for idx,ele in enumerate(tile_a):
+    sc = (idx % tileset_dim)*stride_c
+    sr = int(idx / tileset_dim)*stride_c
+    tile_a[idx]["start_pos"][0] = sr
+    tile_a[idx]["start_pos"][1] = sc
+
+  png_row = tileset_dim * stride_r
+  png_col = tileset_dim * stride_c
+
+  pxl_dat = []
+  for r in range(png_row):
+    pxl_row = []
+    for c in range(png_col):
+      pxl_row.append(0)
+      pxl_row.append(0)
+      pxl_row.append(0)
+    pxl_dat.append(pxl_row)
+
+  for ele in tile_a:
+    tile_dat = ele["pxl_dat"]
+    for idx_r in range(stride_r):
+      for idx_c in range(stride_c):
+        pxl_r = ele["start_pos"][0] + idx_r
+        pxl_c = 3*ele["start_pos"][1] + 3*idx_c
+
+        _r = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
+        _g = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
+        _b = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
+
+        pxl_dat[pxl_r][pxl_c+0] = tile_dat[idx_r*3*stride_c + 3*idx_c + 0]
+        pxl_dat[pxl_r][pxl_c+1] = tile_dat[idx_r*3*stride_c + 3*idx_c + 1]
+        pxl_dat[pxl_r][pxl_c+2] = tile_dat[idx_r*3*stride_c + 3*idx_c + 2]
+
+  w = png.Writer( png_col, png_row, greyscale=False )
+  png_ofp = open(ofn, "wb")
+  w.write(png_ofp, pxl_dat)
+  png_ofp.close()
+
+def barf_supertile(pxl, png_row, png_col, ofn):
+
+  pxl_dat = []
+  for r in range(png_row):
+    pxl_row = []
+    for c in range(png_col):
+      pxl_row.append(0)
+      pxl_row.append(0)
+      pxl_row.append(0)
+    pxl_dat.append(pxl_row)
+
+
+  for r in range(png_row):
+    for c in range(png_col):
+      pxl_dat[r][3*c+0] = pxl[ 3*(r*png_col + c) + 0 ]
+      pxl_dat[r][3*c+1] = pxl[ 3*(r*png_col + c) + 1 ]
+      pxl_dat[r][3*c+2] = pxl[ 3*(r*png_col + c) + 2 ]
+
+  w = png.Writer( png_col, png_row, greyscale=False )
+  png_ofp = open(ofn, "wb")
+  w.write(png_ofp, pxl_dat)
+  png_ofp.close()
+
+# construct:
+# block_id_map
+# id_block_map
+# 
+def construct_block_tile(data):
+
+  pxltile = data["pxltile"]
+  stride = pxltile["stride"]
+  window = pxltile["window"]
+  base = pxltile["base"]
+
+  sz = data["img"]["size"]
+  src_pxl = data["img"]["pxl"]
+
+  #null_pxl = [0,0,0]
+  cur_tile_id = 0
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  id_block_map = {}
+  block_id_map = {}
+
+  #border_tile = {}
+
+  supertile_a = []
+
+  null_pxl = data["null_pixel"]
+  null_tile = []
+  null_key_a = []
+  for i in range(3*window[0]*window[1]):
+    for x in null_pxl:
+      null_tile.append(x)
+      null_key_a.append( "%0.2x" % x )
+  null_key = "".join(null_key_a)
+  block_id_map[null_key] = cur_tile_id
+  id_block_map[cur_tile_id] = null_tile
+  supertile_a.append(null_tile)
+
+  cur_tile_id+=1
+
+  s_c = stride[col_idx] - window[col_idx]
+  n_c = sz[col_idx] + window[col_idx] - stride[col_idx] 
+
+  s_r = stride[row_idx] - window[row_idx]
+  n_r = sz[row_idx] + window[row_idx] - stride[row_idx]
+
+  for r in range(s_r, n_r, stride[row_idx]):
+    for c in range(s_c, n_c, stride[col_idx]):
+
+      st_key = []
+      supertile = []
+      for tile_r in range(window[row_idx]):
+        for tile_c in range(window[col_idx]):
+
+          src_r = r + tile_r
+          src_c = c + tile_c
+
+          if ((src_r < 0) or (src_c < 0) or
+              (src_r >= sz[row_idx]) or (src_c >= sz[col_idx])):
+            supertile.append( null_pxl[0] )
+            supertile.append( null_pxl[1] )
+            supertile.append( null_pxl[2] )
+            continue
+
+          rgb = src_pxl[ src_c, src_r ]
+
+          supertile.append( rgb[0] )
+          supertile.append( rgb[1] )
+          supertile.append( rgb[2] )
+
+      flip_range = 2
+      rot_range = 4
+      if data["tile_symmetry"]:
+        flip_range = 1
+        rot_range = 1
+      for flip_idx in range(flip_range):
+        for rot_idx in range(rot_range):
+
+          st = supertile
+          if flip_idx == 1:
+            st = pixel_tile_flip_y(st, window[row_idx], window[col_idx])
+          st = pixel_tile_rotate(st, rot_idx, window[row_idx], window[col_idx])
+
+          st_key_a = []
+          for idx in range(0, len(st), 3):
+            str_r = "%0.2x" % st[idx+0]
+            str_g = "%0.2x" % st[idx+1]
+            str_b = "%0.2x" % st[idx+2]
+
+            st_key_a.append(str_r)
+            st_key_a.append(str_g)
+            st_key_a.append(str_b)
+
+          st_key = "".join(st_key_a)
+
+          if not (st_key in block_id_map):
+            block_id_map[st_key] = cur_tile_id
+            id_block_map[cur_tile_id] = st
+            supertile_a.append(st)
+            cur_tile_id+=1
+
+  data["block_id_map"] = block_id_map
+  data["id_block_map"] = id_block_map
+  data["n_block"] = cur_tile_id
+
+## construct rules from pixel data
+##
+def construct_block_nei(data):
+
+  n_block = data["n_block"]
+
+  id_block_map = data["id_block_map"]
+  block_id_map = data["block_id_map"]
+
+  id_nei_key_map = {}
+
+  pxltile = data["pxltile"]
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  window = pxltile["window"]
+  stride = pxltile["stride"]
+
+  id_id_nei_map = {}
+
+  for src_tile_id  in range(n_block):
+    id_id_nei_map[src_tile_id] = {}
+    for dst_tile_id in range(n_block):
+      id_id_nei_map[src_tile_id][dst_tile_id] = {}
+      for nei_idx in range(6):
+        id_id_nei_map[src_tile_id][dst_tile_id][nei_idx] = 0
+
+  nei_desc = [ "+x", "-x", "+y", "-y" ]
+  nei_id_map = { 0:{}, 1:{}, 2:{}, 3:{} }
+  se = [
+    [ [0, window[row_idx] ], [stride[col_idx], window[col_idx] ] ],
+    [ [0, window[row_idx] ], [0, window[col_idx]  - stride[col_idx] ] ],
+    [ [0, window[row_idx] - stride[row_idx]], [0, window[col_idx] ] ],
+    [ [stride[row_idx], window[row_idx]] , [0, window[col_idx] ] ]
+  ]
+
+  oppo = [ 1, 0, 3, 2, 5, 4 ]
+  revmap = [ 0, 1, 3, 2, 4, 5 ]
+  rev_y = True
+
+  # construct overlapping pixel region as keys for easy
+  # lookup
+  #
+  for tile_id in range(n_block):
+
+    block_pxl = id_block_map[tile_id]
+    id_nei_key_map[tile_id] = [ {}, {}, {}, {} ]
+
+    for idx in range(len(se)):
+
+      ep = se[idx]
+      nei_key_a = []
+      for r in range(ep[0][0], ep[0][1]):
+        for c in range(ep[1][0], ep[1][1]):
+          rgb = [
+            "%02x" % block_pxl[ 3*(r*window[col_idx] + c) + 0 ],
+            "%02x" % block_pxl[ 3*(r*window[col_idx] + c) + 1 ],
+            "%02x" % block_pxl[ 3*(r*window[col_idx] + c) + 2 ]
+          ]
+          nei_key_a.append(rgb[0])
+          nei_key_a.append(rgb[1])
+          nei_key_a.append(rgb[2])
+        nei_key_a.append("\n")
+      nei_key = "".join(nei_key_a)
+
+      dir_idx = idx
+      if rev_y: dir_idx = revmap[idx]
+
+      id_nei_key_map[tile_id][dir_idx] = nei_key
+
+      if not (nei_key in nei_id_map[dir_idx]):
+        nei_id_map[dir_idx][nei_key] = {}
+      if not (tile_id in nei_id_map[dir_idx][nei_key]):
+        nei_id_map[dir_idx][nei_key][tile_id] = 1
+
+  # do an N^2 consideration to find which tiles are next
+  # to which, using the overlapping pixels as keys for
+  # deterination
+  #
+  for src_tile_id in range(n_block):
+    for dst_tile_id in range(n_block):
+
+      for src_nei_idx in range(4):
+        src_dir_idx = src_nei_idx
+        if rev_y: src_dir_idx = revmap[src_nei_idx]
+        dst_nei_idx = oppo[ src_dir_idx ]
+
+        src_key = id_nei_key_map[src_tile_id][src_dir_idx]
+        dst_key = id_nei_key_map[dst_tile_id][dst_nei_idx]
+
+        if src_key == dst_key:
+          id_id_nei_map[src_tile_id][dst_tile_id][src_dir_idx] = 1
+          id_id_nei_map[dst_tile_id][src_tile_id][dst_nei_idx] = 1
+
+  for tile_id in range(1, n_block):
+    id_id_nei_map[0][tile_id][4] = 1
+    id_id_nei_map[0][tile_id][5] = 1
+    id_id_nei_map[tile_id][0][4] = 1
+    id_id_nei_map[tile_id][0][5] = 1
+
+  data["id_id_nei_map"] = id_id_nei_map
+
+def dedup_block(data):
+
+  n_block = data["n_block"]
+
+  id_block_map = data["id_block_map"]
+  block_id_map = data["block_id_map"]
+  id_id_nei_map = data["id_id_nei_map"]
+
+  id_nei_key_map = {}
+
+  pxltile = data["pxltile"]
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  window = pxltile["window"]
+  stride = pxltile["stride"]
+
+  null_pxl = data["null_pixel"]
+
+  src_id_dedup_id_map = {}
+
+  dedup_id_rule = {}
+  dedup_id_block_map = {}
+  dedup_id_block_map[0] = id_block_map[0]
+
+  # find number of deduplicated tiles
+  # and save where they came from
+  #
+  n_dedup_id = 1
+  for src_tile_id in range(n_block):
+    src_pxl = id_block_map[src_tile_id]
+    if ((src_pxl[0] == null_pxl[0]) and
+        (src_pxl[1] == null_pxl[1]) and
+        (src_pxl[2] == null_pxl[2])):
+      src_id_dedup_id_map[src_tile_id] = 0
+      continue
+    dedup_id_block_map[n_dedup_id] = id_block_map[src_tile_id]
+    src_id_dedup_id_map[src_tile_id] = n_dedup_id
+    n_dedup_id += 1
+
+  # init dedup rule map
+  #
+  for a in range(n_dedup_id):
+    dedup_id_rule[a] = {}
+    for b in range(n_dedup_id):
+      dedup_id_rule[a][b] = {}
+      for nei_idx in range(6):
+        dedup_id_rule[a][b][nei_idx] = 0
+
+  # transfer rules from non deduplicated rules
+  # to deduplicated rules
+  #
+  for src_tile_id_a in range(n_block):
+    for src_tile_id_b in range(n_block):
+
+      dedup_id_a = src_id_dedup_id_map[src_tile_id_a]
+      dedup_id_b = src_id_dedup_id_map[src_tile_id_b]
+
+      for dir_idx in range(6):
+        if id_id_nei_map[src_tile_id_a][src_tile_id_b][dir_idx] == 1:
+          dedup_id_rule[dedup_id_a][dedup_id_b][dir_idx] = id_id_nei_map[src_tile_id_a][src_tile_id_b][dir_idx]
+
+  data["n_dedup_id"] = n_dedup_id
+  data["dedup_id_rule"] = dedup_id_rule
+  data["src_id_dedup_id_map"] = src_id_dedup_id_map
+  data["dedup_id_block_map"] = dedup_id_block_map
+
+  #DEBUG
+  #for idx in range(n_dedup_id):
+  #  barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], "tmp/" + str(idx) + ".png")
+
+
+def debug_print_rule(data):
+
+  n_block = data["n_block"]
+  id_id_nei_map = data["id_id_nei_map"]
+
+  for src_tile_id in range(n_block):
+    for dst_tile_id in range(n_block):
+      for src_nei_idx in range(6):
+        if (id_id_nei_map[src_tile_id][dst_tile_id][src_nei_idx] == 1):
+
+          print( str(src_tile_id) + "," + str(dst_tile_id) + "," + str(src_nei_idx) + ",1")
+
+def write_rule_csv(id_id_nei_map, n_block, ofn):
+  ofp = open(ofn, "w")
+  ofp.write("#tile_id_a,tile_id_b,dir_idx,val\n")
+  for src_tile_id in range(n_block):
+    for dst_tile_id in range(n_block):
+      for src_nei_idx in range(6):
+        if (id_id_nei_map[src_tile_id][dst_tile_id][src_nei_idx] == 1):
+          ofp.write( str(src_tile_id) + "," + str(dst_tile_id) + "," + str(src_nei_idx) + ",1\n")
+  ofp.close()
+
+def write_name_csv(n_block, ofn):
+  ofp = open(ofn, "w")
+  ofp.write("#tile_id,tile_name\n")
+  for tile_id in range(n_block):
+    ofp.write( str(tile_id) + "," + str(tile_id) + "\n" )
+  ofp.close()
+
+def write_tiled_json(info, tm):
+
+  stride_r = info["stride"][0]
+  stride_c = info["stride"][1]
+
+  tile_r = len(tm)
+  tile_c = len(tm[0])
+
+  tiled_map_template = {
+    "backgroundcolor" : "#ffffff",
+    "height": tile_r,
+    "width":  tile_c,
+    "layers": [],
+    "nextobjectid": 1,
+    "orientation": "orthogonal",
+    "properties": [ ],
+    "renderorder" : "right-down",
+    "tileheight": stride_r,
+    "tilewidth":  stride_c,
+    "tilesets": [],
+    "version": 1
+  }
+
+  tiled_layer_template = {
+    "data": [],
+    "height": tile_r,
+    "width":  tile_c,
+    "name":   "main",
+    "opacity": 1,
+    "properties": [],
+    "type":"tilelayer",
+    "visible":True,
+    "x": 0,
+    "y": 0
+  }
+
+  tiled_tileset_template = {
+    "firstgid": info["firstgid"],
+    "columns":  info["tileset"]["width"],
+    "name":     "tileset",
+    "image":    info["tileset"]["fn"],
+    "imageheight":  info["tileset"]["height"] * info["tileset"]["stride"][1],
+    "imagewidth":   info["tileset"]["width"] * info["tileset"]["stride"][0],
+    "margin":   0,
+    "spacing":  0,
+    "tilecount":  info["tileset"]["count"],
+    "tileheight": info["tileset"]["stride"][1],
+    "tilewidth":  info["tileset"]["stride"][0]
+  }
+
+  json_data = tiled_map_template
+  json_data["layers"].append( tiled_layer_template )
+  json_data["tilesets"].append( tiled_tileset_template )
+
+  for it_r in range(tile_r):
+    row = []
+    for it_c in range(tile_c):
+      json_data["layers"][0]["data"].append( tm[it_r][it_c] )
+
+  ofp = open( info["tilemap"]["fn"], "wb" )
+  ofp.write( json.dumps( json_data, indent=2 ).encode() )
+  ofp.close()
+  return json_data
+
+def write_tileset_png(data, ofn, use_dedup):
+  n_block = data["n_block"]
+  id_block_map = data["id_block_map"]
+
+  if use_dedup:
+    n_block = data["n_dedup_id"]
+    id_block_map = data["dedup_id_block_map"]
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  pxltile = data["pxltile"]
+  stride = pxltile["stride"]
+  window = pxltile["window"]
+
+  n = int(math.ceil( math.sqrt(float(n_block)) ))
+
+  png_row = stride[row_idx]*n
+  png_col = stride[col_idx]*n
+
+  pxl_dat = []
+  for r in range(png_row):
+    pxl_row = []
+    for c in range(png_col):
+      pxl_row.append(0)
+      pxl_row.append(0)
+      pxl_row.append(0)
+    pxl_dat.append(pxl_row)
+
+  viz_png = {}
+  for tile_id in range(1,n_block):
+
+    _t = tile_id - 1
+    _bx = _t % n
+    _by = int(_t/n)
+
+    _bx *= stride[col_idx]
+    _by *= stride[row_idx]
+
+    block_pxl = id_block_map[tile_id]
+    tile_pxl = []
+    for r in range(stride[row_idx]):
+      for c in range(stride[col_idx]):
+        tile_pxl.append( block_pxl[ 3*(r*window[col_idx] + c) + 0 ] )
+        tile_pxl.append( block_pxl[ 3*(r*window[col_idx] + c) + 1 ] )
+        tile_pxl.append( block_pxl[ 3*(r*window[col_idx] + c) + 2 ] )
+
+        pxl_dat[ _by + r ][ 3*_bx + 3*c + 0 ] = block_pxl[ 3*(r*window[col_idx] + c) + 0 ]
+        pxl_dat[ _by + r ][ 3*_bx + 3*c + 1 ] = block_pxl[ 3*(r*window[col_idx] + c) + 1 ]
+        pxl_dat[ _by + r ][ 3*_bx + 3*c + 2 ] = block_pxl[ 3*(r*window[col_idx] + c) + 2 ]
+
+    viz_png[tile_id] = { "pos": [_bx,_by], "pxl": tile_pxl }
+
+  w = png.Writer( png_col, png_row, greyscale=False )
+  png_ofp = open(ofn, "wb")
+  w.write(png_ofp, pxl_dat)
+  png_ofp.close()
+
+data = {
+  "info": info,
+  "pxltile": {
+    #"window": [ 16, 16 ],
+    #"stride": [ 8, 8 ],
+    #"base" : [0,0]
+
+    "window": info["window"],
+    "stride": info["stride"],
+    "base"  : info["offset"]
+  },
+
+  "null_pixel": [127,126,125],
+
+  #"border_tile": {},
+
+  "row_idx" : 1,
+  "col_idx" : 0,
+
+  "n_block": -1,
+
+  "tile_symmetry": info["opt"]["tile_symmetry"],
+
+  "block_id_map": {},
+  "id_block_map": {},
+  "img": {},
+  "stride": [],
+  "pxl_src_img": {}
+}
+
+if info["opt"]["debug"]:
+  debug_print_info(info)
+  debug_print_data(data)
+
+load_image(data, fn)
+
+construct_block_tile(data)
+construct_block_nei(data)
+
+dedup_block(data)
+
+if info["tilename"]["realize"]:
+  write_name_csv(data["n_dedup_id"], info["tilename"]["fn"])
+
+if info["tilerule"]["realize"]:
+  write_rule_csv(data["dedup_id_rule"], data["n_dedup_id"], info["tilerule"]["fn"])
+
+if info["tileset"]["realize"]:
+  write_tileset_png(data, info["tileset"]["fn"], True)
+
+
+#if info["tilemap"]["realize"]:
+#  write_tiled_json(info, info["tilemap"]["data"])
+

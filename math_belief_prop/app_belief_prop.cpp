@@ -18,20 +18,20 @@
 // * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
 //
 // MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+// associated documentation files (the "Software"), to deal in the Software without restriction, including without
+// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 // and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 // The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
 // OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 // Sample utils
 #include <algorithm>
-#include "main.h"      // window system 
+#include "main.h"      // window system
 #include "nv_gui.h"      // gui system
 #include "image.h"
 #include "mersenne.h"
@@ -73,7 +73,7 @@ public:
   virtual void mouse(AppEnum button, AppEnum state, int mods, int x, int y);
   virtual void mousewheel(int delta);
   virtual void shutdown();
-  
+
   // Belief Propagation
   void      Restart();
 
@@ -88,7 +88,7 @@ public:
   std::string   m_constraint_fn;
   std::vector< std::string > m_tile_name;
   std::vector< std::vector<float> > m_tile_rule;
-  
+
   // Volume rendering
   void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
   void      VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id );
@@ -98,15 +98,15 @@ public:
   float     getVoxel ( int id, int x, int y, int z );
   Vector4DF getVoxel4 ( int id, int x, int y, int z );
   void      ClearImg (Image* img);
-  void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );      
-    
+  void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );
+
   Camera3D* m_cam;          // camera
-  Image*    m_img;          // output image  
-  Image*    m_img2;     
+  Image*    m_img;          // output image
+  Image*    m_img2;
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
 
-  int       mouse_down;  
+  int       mouse_down;
   bool      m_run;
   bool      m_run_cuda;
   bool      m_save;
@@ -119,17 +119,17 @@ Sample obj;
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
-    std::string name_fn, rule_fn, constraint_fn;    
+    std::string name_fn, rule_fn, constraint_fn;
     float valf;
     int vali;
     int wfc_flag = 0;
-    int seed = 0;    
+    int seed = 0;
     int test_num = 0;
     char dash = arg.at(0);
     char ch = arg.at(1);
-    
+
     if ( dash=='-' ) {
-    switch (ch) {      
+    switch (ch) {
       case 'd':
        // debug_print = 1;
         break;
@@ -189,7 +189,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
 
       case 'W':
         wfc_flag = 1;
-        break;    
+        break;
     }
     }
 }
@@ -209,7 +209,7 @@ float Sample::getVoxel ( int id, int x, int y, int z )
 }
 Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 {
-  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*m_vres.y + y)*m_vres.x + x );  
+  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*m_vres.y + y)*m_vres.x + x );
   return *dat;
 }
 
@@ -224,12 +224,12 @@ void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
    float scalar = 50.0;
 
    // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      dmu =  std::min(1.0f, scalar * src.getVal ( bp_id, j ) );
 
      vox->x = dmu;
      vox->y = dmu;
-     vox->z = dmu;     
+     vox->z = dmu;
      vox->w = dmu;
      vox++;
    }
@@ -249,7 +249,7 @@ void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
    int b_l = g_u, b_u = N-1;            // blue tiles
 
    // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      src.getVertexBelief (j);
 
      // red
@@ -258,17 +258,17 @@ void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->x = maxv;
-     
+
      // green
      maxv = 0.0;
-     for (int k=g_l; k <= g_u; k++) {  
+     for (int k=g_l; k <= g_u; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
-     for (int k=b_l; k <= b_u; k++) {  
+     for (int k=b_l; k <= b_u; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->z = maxv;
@@ -290,26 +290,26 @@ void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
    // dbgprintf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), m_vres.x, m_vres.y, m_vres.z);
 
    // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {    
+   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
      cnt = src.getTilesAtVertex( j );
 
      // red
      maxv = 0.0;
-     for (int k=1; k <= 30; k++) {  
+     for (int k=1; k <= 30; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->x = maxv;
-     
+
      // green
      maxv = 0.0;
-     for (int k=31; k <= 60; k++) {  
+     for (int k=31; k <= 60; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->y = maxv;
 
      // blue
      maxv = 0.0;
-     for (int k=61; k <= 90; k++) {  
+     for (int k=61; k <= 90; k++) {
         maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
      }
      vox->z = maxv;
@@ -343,48 +343,48 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 
   int xres = img->GetWidth();
   int yres = img->GetHeight();
-  
+
   // for each pixel in image..
   for (int y=0; y < yres; y++) {
     for (int x=0; x < xres; x++) {
-      
+
       // get camera ray
       rpos = cam->getPos();
-      rdir = cam->inverseRay ( x, y, xres, yres );  
+      rdir = cam->inverseRay ( x, y, xres, yres );
       rdir.Normalize();
 
       // intersect with volume box
       t = intersectLineBox ( rpos, rdir, vmin, vmax );
       clr.Set(0,0,0,0);
       if ( t.z >= 0 ) {
-        // hit volume, start raycast...    
-        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space        
+        // hit volume, start raycast...
+        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space
         dwp = (vmax-vmin) * rdir * pStep;                     // ray sample stepping in world space
-        p = Vector3DF(m_vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume        
+        p = Vector3DF(m_vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume
         dp = rdir * pStep;                // step delta along ray
-        
+
         // accumulate along ray
         for (iter=0; iter < 512 && clr.w < 0.99 && p.x >= 0 && p.y >= 0 && p.z >= 0 && p.x < m_vres.x && p.y < m_vres.y && p.z < m_vres.z; iter++) {
           val = getVoxel4 ( BUF_VOL, p.x, p.y, p.z );          // get voxel value
           //alpha = val.w;                        // opacity = linear transfer
           alpha = 1.0 / (1+exp(-(val.w-1.0)*kWidth));        // opacity = sigmoid transfer - accentuates boundaries at 0.5
-          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color            
-          clr.w += alpha * kDensity * pStep;              // attenuate alpha          
+          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color
+          clr.w += alpha * kDensity * pStep;              // attenuate alpha
           p += dp;                           // next sample
-        }  
+        }
         if (clr.x > 1.0) clr.x = 1;
         if (clr.y > 1.0) clr.y = 1;
         if (clr.z > 1.0) clr.z = 1;
         clr.x *= 255.0; clr.y *= 255.0; clr.z *= 255.0;
 
         img->SetPixel ( x, y, clr.x, clr.y, clr.z );
-      }      
+      }
     }
   }
 
   #ifdef USE_OPENGL
     //commit image to OpenGL (hardware gl texture) for on-screen display
-    img->Commit ( DT_GLTEX );      
+    img->Commit ( DT_GLTEX );
   #endif
 }
 
@@ -404,31 +404,31 @@ bool Sample::init()
   m_run_bpc = true;
   m_run_wfc = false;
 
-  // Render volume  
+  // Render volume
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
   AllocVolume ( BUF_VOL, m_vres, 4 );
-  
+
   // App Options
   //
-  m_frame     = 0;  
+  m_frame     = 0;
   m_run       = false;  // must start out false until all other init is done
-  m_run_cuda  = false;  // run cuda pathway   
+  m_run_cuda  = false;  // run cuda pathway
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
   m_img = new Image;
   m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );
-  
-  printf("Init done\n"); 
+
+  printf("Init done\n");
   fflush(stdout);
   #ifdef USE_OPENGL
     init2D("arial");
     setText(18,1);
   #endif
 
-  #ifdef USE_CUDA   
+  #ifdef USE_CUDA
     if ( m_run_cuda ) {
-      CUcontext ctx; 
+      CUcontext ctx;
       CUdevice dev;
       cuStart ( DEV_FIRST, 0, dev, ctx, 0, true );    // start CUDA
     }
@@ -439,7 +439,7 @@ bool Sample::init()
   getFileLocation ( "stair_name.csv", m_name_fn );
   getFileLocation ( "stair_rule.csv", m_rule_fn );
   //getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
- 
+
   if (m_run_bpc) {
       // init belief prop
       ret = bpc.init_CSV(m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
@@ -451,12 +451,12 @@ bool Sample::init()
       std::vector< std::vector< int32_t > > constraint_list;
       if (!m_constraint_fn.empty()) {
         _read_constraint_csv ( m_constraint_fn, constraint_list );
-        bpc.filter_constraint( constraint_list );    
+        bpc.filter_constraint( constraint_list );
       }
       // start belief prop
-      ret = bpc.start (); 
+      ret = bpc.start ();
   }
-  
+
   if (m_run_wfc) {
       // init wfc
       ret = wfc.init_CSV( m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
@@ -466,9 +466,9 @@ bool Sample::init()
       }
       // start wfc
       m_t1 = clock();
-      ret = wfc.start (); 
-  } 
-  
+      ret = wfc.start ();
+  }
+
   m_it = 0;
 
   m_run = true;
@@ -488,11 +488,11 @@ void Sample::display()
 
   void (*_cb_f)(void *) = NULL;
 
-  // Run Belief Propagation  
+  // Run Belief Propagation
   //
   if (m_run) {
-    
-    if ( m_run_bpc) { 
+
+    if ( m_run_bpc) {
       ret = bpc.single_realize_max_belief_cb (m_it, _cb_f );
       if ( ret <= 0) {
         switch (ret) {
@@ -500,13 +500,13 @@ void Sample::display()
             m_t2 = clock();
             float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
             printf ( "Elapsed time: %f msec\n", elapsed);
-            m_run=false; 
+            m_run=false;
             } break;
         case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
         case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
         };
-      }  
+      }
     }
 
     if ( m_run_wfc) {
@@ -518,21 +518,21 @@ void Sample::display()
         case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
         };
-      } 
+      }
     }
-  
+
     m_it++;
     fflush(stdout);
   }
-  
-  // Raycast  
+
+  // Raycast
   ClearImg (m_img);
-  
+
   if ( m_run_wfc ) {
       Vector3DF wfc_off(0,0,-10);
       VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
-  }  
+  }
 
   if ( m_run_bpc ) {
       Vector3DF bpc_off(0,0,0);      
@@ -542,42 +542,42 @@ void Sample::display()
       //-- regular belief viz
       VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-  }  
+  }
 
   // optional write to disk
-  if ( m_save ) {    
+  if ( m_save ) {
     sprintf ( savename, "out%04d.png", (int) m_frame );
-    m_img->Save ( savename );        
+    m_img->Save ( savename );
     m_frame++;
   } else {
     sprintf ( savename, "save is off");
-  }  
-  
+  }
+
   // Interactive rendering (opengl only)
   #ifdef USE_OPENGL
     clearGL();
     start2D();
-      setview2D(getWidth(), getHeight());  
-      drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image   
+      setview2D(getWidth(), getHeight());
+      drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
     end2D();
     draw2D();                    // complete 2D rendering to OpenGL
 
     // draw grid in 3D
     start3D(m_cam);
-    setLight(S3D, 20, 100, 20);  
+    setLight(S3D, 20, 100, 20);
     for (int i=-10; i <= 10; i++ ) {
       drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
       drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
     }
     drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);
     end3D();
-    draw3D();                    // complete 3D rendering to OpenGL      
+    draw3D();                    // complete 3D rendering to OpenGL
   #else
     //dbgprintf ( "Running.. saved: %s\n", savename);
     dbgprintf ( "Running..\n" );
   #endif
 
-  appPostRedisplay();    
+  appPostRedisplay();
 }
 
 void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
@@ -591,18 +591,18 @@ void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
   } break;
 
   case AppEnum::BUTTON_MIDDLE: {
-    // Adjust target pos    
+    // Adjust target pos
     m_cam->moveRelative(float(dx) * fine * m_cam->getOrbitDist() / 1000, float(-dy) * fine * m_cam->getOrbitDist() / 1000, 0);
     appPostRedisplay();  // Update display
   } break;
 
   case AppEnum::BUTTON_RIGHT: {
 
-    // Adjust camera orbit 
+    // Adjust camera orbit
     Vector3DF angs = m_cam->getAng();
     angs.x += dx * 0.2f * fine;
     angs.y -= dy * 0.2f * fine;
-    m_cam->setOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());    
+    m_cam->setOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
     appPostRedisplay();  // Update display
   } break;
   }

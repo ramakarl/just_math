@@ -204,11 +204,13 @@ void bp_cb_0(void *dat) {
   printf("... %i\n", (int)g_bpc->m_state_info_iter); fflush(stdout);
 }
 
-void bp_cb_v0(void *dat) {
+void bp_cb_V2(void *dat) {
   static int base_it = -1;
 
   if (g_bpc->m_state_info_iter==0) { base_it++; }
-  printf("[%i.%i]\n", base_it, (int)g_bpc->m_state_info_iter);
+  if ( (g_bpc->m_state_info_iter % 100) == 0) {
+    printf("# [base_it:%i.m_state_info_iter:%i]\n", base_it, (int)g_bpc->m_state_info_iter);
+  }
 }
 
 void bp_cb_v1(void *dat) {
@@ -416,9 +418,120 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 //            //
 //------------//
 
+int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
+  FILE *fp;
+  int i, j, n, tileset_size;
+  int64_t vtx;
 
-// DEBUG MAIN
-//
+  int sy, ey_inc;
+
+  int tilecount = (int)bpc.m_tile_name.size();
+  tilecount--;
+
+  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
+  opt.tileset_width = ceil( sqrt( (double)tilecount ) );
+  opt.tileset_height = opt.tileset_width;
+
+  opt.tileset_width *= opt.tileset_stride_x;
+  opt.tileset_height *= opt.tileset_stride_y;
+
+
+  fp = fopen( opt.tilemap_fn.c_str(), "w");
+  if (!fp) { return -1; }
+
+  fprintf(fp, "{\n");
+  fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
+  fprintf(fp, "  \"height\": %i,\n", (int)bpc.m_res.y);
+  fprintf(fp, "  \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "  \"layers\": [{\n");
+
+  fprintf(fp, "    \"data\": [");
+
+  // tiled expects y to increment in the negative direction
+  // so we need to reverse the y direction when exporting
+  //
+
+
+  if (opt.tiled_reverse_y) {
+
+    for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+
+  }
+  else {
+    for (i=0; i<(int)(bpc.m_res.y); i++) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+
+  }
+
+  /*
+  n = bpc.m_num_verts;
+  for (i=0; i<n; i++) {
+    if ((i%(int)bpc.m_res.x)==0) {
+      fprintf(fp, "\n   ");
+    }
+    fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
+  }
+  */
+
+  fprintf(fp, "\n    ],\n");
+  fprintf(fp, "    \"name\":\"main\",\n");
+  fprintf(fp, "    \"opacity\":1,\n");
+  fprintf(fp, "    \"type\":\"tilelayer\",\n");
+  fprintf(fp, "    \"visible\":true,\n");
+  fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
+  fprintf(fp, "    \"x\":0,\n");
+  fprintf(fp, "    \"y\":0\n");
+
+  fprintf(fp, "  }\n");
+
+  fprintf(fp, "  ],\n");
+  fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
+  fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
+  fprintf(fp, "  \"properties\": [ ],\n");
+  fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
+  fprintf(fp, "  \"tileheight\": %i,\n", (int)opt.tileset_stride_y);
+  fprintf(fp, "  \"tilewidth\": %i,\n", (int)opt.tileset_stride_x);
+  fprintf(fp, "  \"tilesets\": [{\n");
+
+  fprintf(fp, "    \"firstgid\": %i,\n", 1);
+  fprintf(fp, "    \"columns\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
+  fprintf(fp, "    \"image\": \"%s\",\n", opt.tileset_fn.c_str());
+  fprintf(fp, "    \"imageheight\": %i,\n", (int)opt.tileset_height);
+  fprintf(fp, "    \"imagewidth\": %i,\n", (int)opt.tileset_width);
+  fprintf(fp, "    \"margin\": %i,\n", (int)opt.tileset_margin);
+  fprintf(fp, "    \"spacing\": %i,\n", (int)opt.tileset_spacing);
+  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
+  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
+  fprintf(fp, "    \"tileheight\": %i,\n", (int)opt.tileset_stride_y);
+  fprintf(fp, "    \"tilewidth\": %i\n", (int)opt.tileset_stride_x);
+
+  fprintf(fp, "  }],\n");
+  fprintf(fp, "  \"version\": %i\n", 1);
+  fprintf(fp, "}\n");
+
+  fclose(fp);
+
+  return 0;
+}
 
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
@@ -428,6 +541,10 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -N <fn>  CSV name file\n");
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
+  fprintf(fp, "  -e <#>   set convergence epsilon\n");
+  fprintf(fp, "  -z <#>   set zero epsilon\n");
+  fprintf(fp, "  -w <#>   set (update) rate\n");
+  fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -W       run 'wave function collapse' instead of belief propagation\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
@@ -441,14 +558,19 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    2      fix maximum belief tile in minimum entropy cell\n");
   fprintf(fp, "    3      remove min. belief tile from minimum entropy cell\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
+  fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
+  fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
+
+  fprintf(fp, "  -M <fn>  output tilemap (JSON)\n");
+  fprintf(fp, "  -Q <fn>  tileset filename (PNG)\n");
+  fprintf(fp, "  -u       reverse y for tiled output (default 0)\n");
+  fprintf(fp, "  -s <#>   png tile stride\n");
+  fprintf(fp, "  -c <#>   cull tile id\n");
+
   fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
-  fprintf(fp, "  -e <#>   set convergence epsilon\n");
-  fprintf(fp, "  -z <#>   set zero epsilon\n");
-  fprintf(fp, "  -w <#>   set (update) reate\n");
-  fprintf(fp, "  -I <#>   set max step iteration\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
 
   fprintf(fp, "  -v       show version\n");
@@ -487,6 +609,8 @@ int main(int argc, char **argv) {
 
   std::vector< std::vector< int32_t > > constraint_list;
 
+  std::vector< int32_t > cull_list;
+
   BeliefPropagation bpc;
 
   int arg=1;
@@ -495,9 +619,10 @@ int main(int argc, char **argv) {
 
   g_bpc = &bpc;
 
+  g_opt.tiled_reverse_y = 0;
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:u")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -591,8 +716,33 @@ int main(int argc, char **argv) {
         Z = atoi(optarg);
         break;
 
+      case 'c':
+        cull_list.push_back( (int32_t)atoi(optarg) );
+        break;
+
       case 'W':
         wfc_flag = 1;
+        break;
+
+      case 'E':
+        bpc.m_use_svd = 1;
+        break;
+      case 'B':
+        bpc.m_use_checkerboard = 1;
+        break;
+
+      case 'Q':
+        g_opt.tileset_fn = optarg;
+        break;
+      case 'M':
+        g_opt.tilemap_fn = optarg;
+        break;
+      case 's':
+        g_opt.tileset_stride_x = atoi(optarg);
+        g_opt.tileset_stride_y = g_opt.tileset_stride_x;
+        break;
+      case 'u':
+        g_opt.tiled_reverse_y = 1;
         break;
 
       default:
@@ -602,7 +752,19 @@ int main(int argc, char **argv) {
     }
   }
 
- if ((!name_fn) || (!rule_fn)) {
+  //DEBUG
+  /*
+  printf("tileset_fn: %s\n", g_opt.tileset_fn.c_str());
+  printf("tilemap_fn: %s\n", g_opt.tilemap_fn.c_str());
+  printf("stride: %i %i\n", g_opt.tileset_stride_x, g_opt.tileset_stride_y);
+  printf("width,height: %i %i\n", g_opt.tileset_width, g_opt.tileset_height);
+  printf("margin: %i\n", g_opt.tileset_margin);
+  printf("spacing: %i\n", g_opt.tileset_spacing);
+  exit(-1);
+  */
+  //DEBUG
+
+  if ((!name_fn) || (!rule_fn)) {
     printf("\nprovide name file and rule file CSV\n\n");
     show_usage(stderr);
     exit(-1);
@@ -640,11 +802,43 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
+
   if (constraint_fn) {
     if (bpc.m_verbose > 0) {
-      printf ( "filter constraints.\n" );
+      printf ( "#filter constraints.\n" );
     }
     bpc.filter_constraint(constraint_list);
+  }
+
+  if (cull_list.size() > 0) {
+    int cull_idx;
+    int64_t tile_idx, pos;
+    int32_t tile_id, n, cull_tile_id;
+    if (bpc.m_verbose > 0) {
+      printf( "#culling tile ids\n" );
+    }
+    for (cull_idx=0; cull_idx<cull_list.size(); cull_idx++) {
+      cull_tile_id = cull_list[cull_idx];
+
+      for (pos=0; pos<bpc.m_num_verts; pos++) {
+        n = bpc.getVali( BUF_TILE_IDX_N, pos );
+        for (tile_idx=0; tile_idx<n; tile_idx++) {
+          if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
+            break;
+          }
+        }
+        if (tile_idx < n) {
+          if (bpc.m_verbose > 1) {
+            printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
+          }
+          tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
+          bpc.SetVali( BUF_TILE_IDX, pos, n-1, cull_tile_id );
+          bpc.SetVali( BUF_TILE_IDX, pos, tile_idx, tile_id );
+          n--;
+          bpc.SetVali( BUF_TILE_IDX_N, pos, n );
+        }
+      }
+    }
   }
 
   if (debug_print) {
@@ -657,8 +851,8 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  if (bpc.m_verbose > 0) {
-    //_cb_f = bp_cb_v0;
+  if (bpc.m_verbose > 1) {
+    _cb_f = bp_cb_V2;
   }
 
   // prepare raycast [optional]
@@ -713,6 +907,16 @@ int main(int argc, char **argv) {
       printf ( "bpc realize.\n" );
     }
     ret = bpc.start();
+    if (ret < 0) {
+      printf("ERROR: bpc.start() failed (%i)\n", ret);
+
+      if (bpc.m_verbose > 0) {
+        printf("####################### DEBUG PRINT\n" );
+        bpc.debugPrint();
+      }
+
+      exit(-1);
+    }
 
     n_it = bpc.m_num_verts * bpc.m_num_values;
 
@@ -763,6 +967,15 @@ int main(int argc, char **argv) {
       bpc.debugPrint();
     }
 
+  }
+
+  if (g_opt.tilemap_fn.size() > 0) {
+
+    if (bpc.m_verbose > 1) {
+      printf("writing tilemap (%s)\n", g_opt.tilemap_fn.c_str());
+    }
+
+    write_tiled_json(g_opt, bpc);
   }
 
   if (name_fn) { free(name_fn); }
