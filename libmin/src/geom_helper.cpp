@@ -107,38 +107,6 @@ Vector3DF intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF
 	return u;
 }
 
-bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, bool backcull )
-{
-	Vector3DF s, q;
-	double a, u, v;
-	Vector3DF e0 = v1 - v0;
-	Vector3DF e1 = v0 - v2;
-	Vector3DF h = e1.Cross ( dir );	
-
-	// Backface cull (acceleration)
-	if (backcull) {		
-		s = e1.Cross ( v2-v1 );
-		if ( s.Dot( dir ) < 0 ) return false;
-	}
-
-	// Moller-Trumbore algorithm	
-	a = e0.Dot ( h );			// determinant
-	if ( a > -EPS && a < EPS ) {t=0; return false;}
-	a = 1.0/a;					// inv determinant
-	s = orig - v0;
-	u = a * s.Dot ( h );
-	if ( u < 0.0 || u > 1.0 ) {t=0; return false;}
-	q = s.Cross ( e0 );
-	v = a * dir.Dot ( q );
-	if ( v < 0.0 || u+v > 1.0) {t=0; return false;}
-	
-	t = -a * e1.Dot ( q );
-	if ( t < EPS ) { t=0; return false; }
-	hit = orig + dir * t;
-	
-	return true;
-}
-
 
 //--- test where point projects within the inf prism of triangle
 bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& u, float& v)
@@ -149,20 +117,80 @@ bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2,
 	float ndot = n.Dot(n);    
     // Barycentric coordinates of the projection P' of P onto T:
 	u = e0.Cross(pnt-v1).Dot(n) / ndot;    
-	v = e1.Cross(pnt-v2).Dot(n) / ndot;
-    float a = 1 - u - v;
+	v = e1.Cross(pnt-v2).Dot(n) / ndot;    
     // The point P' lies inside T if:
-    return ((0 <= a) && (a <= 1) &&
-            (0 <= u)  && (u  <= 1) &&
-            (0 <= v) && (v <= 1));
+    return (u>=0.0 && v>=0.0 && (u+v<=1) );
+}
+
+bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, bool backcull )
+{
+	Vector3DF e0 = v2 - v1;
+    Vector3DF e1 = v0 - v2;
+
+	// Backface cull (acceleration)
+	if (backcull) {		
+		Vector3DF s = e1.Cross ( v2-v1 );
+		if ( s.Dot( dir ) < 0 ) return false;
+	}
+    Vector3DF n = e0.Cross ( e1 );
+	Vector3DF e2 = (v2 - orig) / float(n.Dot(dir));
+	Vector3DF i = dir.Cross ( e2 );
+	float u = i.Dot ( e0 );
+	float v = i.Dot ( e1 );
+	t = n.Dot ( e2 );
+	hit = orig + dir * t;
+
+	return ( t>0.0 && u>=0.0 && v>=0.0 && (u+v<=1) ); 
+
+	//--- slower method	
+	/* Vector3DF e0 = v1 - v0;
+	Vector3DF e1 = v0 - v2;	
+
+	// Backface cull (acceleration)
+	if (backcull) {		
+		Vector3DF s = e1.Cross ( v2-v1 );
+		if ( s.Dot( dir ) < 0 ) return false;
+	}
+	double a, u, v;
+	Vector3DF q, h = e1.Cross ( dir );	
+
+	// Moller-Trumbore algorithm	
+	a = e0.Dot ( h );			// determinant
+	if ( a > -EPS && a < EPS ) {t=0; return false;}
+	a = 1.0/a;					// inv determinant
+	q = orig - v0;
+	u = a * q.Dot ( h );
+	if ( u < 0.0 || u > 1.0 ) {t=0; return false;}
+	q = q.Cross ( e0 );
+	v = a * dir.Dot ( q );
+	if ( v < 0.0 || u+v > 1.0) {t=0; return false;}
+	
+	t = -a * e1.Dot ( q );
+	if ( t < EPS ) { t=0; return false; }
+	hit = orig + dir * t; 
+	
+	return true; */
 }
 
 bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, float& u, float& v )    
 {
 	Vector3DF edge, vp;
+	Vector3DF e0 = v2 - v1;
+    Vector3DF e1 = v0 - v2;
+    Vector3DF n = e0.Cross ( e1 );
 
-    // compute the plane's normal
-    Vector3DF e0 = v2 - v1;
+	Vector3DF e2 = (v2 - orig) / float(n.Dot(dir));
+	Vector3DF i = dir.Cross ( e2 );
+
+	u = i.Dot ( e0 );
+	v = i.Dot ( e1 );
+	t = n.Dot ( e2 );
+	hit = orig + dir * t;
+
+	return ( t>0.0 && u>=0.0 && v>=0.0 && (u+v<=1) );
+
+    //----- slower method
+    /* Vector3DF e0 = v2 - v1;
     Vector3DF e1 = v0 - v2;
     Vector3DF n = e0.Cross ( e1 );
     float ndot = n.Dot(n);
@@ -185,7 +213,7 @@ bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vect
 	float a = (1-u-v);
     return ((0 <= a) && (a <= 1) &&
             (0 <= u)  && (u  <= 1) &&
-            (0 <= v) && (v <= 1)); 
+            (0 <= v) && (v <= 1));  */
 }
 
 Vector3DF projectPointLine(Vector3DF p, Vector3DF p0, Vector3DF p1 )
