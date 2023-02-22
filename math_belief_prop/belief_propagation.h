@@ -37,6 +37,12 @@
 #include "mersenne.h"
 #include "dataptr.h"
 
+//extern "C" {
+//#include "lib/svdlib.h"
+//}
+
+#include <Eigen/SVD>
+
 /*
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -54,7 +60,13 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.1.2"
+#define BELIEF_PROPAGATION_VERSION "0.3.1"
+
+#define RUN_OPT_PTRS
+#define RUN_OPT_MUPTR
+#define RUN_OPT_FH
+#define RUN_OPT_MUBOUND
+
 
 #define BUF_VOL         0     // volume: n^3
 #define BUF_G           1     // beliefprop, G(a) vector
@@ -71,6 +83,10 @@
 #define BUF_VIZ         12    // volume for vizualization
 
 #define BUF_MU_RESIDUE  13
+
+#define BUF_SVD_U       14
+#define BUF_SVD_Vt      15
+#define BUF_SVD_VEC     16
 
 class BeliefPropagation {
 public:
@@ -89,6 +105,9 @@ public:
     m_state_info_iter = 0;
 
     m_rate = 0.98;
+
+    m_use_svd = 0;
+    m_use_checkerboard = 0;
   };
 
   bool _init();
@@ -96,6 +115,8 @@ public:
   int init_CSV(int, std::string &, std::string &);
   int init_CSV(int, int, int, std::string &, std::string &);
   int init_F_CSV(std::string &, std::string &);
+
+  int init_SVD(void);
 
   //DEBUG
   //DEBUG
@@ -121,6 +142,8 @@ public:
   void    AllocVeci32(int, int);
   void    AllocVeci32(int, int, int);
 
+  void    AllocSVD(int, int, int, int);
+
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
   int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
   Vector3DI  getVertexPos(int64_t j);
@@ -142,7 +165,6 @@ public:
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
 
-// #define RUN_OPT_PTRS
 
 #ifdef RUN_OPT_PTRS
   // Optimized: Closest values in memory are most used in inner loops
@@ -209,6 +231,8 @@ public:
 
   float   BeliefProp();
   float   BeliefProp_cell(int64_t);
+  float   BeliefProp_svd ();
+
   void    UpdateMU ();
 
   float    getVertexBelief ( uint64_t j );
@@ -245,6 +269,13 @@ public:
   Vector3DI m_res;        // volume res
 
   DataPtr  m_buf[128];      // data buffers (CPU & GPU)
+
+  // SVD number of non singular values in each direction
+  //
+  int       m_use_svd;
+  int64_t   m_svd_nsv[6];
+
+  int       m_use_checkerboard;
 
   bool      m_run_cuda=0;
   int       m_seed;
@@ -307,7 +338,7 @@ public:
 };
 
 int _read_line(FILE *fp, std::string &line);
-int _read_name_csv(std::string &fn, std::vector<std::string> &name);
+int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector<float> &weight);
 int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
 int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile);
 

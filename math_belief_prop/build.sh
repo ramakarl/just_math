@@ -1,6 +1,9 @@
 #!/bin/bash
 
+#  lib/libsvd.a \
+
 g++ -g -I../libmin/include/ \
+  -I /usr/include/eigen3 \
   ../libmin/src/camera3d.cpp \
   ../libmin/src/file_png.cpp \
   ../libmin/src/vec.cpp \
@@ -11,9 +14,11 @@ g++ -g -I../libmin/include/ \
   belief_propagation.cpp \
   tests_belief_propagation.cpp \
   main_belief_propagation.cpp \
+  -lm \
   -o bpc.debug
 
 g++ -O3 -I../libmin/include/ \
+  -I /usr/include/eigen3 \
   ../libmin/src/camera3d.cpp \
   ../libmin/src/file_png.cpp \
   ../libmin/src/vec.cpp \
@@ -24,6 +29,7 @@ g++ -O3 -I../libmin/include/ \
   belief_propagation.cpp \
   tests_belief_propagation.cpp \
   main_belief_propagation.cpp \
+  -lm \
   -o bpc
 
 
