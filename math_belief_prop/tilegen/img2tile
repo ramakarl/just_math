@@ -69,6 +69,7 @@ def usage(fp):
   fp.write("  -R <fn>   outpt tile rule file (CSV)\n")
   #fp.write("  -T <#>    type of tilemap to use ('simple', 'cross', 'square', 's2x2')\n")
   fp.write("  -t <#>    tile symmetry option ( 0 = no tile symmetry (default), 1 = flip and rotate symmetry )\n")
+  #fp.write("  -P <fn>   fn\n")
   fp.write("  -V        verbose\n")
   fp.write("  -D        debug\n")
   fp.write("  -h        help (this screen)\n")
@@ -98,6 +99,40 @@ def debug_print_data(data):
   print("pxltile.base: [", data["pxltile"]["base"][0], data["pxltile"]["base"][1], "]")
   print("pxltilenull_pixel: [", data["null_pixel"][0], data["null_pixel"][1], data["null_pixel"][2], "]")
   print("row_idx:", data["row_idx"], "col_idx:", data["col_idx"])
+
+#def write_png_adj(data, ofn):
+#  pxltile = data["pxltile"]
+#  row_idx = data["row_idx"]
+#  col_idx = data["col_idx"]
+#  n_block = data["n_block"]
+#  tile_width = data["stride"][col_idx]
+#  tile_height = data["stride"][row_idx]
+#
+#  window_width = pxltile["window"][col_idx]
+#  window_height = pxltile["window"][row_idx]
+#
+#  bg_pxl = [ 0x11, 0x11, 0x11 ]
+#  pxl_margin = 4
+#
+#  png_width = (2*pxl_margin + window_width)*n_block
+#  png_height = (2*pxl_margin + window_height)*n_block
+#
+#  print(">>", png_width, png_height)
+#  print(">>>", pxl_margin, tile_width, tile_height)
+#
+#  pxl_dat = []
+#  for r in range(png_height):
+#    pxl_row = []
+#    for c in range(png_width):
+#      pxl_row.append( bg_pxl[0] )
+#      pxl_row.append( bg_pxl[1] )
+#      pxl_row.append( bg_pxl[2] )
+#    pxl_dat.append( pxl_row )
+#
+#  w = png.Writer( png_width, png_height, greyscale=False )
+#  png_ofp = open(ofn, "wb")
+#  w.write(png_ofp, pxl_dat)
+#  png_ofp.close()
 
 def parse_param_2_1(a):
   tok = a.split(",")
@@ -967,6 +1002,12 @@ data = {
 
   "block_id_map": {},
   "id_block_map": {},
+
+  "dedup_id_block_map": {},
+  "src_id_dedup_id_map": {},
+  "n_dedup_id" : -1,
+  "dedup_id_rule": {},
+
   "img": {},
   "stride": [],
   "pxl_src_img": {}
@@ -983,6 +1024,9 @@ construct_block_nei(data)
 
 dedup_block(data)
 
+#write_png_adj(data, "out.png")
+#sys.exit(-1)
+
 if info["tilename"]["realize"]:
   write_name_csv(data["n_dedup_id"], info["tilename"]["fn"])
 
@@ -991,7 +1035,6 @@ if info["tilerule"]["realize"]:
 
 if info["tileset"]["realize"]:
   write_tileset_png(data, info["tileset"]["fn"], True)
-
 
 #if info["tilemap"]["realize"]:
 #  write_tiled_json(info, info["tilemap"]["data"])

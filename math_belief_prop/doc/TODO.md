@@ -98,6 +98,15 @@ Alternatives:
 
 ---
 
+Potential 3d models
+
+* https://sketchfab.com/3d-models/monument-valley-4d3880dff578465b8ae0c732da878d0d
+* https://sketchfab.com/3d-models/monument-valley-level-design-995687a3ace948738a8cbe1739d74137
+* https://sketchfab.com/3d-models/monument-valley-level-experiment-03d44e345dd942339f7ddd8205e6fb5f
+
+
+---
+
 References
 ---
 
@@ -105,4 +114,6 @@ References
 * [procjam WFC](https://www.procjam.com/tutorials/wfc/)
 * [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
 * [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+
+
 
