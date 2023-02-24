@@ -5,9 +5,9 @@ How to Generate Tilesets
 
 Windows:
 * Install Python
-* Retrieve Pip installer. https://bootstrap.pypa.io/get-pip.py
+* Retrieve Pip installer file. https://bootstrap.pypa.io/get-pip.py
 * Install Pip. >python get-pip.py
-* Install PIL. >pip install pillow
+* Install PIL. >pip install Pillow
 * Install png. >pip install pypng
 
 

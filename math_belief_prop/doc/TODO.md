@@ -1,18 +1,29 @@
 TODO
 ===
 
+###### 2023-02-22
+
+* extend img2tile to accomodate 3x3 and other windows
+  - test base tile to make sure it's working
+* consider how to visualize the different tiles and their
+  neighbors
+* produce an initial tiled output file from img2tile to
+  confirm tileset is meaningful
+* run on wfc to see results and make sure it's still working
+  - create statistics of failures for various tile collections
+
 ###### 2022-11-30
 
-* Implement different schedules for fixing tile choices in the collapse stage
+* ~Implement different schedules for fixing tile choices in the collapse stage~
   - ~choose 'least' belief to remove instead of max belief to fix~
   - ~allow for other schedules~
   - ~Do min entropy min belief (removal)~
 * ~Implement "residual" belief propagation updates to try and speed up convergence~
   - sort of implemented, test, not that conclusive
-* Visualize different aspects including:
-  - belief
-  - belief of restricted tile sets
-  - messages
+* ~Visualize different aspects including:~
+  - ~belief~
+  - ~belief of restricted tile sets~
+  - ~messages~
 * Add heuristic to help with convergence
   - tile correlation?
 * Add extra CSV columns in `_name.csv` add 6 additional fields with plus 1 for color (DONE)
@@ -23,11 +34,11 @@ TODO
 * Add simplified 2d tilesets that can scale
   - 2d tileset with 1-2 colors with 4 bends, 2 straights, 4 endtiles and empty (10 per set + empty) for each color
   - create canonical examples from simplified tileset that can test different problem sizes
-* implement svd speedup
-  - https://github.com/lucasmaystre/svdlibc
-* merge optimizations from upstream repo
-* implement checkerboard updating
-* implement automated tests
+* ~implement svd speedup~ (used eigen3)
+  - ~https://github.com/lucasmaystre/svdlibc~
+* ~merge optimizations from upstream repo~
+* ~implement checkerboard updating~
+* ~implement automated tests~
 * add other 2d tilesets for testing and demos (from oga):
   - https://opengameart.org/content/gameboy-tileset
   - https://opengameart.org/content/zelda-like-tilesets-and-sprites
@@ -87,6 +98,15 @@ Alternatives:
 
 ---
 
+Potential 3d models
+
+* https://sketchfab.com/3d-models/monument-valley-4d3880dff578465b8ae0c732da878d0d
+* https://sketchfab.com/3d-models/monument-valley-level-design-995687a3ace948738a8cbe1739d74137
+* https://sketchfab.com/3d-models/monument-valley-level-experiment-03d44e345dd942339f7ddd8205e6fb5f
+
+
+---
+
 References
 ---
 
@@ -94,4 +114,6 @@ References
 * [procjam WFC](https://www.procjam.com/tutorials/wfc/)
 * [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
 * [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+
+
 

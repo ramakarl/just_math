@@ -109,7 +109,7 @@ Vector3DF intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF
 
 
 //--- test where point projects within the inf prism of triangle
-bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& u, float& v)
+bool pointInTriangle(Vector3DF pnt, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, double& u, double& v)
 {    
     Vector3DF e0 = v2 - v1;
     Vector3DF e1 = v0 - v2;
@@ -135,8 +135,8 @@ bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector
     Vector3DF n = e0.Cross ( e1 );
 	Vector3DF e2 = (v2 - orig) / float(n.Dot(dir));
 	Vector3DF i = dir.Cross ( e2 );
-	float u = i.Dot ( e0 );
-	float v = i.Dot ( e1 );
+	double u = double(i.x)*e0.x + double(i.y)*e0.y + double(i.z)*e0.z;	
+	double v = double(i.x)*e1.x + double(i.y)*e1.y + double(i.z)*e1.z;	
 	t = n.Dot ( e2 );
 	hit = orig + dir * t;
 
@@ -172,9 +172,8 @@ bool intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector
 	return true; */
 }
 
-bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, float& u, float& v )    
+bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, double& u, double& v )    
 {
-	Vector3DF edge, vp;
 	Vector3DF e0 = v2 - v1;
     Vector3DF e1 = v0 - v2;
     Vector3DF n = e0.Cross ( e1 );
@@ -182,8 +181,8 @@ bool intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vect
 	Vector3DF e2 = (v2 - orig) / float(n.Dot(dir));
 	Vector3DF i = dir.Cross ( e2 );
 
-	u = i.Dot ( e0 );
-	v = i.Dot ( e1 );
+	u = double(i.x)*e0.x + double(i.y)*e0.y + double(i.z)*e0.z;	
+	v = double(i.x)*e1.x + double(i.y)*e1.y + double(i.z)*e1.z;	
 	t = n.Dot ( e2 );
 	hit = orig + dir * t;
 

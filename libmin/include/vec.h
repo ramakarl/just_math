@@ -440,6 +440,7 @@
 		Vector4DF (const VTYPE xa, const VTYPE ya, const VTYPE za, const VTYPE wa);
 		Vector4DF (const Vector3DI &op);
 		Vector4DF (const Vector3DF &op);
+		Vector4DF (const Vector3DF &op, const float opw);
 		Vector4DF (const Vector4DF &op);
 		Vector4DF (const Vector4DD &op);
 
@@ -447,7 +448,7 @@
 		Vector4DF &operator= (const int op);
 		Vector4DF &operator= (const double op);
 		Vector4DF &operator= (const Vector3DI &op);
-		Vector4DF &operator= (const Vector3DF &op);
+		Vector4DF &operator= (const Vector3DF &op);		
 		Vector4DF &operator= (const Vector4DF &op);
 
 

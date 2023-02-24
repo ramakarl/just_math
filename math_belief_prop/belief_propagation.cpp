@@ -292,6 +292,7 @@ void BeliefPropagation::ComputeDiffMUField () {
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
+
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
       n_a = getVali( BUF_TILE_IDX_N, j );
@@ -313,14 +314,20 @@ void BeliefPropagation::ComputeDiffMUField () {
 
 float BeliefPropagation::MaxDiffMU () {
   int i, n_a, a;
-  float v0,v1, d, max_diff=-1.0;
+  float v0,v1, d, max_diff;
   Vector3DI jp;
+
+  float max_overall = 0;
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
+
+    max_diff = 0;
+
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
       n_a = getVali( BUF_TILE_IDX_N, j );
+
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, j, a_idx );
         v0 = getVal( BUF_MU, in, j, a );
@@ -331,12 +338,17 @@ float BeliefPropagation::MaxDiffMU () {
         //    (int)in, (int)j, (int)a, (float)v0, (float)v1, (float)fabs(v0-v1));
 
         d = fabs(v0-v1);
-        if (max_diff < d) { max_diff = d; }
+        if (d > max_diff) { max_diff = d; }
       }
     }
+    if ( max_diff > max_overall ) {max_overall = max_diff;}
+    //printf ( "max overall: %f\n", max_overall );
+
+    SetVal ( BUF_VIZ, j, max_diff );        
+
   }
 
-  return max_diff;
+  return max_overall;
 }
 
 float BeliefPropagation::MaxDiffMUCellTile (float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx) {
@@ -1461,7 +1473,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
         }
       }
 
-      // else we've seen the same minimum entropy, so decide whether we want
+      // else we've seen the same minimum entropy, decide whether we want
       // to keep the entry we've already chosen or redraw from the current
       // cell
       //
@@ -1489,10 +1501,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
   if (max_tile)     { *max_tile     = _max_tile; }
   if (max_tile_idx) { *max_tile_idx = _max_tile_idx; }
   if (max_belief)   { *max_belief   = _max_belief; }
-
-  if (m_verbose > 2) {
-    printf("?? count:%i\n", (int)count);
-  }
 
   return count;
 }
@@ -2731,7 +2739,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   int64_t cell=-1;
-  int32_t tile=-1, tile_idx=-1;
+  int32_t tile=-1, tile_idx=-1, n_idx=-1;
   float belief=-1.0, d = -1.0;
 
   int64_t step_iter=0,
@@ -2770,9 +2778,10 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
 
   if (m_verbose > 1) {
     vp = getVertexPos(cell);
-    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i)\n",
+    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
         (int)vp.x, (int)vp.y, (int)vp.z,
-        (int)cell, (int)tile, (float)belief, (int)tile_idx);
+        (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
   }
 
   // (success) end condition, all cell positions have exactly
@@ -2932,73 +2941,84 @@ int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
   return single_realize_max_belief_cb(it, cb);
 }
 
+
+
+
+
 int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   int64_t cell=-1;
   int32_t tile=-1, tile_idx=-1;
   float belief=-1.0, d = -1.0;
-
-  int64_t step_iter=0,
-          max_step_iter = m_max_iteration;
-
   float _eps = m_eps_converge;
 
-  // after we've propagated constraints, BUF_MU
-  // needs to be renormalized
-  //
-  NormalizeMU();
+  if ( m_step_iter==0 ) {
 
+      // First step
 
+      // after we've propagated constraints, BUF_MU
+      // needs to be renormalized
+      //
+      NormalizeMU();     
 
-  // iterate bp until converged
-  //
-  for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+  } else if ( m_step_iter < m_max_iteration ) {
 
-    // set boundary MU to 1.0 in out-of-bounds directions
-    //WriteBoundaryMU ();
+      // Single step
 
-    d = step(1);
+      // set boundary MU to 1.0 in out-of-bounds directions
+      //WriteBoundaryMU ();
 
-    if (m_verbose > 1) {
-      if ((step_iter>0) && ((step_iter % 10)==0)) {
-        printf("  [%i/%i] step_iter %i (d:%f)\n", (int)it, (int)m_num_verts, (int)step_iter, d); fflush(stdout);
-        if (m_verbose > 2) { gp_state_print(); }
+      d = step(1);
+
+      if (m_verbose > 1) {
+        if ((m_step_iter>0) && ((m_step_iter % 10)==0)) {
+          printf("  [%i/%i] step_iter %i (d:%f)\n", (int) it, (int)m_num_verts, (int) m_step_iter, d); fflush(stdout);
+          if (m_verbose > 2) { gp_state_print(); }
+        }
       }
-    }
 
-    if (cb && ((step_iter % m_step_cb) == 0)) {
-      m_state_info_d = d;
-      m_state_info_iter = step_iter;
-      cb(NULL);
-    }
+      if (cb && ((m_step_iter % m_step_cb) == 0)) {
+        m_state_info_d = d;
+        m_state_info_iter = m_step_iter;
+        cb(NULL);
+      }
+      if (fabs(d) < _eps) { m_step_iter = m_max_iteration; }
 
-    if (fabs(d) < _eps) { break; }
+  } else {
+
+      // End of steps
+
+      // choose single cell and propagate choice
+      //
+      ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+      if (ret < 0) { return -1; }
+
+      // (success) overall end condition, all cell positions have exactly
+      // one tile in them. return 0 = completed map
+      //
+      if (ret==0) return 0;
+
+      ret = tileIdxCollapse( cell, tile_idx );
+      if (ret < 0) { return -2; }
+
+      m_note_n[ m_grid_note_idx ] = 0;
+      m_note_n[ 1-m_grid_note_idx ] = 0;
+
+      cellFillAccessed(cell, m_grid_note_idx);
+      unfillAccessed(m_grid_note_idx);
+
+      ret = cellConstraintPropagate();
+      if (ret < 0) { return -3; }
+
+      m_step_iter = 0;
+      return 2;
+
+      // non-error but still processing
+      //      
   }
+  
+  m_step_iter++;
 
-  // choose the cell and propagate choice
-  //
-  ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
-  if (ret < 0) { return -1; }
-
-  // (success) end condition, all cell positions have exactly
-  // one tile in them.
-  //
-  if (ret==0) { return 0; }
-
-  ret = tileIdxCollapse( cell, tile_idx );
-  if (ret < 0) { return -2; }
-
-  m_note_n[ m_grid_note_idx ] = 0;
-  m_note_n[ 1-m_grid_note_idx ] = 0;
-
-  cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
-
-  ret = cellConstraintPropagate();
-  if (ret < 0) { return -3; }
-
-  // non-error but still processing
-  //
   return 1;
 }
 
@@ -3900,8 +3920,8 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
-            if (m_verbose > 1) {
-              printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
+            if (m_verbose > 2) {
+               printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
                   (int)anch_b_val, (int)anch_cell,
                   (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
             }

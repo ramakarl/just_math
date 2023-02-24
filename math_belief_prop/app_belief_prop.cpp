@@ -11,7 +11,6 @@
 // To render the result, the belief is estimated at each vertex (voxel), and
 // raytraced as a density volume where value probabilities are mapped to color.
 //
-//
 
 //--------------------------------------------------------------------------------
 // Copyright 2019-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
@@ -82,13 +81,17 @@ public:
   BeliefPropagation wfc;
 
   bool m_run_bpc, m_run_wfc;
-  int m_X, m_Y, m_Z, m_D;
+  int m_X, m_Y, m_Z, m_D, m_alg_idx;
+
   int64_t m_it;
   std::string   m_name_fn;
   std::string   m_rule_fn;
+  std::string   m_tilemap_fn;
   std::string   m_constraint_fn;
+  std::string   m_tileset_fn;
   std::vector< std::string > m_tile_name;
   std::vector< std::vector<float> > m_tile_rule;
+  std::vector< int32_t > m_cull_list;
 
   // Volume rendering
   void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
@@ -101,11 +104,16 @@ public:
   void      ClearImg (Image* img);
   void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );
 
+  int       write_tiled_json ( BeliefPropagation &bpc );
+
   Camera3D* m_cam;          // camera
   Image*    m_img;          // output image
   Image*    m_img2;
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
+
+  int       m_tileset_width, m_tileset_height;
+  int       m_tileset_stride_x, m_tileset_stride_y;
 
   int       mouse_down;
   bool      m_run;
@@ -120,14 +128,14 @@ Sample obj;
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
-    std::string name_fn, rule_fn, constraint_fn;
+    int alg_idx;    
     float valf;
     int vali;
     int wfc_flag = 0;
     int seed = 0;
     int test_num = 0;
     char dash = arg.at(0);
-    char ch = arg.at(1);
+    char ch = arg.at(1);    
 
     if ( dash=='-' ) {
     switch (ch) {
@@ -156,20 +164,34 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         }
         break;
       case 'N':
-        name_fn = optarg;
+        m_name_fn = optarg;
         break;
       case 'R':
-        rule_fn = optarg;
+        m_rule_fn = optarg;
         break;
       case 'C':
-        constraint_fn = optarg;
+        m_constraint_fn = optarg;
         break;
-
+      case 'M':
+        m_tilemap_fn = optarg;
+        break;
+      case 'Q':
+        m_tileset_fn = optarg;
+        break;
+      case 's':
+        m_tileset_stride_x = strToI(optarg);
+        m_tileset_stride_y = m_tileset_stride_x;
+        break;
+      case 'G':
+        m_alg_idx = strToI(optarg);
+        break;
       case 'S':
         seed = strToI(optarg);
         bpc.m_seed = seed;
         break;
-
+      case 'c':
+        m_cull_list.push_back( strToI(optarg) );
+        break;
       case 'T':
         test_num = strToI(optarg);
         break;
@@ -222,11 +244,13 @@ void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
    float maxv;
    float dmu;
 
-   float scalar = 50.0;
+   float v;
+   float scalar = 1.0;
 
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     dmu =  std::min(1.0f, scalar * src.getVal ( bp_id, j ) );
+     
+     dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVal ( bp_id, j ), 0.1f ) ));
 
      vox->x = dmu;
      vox->y = dmu;
@@ -241,41 +265,18 @@ void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
 
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
 
-   float maxv;
-
-   // tile value ranges
-   int N = (int) src.m_num_values;
-   int r_l = 1, r_u = (N-1)/3;          // red tiles
-   int g_l = r_u+1, g_u = 2*(N-1)/3;    // green tiles
-   int b_l = g_u, b_u = N-1;            // blue tiles
+   float dmu;
+   float scalar = 0.5;
 
    // map belief to RGBA voxel
    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     src.getVertexBelief (j);
 
-     // red
-     maxv = 0.0;
-     for (int k=r_l; k <= r_u; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->x = maxv;
-
-     // green
-     maxv = 0.0;
-     for (int k=g_l; k <= g_u; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->y = maxv;
-
-     // blue
-     maxv = 0.0;
-     for (int k=b_l; k <= b_u; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->z = maxv;
-     //vox->z = 0.0;
-
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
+     dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVertexBelief (j), 0.1f ) ));
+    
+     vox->x = dmu;
+     vox->y = dmu;
+     vox->z = dmu;
+     vox->w = dmu;
      vox++;
    }
 }
@@ -332,11 +333,11 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   Vector3DF rpos, rdir;
   Vector4DF clr;
 
-  Vector3DF wp, dwp, p, dp;
+  Vector3DF wp, dwp, p, dp, t;
   Vector3DF vdel = m_vres;
   Vector4DF val;
   int iter;
-  float alpha, k, t;
+  float alpha, k;
   float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
   float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
@@ -355,7 +356,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
       rdir.Normalize();
 
       // intersect with volume box
-
+      float t;
       clr.Set(0,0,0,0);
 
       if ( intersectLineBox ( rpos, rdir, vmin, vmax, t ) ) {
@@ -395,17 +396,128 @@ void Sample::Restart()
 {
 }
 
+int Sample::write_tiled_json ( BeliefPropagation &bpc ) 
+{
+  FILE *fp;
+  int i, j, n, tileset_size;
+  int64_t vtx;
+
+  int sy, ey_inc;
+
+  int tilecount = (int)bpc.m_tile_name.size();
+  tilecount--;
+
+  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
+  int tileset_width = ceil( sqrt( (double) tilecount ) );
+  int tileset_height = m_tileset_width;
+
+  m_tileset_width *= m_tileset_stride_x;
+  m_tileset_height *= m_tileset_stride_y;
+
+  fp = fopen( m_tilemap_fn.c_str(), "w");
+  if (!fp) { return -1; }
+
+  fprintf(fp, "{\n");
+  fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
+  fprintf(fp, "  \"height\": %i,\n", (int)bpc.m_res.y);
+  fprintf(fp, "  \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "  \"layers\": [{\n");
+
+  fprintf(fp, "    \"data\": [");
+
+  // tiled expects y to increment in the negative direction
+  // so we need to reverse the y direction when exporting
+  //
+  if ( 0 ) {
+    // reversed y
+    for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+
+  } else {
+    // standard y
+    for (i=0; i<(int)(bpc.m_res.y); i++) {
+      for (j=0; j<(int)bpc.m_res.x; j++) {
+        vtx = bpc.getVertex(j, i, 0);
+        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+  }
+
+  /*
+  n = bpc.m_num_verts;
+  for (i=0; i<n; i++) {
+    if ((i%(int)bpc.m_res.x)==0) {
+      fprintf(fp, "\n   ");
+    }
+    fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
+  }
+  */
+
+  fprintf(fp, "\n    ],\n");
+  fprintf(fp, "    \"name\":\"main\",\n");
+  fprintf(fp, "    \"opacity\":1,\n");
+  fprintf(fp, "    \"type\":\"tilelayer\",\n");
+  fprintf(fp, "    \"visible\":true,\n");
+  fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
+  fprintf(fp, "    \"x\":0,\n");
+  fprintf(fp, "    \"y\":0\n");
+
+  fprintf(fp, "  }\n");
+
+  fprintf(fp, "  ],\n");
+  fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
+  fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
+  fprintf(fp, "  \"properties\": [ ],\n");
+  fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
+  fprintf(fp, "  \"tileheight\": %i,\n", (int) m_tileset_stride_y);
+  fprintf(fp, "  \"tilewidth\": %i,\n", (int) m_tileset_stride_x);
+  fprintf(fp, "  \"tilesets\": [{\n");
+
+  fprintf(fp, "    \"firstgid\": %i,\n", 1);
+  fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
+  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
+  fprintf(fp, "    \"image\": \"%s\",\n", m_tileset_fn.c_str());
+  fprintf(fp, "    \"imageheight\": %i,\n", (int) m_tileset_height);
+  fprintf(fp, "    \"imagewidth\": %i,\n", (int) m_tileset_width);
+  //fprintf(fp, "    \"margin\": %i,\n", (int) m_tileset_margin);
+  //fprintf(fp, "    \"spacing\": %i,\n", (int) m_tileset_spacing);
+  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
+  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
+  fprintf(fp, "    \"tileheight\": %i,\n", (int) m_tileset_stride_y);
+  fprintf(fp, "    \"tilewidth\": %i\n", (int) m_tileset_stride_x);
+
+  fprintf(fp, "  }],\n");
+  fprintf(fp, "  \"version\": %i\n", 1);
+  fprintf(fp, "}\n");
+
+  fclose(fp);
+
+  return 0;
+}
+
 
 
 bool Sample::init()
 {
   int i, ret;
 
-
   addSearchPath(ASSET_PATH);
 
   m_run_bpc = true;
   m_run_wfc = false;
+  m_D = 0;
+  m_alg_idx = 0;
 
   // Render volume
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
@@ -439,13 +551,20 @@ bool Sample::init()
 
   // Initiate Belief Propagation
   m_constraint_fn = "";
-  getFileLocation ( "pm_tilename.csv", m_name_fn );
-  getFileLocation ( "pm_tilerule.csv", m_rule_fn );
+  std::string name_path, rule_path;
+  getFileLocation ( m_name_fn, name_path );
+  getFileLocation ( m_rule_fn, rule_path );
   //getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
+
+  if (m_D>0) {
+    m_X = m_D;
+    m_Y = m_D;
+    m_Z = m_D;
+  }
 
   if (m_run_bpc) {
       // init belief prop
-      ret = bpc.init_CSV(m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      ret = bpc.init_CSV(m_X, m_Y, m_Z, name_path, rule_path );
       if (ret<0) {
         fprintf(stderr, "bpc error loading CSV\n");
         exit(-1);
@@ -458,7 +577,39 @@ bool Sample::init()
       }
       // start belief prop
       ret = bpc.start ();
-  }
+
+      // cull list
+      if (m_cull_list.size() > 0) {
+        int cull_idx;
+        int64_t tile_idx, pos;
+        int32_t tile_id, n, cull_tile_id;
+        if (bpc.m_verbose > 0) {
+            printf( "#culling tile ids\n" );
+        }
+        for (cull_idx=0; cull_idx < m_cull_list.size(); cull_idx++) {
+            cull_tile_id = m_cull_list[cull_idx];
+
+            for (pos=0; pos<bpc.m_num_verts; pos++) {
+            n = bpc.getVali( BUF_TILE_IDX_N, pos );
+            for (tile_idx=0; tile_idx<n; tile_idx++) {
+                if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
+                break;
+                }
+            }
+            if (tile_idx < n) {
+                if (bpc.m_verbose > 1) {
+                printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
+                }
+                tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
+                bpc.SetVali( BUF_TILE_IDX, pos, n-1, cull_tile_id );
+                bpc.SetVali( BUF_TILE_IDX, pos, tile_idx, tile_id );
+                n--;
+                bpc.SetVali( BUF_TILE_IDX_N, pos, n );
+            }
+            }
+        }
+      }
+   }
 
   if (m_run_wfc) {
       // init wfc
@@ -496,8 +647,24 @@ void Sample::display()
   if (m_run) {
 
     if ( m_run_bpc) {
-      ret = bpc.single_realize_min_entropy_max_belief_cb ( m_it, _cb_f );
+
+      if ( m_alg_idx == 1) {
+        ret = bpc.single_realize_min_belief_cb(m_it, _cb_f);
+      }
+      else if ( m_alg_idx == 2) {
+        ret = bpc.single_realize_min_entropy_max_belief_cb(m_it, _cb_f);
+      }
+      else if ( m_alg_idx == 3) {
+        ret = bpc.single_realize_min_entropy_min_belief_cb(m_it, _cb_f);
+      }
+      else if ( m_alg_idx == 4) {
+        ret = bpc.single_realize_residue_cb(m_it, _cb_f);
+      } else {        
+        ret = bpc.single_realize_max_belief_cb(m_it, _cb_f);
+      }  
+
       if ( ret <= 0) {
+        // BP COMPLETE
         switch (ret) {
         case  0: printf ( "BPC DONE.\n" ); {
             m_t2 = clock();
@@ -509,7 +676,18 @@ void Sample::display()
         case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
         case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
         };
+
+        // write json output
+        if (m_tilemap_fn.size() > 0) {
+            if (bpc.m_verbose > 1) {
+                printf("writing tilemap (%s)\n", m_tilemap_fn.c_str());
+            }
+            write_tiled_json( bpc );
+        }
       }
+    } else if ( ret==2 ) {
+        // cell was selected, count it
+        m_it++;
     }
 
     if ( m_run_wfc) {
@@ -524,7 +702,6 @@ void Sample::display()
       }
     }
 
-    m_it++;
     fflush(stdout);
   }
 
@@ -539,8 +716,8 @@ void Sample::display()
 
   if ( m_run_bpc ) {
       Vector3DF bpc_off(0,0,0);      
-      VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      //VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
+      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
       
       //-- regular belief viz
       VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
