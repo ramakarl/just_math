@@ -38,10 +38,12 @@
 
 #define CONSTRAINT_COLLAPSE_VERSION "0.0.1"
 
-#define BUF_T           0    // tile vector
-#define BUF_C           1    // constraint vector
-#define BUF_R           2    // resolved vector
-#define BUF_F           3    // rule list
+#define BUF_T           0    // selected tiles
+#define BUF_C           1    // face constraints
+#define BUF_E           2    // vertex constraints (extended)
+#define BUF_R           3    // tile confidence (R=resolved)
+#define BUF_F           4    // rule list, 6xB
+#define BUF_G           5    // tile weights, 1xB
 
 class ConstraintCollapse {
 public:
@@ -51,7 +53,8 @@ public:
 
   int init (int, int, int, std::string& rule_fn, std::string& name_fn);
   void start ();
-  void single_step ();
+  int single_step ();
+  void info ();
   void randomize ();
   void decimate ();
   void write_admissible ();
@@ -62,7 +65,7 @@ public:
   
   int GetVertexConstraints ( int64_t p );
   int CountBits ( int mask );
-  void GetMaxResolved ( int64_t p, int prev, int next,  float& r_fixed, float& r_max);
+  void GetMaxResolved ( int64_t p, int prev, int next, float r_edge, float& r_fixed, float& r_max);
 
   void Restart();
   void AllocBuf (int id, int cnt);              
@@ -109,12 +112,14 @@ public:
   int       m_stuck_cnt;
   int       m_step;
   float     m_temp;
-  
+
+  Vector3DF m_clr[512];  
 };
 
 int _read_line(FILE *fp, std::string &line);
-int _read_name_csv(std::string &fn, std::vector<std::string> &name);
-int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
+//int _read_name_csv(std::string &fn, std::vector<std::string> &name,  std::vector< float >& tile_weight);
+int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector< float > &weight );
+int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule );
 
 
 #endif
