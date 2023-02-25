@@ -83,12 +83,25 @@ void BeliefPropagation::ZeroBPVec (int id ) {
 //
 void BeliefPropagation::AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals) {
   // NOTE: matrix is stored sparesly.
-  // full matrix: mem=D*D*B, mu{D->D}[B] is full vertex-to-vertex messages over values B, where D=R^3, e.g. D=64^3, B=4, mem=262144^2*4 floats= 1 terabyte
+  // full matrix: mem=D*D*B, mu{D->D}[B] is full vertex-to-vertex messages over values B,
+  // where D=R^3, e.g. D=64^3, B=4, mem=262144^2*4 floats= 1 terabyte
+  //
   // sparse mtrx: mem=6*D*B, mu{6->D}[B] since only 6x neigbors are non-zero in 3D. explicitly index those six.
   // final: mem = 6*D*B, e.g. D=64^3, B=4, mem=6*262144*4 floats = 25 megabytes
+  //
   uint64_t cnt = nbrs * verts * vals;
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
   m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
+
+  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
+}
+
+// residual bp matrix allocation
+//
+void BeliefPropagation::AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals) {
+  uint64_t cnt = nbrs * verts * vals;
+  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
+  m_buf[id].Resize( sizeof(int64_t), cnt, 0x0, flags );
 
   memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
 }
@@ -261,6 +274,12 @@ void BeliefPropagation::ConstructMU () {
   AllocBPMtx ( BUF_MU, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_NXT, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_RESIDUE, 6, m_num_verts, m_num_values );
+
+  // residual belief propagation buffers
+  //
+  AllocBPMtx ( BUF_RESIDUE_HEAP, 6, m_num_verts, m_num_values );
+  AllocBPMtx_i64 ( BUF_RESIDUE_HEAP_CELL_BP, 6, m_num_verts, m_num_values );
+  AllocBPMtx_i64 ( BUF_RESIDUE_CELL_HEAP, 6, m_num_verts, m_num_values );
 
   float w;
   float *mu = (float*) m_buf[BUF_MU].getData();
@@ -2647,8 +2666,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   int32_t tile=-1, tile_idx=-1;
   float belief=-1.0, d = -1.0;
 
-  int64_t step_iter=0,
-          max_step_iter = m_max_iteration;
+  int64_t step_iter=0;
 
   float _eps = m_eps_converge;
 
@@ -2667,7 +2685,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 
   // iterate bp until converged
   //
-  for (step_iter=1; step_iter<max_step_iter; step_iter++) {
+  for (step_iter=1; step_iter<m_max_iteration; step_iter++) {
     d = step_residue( &updated_residue, &updated_cell, &updated_tile_idx, &updated_dir_idx );
 
     //DEBUG

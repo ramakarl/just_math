@@ -100,3 +100,27 @@ $bpc_bin \
   -V 2 | tee log/pm.log
 
 
+######
+######
+
+echo "running 'pm' tile collection, producing '$tileset_fn'"
+
+name_fn="./example_tile_collection/amarelo_tilename.csv"
+rule_fn="./example_tile_collection/amarelo_tilerule.csv"
+tiled_fn="./example_tile_collection/amarelo_tiled.json"
+tileset_fn="./amarelo_tileset.png"
+stride=8
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -s $stride  \
+  -X 42 -Y 42 -Z 1 \
+  -G 2 \
+  -c 0 \
+  -I 100000 \
+  -S 124 \
+  -e 0.000001 \
+  -V 2 | tee log/amarelo.log

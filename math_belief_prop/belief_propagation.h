@@ -88,6 +88,26 @@
 #define BUF_SVD_Vt      15
 #define BUF_SVD_VEC     16
 
+// auxiliary buffers for residual belief propagaion
+//
+// BUF_RESIDUE_HEAP             : heap of absolute differences of mu and mu_nxt (float)
+// BUF_RESIDUE_HEAP_CELL_BP     : back pointer of heap value location in CELL_HEAP (in64_t)
+// BUF_RESIDUE_CEALL_HEAP       : mapping of cell (and direction) to heap position (in64_t)
+//
+// All sizes should be (Vol)*(2*D)*(B).
+// That is, {volume} x {#neighbors} x {#values} : (dim[0]*dim[1]*dim[2]*6*B).
+//
+// All these structures are for book keeping so that we can get the maximum difference of
+// mu and mu_nxt in addition to allowing arbitrary updates on other cells.
+//
+// The basic residual bp update step will fetch the maximum difference, copy the mu value
+// from the mu_nxt buffer to the mu buffer, then update neighboring cells by updating their
+// mu_nxt values, updating the residue_heap along the way.
+//
+#define BUF_RESIDUE_HEAP          17
+#define BUF_RESIDUE_HEAP_CELL_BP  18
+#define BUF_RESIDUE_CELL_HEAP     19
+
 class BeliefPropagation {
 public:
   BeliefPropagation() {
@@ -132,6 +152,9 @@ public:
   void    ZeroBPVec (int id);
   void    AllocBPVec (int id, int cnt);                  // vector alloc
   void    AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
+
+  void    AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals);
+
   void    AllocBPMap (int id, int nbrs, int vals);
 
   void    AllocViz (int id, uint64_t cnt );
@@ -151,6 +174,8 @@ public:
   int      getTilesAtVertex ( int64_t vtx );
   int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
 
+  int64_t getMuIdx( int32_t idir, int64_t cell, int32_t tile );
+  int64_t getMuPos( int64_t idx, int32_t *idir, int64_t *cell, int32_t *tile );
 
   inline int      getNumNeighbors(int j)        {return 6;}
   inline int      getNumValues(int j)          {return m_num_values;}
@@ -181,8 +206,8 @@ public:
 
 #else
   // MU matrix
-  inline float*  getPtr(int id, int n, int j, int a)                {return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline float   getVal(int id, int n, int j, int a)                {return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline float*  getPtr(int id, int n, int j, int a)                { return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline float   getVal(int id, int n, int j, int a)                { return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
   inline void    SetVal(int id, int n, int j, int a, float val )    { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
   
   // Belief mapping (F), BxB
@@ -195,11 +220,29 @@ public:
   inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }
 
   inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
-  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val;
-  }
+  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val; }
 
   inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }
+
+  //  belief prop residue access functions (int64_t)
+  //  index heap - ih
+  //
+  inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline int64_t  getVal_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline void     SetVal_ih(int32_t id, int32_t n, int64_t j, int32_t a, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
+
+  inline int64_t* getPtr_ih(int32_t id, int64_t idx)                { return  (int64_t*) m_buf[id].getPtr ( idx ); }
+  inline int64_t  getVal_ih(int32_t id, int64_t idx)                { return *(int64_t*) m_buf[id].getPtr ( idx ); }
+  inline void     SetVal_ih(int32_t id, int64_t idx, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( idx ) = val; }
+
+  inline float* getPtr_ihf(int32_t id, int64_t idx)             { return  (float*) m_buf[id].getPtr ( idx ); }
+  inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
+  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; }
+
+
+  void indexHeap_update(int64_t heap_idx, float val);
+
 
   //---
 
@@ -313,6 +356,11 @@ public:
   void unfillAccessed(int32_t note_idx);
   int removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int sanityAccessed();
+
+  // residual belief propagation helper functions
+  //
+  void indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b);
+
 
   uint64_t m_note_n[2];
 

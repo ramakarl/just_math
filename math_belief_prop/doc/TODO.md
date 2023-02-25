@@ -11,6 +11,7 @@ TODO
   confirm tileset is meaningful
 * run on wfc to see results and make sure it's still working
   - create statistics of failures for various tile collections
+* put back in weighting option for img2tile (name and rule)
 
 ###### 2022-11-30
 
