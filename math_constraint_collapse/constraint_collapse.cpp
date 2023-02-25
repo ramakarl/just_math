@@ -201,11 +201,11 @@ int ConstraintCollapse::single_step ()
 
     for (int64_t v=0; v < getNumVerts(); v++) {       
         c = GetVertexConstraints(v);
-        for (int nbr=0; nbr < 6; nbr++) {            
+        /*for (int nbr=0; nbr < 6; nbr++) {            
             vnbr = getNeighbor(v, nbr);
             if ( vnbr != -1) c += GetVertexConstraints(vnbr);
-        }       
-        SetVal ( BUF_E, v, c);       
+        }    */
+        SetVal ( BUF_E, v, c); 
 
         if (c > 0) {
             for (int j=0;j<=2;j++) {
