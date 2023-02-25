@@ -200,6 +200,8 @@ int ConstraintCollapse::single_step ()
     ZeroBuf ( BUF_E );
 
     for (int64_t v=0; v < getNumVerts(); v++) {       
+
+        // update constraint buffer E
         c = GetVertexConstraints(v);
         /*for (int nbr=0; nbr < 6; nbr++) {            
             vnbr = getNeighbor(v, nbr);
@@ -207,7 +209,11 @@ int ConstraintCollapse::single_step ()
         }    */
         SetVal ( BUF_E, v, c); 
 
+        // if cell has constraints..
         if (c > 0) {
+
+            // top-left biased noise generation
+            // *presses* the errors out toward the edges and top
             for (int j=0;j<=2;j++) {
                 ki = getVertexPos(v);
                 ki.x = (ki.x<j) ? 0 : ki.x-=j; 
