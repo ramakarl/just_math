@@ -483,7 +483,7 @@ void ConstraintCollapse::fix_constraints (bool stuck)
             
             //|| (fix>=-1 && stuck && empty)
 
-            if ( fix >= 1 || (fix==0 && fix_r > best_r) || (fix>=-1 && stuck && noise && !border )  ) { 
+            if ( fix >= 1 || (fix==0 && fix_r > best_r) || (fix>=-1 && stuck && noise  )  ) { 
                 best_mask = new_mask;
                 best_cnt = CountBits(new_mask);
                 best_t = new_t;
