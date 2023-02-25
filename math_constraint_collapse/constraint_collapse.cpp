@@ -390,7 +390,7 @@ void ConstraintCollapse::fix_constraints (bool stuck)
 
         v = getVertexPos(p);
 
-        border = (v.x==0 || v.y==0 || v.z==0 || v.x==m_res.x-1 || v.y==m_res.y-1 || v.z==m_res.z-1 );
+        border = (v.x==0 || v.y==0 || v.x==m_res.x-1 || v.y==m_res.y-1 );
         
         // process on checkerboard grid
         //chk = (v.x + v.y + v.z + m_flip) % 2;  
