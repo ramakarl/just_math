@@ -296,10 +296,11 @@ public:
   int    wfc_step(int64_t it);
 
   float  step(int update_mu);
-  float  step_residue(float *max_diff, int64_t *max_residue_cell, int64_t *max_residue_tile_idx, int64_t *max_dir_idx);
+  //float  step_residue(float *max_diff, int64_t *max_residue_cell, int64_t *max_residue_tile_idx, int64_t *max_dir_idx);
+  float  step_residue(int32_t idir, int64_t cell, int32_t tile);
 
   float   BeliefProp();
-  float   BeliefProp_cell(int64_t);
+  float   BeliefProp_cell_residue(int64_t);
   float   BeliefProp_svd ();
 
   void    UpdateMU ();
@@ -328,6 +329,8 @@ public:
   void    ConstructMU ();
   void    NormalizeMU ();
   void    NormalizeMU (int id);
+
+  void    NormalizeMU_cell_residue (int id, int64_t cell);
 
   void    ConstructTileIdx();
 
