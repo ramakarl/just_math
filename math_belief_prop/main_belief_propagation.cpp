@@ -842,6 +842,46 @@ int main(int argc, char **argv) {
   }
 
   if (debug_print) {
+
+    //DEBUG!!!!
+    //testing out residual belief propagation wwork
+    //
+
+    int64_t idx, n, _cell;
+    int32_t _tile, _idir;
+    float _a, _b;
+
+    n = bpc.m_num_values * bpc.m_num_verts*6;
+    for (idx=0; idx<n; idx++) {
+      bpc.getMuPos( idx, &_idir, &_cell, &_tile );
+
+      _a = bpc.m_rand.randF();
+      _b = bpc.m_rand.randF();
+
+      printf(" heap_idx:%i -> (idir:%i, cell:%i, tile:%i) mu_cur:%f, mu_nxt:%f\n",
+          (int)idx, (int)_idir, (int)_cell, (int)_tile, _a, _b);
+      bpc.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+      bpc.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    }
+
+    printf("---\n");
+
+    printf("about to init:\n");
+    bpc.indexHeap_init();
+
+    printf("---\n");
+
+    printf("heap:\n");
+    bpc.indexHeap_debug_print();
+
+    printf("---\n");
+
+    ret = bpc.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+    exit(0);
+    //
+    //DEBUG!!!
+
     bpc.debugPrint();
     exit(0);
   }

@@ -90,9 +90,10 @@
 
 // auxiliary buffers for residual belief propagaion
 //
-// BUF_RESIDUE_HEAP             : heap of absolute differences of mu and mu_nxt (float)
-// BUF_RESIDUE_HEAP_CELL_BP     : back pointer of heap value location in CELL_HEAP (in64_t)
-// BUF_RESIDUE_CEALL_HEAP       : mapping of cell (and direction) to heap position (in64_t)
+// BUF_RESIDUE_HEAP         : heap of absolute differences of mu and mu_nxt (float)
+// BUF_RESIDUE_HEAP_CELL_BP : back pointer of heap value location in CELL_HEAP (in64_t)
+// BUF_RESIDUE_CELL_HEAP    : mapping of cell (and direction, value) to heap position (in64_t).
+//                            That is, mapping of mu index to position in heap
 //
 // All sizes should be (Vol)*(2*D)*(B).
 // That is, {volume} x {#neighbors} x {#values} : (dim[0]*dim[1]*dim[2]*6*B).
@@ -128,6 +129,8 @@ public:
 
     m_use_svd = 0;
     m_use_checkerboard = 0;
+
+    m_index_heap_size = 0;
   };
 
   bool _init();
@@ -173,9 +176,6 @@ public:
   int64_t  getVertex(int x, int y, int z);
   int      getTilesAtVertex ( int64_t vtx );
   int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
-
-  int64_t getMuIdx( int32_t idir, int64_t cell, int32_t tile );
-  int64_t getMuPos( int64_t idx, int32_t *idir, int64_t *cell, int32_t *tile );
 
   inline int      getNumNeighbors(int j)        {return 6;}
   inline int      getNumValues(int j)          {return m_num_values;}
@@ -240,8 +240,26 @@ public:
   inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
   inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; }
 
+  // residual belief propagation helper functions
+  //
+  int64_t getMuIdx( int32_t idir, int64_t cell, int32_t tile );
+  int64_t getMuPos( int64_t idx, int32_t *idir, int64_t *cell, int32_t *tile );
 
-  void indexHeap_update(int64_t heap_idx, float val);
+  void    indexHeap_init(void);
+  void    indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b);
+  int32_t indexHeap_push(float val);
+
+  void    indexHeap_update(int64_t heap_idx, float val);
+  void    indexHeap_update_mu_idx(int64_t mu_idx, float val);
+  void    indexHeap_update_mu_pos(int32_t idir, int64_t cell, int32_t tile, float val);
+
+  int64_t indexHeap_peek(int64_t *mu_idx, float *val);
+  int64_t indexHeap_peek_mu_pos(int32_t *idir, int64_t *cell, int32_t *tile_val, float *val);
+
+
+  int32_t indexHeap_consistency(void);
+
+  void    indexHeap_debug_print(void);
 
 
   //---
@@ -365,10 +383,6 @@ public:
   int removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int sanityAccessed();
 
-  // residual belief propagation helper functions
-  //
-  void indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b);
-
 
   uint64_t m_note_n[2];
 
@@ -393,6 +407,8 @@ public:
 
   int64_t   m_step_iter;
   int64_t   m_max_iteration;
+
+  int64_t   m_index_heap_size;
 
 };
 

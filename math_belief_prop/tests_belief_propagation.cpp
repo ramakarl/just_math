@@ -1555,6 +1555,540 @@ int test_step4() {
   return ret;
 }
 
+// populate BUF_MU and BUF_MU_NXT
+// with random values, add the differences
+// to the indexHeap structures/buffers (through
+// indexHeap_init) and then run consistency
+// checks on the heap.
+// 
+int test_residual0() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+// populate BUF_MU and BUF_MU_NXT
+// with random values, add the differences
+// to the indexHeap structures/buffers (through
+// indexHeap_init) and then run consistency
+// checks on the heap.
+// 
+int test_residual1() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (idx==n);
+    _a = bp.m_rand.randF();
+    bp.indexHeap_update( idx, _a );
+
+    ret = bp.indexHeap_consistency();
+
+    if (ret < 0) {
+      printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+      return ret;
+    }
+
+  }
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual2() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update( mu_idx, fabs(_a-_b) );
+
+    ret = bp.indexHeap_consistency();
+    if (ret < 0) {
+      printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+      return ret;
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual3() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
+
+    if ((it%1000)==0) {
+
+      ret = bp.indexHeap_consistency();
+      if (ret < 0) {
+        printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+        return ret;
+      }
+
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual4() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update( mu_idx, fabs(_a-_b) );
+
+    if ((it%1000)==0) {
+
+      ret = bp.indexHeap_consistency();
+      if (ret < 0) {
+        printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+        return ret;
+      }
+
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual5() {
+  int ret, _buf;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx, heap_idx;
+  int32_t _tile, _idir;
+  float _a, _b, mu_max_diff, f, mu_buf_max;
+
+  int64_t mu_max_idir,
+          mu_max_cell,
+          mu_max_tile,
+          ih_idx_max;
+
+  float _eps;
+  int mu_pos_found=0;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  _eps = bp.m_eps_zero;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
+
+  }
+
+
+  mu_buf_max = -1.0;
+  for (_idir=0; _idir<6; _idir++) {
+    for (_cell=0; _cell<bp.m_num_verts; _cell++) {
+      for (_tile=0; _tile<bp.m_num_values; _tile++) {
+
+        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+        f = fabs(_a-_b);
+
+        if (mu_buf_max < f) {
+          mu_buf_max = f;
+        }
+
+      }
+    }
+  }
+
+  bp.indexHeap_peek_mu_pos( &_idir, &_cell, &_tile, &_a);
+  mu_max_idir = _idir;
+  mu_max_cell = _cell;
+  mu_max_tile = _tile;
+  mu_max_diff = _a;
+
+  //printf("mu_max (idir:%i,cell:%i,tile:%i,val:%f)\n",
+  //    (int)mu_max_idir, (int)mu_max_cell, (int)mu_max_tile, (float)mu_max_diff);
+
+  if ( fabs(mu_max_diff - mu_buf_max) > _eps ) {
+    printf("observed maximum in MU/MU_NXT buf (%f) disagrees with indexHeap maximum (%f)\n",
+        (float)mu_buf_max, (float)mu_max_diff);
+
+    ret = bp.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+
+
+    return -103;
+  }
+
+  //if ( fabs(mu_max_diff - mu_buf_max) < _eps) { printf("yes, they're close\n"); }
+
+  mu_pos_found = 0;
+  for (_idir=0; _idir<6; _idir++) {
+    for (_cell=0; _cell<bp.m_num_verts; _cell++) {
+      for (_tile=0; _tile<bp.m_num_values; _tile++) {
+        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+        f = fabs(_a-_b);
+
+        if ( (fabs(mu_max_diff - f) <= _eps) ||
+             (fabs(f - mu_max_diff) <= _eps) ) {
+
+          //printf(">>max<< %i %i %i (%f,%f,%f)\n", (int)_idir, (int)_cell, (int)_tile, f, (float)mu_max_diff, (float)fabs(mu_max_diff-f));
+
+          if ((_idir == mu_max_idir) &&
+              (_cell == mu_max_cell) &&
+              (_tile == mu_max_tile)) {
+
+            //printf("!!found!! %i %i %i\n", (int)_idir, (int)_cell, (int)_tile);
+
+            mu_pos_found = 1;
+            break;
+
+          }
+
+        }
+
+      }
+      if (mu_pos_found) { break; }
+    }
+    if (mu_pos_found) { break; }
+  }
+
+  if (mu_pos_found==0) {
+    printf("did not retrieve maximum mu position. Expected (idir:%i,cell:%i,tile:%i) (%f), observied max: %f\n",
+      (int)mu_max_idir, (int)mu_max_cell, (int)mu_max_tile, (float)mu_max_diff, (float)mu_buf_max);
+
+    ret = bp.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+
+    return -101;
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
 
 
 int test_wfc0(int x, int y, int z) {
@@ -1670,6 +2204,25 @@ int run_test(int test_num) {
 
     case 20:
       test_step4();
+      break;
+
+    case 21:
+      test_residual0();
+      break;
+    case 22:
+      test_residual1();
+      break;
+    case 23:
+      test_residual2();
+      break;
+    case 24:
+      test_residual3();
+      break;
+    case 25:
+      test_residual4();
+      break;
+    case 26:
+      test_residual5();
       break;
 
     default:
