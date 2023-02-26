@@ -62,46 +62,88 @@ int64_t ConstraintCollapse::getVertex (int x, int y, int z)
 Vector3DI ConstraintCollapse::getVertexPos(int64_t j) {
   Vector3DI p;
   p.z = j / (m_res.x*m_res.y);  j -= p.z * (m_res.x*m_res.y);
-  p.y = j / m_res.x;        j -= p.y * m_res.x;
+  p.y = j / m_res.x;            j -= p.y * m_res.x;
   p.x = j;
   return p;
 }
 
 int64_t ConstraintCollapse::getNeighbor( uint64_t j, int nbr ) 
 {
+
   Vector3DI jp = getVertexPos(j);
 
   // 3D spatial neighbor function
   //
   switch (nbr) {
   case 0:    return (jp.x < m_res.x-1) ?  j+1 : -1;
-  case 1:    return (jp.x > 0) ?        j-1 : -1;
+  case 1:    return (jp.x > 0) ?          j-1 : -1;
   case 2:    return (jp.y < m_res.y-1) ?  j+m_res.x : -1;
-  case 3:    return (jp.y > 0) ?        j-m_res.x : -1;
+  case 3:    return (jp.y > 0) ?          j-m_res.x : -1;
   case 4:    return (jp.z < m_res.z-1) ?  j+(m_res.x*m_res.y) : -1;
-  case 5:    return (jp.z > 0) ?        j-(m_res.x*m_res.y) : -1;
+  case 5:    return (jp.z > 0) ?          j-(m_res.x*m_res.y) : -1;
   };
   return -1;
 }
 
 int64_t ConstraintCollapse::getFace (int64_t a, int nbr )
 {
-    int64_t b = a;
+    Vector3DI ai = getVertexPos(a);
+    int rx = m_res.x+1;
+    int ry = m_res.y+1;    
+    int64_t b = int64_t(ai.z*ry + ai.y)*rx + ai.x;
+
+    int64_t f = -1;
     switch (nbr) {
-    case 0: b = (a+1)*3 + 0; break;
-    case 1: b = (a+0)*3 + 0; break;
-    case 2: b = (a+m_res.x)*3 + 1; break;
-    case 3: b = (a+0      )*3 + 1; break;
-    case 4: b = (a+(m_res.x*m_res.y))*3 + 2; break;
-    case 5: b = (a+0                )*3 + 2; break;
+    case 0: f = (b+1)*3 + 0;        break;
+    case 1: f = (b+0)*3 + 0;        break;
+    case 2: f = (b+rx)*3 + 1;       break;
+    case 3: f = (b+0      )*3 + 1;  break;
+    case 4: f = (b+(rx*ry))*3 + 2;  break;
+    case 5: f = (b+0      )*3 + 2; break;
+    default:
+        printf ("ERROR on getFace\n" );
+        exit(-8);
+        break;
     };
-    return b;
+    return f;
+}
+
+
+// GetVertexConstraints
+// - this function returns a bitmask for the 6x faces of the current vertex
+int ConstraintCollapse::GetVertexConstraints ( int64_t p )
+{
+    Vector3DI ai = getVertexPos(p);
+    int rx = m_res.x+1;
+    int ry = m_res.y+1;
+    int64_t b = int64_t(ai.z*ry + ai.y)*rx + ai.x;    
+
+    int c = 0;
+    c |= int(getVal(BUF_C, (b+1)*3+0 )) << 1;
+    c |= int(getVal(BUF_C, (b+0)*3+0 )) << 2;
+    c |= int(getVal(BUF_C, (b+rx)*3+1)) << 3;
+    c |= int(getVal(BUF_C, (b+0      )*3+1)) << 4;
+    c |= int(getVal(BUF_C, (b+(rx*ry))*3+2 )) << 5;
+    c |= int(getVal(BUF_C, (b+0      )*3+2 )) << 6;
+   
+    return c;
+}
+
+// this could be much faster with lookup table
+int ConstraintCollapse::CountBits ( int mask )
+{
+    int c = 0;
+    c += (mask>>1) & 0x1;
+    c += (mask>>2) & 0x1;
+    c += (mask>>3) & 0x1;
+    c += (mask>>4) & 0x1;
+    c += (mask>>5) & 0x1;
+    c += (mask>>6) & 0x1;    
+    return c;
 }
 
 void ConstraintCollapse::start ()
 {
-    m_seed = 2;
-
     m_rand.seed( m_seed );
 
     randomize ();
@@ -112,52 +154,94 @@ void ConstraintCollapse::start ()
     m_cnt = 0;
     m_step = 0;
     m_temp = 0.5;
+
+    for (int n=0; n < 512; n++) 
+        m_clr[n] = m_rand.randV3();
 }
 
-void ConstraintCollapse::single_step ()
+void ConstraintCollapse::info()
+{
+    dbgprintf ( "step %d, constraints %d, noise %f, stuck %d\n", m_step, m_cnt, m_temp, m_stuck_cnt);
+}
+
+int ConstraintCollapse::single_step ()
 {
     // check constraints (energy) and 
     // increase temperature if we get stuck
     int cnt = check_constraints ();
+
+    if (cnt==0) return 0;   // done!
     
     if (cnt >= m_cnt) {
         m_stuck_cnt++;
-        if (m_stuck_cnt > 3) {
+        if (m_stuck_cnt > 3 ) {
             // stuck - increase temp to add noise
             m_temp += 0.01;     
-            if (m_temp > 1.0) m_temp = 1;    
-            //decimate();
-            m_stuck_cnt=0;
+            if (m_temp > 1.0) m_temp = 1;  
+            m_stuck_cnt = 0;
         }
-    } else {
+    } else {        
         // gradually decrease temp
         // (do not reset stuck_cnt here because that can oscillate also)
         m_temp -= 0.001;
         if (m_temp < 0) m_temp = 0;         
     }
 
-    dbgprintf ( "step %d, constraints %d, noise %f, stuck %d\n", m_step, cnt, m_temp, m_stuck_cnt);
+    m_temp = float(cnt) / m_num_verts;
    
-    if (cnt > 0 )
-      fix_constraints ( cnt==m_cnt );
+    fix_constraints ( m_stuck_cnt >= 3 );
 
-    /*int q;
-    float r;
-    int freq = m_temp*5;
-    if ( m_temp > 0.99) freq = 0;
-    if ( freq > 0 && m_step % freq == 0 ) {    
-        dbgprintf ( "empty\n" );
-        q = m_rand.randF() * getNumVerts();        
-        r = getVal(BUF_R,q);
-        if (r < 1.0) {
-            SetVal( BUF_T, q, 0 );
-            SetVal( BUF_R, q, 0 );
+    // global noise
+    float c, r; 
+    int t, vnbr;
+    Vector3DI ki;
+    int64_t k;
+    
+    ZeroBuf ( BUF_E );
+
+    for (int64_t v=0; v < getNumVerts(); v++) {       
+
+        // update constraint buffer E
+        c = GetVertexConstraints(v);
+        /*for (int nbr=0; nbr < 6; nbr++) {            
+            vnbr = getNeighbor(v, nbr);
+            if ( vnbr != -1) c += GetVertexConstraints(vnbr);
+        }    */
+        SetVal ( BUF_E, v, c); 
+
+        // if cell has constraints..
+        if (c > 0) {
+
+            // top-left biased noise generation
+            // *presses* the errors out toward the edges and top
+            for (int j=0;j<=2;j++) {
+                ki = getVertexPos(v);
+                ki.x = (ki.x<j) ? 0 : ki.x-=j; 
+                ki.y = (ki.y<j) ? 0 : ki.y-=j;
+                k = getVertex(ki.x, ki.y, ki.z);
+
+                r = getVal(BUF_R, k);
+                r = r - m_rand.randF() * m_temp * 0.4;
+
+                if (m_rand.randF() < 0.01*(1-m_temp) ) {
+                    t = m_rand.randF() * m_num_values;
+                    r += 0.1;
+                    if (t == 0 || t==87 ) continue;                
+                    SetVal(BUF_T, k, t );
+                }
+                r = (r<0) ? 0 : (r>1) ? 1 : r;   
+                SetVal(BUF_R, k, r );
+            }            
         }
-    }*/
+    }
+ 
+
 
    // m_resolve -= 0.001;
     m_cnt = cnt;
     m_step++;
+
+    return cnt;
 }
 
 void ConstraintCollapse::decimate ()
@@ -247,13 +331,12 @@ int ConstraintCollapse::check_constraints ( int64_t p )
     for (int nbr=0; nbr < 6; nbr++) {
 
         // tile value at neighbor of p
-        // pi = getVertexPos(p);
         pnbr = getNeighbor(p, nbr);
         if ( pnbr != -1) {
             b = getVal( BUF_T, pnbr);
         } else {
             b = 0;  
-        }       
+        } 
         v = getValF ( BUF_F, a, b, nbr );   // rule for b->a            
         f = getFace ( p, nbr );
         
@@ -269,49 +352,19 @@ int ConstraintCollapse::check_constraints ( int64_t p )
     return cnt;
 }
 
-// GetVertexConstraints
-// - this function returns a bitmask for the 6x faces of the current vertex
-int ConstraintCollapse::GetVertexConstraints ( int64_t p )
-{
-    Vector3DI pi = getVertexPos( p );
-
-    int c = 0;
-    c |= int(getVal(BUF_C, (p+1)*3+0 ));
-    c |= int(getVal(BUF_C, (p+0)*3+0 )) << 1;
-    c |= int(getVal(BUF_C, (p+m_res.x)*3+1)) << 2;
-    c |= int(getVal(BUF_C, (p+0      )*3+1)) << 3;
-    c |= int(getVal(BUF_C, (p+(m_res.x*m_res.y))*3+2 )) << 4;
-    c |= int(getVal(BUF_C, (p+0                )*3+2 )) << 5;
-    
-    return c;
-}
-
-// this could be much faster with lookup table
-int ConstraintCollapse::CountBits ( int mask )
-{
-    int c = 0;
-    c += mask & 0x1;
-    c += (mask>>1) & 0x1;
-    c += (mask>>2) & 0x1;
-    c += (mask>>3) & 0x1;
-    c += (mask>>4) & 0x1;
-    c += (mask>>5) & 0x1;    
-    return c;
-}
-
-void ConstraintCollapse::GetMaxResolved ( int64_t p, int prev, int next, float& r_fixed, float& r_max)
+void ConstraintCollapse::GetMaxResolved ( int64_t p, int prev, int next, float r_edge, float& r_fixed, float& r_max)
 {
     int fixed;
     float r[6];
     Vector3DI pi = getVertexPos( p );
 
     // get resolved values of neighbors
-    r[0] = (pi.x < m_res.x-1) ? getVal(BUF_R, p+1) : 0.01;
-    r[1] = (pi.x > 0)         ? getVal(BUF_R, p-1) : 0.01;
-    r[2] = (pi.y < m_res.y-1) ? getVal(BUF_R, p+m_res.x) : 0.01;
-    r[3] = (pi.y > 0 )        ? getVal(BUF_R, p-m_res.x) : 0.01;
-    r[4] = (pi.z < m_res.z-1) ? getVal(BUF_R, p+(m_res.x*m_res.y)) : 0.01;
-    r[5] = (pi.z > 0 )        ? getVal(BUF_R, p-(m_res.x*m_res.y)) : 0.01;
+    r[0] = (pi.x < m_res.x-1) ? getVal(BUF_R, p+1) : r_edge;
+    r[1] = (pi.x > 0)         ? getVal(BUF_R, p-1) : r_edge;
+    r[2] = (pi.y < m_res.y-1) ? getVal(BUF_R, p+m_res.x) : r_edge;
+    r[3] = (pi.y > 0 )        ? getVal(BUF_R, p-m_res.x) : r_edge;
+    r[4] = (pi.z < m_res.z-1) ? getVal(BUF_R, p+(m_res.x*m_res.y)) : r_edge;
+    r[5] = (pi.z > 0 )        ? getVal(BUF_R, p-(m_res.x*m_res.y)) : r_edge;
     
     // identify maximal resolved neighbor that 
     // has eliminated a constraint
@@ -330,20 +383,24 @@ void ConstraintCollapse::fix_constraints (bool stuck)
 {
     bool noise, empty;
     float c[6];
-    float r0, r, new_r, best_r, fix_r;
+    float r0, r, new_r, best_r, fix_r, pb;
     int64_t p;
     Vector3DI v;
     int chk, fixed;
     int save_t, save_mask, start_t;
     int new_t, new_mask;
     int best_t, best_mask, best_cnt;
+    bool border;
 
     for (p=0; p< getNumVerts(); p++) {
+
         v = getVertexPos(p);
+
+        border = (v.x==0 || v.y==0 || v.x==m_res.x-1 || v.y==m_res.y-1 );
         
         // process on checkerboard grid
-        // chk = (v.x + v.y + v.z + m_flip) % 2;  
-        // if (chk==0) continue;
+        //chk = (v.x + v.y + v.z + m_flip) % 2;  
+        //if (chk==0) continue;
 
         // check if fully resolved
         r = getVal( BUF_R, p );   
@@ -358,7 +415,15 @@ void ConstraintCollapse::fix_constraints (bool stuck)
 
         // count unresolved face constraints at vertex        
         best_mask = GetVertexConstraints( p );    
-        best_cnt = CountBits(best_mask);
+        best_cnt = CountBits(best_mask); 
+        
+        if ( best_cnt==0 ) {
+            r += 0.00001;
+            r = (r<0) ? 0 : (r>1) ? 1 : r;
+            SetVal ( BUF_R, p, r ); 
+            continue;
+        }
+
         best_t = getVal( BUF_T, p);
         best_r = r;
         save_mask = best_mask;  // save current configuration
@@ -370,15 +435,21 @@ void ConstraintCollapse::fix_constraints (bool stuck)
         // run through tile values and find one that solves the most constraints               
         for (int t=1; t < m_num_values ; t++) { 
 
-            new_t = (start_t + t) % m_num_values;
+            //new_t = (start_t + t) % m_num_values;     // <-- bug. this biases for earlier (X+) tiles.
+            new_t = m_rand.randI( m_num_values ) ;
             if (new_t == save_t) continue;
-            
-            //if ( new_t >=43 ) continue;             // skip green & blue
 
+            if (new_t == 0 || new_t==87 ) continue;            
+
+            // tile weight biasing
+            //pb = getVal(BUF_G, new_t) * m_num_values;
+            //if ( m_rand.randF() > pb ) continue;
+            
+            /* //--- major hack to eliminate end tiles 
             if ( (new_t >= 1 && new_t < 13) || 
                  (new_t >=43 && new_t < 55) ||
                  (new_t >=85 && new_t < 97) ) 
-                   continue;                           // major hack to eliminate end tiles
+                   continue;                           */
 
             // test a different tile value
             SetVal ( BUF_T, p, new_t );  
@@ -391,28 +462,32 @@ void ConstraintCollapse::fix_constraints (bool stuck)
             // fix   = number of new face constraints resolved
             // fix_r = resolved value of the best fixed face            
             int fix = CountBits(best_mask) - CountBits(new_mask);
-            GetMaxResolved ( p, save_mask, new_mask, fix_r, new_r );   
+
+            GetMaxResolved ( p, save_mask, new_mask, 0.001, fix_r, new_r );
             
             // introduce noise tied to temperature to escape local minima
             //if (new_t==0) empty = (r + m_rand.randF()*0.50) < m_temp; else empty = false;
             //noise = (r + m_rand.randF()*0.01) < m_temp;
 
             if (new_t==0) empty = m_rand.randF()*m_temp > 0.05; else empty = false;
-            noise = m_rand.randF()*m_temp > r;    // add noise to less resolved tiles                       
+            
+            noise = m_rand.randF()*m_temp > pow(r, 0.1);    // add noise to less resolved tiles                       
             
             // MCMC - Markov Chain Monte Carlo - next step should fix more constraints than current.            
             // Accept tile.. if:
-            // - (fix>1) ==> tile value solves 2 or more faces, accept immediately
-            // - (fix>=0 && fix_r>best_r) ==> tile value solves 1 face, usually multiple, accept the tile value with the best r
-            // Simulated Annealing - introduced by 'noise and empty'                        
+            // - (fix>=1) ==> tile value solves 1 or more faces, accept immediately
+            // - (fix==0 && fix_r>best_r) ==> tile value don't solve any self-constraints, but neighbors (fix_r) are resolved
+            // Simulated Annealing - introduced by 'noise and empty'
             // - (stuck && fix>=0 && noise) ==> solver stuck. fix=0 means its no better or worse than what we had. try /w noise.
             // - (stuck && fix>=-1 && empty) ==>solver stuck. fix=-1 means OK to make worse! >IF< its the empty tile. try /w noise.
-            //
-            if ( fix > 1 || (fix>=0 && fix_r > best_r) || (fix>=0 && stuck && noise) || (fix>=-1 && stuck && empty) ) { 
+            
+            //|| (fix>=-1 && stuck && empty)
+
+            if ( fix >= 1 || (fix==0 && fix_r > best_r) || (fix>=-1 && stuck && noise  )  ) { 
                 best_mask = new_mask;
                 best_cnt = CountBits(new_mask);
                 best_t = new_t;
-                best_r = new_r;                  
+                best_r = fix_r;
             }            
         }    
 
@@ -420,16 +495,16 @@ void ConstraintCollapse::fix_constraints (bool stuck)
 
             // get best resolved neighbor    
             //fixed = GetMaxResolved ( p, save_mask, best_mask, fix_r, best_r );            
-            r = best_r * 0.9;
-            if (r<0) r = 0;
-            if (r>1) r = 1;
+            r = best_r * 0.85;
+            r = (r<0) ? 0 : (r>1) ? 1 : r;
             SetVal( BUF_R, p, r );
 
             SetVal( BUF_T, p, best_t );           
            
-        } else {
-            SetVal ( BUF_T, p, save_t ); 
+        } else {            
+            SetVal( BUF_T, p, save_t ); 
         }
+
         check_constraints ( p );
     }
 
@@ -443,23 +518,29 @@ Vector4DF ConstraintCollapse::getSample ( int buf, int64_t v )
     int t, c, f[6];
     float x, a;
 
+    Vector3DI vi = getVertexPos(v);
+
     switch (buf) {
     case BUF_T: 
         t = getVal(buf, v);
-        a = getVal(BUF_R, v);
-        if ( t==0 )       s = Vector4DF(0,0,0,0);
-        else if ( t<=42 ) s = Vector4DF(1,0,0,a);
-        else if ( t<=84 ) s = Vector4DF(0,1,0,a);
-        else if ( t<=126 ) s = Vector4DF(0,0,1,a);        
+        a = pow( getVal(BUF_R, v), 0.1 );
+        if (t==0) a=0;
+        s = Vector4DF( m_clr[t], a);
         break;
     case BUF_C:
+        t = getVal(BUF_T,v);
         c = CountBits( GetVertexConstraints( v ) );
         a = getVal(BUF_R, v);
-        x = float(c);
+        x = float(c); // 6.0;
+        s = Vector4DF(x,x,x,1);
+        break;
+    case BUF_E:
+        x = getVal(buf, v);        
         s = Vector4DF(x,x,x,x);
         break;
     case BUF_R:
         x = getVal(buf, v);
+        x = pow(x, 0.1 );
         s = Vector4DF(x,x,x,x);
         break;
    };
@@ -479,17 +560,23 @@ int ConstraintCollapse::init (int Rx, int Ry, int Rz, std::string &name_fn, std:
   m_dir_inv[4] = 5;
   m_dir_inv[5] = 4;
 
-  ret = read_F_CSV(rule_fn, name_fn);
-  if (ret<0) { return ret; }
+  m_num_values = read_F_CSV(rule_fn, name_fn);
+  if (m_num_values <= 0 ) {
+     printf ( "ERROR: num tiles values = %d\n", m_num_values );
+     exit(-7);
+  }
+  printf(">>>> # of tiles: %i\n", (int) m_num_values );
+
+  assert ( m_num_values == m_tile_name.size() );
 
   //---
 
-  m_rand.seed ( m_seed++ );  
+  m_rand.seed ( m_seed++ );
 
   m_res.Set ( Rx, Ry, Rz );
   m_num_verts = m_res.x * m_res.y * m_res.z;
   m_num_face = (m_res.x+1) * (m_res.y+1) * (m_res.z+1) * 3;
-  m_num_values = m_tile_name.size();
+
   m_res.Set ( Rx, Ry, Rz );
   m_flip = 0;
 
@@ -497,10 +584,12 @@ int ConstraintCollapse::init (int Rx, int Ry, int Rz, std::string &name_fn, std:
   AllocBuf ( BUF_T, m_num_verts );  
   AllocBuf ( BUF_R, m_num_verts );  
   AllocBuf ( BUF_C, m_num_face );   // face buffer
+  AllocBuf ( BUF_E, m_num_verts );  
 
   ZeroBuf ( BUF_T );
   ZeroBuf ( BUF_R );
   ZeroBuf ( BUF_C );
+  ZeroBuf ( BUF_E );
 
   // options
   m_run_cuda  = false;
@@ -513,8 +602,9 @@ int ConstraintCollapse::read_F_CSV(std::string &rule_fn, std::string &name_fn) {
   int b, maxb=-1, B;
 
   std::vector< std::vector<float> > tile_rule;
+  std::vector< float> tile_weight;
 
-  ret = _read_name_csv(name_fn, m_tile_name);
+  ret = _read_name_csv(name_fn, m_tile_name, tile_weight );
   if (ret < 0) { return ret; }
   ret = _read_rule_csv(rule_fn, tile_rule);
   if (ret < 0) { return ret; }
@@ -527,9 +617,10 @@ int ConstraintCollapse::read_F_CSV(std::string &rule_fn, std::string &name_fn) {
     b = (int)tile_rule[i][1];
     if (b>maxb) { maxb = b; }
   }
-  m_num_values = maxb+1;
+ 
+  B = maxb+1;
 
-  printf(">>>> %i %i (%i)\n", (int)m_num_values, (int)(maxb+1), maxb);
+  printf(">>>> # of tile values (%i)\n", (int) B );
 
   //---
 
@@ -539,15 +630,23 @@ int ConstraintCollapse::read_F_CSV(std::string &rule_fn, std::string &name_fn) {
   // tile_rule[i][1] = to tile value
   // tile_rule[i][2] = direction
   // tile_rule[i][3] = weight
-  B = m_num_values;
+  
   AllocF ( BUF_F, 6, B );
   memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );  
 
+  m_num_values = B;      // must be set here to SetValF function to work!
   for (i=0; i<tile_rule.size(); i++) {
     SetValF( BUF_F, tile_rule[i][0], tile_rule[i][1], tile_rule[i][2], tile_rule[i][3] );
   }
 
-  return 0;
+  AllocBuf ( BUF_G, B );
+  for (i=0; i<m_num_values; i++) {
+    if (i < tile_weight.size()) {
+      SetVal( BUF_G, i, tile_weight[i] );
+    }
+  }
+
+  return B;
 }
 
 
@@ -568,11 +667,12 @@ int _read_line(FILE *fp, std::string &line) {
   return count;
 }
 
-int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
+int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector< float > &weight) {
   int i, idx;
   FILE *fp;
   std::string line, tok, _s;
   std::vector<std::string> toks;
+  float w;
 
   fp = fopen(fn.c_str(), "r");
   if (!fp) { return -1; }
@@ -597,19 +697,27 @@ int _read_name_csv(std::string &fn, std::vector<std::string> &name) {
     }
     toks.push_back(tok);
 
-    if (toks.size() != 9) { continue; }
-
     idx = atoi(toks[0].c_str());
     if (idx <= name.size()) {
-      for (i=name.size(); i<=idx; i++) {
-        _s.clear();
-        name.push_back(_s);
-      }
-    }
+        for (i=name.size(); i<=idx; i++) {
+            _s.clear();
+            name.push_back(_s);
+            weight.push_back(0.0);
+        }
+    }    
+
     name[idx] = toks[1];
+    
+    w = 1.0;
+    if (toks.size() > 2) { w = atof(toks[2].c_str()); }
+    weight[idx] = w;
   }
 
   fclose(fp);
+    
+  w = 0.0;
+  for (i=0; i<weight.size(); i++) { w += weight[i]; }
+  for (i=0; i<weight.size(); i++) { weight[i] /= w; }
 
   return 0;
 }

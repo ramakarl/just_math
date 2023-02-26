@@ -22,3 +22,4 @@ These images were exported form the [Tiled](https://www.mapeditor.org/) program.
 | Amarelo |
 |---|
 | ![amarelo](example_tile_collection/amarelo_D42_S124.png) |
+

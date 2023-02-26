@@ -61,6 +61,7 @@
 
 class Sample : public Application {
 public:
+  Sample();
   virtual void startup();
   virtual bool init();
   virtual void display();
@@ -72,8 +73,9 @@ public:
   virtual void mousewheel(int delta);
   virtual void shutdown();
   
-  // Belief Propagation
   void      Restart();
+
+  int       write_tiled_json ( ConstraintCollapse & cc );
 
   ConstraintCollapse cc;
 
@@ -82,7 +84,9 @@ public:
   int64_t m_it;
   std::string   m_name_fn;
   std::string   m_rule_fn;
+  std::string   m_tilemap_fn;
   std::string   m_constraint_fn;
+  std::string   m_tileset_fn;
   std::vector< std::string > m_tile_name;
   std::vector< std::vector<float> > m_tile_rule;
   
@@ -100,6 +104,9 @@ public:
   Image*    m_img2;     
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
+  
+  int       m_tileset_width, m_tileset_height;
+  int       m_tileset_stride_x, m_tileset_stride_y;
 
   int       mouse_down;  
   bool      m_run;
@@ -111,6 +118,13 @@ public:
  
 };
 Sample obj;
+
+Sample::Sample()
+{
+    // default values
+    m_name_fn = "";
+    m_tilemap_fn = "out.json";
+}
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
@@ -129,23 +143,34 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
        // debug_print = 1;
         break;        
       case 'N':
-        name_fn = optarg;
+        m_name_fn = optarg;
         break;
       case 'R':
-        rule_fn = optarg;
+        m_rule_fn = optarg;
         break;
       case 'C':
-        constraint_fn = optarg;
+        m_constraint_fn = optarg;
+        break;
+      case 'M':
+        m_tilemap_fn = optarg;
+        break;
+      case 'Q':
+        m_tileset_fn = optarg;
         break;
       case 'S':
         seed = strToI(optarg);
         cc.m_seed = seed;
+        break;
+      case 's':
+        m_tileset_stride_x = strToI(optarg);
+        m_tileset_stride_y = m_tileset_stride_x;
         break;
       case 'T':
         test_num = strToI(optarg);
         break;
       case 'D':
         m_D = strToI(optarg);
+        m_X = m_Y = m_Z = m_D;
         break;
       case 'X':
         m_X = strToI(optarg);
@@ -179,7 +204,8 @@ float Sample::getVoxel ( int id, int x, int y, int z )
 }
 Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 {
-  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*m_vres.y + y)*m_vres.x + x );  
+  int yinv = m_vres.y-1 - y;
+  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*m_vres.y + yinv)*m_vres.x + x );  
   return *dat;
 }
 
@@ -190,7 +216,7 @@ void Sample::Visualize ( ConstraintCollapse& src, int bp_id, int vol_id ) {
 
    float maxv;
    float dmu;
-   float scalar = 50.0;
+   float scalar = 1.0;
    int t;
 
    // map belief to RGBA voxel
@@ -203,6 +229,106 @@ void Sample::Visualize ( ConstraintCollapse& src, int bp_id, int vol_id ) {
 void Sample::ClearImg (Image* img)
 {
     img->Fill ( 0 );
+}
+
+int Sample::write_tiled_json ( ConstraintCollapse & cc ) 
+{
+  FILE *fp;
+  int i, j, n, tileset_size;
+  int64_t vtx;
+
+  int sy, ey_inc;
+
+  int tilecount = (int) cc.m_tile_name.size();
+  tilecount--;
+
+  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
+  int tileset_width = ceil( sqrt( (double) tilecount ) );
+  int tileset_height = m_tileset_width;
+
+  m_tileset_width *= m_tileset_stride_x;
+  m_tileset_height *= m_tileset_stride_y;
+
+  fp = fopen( m_tilemap_fn.c_str(), "w");
+  if (!fp) { 
+      printf ( "ERROR: Unable to create tilemap .json\n");
+      return -1; 
+  }
+
+  fprintf(fp, "{\n");
+  fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
+  fprintf(fp, "  \"height\": %i,\n", (int) cc.m_res.y);
+  fprintf(fp, "  \"width\": %i,\n", (int) cc.m_res.x);
+  fprintf(fp, "  \"layers\": [{\n");
+
+  fprintf(fp, "    \"data\": [");
+
+  // tiled expects y to increment in the negative direction
+  // so we need to reverse the y direction when exporting
+  //
+  if ( 0 ) {
+    // reversed y
+    for (i=(int)( cc.m_res.y-1); i>=0; i--) {
+      for (j=0; j<(int) cc.m_res.x; j++) {
+        vtx = cc.getVertex(j, i, 0);
+        fprintf(fp, " %i", (int) cc.getVal ( BUF_T, vtx ));
+        if ((i==0) && (j==(cc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+
+  } else {
+    // standard y
+    for (i=0; i<(int)( cc.m_res.y); i++) {
+      for (j=0; j<(int) cc.m_res.x; j++) {
+        vtx = cc.getVertex(j, i, 0);
+        fprintf(fp, " %i", (int) cc.getVal ( BUF_T, vtx ));
+        if ((i==(cc.m_res.y-1)) && (j==(cc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        else                                { fprintf(fp, "%s", ","); }
+      }
+      fprintf(fp, "\n  ");
+    }
+  }
+
+  fprintf(fp, "\n    ],\n");
+  fprintf(fp, "    \"name\":\"main\",\n");
+  fprintf(fp, "    \"opacity\":1,\n");
+  fprintf(fp, "    \"type\":\"tilelayer\",\n");
+  fprintf(fp, "    \"visible\":true,\n");
+  fprintf(fp, "    \"width\": %i,\n", (int) cc.m_res.x);
+  fprintf(fp, "    \"height\": %i,\n", (int) cc.m_res.y);
+  fprintf(fp, "    \"x\":0,\n");
+  fprintf(fp, "    \"y\":0\n");
+
+  fprintf(fp, "  }\n");
+
+  fprintf(fp, "  ],\n");
+  fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
+  fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
+  fprintf(fp, "  \"properties\": [ ],\n");
+  fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
+  fprintf(fp, "  \"tileheight\": %i,\n", (int) m_tileset_stride_y);
+  fprintf(fp, "  \"tilewidth\": %i,\n", (int) m_tileset_stride_x);
+  fprintf(fp, "  \"tilesets\": [{\n");
+
+  fprintf(fp, "    \"firstgid\": %i,\n", 1);
+  fprintf(fp, "    \"columns\": %i,\n", (int) cc.m_res.x);
+  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
+  fprintf(fp, "    \"image\": \"%s\",\n", m_tileset_fn.c_str());
+  fprintf(fp, "    \"imageheight\": %i,\n", (int) m_tileset_height);
+  fprintf(fp, "    \"imagewidth\": %i,\n", (int) m_tileset_width);
+  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
+  fprintf(fp, "    \"tileheight\": %i,\n", (int) m_tileset_stride_y);
+  fprintf(fp, "    \"tilewidth\": %i\n", (int) m_tileset_stride_x);
+
+  fprintf(fp, "  }],\n");
+  fprintf(fp, "  \"version\": %i\n", 1);
+  fprintf(fp, "}\n");
+
+  fclose(fp);
+
+  return 0;
 }
 
 void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax )
@@ -233,11 +359,13 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
       rdir.Normalize();
 
       // intersect with volume box
-      t = intersectLineBox ( rpos, rdir, vmin, vmax );
       clr.Set(0,0,0,0);
-      if ( t.z >= 0 ) {
+      float t;        
+      
+      if ( intersectLineBox ( rpos, rdir, vmin, vmax, t ) ) {
+
         // hit volume, start raycast...    
-        wp = rpos + rdir * (t.x + pStep);                     // starting point in world space        
+        wp = rpos + rdir * (t + pStep);                     // starting point in world space        
         dwp = (vmax-vmin) * rdir * pStep;                     // ray sample stepping in world space
         p = Vector3DF(m_vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume        
         dp = rdir * pStep;                // step delta along ray
@@ -274,11 +402,12 @@ void Sample::Restart()
 
 bool Sample::init()
 {
-  int i, ret;
+  int i, ret;  
 
   addSearchPath(ASSET_PATH);
 
   m_run_cc = true;
+  m_show = BUF_T;
   
   // Render volume  
   m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
@@ -287,7 +416,7 @@ bool Sample::init()
   // App Options
   //
   m_frame     = 0;  
-  m_run       = false;  // must start out false until all other init is done
+  m_run       = false;   // must start out false until all other init is done
   m_run_cuda  = false;  // run cuda pathway   
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
@@ -312,20 +441,22 @@ bool Sample::init()
 
   // Initiate Belief Propagation
   m_constraint_fn = "";
-  getFileLocation ( "rgb_name.csv", m_name_fn );
-  getFileLocation ( "rgb_rule.csv", m_rule_fn );
-  getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
+  std::string name_path, rule_path, constraint_path;
+
+  getFileLocation ( m_name_fn, name_path );
+  getFileLocation ( m_rule_fn, rule_path );
+  getFileLocation ( m_constraint_fn, constraint_path );
  
   if (m_run_cc) {
       // init belief prop
-      ret = cc.init (m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      ret = cc.init (m_X, m_Y, m_Z, name_path, rule_path );
       if (ret<0) {
         fprintf(stderr, "bpc error loading CSV\n");
         exit(-1);
       }
       // constrain belief prop      
       if (!m_constraint_fn.empty()) {
-        cc.read_constraints ( m_constraint_fn );        
+        cc.read_constraints ( constraint_path );        
       }
       // start belief prop
       cc.start (); 
@@ -353,8 +484,20 @@ void Sample::display()
   if (m_run) {
      //m_run = false;  // single step
     
-    if ( m_run_cc ) 
-      cc.single_step();
+    if ( m_run_cc ) {
+
+      for (int iter=0; iter < 10; iter++) {
+          int cnt = cc.single_step();
+          if (cnt==0) {
+              // DONE!
+              write_tiled_json ( cc );
+              printf ( "DONE!\n");
+              m_run = false;      
+          }
+      }
+      cc.info();      
+
+    }
 
     m_it++;
     fflush(stdout);
@@ -457,10 +600,11 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   if (action==AppEnum::BUTTON_RELEASE) return;
 
   switch (keycode) {
+  case 'w':  write_tiled_json ( cc ); break;
   case ' ':  m_run = !m_run;  break;
   case 'g':  printf("??\n"); fflush(stdout); Restart();  break;
-  case '.':  m_show++; if (m_show>2) m_show=0; break;
-  case ',':  m_show--; if (m_show<0) m_show=2; break;
+  case '.':  m_show++; if (m_show>3) m_show=0; break;
+  case ',':  m_show--; if (m_show<0) m_show=3; break;
   };
 }
 

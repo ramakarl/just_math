@@ -248,15 +248,23 @@ public:
 
   int   start();
 
+ 
+  // legacy
   int   single_realize (int64_t it);
   int   single_realize_cb (int64_t it, void (*cb)(void *));
   //int   single_realize_lest_belief_cb (int64_t it, void (*cb)(void *));
 
+  // core methods
   int   single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
-  int   single_realize_min_belief_cb(int64_t it, void (*cb)(void *));
   int   single_realize_min_entropy_max_belief_cb(int64_t it, void (*cb)(void *));
+
+  // min belief algorithm
+  int   single_realize_min_belief_cb(int64_t it, void (*cb)(void *));
+  
+  // experimental
   int   single_realize_min_entropy_min_belief_cb(int64_t it, void (*cb)(void *));
   int   single_realize_residue_cb(int64_t it, void (*cb)(void *));
+
 
   int   _pick_tile(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   _pick_tile_max_belief(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
@@ -375,13 +383,16 @@ public:
   float m_eps_converge;
   float m_eps_zero;
 
-  int64_t m_max_iteration;
+  
 
   void gp_state_print();
 
   int64_t   m_step_cb;
   float     m_state_info_d;
   int64_t   m_state_info_iter;
+
+  int64_t   m_step_iter;
+  int64_t   m_max_iteration;
 
 };
 
