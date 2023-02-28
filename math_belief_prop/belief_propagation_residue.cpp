@@ -94,16 +94,36 @@ static inline int64_t _parent(int64_t _ii) { return (_ii-1)/2; }
 // initialize index heap with difference of MU and MU_NXT buffers
 //
 void BeliefPropagation::indexHeap_init() {
-  int64_t heap_idx, cell, heap_n;
+  int64_t mu_idx, cell, mu_n,
+          n_tile_idx, tile_idx, tile_id;
   int32_t idir, tile;
   float mu_cur, mu_nxt, mu_del;
 
   m_index_heap_size = 0;
 
-  heap_n = 6*m_num_verts*m_num_values;
+  mu_n = 6*m_num_verts*m_num_values;
 
-  for (heap_idx=0; heap_idx<heap_n; heap_idx++) {
-    getMuPos( heap_idx, &idir, &cell, &tile );
+  for (mu_idx=0; mu_idx<mu_n; mu_idx++) { indexHeap_push( 0.0 ); }
+
+  for (idir=0; idir<6; idir++) {
+    for (cell=0; cell<m_num_verts; cell++) {
+      n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      for (tile_idx=0; tile_idx<n_tile_idx; tile_idx++) {
+        tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+
+        mu_cur = getVal( BUF_MU,      idir, cell, tile );
+        mu_nxt = getVal( BUF_MU_NXT,  idir, cell, tile );
+
+        mu_del = fabs(mu_cur - mu_nxt);
+
+        indexHeap_update_mu_pos(idir, cell, tile, mu_del);
+      }
+    }
+  }
+
+  /*
+  for (mu_idx=0; mu_idx<mu_n; mu_idx++) {
+    getMuPos( mu_idx, &idir, &cell, &tile );
 
     mu_cur = getVal( BUF_MU,      idir, cell, tile );
     mu_nxt = getVal( BUF_MU_NXT,  idir, cell, tile );
@@ -112,16 +132,17 @@ void BeliefPropagation::indexHeap_init() {
 
     indexHeap_push( mu_del );
   }
+  */
 
 }
 
 int32_t BeliefPropagation::indexHeap_push(float val) {
-  int64_t n, idx_par, idx, t_idx;
+  int64_t mu_n, idx_par, idx, t_idx;
   float f, val_par, val_cur;
 
-  n = 6*m_num_verts*m_num_values;
+  mu_n = 6*m_num_verts*m_num_values;
 
-  if (m_index_heap_size >= n) { return -1; }
+  if (m_index_heap_size >= mu_n) { return -1; }
 
   SetVal_ihf( BUF_RESIDUE_HEAP,         m_index_heap_size, val );
   SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, m_index_heap_size, m_index_heap_size );
@@ -276,6 +297,7 @@ int64_t BeliefPropagation::indexHeap_peek_mu_pos(int32_t *idir, int64_t *cell, i
 //----
 //
 
+
 void BeliefPropagation::indexHeap_debug_print(void) {
   int64_t i, p2, p2_c;
 
@@ -315,6 +337,55 @@ void BeliefPropagation::indexHeap_debug_print(void) {
 }
 
 //----
+
+int32_t BeliefPropagation::indexHeap_mu_consistency(void) {
+  int64_t i, idx_bp, idx, idx_child;
+  int32_t err_code=0;
+  float f_d, val_a, val_b;
+
+  float mu_cur_val,
+        mu_nxt_val,
+        mu_diff,
+        rz_diff;
+
+  int64_t heap_n,
+          heap_idx,
+          mu_idx;
+
+  int64_t idir, cell,
+          tile, tile_idx, n_tile_idx;
+  int64_t _cell_pos;
+  int32_t _idir, 
+          _tile_val;
+
+  heap_n = m_index_heap_size;
+
+  for (idir=0; idir<6; idir++) {
+    for (cell=0; cell<m_num_verts; cell++) {
+      n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      for (tile_idx=0; tile_idx<n_tile_idx; tile_idx++) {
+        tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+
+        mu_idx = getMuIdx(idir, cell, tile);
+
+        heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+
+        mu_cur_val = getVal( BUF_MU,      idir, cell, tile );
+        mu_nxt_val = getVal( BUF_MU_NXT,  idir, cell, tile );
+        mu_diff = fabs(mu_cur_val - mu_nxt_val);
+
+        rz_diff = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx );
+
+        if (fabs(mu_diff - rz_diff) > m_eps_zero) {
+          return -1;
+        }
+
+      }
+    }
+  }
+
+  return 0;
+}
 
 int32_t BeliefPropagation::indexHeap_consistency(void) {
   int64_t i, idx_bp, idx, idx_child;

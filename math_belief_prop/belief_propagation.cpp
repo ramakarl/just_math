@@ -445,7 +445,7 @@ void BeliefPropagation::NormalizeMU (int id) {
   }
 }
 
-void BeliefPropagation::NormalizeMU_cell_residue (int id, int64_t cell) {
+void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
   int i=0, n_a=0, a=0;
   float v=0, sum=0,
         mu_cur_val,
@@ -457,15 +457,22 @@ void BeliefPropagation::NormalizeMU_cell_residue (int id, int64_t cell) {
     i = getNeighbor(cell, cell_p, in);
     sum = 0;
 
+    //DEBUG
+    //printf("\n");
+
     if (i==-1) {
       n_a = getVali( BUF_TILE_IDX_N, cell );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, cell, a_idx );
-        SetVal( id, in, cell, a, 1.0 );
+        SetVal( buf_id, in, cell, a, 1.0 );
 
         mu_cur_val = getVal( BUF_MU,      in, cell, a );
         mu_nxt_val = getVal( BUF_MU_NXT,  in, cell, a );
         indexHeap_update_mu_pos( in, cell, a, fabs(mu_cur_val - mu_nxt_val) );
+
+        //DEBUG
+        //printf("  normmu_cell_rz.0: idir:%i,cell:%i,tile:%i, indexHeap update: |%f-%f|->%f\n",
+        //    (int)in, (int)cell, (int)a, (float)mu_cur_val, (float)mu_nxt_val, (float)fabs(mu_cur_val - mu_nxt_val));
 
       }
     }
@@ -473,7 +480,7 @@ void BeliefPropagation::NormalizeMU_cell_residue (int id, int64_t cell) {
     n_a = getVali( BUF_TILE_IDX_N, cell );
     for (int a_idx=0; a_idx<n_a; a_idx++) {
       a = getVali( BUF_TILE_IDX, cell, a_idx );
-      sum += getVal( id, in, cell, a );
+      sum += getVal( buf_id, in, cell, a );
     }
 
     if ( sum > 0 ) {
@@ -481,12 +488,17 @@ void BeliefPropagation::NormalizeMU_cell_residue (int id, int64_t cell) {
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, cell, a_idx );
 
-        v = getVal( id, in, cell, a );
-        SetVal( id, in, cell, a, v / sum);
+        v = getVal( buf_id, in, cell, a );
+        SetVal( buf_id, in, cell, a, v / sum);
 
         mu_cur_val = getVal( BUF_MU,      in, cell, a );
         mu_nxt_val = getVal( BUF_MU_NXT,  in, cell, a );
         indexHeap_update_mu_pos( in, cell, a, fabs(mu_cur_val - mu_nxt_val) );
+
+        //DEBUG
+        //printf("  normmu_cell_rz.1: idir:%i,cell:%i,tile:%i, indexHeap update: |%f-%f|->%f\n",
+        //    (int)in, (int)cell, (int)a, (float)mu_cur_val, (float)mu_nxt_val, (float)fabs(mu_cur_val - mu_nxt_val));
+
 
       }
     }
@@ -528,6 +540,9 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
   anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
 
+  //DEBUG
+  //printf("\n  bp_rz[anch_cell:%i]\n", (int)anch_cell);
+
   // 6 neighbors of j in 3D
   //
   for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
@@ -546,7 +561,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
         //DEBUG
-        //printf("    bp_cell_rz.0: (%i,%i,%i) -> |%f-%f|=%f\n",
+        //printf("    bp_cell_rz.0: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
         //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
         //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -565,16 +580,14 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
         //DEBUG
-        //printf("    bp_cell_rz.1: (%i,%i,%i) -> |%f-%f|=%f\n",
+        //printf("    bp_cell_rz.1: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
         //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
         //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
-
 
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
       }
 
-      //SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
       continue;
     }
 
@@ -597,7 +610,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
         //DEBUG
-        //printf("    bp_cell_rz.2: (%i,%i,%i) -> |%f-%f|=%f\n",
+        //printf("    bp_cell_rz.2: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
         //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
         //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -606,6 +619,9 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
       }
       continue;
     }
+
+    int numbrs = getNumNeighbors(nei_cell);
+    int nei_in_ignore = getOppositeDir( anch_in_idx );
 
     for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
@@ -616,15 +632,18 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
       //
       H_ij_a = getVal(BUF_G, nei_tile);
 
+      float *currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+
       for (nei_in_idx=0; nei_in_idx < getNumNeighbors(nei_cell); nei_in_idx++ ) {
         _neinei_cell = getNeighbor(nei_cell, nei_in_idx);
+        if (nei_in_idx != nei_in_ignore) { H_ij_a *= *currMu; }
 
-        // Hij(a) = gi(a) * PROD mu{ki}_a
-        //
-        if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-          H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-        }
+        //DEBUG
+        //printf("  bp_rz: nei_idir:%i,nei_cell:%i,nei_tile:%i, currMu:%f, H_ij_a:%f\n",
+        //    (int)nei_in_idx, (int)nei_cell, (int)nei_tile,
+        //    (float)(*currMu), (float)H_ij_a);
 
+        currMu++;
       }
 
       SetVal (BUF_H, nei_tile, H_ij_a);
@@ -638,19 +657,18 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
       anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
 
       u_nxt_b = 0.0;
+      nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
 
-      // a = cols in f{ij}(a,b), also elements of h(a)
-      //
+      float* currH = getPtr(BUF_H, 0);
+      float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
+
       for (d=0; d < m_num_values; d++) {
+        u_nxt_b += (*currF) * (*currH);
 
-      // experimental
-      //for (nei_tile_idx=0; nei_tile_idx<nei_tile_idx_n; nei_tile_idx++) {
-      //  d = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
-      // experimental
-
-        nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
-        u_nxt_b += getValF(BUF_F, anch_tile, nei_to_anch_dir_idx, d) * getVal(BUF_H, d);
+        currF++;
+        currH++;
       }
+
       u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
 
       du = u_nxt_b - u_prev_b;
@@ -663,7 +681,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
       mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
       //DEBUG
-      //printf("    bp_cell_rz.3: (%i,%i,%i) -> |%f-%f|=%f\n",
+      //printf("    bp_cell_rz.3: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
       //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
       //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -2793,28 +2811,39 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   // after we've propagated constraints, BUF_MU
   // needs to be renormalized
   //
-  NormalizeMU();
+  WriteBoundaryMUbuf(BUF_MU);
+  WriteBoundaryMUbuf(BUF_MU_NXT);
+
+  NormalizeMU(BUF_MU);
+  NormalizeMU(BUF_MU_NXT);
 
   // first do a whole sweep, updating MU_NXT and keeping
-  // the values there.
+  // the values there. An initial pass has to be done (step(1))
+  // to make sure boundary conditions are populated and transferred
+  // over correcly.
   //
-  d = step(0);
-
   // populate the indexHeap: priority queue with maximum
   // difference of MU and MU_NXT as heap key in additon
   // to keeping the "mu index" (position in MU buffer)
+  //
+  // From this point forward, updates to BUF_MU or BUF_MU_NXT
+  // will need a corresponding bookeeping call to indexXHeap
+  // to keep track of the maximum difference between
+  // the two buffers and corresponding cell index information.
   // 
+  d = step(1);
+  d = step(0);
   indexHeap_init();
 
-  // iterate bp until converged
+  // iterate bp until converged or max iteration count tripped
   //
   for (step_iter=1; step_iter<m_max_iteration; step_iter++) {
 
     mu_idx = indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
     if (f_residue < _eps) { break; }
 
-    if (m_verbose > 1) {
-      printf("  [it:%i,step:%i] [%i,%i,%i](%i) rz %f\n",
+    if (m_verbose > 2) {
+      printf("  [it:%i,step:%i] updating mu[%i,%i,%i](%i) residue:%f\n",
           (int)it, (int)step_iter,
           (int)idir, (int)cell, (int)tile, (int)mu_idx, (float)f_residue);
     }
@@ -2831,7 +2860,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 
   //----
 
-  // we've converged in bp, so now we choose a cell/tile to collapse
+  // we've converged in BP, so now we choose a cell/tile to collapse
   // and propagate out the implications of that choice.
   //
 
@@ -3319,51 +3348,46 @@ float BeliefPropagation::step(int update_mu) {
 //
 //
 float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) {
-  int64_t residue_cell = -1,
-          nei_cell=-1;
+  int64_t nei_cell=-1;
   int64_t dir_idx=-1;
   float mu_new = -1.0,
         mu_cur_val,
         mu_nxt_val;
+  int32_t _t;
+  int64_t n_tile_idx, tile_idx;
 
-  residue_cell = cell;
+  //DEBUG
+  //printf("  step_residue: SET (idir:%i,cell:%i,tile:%i) to %f from %f\n",
+  //    (int)idir, (int)cell, (int)tile,
+  //    (float)getVal( BUF_MU, idir, cell, tile ),
+  //    (float)getVal( BUF_MU_NXT, idir, cell, tile ));
 
   // update BUF_MU with new value
   //
   mu_new = getVal( BUF_MU_NXT, idir, cell, tile );
   SetVal( BUF_MU, idir, cell, tile, mu_new );
 
-  mu_cur_val = getVal( BUF_MU,      idir, cell, tile );
-  mu_nxt_val = getVal( BUF_MU_NXT,  idir, cell, tile );
-
   //DEBUG
-  //printf("    updating (%i,%i,%i) -> rz |%f-%f|=%f\n",
-  //    (int)idir, (int)cell, (int)tile, (float)mu_cur_val, (float)mu_nxt_val, (float)fabs(mu_cur_val - mu_nxt_val) );
+  //printf("  step_residue: normalizing cell:%i (BUF_MU)\n", (int)cell);
 
-  indexHeap_update_mu_pos( idir, cell, tile, fabs(mu_cur_val - mu_nxt_val) );
-
-
-  // run bp on neighbor
+  // the single update to cell:tile requires a
+  // renormalization, which can alter all values
+  // in the cell, requiring an update to the
+  // priority queue.
   //
-  for (dir_idx=0; dir_idx < getNumNeighbors(residue_cell); dir_idx++) {
 
-    nei_cell = getNeighbor( residue_cell, dir_idx );
+  NormalizeMU_cell_residue( BUF_MU, cell );
+
+  // run bp on neighbors potentially affected by the updated current
+  // cell.
+  //
+  for (dir_idx=0; dir_idx < getNumNeighbors(cell); dir_idx++) {
+
+    nei_cell = getNeighbor( cell, dir_idx );
     if (nei_cell < 0) { continue; }
 
     BeliefProp_cell_residue(nei_cell);
-  }
-
-  // renormalize only cells in MU that need it
-  //
-  NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
-  NormalizeMU_cell_residue( BUF_MU,     nei_cell );
-  for (dir_idx=0; dir_idx < getNumNeighbors(residue_cell); dir_idx++) {
-
-    nei_cell = getNeighbor( residue_cell, dir_idx );
-    if (nei_cell < 0) { continue; }
-
     NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
-    NormalizeMU_cell_residue( BUF_MU,     nei_cell );
   }
 
   return -1.0;
@@ -3614,6 +3638,134 @@ void BeliefPropagation::debugPrint() {
       printf(" {b:%f}", getVal( BUF_BELIEF, a ));
 
       printf("\n");
+    }
+    printf("\n");
+  }
+
+  count = chooseMaxBelief(&max_cell, &max_tile, &max_tile_idx, &max_belief);
+
+  if (max_tile >= 0) {
+    printf("max_belief: %i %s(%i) [%i] (%f) (%i)\n",
+        (int)max_cell, m_tile_name[max_tile].c_str(), (int)max_tile,
+        (int)max_tile_idx,
+        (float)max_belief, (int)count);
+  }
+  else {
+    printf("max_belief: %i -(%i) [%i] (%f) (%i)\n",
+        (int)max_cell, (int)max_tile, (int)max_tile_idx, (float)max_belief, (int)count);
+  }
+
+}
+
+void BeliefPropagation::debugPrintMU() {
+  int i=0, j=0, n=3, m=7, jnbr=0, a=0;
+  int a_idx=0, a_idx_n=0;
+  uint64_t u=0;
+  Vector3DI p;
+  double v=0.0;
+  float _vf = 0.0, f, _eps;
+
+  int __a = 0;
+
+  int64_t max_cell=-1;
+  int32_t max_tile=-1, max_tile_idx=-1;
+  float max_belief=-1.0;
+  int count=-1;
+
+  int print_rule = 0;
+
+  _eps = m_eps_zero;
+
+  std::vector< std::string > _dp_desc;
+
+  _dp_desc.push_back("+1:0:0");
+  _dp_desc.push_back("-1:0:0");
+  _dp_desc.push_back("0:+1:0");
+  _dp_desc.push_back("0:-1:0");
+  _dp_desc.push_back("0:0:+1");
+  _dp_desc.push_back("0:0:-1");
+
+  printf("bp version: %s\n", BELIEF_PROPAGATION_VERSION);
+  printf("m_verbose: %i\n", m_verbose);
+
+  printf("m_res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
+  printf("m_bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
+  printf("m_num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
+  printf("m_run_cuda: %i, m_use_svd: %i, m_use_checkerboard: %i\n",
+      (int)m_run_cuda, (int)m_use_svd, (int)m_use_checkerboard);
+  printf("m_eps_converge: %f, m_eps_zero: %f, m_rate: %f, m_max_iteration: %i, seed: %i\n",
+      (float)m_eps_converge, (float)m_eps_zero,
+      (float)m_rate, (int)m_max_iteration,
+      (int)m_seed);
+
+  printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
+  for (i=0; i<m_tile_name.size(); i++) {
+    if ((i%m)==0) { printf("\n"); }
+    v = getVal( BUF_G, i );
+    printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
+  }
+  printf("\n\n");
+
+  if (print_rule) {
+    for (jnbr=0; jnbr<6; jnbr++) {
+      printf("dir[%i]:\n", jnbr);
+
+      for (i=0; i<m_num_values; i++) {
+        printf(" ");
+        for (j=0; j<m_num_values; j++) {
+          f = getValF(BUF_F, i, j, jnbr);
+          if (f > _eps) {
+            printf(" %5.2f", (float)getValF(BUF_F, i, j, jnbr));
+          }
+          else {
+            printf("      ");
+          }
+        }
+        printf("\n");
+      }
+      printf("\n");
+    }
+  }
+
+  //---
+
+  for (u=0; u<m_num_verts; u++) {
+    p = getVertexPos(u);
+
+    a_idx_n = getVali( BUF_TILE_IDX_N, u );
+
+    cellUpdateBelief(u);
+
+    printf("[%i,%i,%i](%i):\n", (int)p.x, (int)p.y, (int)p.z, (int)u);
+    for (a_idx=0; a_idx<a_idx_n; a_idx++) {
+      a = getVali( BUF_TILE_IDX, (int)u, (int)a_idx );
+
+      __a = tileName2ID( m_tile_name[a] );
+
+      printf("  %s(%2i): mu_cur: ", m_tile_name[a].c_str(), a);
+
+      for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
+        v = getVal( BUF_MU, jnbr, u, a );
+        _vf = (float)v;
+        printf(" [%s]", (char *)_dp_desc[jnbr].c_str());
+        printf("(%i)", (int)jnbr);
+        printf(":%f", (float)_vf);
+      }
+      printf("\n");
+
+      printf("  %s(%2i): mu_nxt: ", m_tile_name[a].c_str(), a);
+
+      for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
+        v = getVal( BUF_MU_NXT, jnbr, u, a );
+        _vf = (float)v;
+        printf(" [%s]", (char *)_dp_desc[jnbr].c_str());
+        printf("(%i)", (int)jnbr);
+        printf(":%f", (float)_vf);
+      }
+      printf("\n\n");
+
+      //printf(" {b:%f}", getVal( BUF_BELIEF, a ));
+      //printf("\n");
     }
     printf("\n");
   }
@@ -4028,7 +4180,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             if (anch_n_tile==1) {
 
-              if (m_verbose > 1) {
+              if (m_verbose > 0) {
                 printf("# BeliefPropagation::cellConstraintPropagate: ERROR, cell %i slated to rmove last remaining tile (tile %s(%i) conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
                     (int)anch_cell,
                     m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
@@ -4084,7 +4236,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
 
-              if (m_verbose > 1) {
+              if (m_verbose > 0) {
                 printf("# BeliefPropagation::cellConstraintPropagate: ERROR, cell %i slated to rmove last remaining tile (tile %s(%i) conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
                     (int)anch_cell,
                     m_tile_name[anch_b_val].c_str(), (int)anch_b_val,

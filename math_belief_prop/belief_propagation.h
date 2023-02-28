@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.3.1"
+#define BELIEF_PROPAGATION_VERSION "0.4.0"
 
 #define RUN_OPT_PTRS
 #define RUN_OPT_MUPTR
@@ -258,6 +258,7 @@ public:
 
 
   int32_t indexHeap_consistency(void);
+  int32_t indexHeap_mu_consistency(void);
 
   void    indexHeap_debug_print(void);
 
@@ -358,6 +359,7 @@ public:
   void debugPrint();
   void debugPrintC();
   void debugPrintS();
+  void debugPrintMU();
 
   std::vector< std::string > m_tile_name;
   std::vector< std::string > m_dir_desc;
