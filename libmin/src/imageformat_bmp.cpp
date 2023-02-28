@@ -237,12 +237,12 @@ bool CImageFormatBmp::LoadBmp ( char* filename )
 	ImageOp::Format eNewFormat;	
 
 	switch ( bmih.biBitCount ) {
-	case 1:		eNewFormat = ImageOp::BW1;	channels = 1;	break;		// 1 byte per bit - *bad storage, 2 color (B & W)
-	case 4:		eNewFormat = ImageOp::RGB24;	channels = 1;	break;		// 1 byte per 4-bits - not great, 16 color, index mode
-	case 8:		eNewFormat = ImageOp::RGB24;	channels = 1;	break;		// 1 byte per pixel, 256 color, index mode
-	case 16:	eNewFormat = ImageOp::RGB24;	channels = 3;	break;		// 2 byte per pixel, 16-bit color
-	case 24:	eNewFormat = ImageOp::RGB24;	channels = 3;	break;		// 3 byte per pixel (RGB), 24-bit color 
-	case 32:	eNewFormat = ImageOp::RGBA32;	channels = 3;	break;		// 4 byte per pixel, 32-bit color, compressed down to 24-bit
+	case 1:		eNewFormat = ImageOp::BW1;		channels = 1;	break;		// 1 byte per bit - *bad storage, 2 color (B & W)
+	case 4:		eNewFormat = ImageOp::RGB8;		channels = 1;	break;		// 1 byte per 4-bits - not great, 16 color, index mode
+	case 8:		eNewFormat = ImageOp::RGB8;		channels = 1;	break;		// 1 byte per pixel, 256 color, index mode
+	case 16:	eNewFormat = ImageOp::RGB8;		channels = 3;	break;		// 2 byte per pixel, 16-bit color
+	case 24:	eNewFormat = ImageOp::RGB8;		channels = 3;	break;		// 3 byte per pixel (RGB), 24-bit color
+	case 32:	eNewFormat = ImageOp::RGB8;		channels = 3;	break;		// 4 byte per pixel, 32-bit color, compressed down to 24-bit
 	}
 
 	// Create ImageX to load data into

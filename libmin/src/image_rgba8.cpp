@@ -1,74 +1,56 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
-#include "image.h"
 
 #include <assert.h>
 
-void Image::SetPixelBGR24 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+#include "image.h"
+
+void Image::SetPixelRGBA8 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
-		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->mBitsPerPix >> 3 );
-		*pix++ = b;
-		*pix++ = g;
-		*pix++ = r;
-		//  setNotify ( 1 ); // *** NOTIFY(1)
+		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
+		*pix++ = r;	*pix++ = g;
+		*pix++ = b;	*pix++ = a;
+		// setNotify ( 1 ); // *** NOTIFY(1)
 	}	
 }
-
-void Image::GetPixelBGR24 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
+void Image::GetPixelRGBA8 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
-		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->mBitsPerPix >> 3);
-        b = *pix++;
-        g = *pix++;
+		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
         r = *pix++;
-		a = 255;
+        g = *pix++;
+        b = *pix++;
+		a = *pix++;
 	}
 }
 
-void Image::FillBGR24 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::FillRGBA8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	// Temporary fill buffer
-	assert ( getInfo()->mBytesPerRow <= 16384 );
-	for (uint x=0; x < getInfo()->mBytesPerRow ;) {
-		fillbuf[x++] = b;
-		fillbuf[x++] = g;
-		fillbuf[x++] = r;	
+	assert ( getInfo()->GetBytesPerRow() <= 16384 );
+	for (uint x=0; x < getInfo()->GetBytesPerRow();) {
+		fillbuf[x++] = r; 
+		fillbuf[x++] = g; 
+		fillbuf[x++] = b;	
+		fillbuf[x++] = a;	
 	}
     
     XBYTE *dest_pix, *dest_pix_stop;
 	dest_pix = (XBYTE*) GetData();
 	dest_pix_stop = dest_pix + getInfo()->GetSize();
 	for (; dest_pix < dest_pix_stop;) {
-		memcpy (dest_pix, fillbuf, getInfo()->mBytesPerRow );
-		dest_pix += getInfo()->mBytesPerRow;
+		memcpy (dest_pix, fillbuf, getInfo()->GetBytesPerRow());
+		dest_pix += getInfo()->GetBytesPerRow();
 	}	
 	// setNotify ( 1 ); // *** NOTIFY(1)
 }
 
-
-void Image::RemapBGR24 ( unsigned int vmin, unsigned int vmax )
+void Image::RemapRGBA8 ( unsigned int vmin, unsigned int vmax )
 {
 	XBYTE* src = (XBYTE*) GetData();
 	XBYTE* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
 	
 	unsigned long mMin, mMax;
-	mMin = (((unsigned long)(1)) << 16)-1;
+	mMin = ( ((unsigned long) 1 ) << 16)-1;
 	mMax = 0;
 	for (; src < src_stop; ) {
 		if ( *src < mMin ) mMin = *src;
@@ -85,9 +67,10 @@ void Image::RemapBGR24 ( unsigned int vmin, unsigned int vmax )
 	}
 }
 
+
 // Reformat - Reformats given pixel format to
 // another pixel format
-void Image::ReformatBGR24 ( ImageOp::Format eFormat )
+void Image::ReformatRGBA8 ( ImageOp::Format eFormat )
 {
 	Image* new_img = new Image ( getInfo()->mXres, getInfo()->mYres, eFormat ) ;
 	
@@ -95,20 +78,21 @@ void Image::ReformatBGR24 ( ImageOp::Format eFormat )
 	XBYTE* src_stop = src + getInfo()->GetSize();	
 	XBYTE* dest = new_img->GetData ();		
 
-	if ( eFormat==ImageOp::RGBA32 ) {		// Target format RGBA32
+	if ( eFormat==ImageOp::RGB8 ) {		// Target format RGB24
 		for (; src < src_stop; ) {
-			*dest++ = *(src++ + 2);
 			*dest++ = *src++;
-			*dest++ = *(src++ - 2);
-			*dest++ = 255;
+			*dest++ = *src++;
+			*dest++ = *src++;
+			src++;
 		}		
-	} else if ( eFormat==ImageOp::RGB24 ) {	// Target format RGB24
+	} else if ( eFormat==ImageOp::BGR8 ) {	// Target format BGR24
 		for (; src < src_stop; ) {
 			*dest++ = *(src++ + 2);
 			*dest++ = *src++;
 			*dest++ = *(src++ - 2);
+			src++;
 		}
-	} 
+	}
 	TransferFrom ( new_img );
 	delete ( new_img );
 }
@@ -120,7 +104,7 @@ void Image::ReformatBGR24 ( ImageOp::Format eFormat )
 // Scaling:      no		- Allows rescaling of source
 // Filtering:    no		- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
-void Image::PasteBGR24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::PasteRGBA8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	XBYTE *src, *src_start, *src_end;
 	XBYTE *dest_start, *dest_end;
@@ -128,7 +112,7 @@ void Image::PasteBGR24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBY
 	int dest_wid, dest_pitch, dest_bpr;
 
 
-	if ( dest_format==ImageOp::RGB24 ) {
+	if ( dest_format==ImageOp::RGBA8 ) {
 		if ( getInfo()->QueryPaste ( GetFormat(), GetWidth(), GetHeight(), GetData(), x1, y1, x2, y2,
 						  dest_format, destx, desty, dest, offx, offy,
 						  src_start, src_end, src_wid, src_pitch,
@@ -152,7 +136,10 @@ void Image::PasteBGR24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBY
 // Filtering:    yes	- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
 // Limitations: Rescaled size must match target buffer
-void Image::ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+
+#define BPX		4				// bytes per pixel (fast define)
+
+void Image::ScaleRGBA8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	assert ( GetFormat()==dest_format );
 
@@ -168,7 +155,7 @@ void Image::ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, in
 	XBYTE* dest_end = dest + GetSize(destx,desty,dest_format);			// End of entire image in dest
 	double delta_x = double(getInfo()->mXres-2) / double(nx);	// Filtering distances
 	double delta_y = double(getInfo()->mYres-2) / double(ny);
-	int iDiffX = int(delta_x*0.5) * 3;						// Filtering deltas (in bytes)
+	int iDiffX = int(delta_x*0.5) * BPX;						// Filtering deltas (in bytes)
 	int iDiffY = getInfo()->GetBytesPerRow();
 	float sx, sy;											// Current pixel (with sub-pixel accuracy)
 
@@ -177,7 +164,7 @@ void Image::ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, in
 		src_row = (XBYTE*) GetData() + int(sy) * getInfo()->GetBytesPerRow();
 		sx = 1.0;
 		for (; dest < dest_rowend;) {
-			src = src_row + (int) sx*3;
+			src = src_row + (int) sx * BPX;
 			// Filtering (Fast, poor quality but better than nothing)
 			// RED
 			*dest = *(src - iDiffX) >> 3;				// left
@@ -200,8 +187,15 @@ void Image::ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, in
 			*dest += *(src) >> 1;						// center
 			*dest += *(src+iDiffX) >> 3;				// right
 			*dest += *(src-iDiffY) >> 3;				// up
-			*dest++ += *(src+iDiffY) >> 3;				// down	
+			*dest++ += *(src+iDiffY) >> 3;				// down			
+			src++;
 
+			// ALPHA
+			*dest = *(src - iDiffX) >> 3;				// left
+			*dest += *(src) >> 1;						// center
+			*dest += *(src+iDiffX) >> 3;				// right
+			*dest += *(src-iDiffY) >> 3;				// up
+			*dest++ += *(src+iDiffY) >> 3;				// down			
 			sx += (float) delta_x;
 		}
 		sy += (float) delta_y;				
@@ -209,11 +203,56 @@ void Image::ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, in
 	}	
 }
 
+
 // Alpha Paste - Copies alpha from another source
-void Image::AlphaBGR24 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
+void Image::AlphaRGBA8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
 {
-	// No alpha channel !
+	XBYTE *src_start, *src_end;
+	XBYTE *dest, *dest_start, *dest_end, *dest_row;
+	int src_wid, src_pitch;
+	int dest_wid, dest_pitch, dest_bpr;
 
-	return;
+	// Source is the alpha image (any format)
+	// Dest is 'this' image (RGBA8)
+	if ( getInfo()->QueryPaste ( src_format, src_x, src_y, src, x1, y1, x2, y2,
+		  GetFormat(), GetWidth(), GetHeight(), GetData(), 0, 0,
+		  src_start, src_end, src_wid, src_pitch,
+		  dest_start, dest_end, dest_wid, dest_pitch) ) {
+		if ( src_format==ImageOp::BW8 ) {
+			dest_bpr = getInfo()->GetBytesPerRow();
+			for (src = src_start, dest = dest_start+3, dest_row = dest_start+dest_wid; dest < dest_end;) {
+				for ( ; dest < dest_row; ) {
+					*dest = *src++;					
+					dest += 4;
+				}
+				dest_row += dest_bpr;
+				dest += dest_pitch;
+				src += src_pitch;
+			}
+		} else if ( src_format==ImageOp::RGB8 ) {
+			dest_bpr = getInfo()->GetBytesPerRow();
+			for (src = src_start, dest = dest_start+3, dest_row = dest_start+dest_wid; dest < dest_end;) {
+				for ( ; dest < dest_row; ) {
+					*dest = *src;
+					src += 3;
+					dest += 4;
+				}
+				dest_row += dest_bpr;
+				dest += dest_pitch;
+				src += src_pitch;
+			}			
+		} else if ( src_format==ImageOp::RGBA8 ) {
+			dest_bpr = getInfo()->GetBytesPerRow();
+			for (src = src_start+3, dest = dest_start+3, dest_row = dest_start+dest_wid; dest < dest_end;) {
+				for ( ; dest < dest_row; ) {
+					*dest = *src;
+					src += 4;
+					dest += 4;
+				}
+				dest_row += dest_bpr;
+				dest += dest_pitch;
+				src += src_pitch;
+			}			
+		}	
+	}
 }
-

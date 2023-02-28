@@ -36,11 +36,11 @@
 	#define EVENT_LEN_OFFSET		20
 
 	// Event memory management [required]
-	char* new_event_data ( size_t size, int& max, EventPool* pool );
-	Event new_event ( size_t size, eventStr_t targ, eventStr_t name, eventStr_t state, EventPool* pool );
-	void  expand_event ( Event& e, size_t size );
-	void  delete_event	(Event& e);			// aka. free_event
-	void  free_event_data ( char* data, EventPool* pool );		
+	HELPAPI char* new_event_data ( size_t size, int& max, EventPool* pool );
+	HELPAPI Event new_event ( size_t size, eventStr_t targ, eventStr_t name, eventStr_t state, EventPool* pool );
+	HELPAPI void  expand_event ( Event& e, size_t size );
+	HELPAPI void  delete_event	(Event& e);			// aka. free_event
+	HELPAPI void  free_event_data ( char* data, EventPool* pool );
 
 	// Event queue - maintains a queue of events
 	class HELPAPI EventQueue {

@@ -29,7 +29,8 @@
 //					8,16,32 bit/channel		Grayscale (no alpha)
 //					8,16,32 bit/channel		RGB (with or without alpha)
 //		- Save supports:
-//					8 bit					RGB (without alpha)
+//					8 bit					RGB (no alpha)
+//					16 bit					RGB (no alpha)
 //
 // * NO LZW COMPRESSION *
 //
@@ -268,9 +269,9 @@ bool CImageFormatTiff::LoadTiffDirectory ()
 			dbgprintf ( "BPC Blue:  %d\n", m_BitsPerChannel[TifBlue] );
 		}
 
-		eNewFormat = ImageOp::RGB24;	
+		eNewFormat = ImageOp::RGB8;	
 		if ( m_bHasAlpha ) {
-			eNewFormat = ImageOp::RGBA32;							
+			eNewFormat = ImageOp::RGBA8;							
 			m_BitsPerChannel[TifAlpha] = m_Buf.getUShort();	// Get bits for alpha channel
 			if ( m_DebugTif ) dbgprintf ( "BPC Alpha: %d\n", m_BitsPerChannel[TifAlpha] );
 		} else {
@@ -608,7 +609,15 @@ bool CImageFormatTiff::SaveTiffData ()
 				m_Buf.attachBuf ( (char*) out, m_BytesPerRow );
 				pData += m_BytesPerRow;
 			}			
-		} break;		
+		} break;	
+		case 16: {
+			XBYTE2 out[TIFF_BUFFER];
+			for (y=0; y < m_Yres; y++) {								
+				memcpy ( out, pData, m_BytesPerRow );				
+				m_Buf.attachBuf ( (char*) out, m_BytesPerRow );
+				pData += m_BytesPerRow;
+			}
+		} break;
 		default: {		
 			printf ("SaveTiff: Given pixel depth and color mode not supported.\n");
 			exit(-8);		
@@ -767,9 +776,10 @@ bool CImageFormatTiff::SaveTiffExtras (enum TiffTag eTag)
 		// DEBUG OUTPUT
 		// printf ("BPC pos: %u\n", tiff.GetPosition());
 		// printf ("Est.BPC pos: %u\n", TIFF_SAVE_POSBPC);		
-		m_Buf.attachUShort ( 8 );
-		m_Buf.attachUShort ( 8 );
-		m_Buf.attachUShort ( 8 );
+		int bpc = (m_BitsPerPixel==24) ? 8 : 16;
+		m_Buf.attachUShort ( bpc );
+		m_Buf.attachUShort ( bpc );
+		m_Buf.attachUShort ( bpc );
 	} break;	
 	case TifXres: {
 		// DEBUG OUTPUT
@@ -805,9 +815,10 @@ bool CImageFormatTiff::SaveTiffDirectory ()
 		m_BytesPerRow = (int) floor ((m_Xres * m_BitsPerPixel) / 8.0); 
 		break;
 	case TifColor: {
-		m_BitsPerChannel[TifRed] = 8;
-		m_BitsPerChannel[TifGreen] = 8;
-		m_BitsPerChannel[TifBlue] = 8;
+		int bpc = (m_BitsPerPixel==24) ? 8 : 16;
+		m_BitsPerChannel[TifRed] = bpc;
+		m_BitsPerChannel[TifGreen] = bpc;
+		m_BitsPerChannel[TifBlue] = bpc;
 		m_BytesPerRow = (int) floor ((m_Xres * m_BitsPerPixel) / 8.0); 
 	} break;
 	}
@@ -892,10 +903,10 @@ bool CImageFormatTiff::SaveTiff (char *filename)
 	//m_Buf.Reset ();
 	
 	switch ( GetFormat( m_pOrigImage) ) {
-	case ImageOp::RGB8: case ImageOp::RGB24: case ImageOp::RGBA32: case ImageOp::RGB16: case ImageOp::RGBA24:
+	case ImageOp::RGB8: case ImageOp::RGBA8: case ImageOp::RGBA32F: case ImageOp::RGB16: 
 		m_eMode = TifColor;
 		break;
-	case ImageOp::BW8: case ImageOp::BW16: case ImageOp::BW32:
+	case ImageOp::BW8: case ImageOp::BW16: case ImageOp::BW32: case ImageOp::F32:
 		m_eMode = TifGrayscale;
 		break;
 	}

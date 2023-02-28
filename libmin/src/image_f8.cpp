@@ -1,26 +1,10 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
+
 #include "image.h"
 
 #include <assert.h>
 
 
-void Image::SetPixelF8 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::SetPixelF32 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
 		float* pix = (float*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
@@ -30,7 +14,7 @@ void Image::SetPixelF8 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 }
 
 
-void Image::GetPixelF8 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
+void Image::GetPixelF32 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
 		float* pix = (float*) GetData()  + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix()  );
@@ -40,7 +24,7 @@ void Image::GetPixelF8 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
 	}
 }
 
-void Image::FillF8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::FillF32 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	// Temporary fill buffer
 	assert ( getInfo()->GetBytesPerRow() <= 16384 );
@@ -57,7 +41,7 @@ void Image::FillF8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 	// setNotify ( 1 ); // *** NOTIFY(1)
 }
 
-void Image::RemapF8 ( unsigned int vmin, unsigned int vmax )
+void Image::RemapF32 ( unsigned int vmin, unsigned int vmax )
 {
 	float* src = (float*) GetData();
 	float* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
@@ -82,7 +66,7 @@ void Image::RemapF8 ( unsigned int vmin, unsigned int vmax )
 
 // Reformat - Reformats given pixel format to
 // another pixel format
-void Image::ReformatF8 ( ImageOp::Format eFormat )
+void Image::ReformatF32 ( ImageOp::Format eFormat )
 {
 	Image* new_img = new Image ( getInfo()->mXres, getInfo()->mYres, eFormat );
 	
@@ -90,19 +74,19 @@ void Image::ReformatF8 ( ImageOp::Format eFormat )
 	XBYTE* src_stop = src + getInfo()->GetSize();	
 	XBYTE* dest = new_img->GetData ();
 
-	if ( eFormat==ImageOp::RGB24 ) {			// Target format RGB24
+	if ( eFormat==ImageOp::RGB8 ) {			
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
 			*dest++ = *src++;			
 		}		
-	} else if ( eFormat==ImageOp::BGR24 ) {		// Target format BGR24
+	} else if ( eFormat==ImageOp::BGR8 ) {	
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
 			*dest++ = *src++;
 		}	
-	} else if ( eFormat==ImageOp::RGBA32 ) {	// Target format RGBA32
+	} else if ( eFormat==ImageOp::RGBA8 ) {
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
@@ -121,7 +105,7 @@ void Image::ReformatF8 ( ImageOp::Format eFormat )
 // Scaling:      no		- Allows rescaling of source
 // Filtering:    no		- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
-void Image::PasteF8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::PasteF32 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	XBYTE *src, *src_start, *src_end;
 	XBYTE *dest_start, *dest_end, *dest_row;
@@ -139,7 +123,7 @@ void Image::PasteF8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE*
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( dest_format==ImageOp::RGB24 ) {	
+		} else if ( dest_format==ImageOp::RGB8 ) {	
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -151,7 +135,7 @@ void Image::PasteF8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE*
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( dest_format==ImageOp::RGBA32 ) {
+		} else if ( dest_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -179,7 +163,7 @@ void Image::PasteF8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE*
 
 #define BPX		1				// bytes per pixel (fast define)
 
-void Image::ScaleF8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::ScaleF32 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	assert ( GetFormat()==dest_format );
 
@@ -222,7 +206,7 @@ void Image::ScaleF8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int d
 }
 
 // Alpha Paste - Copies alpha from another source
-void Image::AlphaF8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
+void Image::AlphaF32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
 {
 	XBYTE *src_start, *src_end;
 	XBYTE *dest, *dest_start, *dest_end, *dest_row;
@@ -230,7 +214,7 @@ void Image::AlphaF8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Forma
 	int dest_wid, dest_pitch, dest_bpr;
 
 	// Source is the alpha image (any format)
-	// Dest is 'this' image (RGBA32)
+	// Dest is 'this' image (RGBA8)
 	if ( getInfo()->QueryPaste ( src_format, src_x, src_y, src, x1, y1, x2, y2,
 		  GetFormat(), GetWidth(), GetHeight(), GetData(), 0, 0,
 		  src_start, src_end, src_wid, src_pitch,
@@ -242,7 +226,7 @@ void Image::AlphaF8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Forma
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( src_format==ImageOp::RGB24 ) {
+		} else if ( src_format==ImageOp::RGB8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -253,7 +237,7 @@ void Image::AlphaF8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Forma
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( src_format==ImageOp::RGBA32 ) {
+		} else if ( src_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start+3, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {

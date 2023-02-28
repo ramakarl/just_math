@@ -56,8 +56,9 @@ Camera3D::Camera3D ()
 	mDolly = 5.0;
 	mFov = 40.0;	
 	mNear = (float) 0.1;
-	mFar = (float) 6000.0;
+	mFar = (float) 400.0;
 	mTile.Set ( 0, 0, 1, 1 );
+	mDOF.Set ( 0.18, 35, 8 );		// DOF. f/4, 35m, 8 meters
 
 	for (int n=0; n < 8; n++ ) mOps[n] = false;	
 	mOps[0] = false;
@@ -390,7 +391,7 @@ void Camera3D::moveOrbit ( float ax, float ay, float az, float dd )
 	from_pos.x = to_pos.x + (float) dx * mOrbitDist;
 	from_pos.y = to_pos.y + (float) dy * mOrbitDist;
 	from_pos.z = to_pos.z + (float) dz * mOrbitDist;
-	updateMatricies (true);
+	updateMatricies(true);
 }
 
 void Camera3D::moveToPos ( float tx, float ty, float tz )
@@ -499,10 +500,9 @@ void Camera3D::updateMatricies (bool compute_view)
 	invrot_matrix.InverseView ( rotate_matrix.GetDataF(), tvz );		// Computed using rule: "Inverse of a basis rotation matrix is its transpose." (So long as translation is taken out)
 	invproj_matrix.InverseProj ( tileproj_matrix.GetDataF() );		
 
-	invviewproj_matrix = tileproj_matrix;
-	invviewproj_matrix *= rotate_matrix;			// this DOES NOT have translation
-	invviewproj_matrix.InvertTRS();
-	
+	invviewproj_matrix = invrot_matrix;				// faster way to get inverse view proj
+	invviewproj_matrix *= invproj_matrix;
+
 	if (compute_view) {
 		// translation is included in view matrix
 		view_matrix = rotate_matrix;														// rotation only
@@ -511,6 +511,12 @@ void Camera3D::updateMatricies (bool compute_view)
 
 	origRayWorld = from_pos;
 	updateFrustum();
+}
+
+Matrix4F Camera3D::getViewInv()
+{	
+	Matrix4F m;
+	return m.makeOrthogonalInverse ( view_matrix );
 }
 
 void Camera3D::setModelMatrix ( float* mtx )
@@ -663,6 +669,15 @@ Vector3DF Camera3D::getW ()
 {
 	return dir_vec;
 }
+Matrix4F Camera3D::getUVWMatrix()
+{
+	Matrix4F uvw;
+	uvw.toBasis ( side_vec, up_vec, dir_vec);
+	
+	//toBasisInv(xaxis, yaxis, zaxis);
+
+	return uvw;
+}
 
 
 /*void Camera3D::setModelMatrix ()
@@ -698,7 +713,7 @@ Vector3DF Camera3D::inverseRayProj(float x, float y, float z)
 Vector3DF Camera3D::inverseRay (float x, float y, float xres, float yres, float z)
 {	
 	float sx = (float) tan ( mFov * DEGtoRAD/2.0f);
-	float sy = sx / mAspect;
+	float sy = sx * yres / xres;
 	float tu, tv;
 	tu = mTile.x + x * (mTile.z-mTile.x) / xres;		// *NOTE*. If mXres=0 you must call cam.setSize(w,h) with screen res.
 	tv = mTile.y + y * (mTile.w-mTile.y) / yres;

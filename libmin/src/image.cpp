@@ -45,7 +45,7 @@ Image::Image ()
 	m_Pix.Clear();
 	m_Alpha.Clear();
 	m_Depth.Clear();	
-	ResizeImage ( 0, 0, ImageOp::RGB24 );
+	ResizeImage ( 0, 0, ImageOp::RGB8 );
 }
 Image::Image ( int xr, int yr, ImageOp::Format fmt, uchar use_flags )
 {
@@ -58,7 +58,7 @@ Image::Image ( int xr, int yr, ImageOp::Format fmt, uchar use_flags )
 
 void Image::Create ( )
 {
-	return Create ( 0, 0, ImageOp::RGB24 );
+	return Create ( 0, 0, ImageOp::RGB8 );
 }
 
 void Image::Create ( int xr, int yr, ImageOp::Format eFormat)
@@ -87,6 +87,10 @@ void Image::SetUsage ( uchar use_flags )
 	m_Pix.UpdateUsage ( m_UseFlags );
 }
 
+void Image::Retrieve()
+{		
+	m_Pix.Retrieve();
+}
 void Image::Commit ( uchar use_flags )
 {	
 	if ( use_flags != 0 ) {
@@ -107,6 +111,10 @@ void Image::SetInfo ( ImageInfo* info, int xr, int yr, ImageOp::Format fmt )
 {	
 	info->SetFormat ( xr, yr, fmt );
 }
+void Image::ResizeImage ( int xr, int yr )
+{
+	ResizeImage ( xr, yr, getInfo()->eFormat );
+}
 
 void Image::ResizeImage ( int xr, int yr, ImageOp::Format eFormat)
 {
@@ -122,7 +130,7 @@ void Image::ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat)
 		// Set new pixel format parameters		
 		uchar dt = info->GetDataType ( eFormat );
 		info->SetFormat ( xr, yr, eFormat );		
-		m_Pix.SetUsage ( dt, m_UseFlags, xr,yr,1 );
+		m_Pix.SetUsage ( dt, m_UseFlags, xr, yr,1 );
 		m_Pix.Resize ( GetBytesPerPixel(), xr*yr, 0x0, m_UseFlags );		
 		m_Pix.mNum = xr*yr;
 				
@@ -160,7 +168,7 @@ void Image::AddChannel ( std::string name, int xr, int yr, ImageOp::Format eForm
 /*bool Image::LoadChannel ( std::string name, std::string filename )
 {
 	ImageX		ctrl;
-	ImageX		tmp_img ( 0, 0, ImageOp::RGBA32 );
+	ImageX		tmp_img ( 0, 0, ImageOp::RGBA8 );
 	int			chan;
 
 	ctrl.clear();
@@ -256,47 +264,68 @@ void Image::SetFormatFunc ( ImageOp::Format eFormat )
 		m_ReformatFunc = &Image::ReformatBW32;
 		m_AlphaFunc = &Image::AlphaBW32;
 		break;
-	case ImageOp::RGB24:		
-		m_GetPixelFunc = &Image::GetPixelRGB24;
-		m_SetPixelFunc = &Image::SetPixelRGB24;
-		m_FillFunc = &Image::FillRGB24;
-		m_ScaleFunc = &Image::ScaleRGB24;
-		m_PasteFunc = &Image::PasteRGB24;
-		m_RemapFunc = &Image::RemapRGB24;
-		m_ReformatFunc = &Image::ReformatRGB24;
-		m_AlphaFunc = &Image::AlphaRGB24;
+	case ImageOp::RGB8:		
+		m_GetPixelFunc = &Image::GetPixelRGB8;
+		m_SetPixelFunc = &Image::SetPixelRGB8;
+		m_FillFunc = &Image::FillRGB8;
+		m_ScaleFunc = &Image::ScaleRGB8;
+		m_PasteFunc = &Image::PasteRGB8;
+		m_RemapFunc = &Image::RemapRGB8;
+		m_ReformatFunc = &Image::ReformatRGB8;
+		m_AlphaFunc = &Image::AlphaRGB8;
 		break;
-	case ImageOp::RGBA32:
-		m_GetPixelFunc = &Image::GetPixelRGBA32;
-		m_SetPixelFunc = &Image::SetPixelRGBA32;
-		m_FillFunc = &Image::FillRGBA32;
-		m_ScaleFunc = &Image::ScaleRGBA32;
-		m_PasteFunc = &Image::PasteRGBA32;
-		m_RemapFunc = &Image::RemapRGBA32;
-		m_ReformatFunc = &Image::ReformatRGBA32;
-		m_AlphaFunc = &Image::AlphaRGBA32;
+	case ImageOp::RGBA8:		
+		m_GetPixelFunc = &Image::GetPixelRGBA8;
+		m_SetPixelFunc = &Image::SetPixelRGBA8;
+		m_FillFunc = &Image::FillRGBA8;
+		m_ScaleFunc = &Image::ScaleRGBA8;
+		m_PasteFunc = &Image::PasteRGBA8;
+		m_RemapFunc = &Image::RemapRGBA8;
+		m_ReformatFunc = &Image::ReformatRGBA8;
+		m_AlphaFunc = &Image::AlphaRGBA8;
 		break;
-	case ImageOp::BGR24:
-		m_GetPixelFunc = &Image::GetPixelBGR24;
-		m_SetPixelFunc = &Image::SetPixelBGR24;
-		m_FillFunc = &Image::FillBGR24;
-		m_ScaleFunc = &Image::ScaleBGR24;
-		m_PasteFunc = &Image::PasteBGR24;
-		m_RemapFunc = &Image::RemapBGR24;
-		m_ReformatFunc = &Image::ReformatBGR24;
-		m_AlphaFunc = &Image::AlphaBGR24;
+	case ImageOp::RGB16:
+		m_GetPixelFunc = &Image::GetPixelRGB16;
+		m_SetPixelFunc = &Image::SetPixelRGB16;
+		m_FillFunc = &Image::FillRGB16;
+		m_ScaleFunc = &Image::ScaleRGB16;
+		m_PasteFunc = &Image::PasteRGB16;
+		m_RemapFunc = &Image::RemapRGB16;
+		m_ReformatFunc = &Image::ReformatRGB16;
+		m_AlphaFunc = &Image::AlphaRGB16;
 		break;
-	case ImageOp::F8:
-		m_GetPixelFunc = &Image::GetPixelF8;
-		m_SetPixelFunc = &Image::SetPixelF8;
-		m_FillFunc = &Image::FillF8;
-		m_ScaleFunc = &Image::ScaleF8;
-		m_PasteFunc = &Image::PasteF8;
-		m_RemapFunc = &Image::RemapF8;
-		m_ReformatFunc = &Image::ReformatF8;
-		m_AlphaFunc = &Image::AlphaF8;
+	case ImageOp::RGBA32F:
+		m_GetPixelFunc = &Image::GetPixelRGBA32F;
+		m_SetPixelFunc = &Image::SetPixelRGBA32F;
+		m_FillFunc = &Image::FillRGBA32F;
+		m_ScaleFunc = &Image::ScaleRGBA32F;
+		m_PasteFunc = &Image::PasteRGBA32F;
+		m_RemapFunc = &Image::RemapRGBA32F;
+		m_ReformatFunc = &Image::ReformatRGBA32F;
+		m_AlphaFunc = &Image::AlphaRGBA32F;
+		break;
+	case ImageOp::BGR8:
+		m_GetPixelFunc = &Image::GetPixelBGR8;
+		m_SetPixelFunc = &Image::SetPixelBGR8;
+		m_FillFunc = &Image::FillBGR8;
+		m_ScaleFunc = &Image::ScaleBGR8;
+		m_PasteFunc = &Image::PasteBGR8;
+		m_RemapFunc = &Image::RemapBGR8;
+		m_ReformatFunc = &Image::ReformatBGR8;
+		m_AlphaFunc = &Image::AlphaBGR8;
+		break;
+	case ImageOp::F32:
+		m_GetPixelFunc = &Image::GetPixelF32;
+		m_SetPixelFunc = &Image::SetPixelF32;
+		m_FillFunc = &Image::FillF32;
+		m_ScaleFunc = &Image::ScaleF32;
+		m_PasteFunc = &Image::PasteF32;
+		m_RemapFunc = &Image::RemapF32;
+		m_ReformatFunc = &Image::ReformatF32;
+		m_AlphaFunc = &Image::AlphaF32;
 		break;
 	};
+
 }
 
 // Copy data from external source. Size & format must already be set.
@@ -357,14 +386,14 @@ void Image::CopyIntoBuffer ( DataPtr& dest, DataPtr& src, int bpp, int w, int h 
 bool Image::LoadAlpha ( char *filename )
 {
 	Image ctrl;
-	Image alpha_img ( 0, 0, ImageOp::RGBA32 );
+	Image alpha_img ( 0, 0, ImageOp::RGBA8 );
 	std::string errmsg;
 
 	// Load the alpha image
 	if ( ctrl.Load ( filename, errmsg ) ) {
 
-		// Change format to RGBA32 
-		ChangeFormat ( ImageOp::RGBA32 );
+		// Change format to RGBA8
+		ChangeFormat ( ImageOp::RGBA8 );
 
 		// Copy loaded image into alpha channel
         CopyAlpha ( &alpha_img );
@@ -426,7 +455,7 @@ bool Image::Load (char* filename, char* alphaname )
 		m_Info.Size = GetBytesPerPixel() * xr * yr;	
 		m_Info.mXres = xr; m_Info.mYres = yr;	
 		m_Info.bDataOwner = true;		
-		SetFormat ( ImageOp::RGB24 );
+		SetFormat ( ImageOp::RGB8 );
 		SetBPP ( xr );
 
 		// Add buffers for each face
@@ -735,11 +764,11 @@ bool Image::UpdateGL ()
 			switch ( info->eFormat ) {				
 			case ImageOp::BW8:		glTexImage2D ( target, 0, GL_LUMINANCE8, info->mXres, info->mYres,	0, GL_LUMINANCE,	GL_UNSIGNED_BYTE, pixbuf );	break;
 			case ImageOp::BW16:		glTexImage2D ( target, 0, GL_LUMINANCE16, info->mXres, info->mYres, 0, GL_LUMINANCE,	GL_UNSIGNED_SHORT, pixbuf );	break;
-			case ImageOp::BW32:		glTexImage2D ( target, 0, GL_LUMINANCE16, info->mXres, info->mYres, 0, GL_LUMINANCE,	GL_UNSIGNED_SHORT, pixbuf );	break;
-			case ImageOp::RGBA32:	glTexImage2D ( target, 0, GL_RGBA, info->mXres, info->mYres,		0, GL_RGBA,			GL_UNSIGNED_BYTE, pixbuf );		break;
-			case ImageOp::RGB24:	glTexImage2D ( target, 0, GL_RGB8, info->mXres, info->mYres,		0, GL_RGB,			GL_UNSIGNED_BYTE, pixbuf );		break;
-			case ImageOp::BGR24:	glTexImage2D ( target, 0, GL_RGB8, info->mXres, info->mYres,		0, GL_BGR_EXT,		GL_UNSIGNED_BYTE, pixbuf );	break;
-			case ImageOp::F8:		glTexImage2D ( target, 0, GL_R32F, info->mXres, info->mYres,		0, GL_LUMINANCE,	GL_FLOAT, pixbuf );	break;
+			case ImageOp::BW32:		glTexImage2D ( target, 0, GL_LUMINANCE32, info->mXres, info->mYres, 0, GL_LUMINANCE,	GL_UNSIGNED_SHORT, pixbuf );	break;			
+			case ImageOp::RGB8:		glTexImage2D ( target, 0, GL_RGB8, info->mXres, info->mYres,		0, GL_RGB,			GL_UNSIGNED_BYTE, pixbuf );		break;
+			case ImageOp::BGR8:		glTexImage2D ( target, 0, GL_RGB8, info->mXres, info->mYres,		0, GL_BGR_EXT,		GL_UNSIGNED_BYTE, pixbuf );	break;
+			case ImageOp::RGBA32F:	glTexImage2D ( target, 0, GL_RGBA32F, info->mXres, info->mYres,		0, GL_RGBA,			GL_FLOAT, pixbuf );				break;
+			case ImageOp::F32:		glTexImage2D ( target, 0, GL_R32F, info->mXres, info->mYres,		0, GL_LUMINANCE,	GL_FLOAT, pixbuf );	break;
 			};			
 			// Generate mipmaps
 			if ( info->MipFilter() )	glGenerateMipmap ( target );			

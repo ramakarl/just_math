@@ -160,7 +160,7 @@
 		 Vector2DF &operator*= (const Vector3DF &op);
 		 Vector2DF &operator*= (const Vector4DF &op);
 		 Vector2DF &operator*= (const float op)		{ x *= op; y *= op; return *this; }
-		 Vector2DF  operator*  (const float op)		{ return Vector2DF(x * op, y * op); }		 
+		 Vector2DF  operator*  (const float op)		{ return Vector2DF(x * op, y * op); }
 
 		 Vector2DF &operator/= (const Vector2DI &op);
 		 Vector2DF &operator/= (const Vector2DF &op);
@@ -232,8 +232,6 @@
 		Vector3DI &operator/= (const Vector3DI &op);
 		Vector3DI &operator/= (const Vector3DF &op);
 		Vector3DI &operator/= (const Vector4DF &op);
-
-		
 
 		Vector3DI operator+ (const int op)			{ return Vector3DI(x+op, y+op, z+op); }
 		Vector3DI operator+ (const float op)		{ return Vector3DI(int(x+op), int(y+op), int( z+op)); }
@@ -406,6 +404,7 @@
 		Vector3DF &Random (float x1,float x2, float y1, float y2, float z1, float z2)	{ x=x1+float(rand()*(x2-x1))/RAND_MAX; y=y1+float(rand()*(y2-y1))/RAND_MAX; z=z1+float(rand()*(z2-z1))/RAND_MAX;  return *this;}
 		Vector3DF RGBtoHSV ();
 		Vector3DF HSVtoRGB ();
+		Vector3DF PolarToCartesianX ( Vector3DF angs );
 
 		VTYPE &X()				{return x;}
 		VTYPE &Y()				{return y;}
@@ -443,12 +442,13 @@
 		Vector4DF (const Vector3DF &op, const float opw);
 		Vector4DF (const Vector4DF &op);
 		Vector4DF (const Vector4DD &op);
+		Vector4DF (const Quaternion& op);
 
 		// Member Functions
 		Vector4DF &operator= (const int op);
 		Vector4DF &operator= (const double op);
 		Vector4DF &operator= (const Vector3DI &op);
-		Vector4DF &operator= (const Vector3DF &op);		
+		Vector4DF &operator= (const Vector3DF &op);	
 		Vector4DF &operator= (const Vector4DF &op);
 
 
@@ -514,7 +514,7 @@
 			return *this;
 		}
 
-		Vector4DF &Cross (const Vector4DF &v);	
+		Vector4DF Cross (const Vector4DF &v);	
 		
 		double Dot (const Vector4DF &v);
 
@@ -636,7 +636,7 @@
 			return *this;
 		}
 
-		Vector4DD &Cross (const Vector4DD &v);	
+		Vector4DD Cross (const Vector4DD &v);	
 		
 		double Dot (const Vector4DD &v);
 
@@ -772,6 +772,13 @@
 		Matrix4F &InverseView ( const float* mat, const Vector3DF& pos );
 		Vector4DF GetT ( float* mat );
 
+		Matrix4F& makeLookAt ( Vector3DF eye, Vector3DF target, Vector3DF up );
+		Matrix4F& makeLookAt ( Vector3DF eye, Vector3DF target, Vector3DF up, Vector3DF& xaxis, Vector3DF& yaxis, Vector3DF& zaxis);
+		Matrix4F& makeOrtho (float left, float right, float bottom, float top, float minz, float maxz);
+		Matrix4F& makeOrthogonalInverse (Matrix4F& src);
+		
+		Matrix4F Inverse(Matrix4F& m );				// inverse of the matrix
+		Matrix4F Transpose(Matrix4F& m );				// transpose of the matrix
 		Vector3DF getTrans ()	{ return Vector3DF( data[12], data[13], data[14] ); }
 
 		int GetX()			{ return 4; }

@@ -84,7 +84,7 @@ bool CImageFormatJpg::Save (char *filename, Image* pImg)
 #else
 	strcpy (m_Filename, filename);
 #endif
-	return SaveJpg (filename, 100);	
+	return SaveJpg (filename, 95);		// <-- jpeg quality	
 }
 
 bool CImageFormatJpg::LoadJpg (char *filename, bool bIncremental)
@@ -138,8 +138,8 @@ bool CImageFormatJpg::LoadJpg (char *filename, bool bIncremental)
 	ImageOp::Format eNewFormat;
 	switch ( m_jpeg_dinfo.output_components ) {
 	case 1:	eNewFormat = ImageOp::BW8;		break;		
-	case 3: eNewFormat = ImageOp::RGB24;	break;
-	case 4: eNewFormat = ImageOp::RGB24;	break;	// does not indicate alpha, but baseline-diff color jpg
+	case 3: eNewFormat = ImageOp::RGB8;		break;
+	case 4: eNewFormat = ImageOp::RGB8;		break;	// does not indicate alpha, but baseline-diff color jpg
 	default: 
 		m_eStatus = ImageOp::DepthNotSupported;
 		jpeg_destroy_decompress (&m_jpeg_dinfo);		
@@ -313,7 +313,7 @@ bool CImageFormatJpg::SaveJpg (char *filename, int iQuality)
 		adj_size = jpeg_info.image_width * jpeg_info.image_height * 3;		
 		bReformatted = false;
 		} break;
-	case ImageOp::RGBA32: {
+	case ImageOp::RGBA8: {
 		jpeg_info.input_components = 3;			// JPEG cannot save alpha!
 		jpeg_info.in_color_space = JCS_RGB; 	
 		adj_size = jpeg_info.image_width * jpeg_info.image_height * 3;

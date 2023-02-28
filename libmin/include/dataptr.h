@@ -35,17 +35,19 @@
 
 	#define DT_MISC			0
 	#define DT_UCHAR		1		// 8-bit
-	#define DT_USHORT		2		// 16-bit
-	#define DT_UCHAR3		3		// 24-bit
+	#define DT_USHORT		2		// 16-bit,  1 chan @ 16-bit
+	#define DT_UCHAR3		3		// 24-bit,  3 chan @  8-bit
 	
-	#define DT_UCHAR4		4		// 32-bit, 4 bytes, 4*sizeof(char)
-	#define DT_INT			5		// 32-bit, 4 bytes, 1*sizeof(int32_t)	
-	#define DT_UINT			6		// 32-bit, 4 bytes, 1*sizeof(uint32_t)	
-	#define DT_FLOAT		7		// 32-bit, 4 bytes, 1*sizeof(float)
+	#define DT_UCHAR4		4		// 32-bit,  4 chan @  8-bit
+	#define DT_INT			5		// 32-bit,  1 chan @ 32-bit
+	#define DT_UINT			6		// 32-bit,  1 chan @ 32-bit 
+	#define DT_FLOAT		7		// 32-bit,  1 chan @ 32-bit (float)
 
-	#define DT_UINT64		8		//  64-bit,  8 bytes, 1*sizeof(uint64_t)
-	#define DT_FLOAT3		12		//  96-bit, 12 bytes, 3*sizeof(float)
-	#define DT_FLOAT4		16	    // 128-bit, 16 bytes, 4*sizeof(float)
+	#define DT_USHORT3		8		//  48-bit, 3 chan @ 16-bit
+	#define DT_UINT64		9		//  64-bit, 1 chan @ 64-bit
+	#define DT_FLOAT3		12		//  96-bit, 3 chan @ 32-bit (float)
+	#define DT_FLOAT4		16	    // 128-bit, 4 chan @ 32-bit (float)
+
 	
 	#define DT_CPU			1		// use flags
 	#define DT_CUMEM		2
@@ -92,15 +94,13 @@
 		void			SetElemInt(uint64_t n, int val)	{ * (int*) (mCpu+n*mStride) = val; }
 		int				getElemInt(uint64_t n)			{ return * (int*) (mCpu+n*mStride); }
 
-		
-
 	public:
 		uint64_t		mNum=0, mMax=0, mSize=0;
 		int				mStride=0;
 		uchar			mRefID=0, mUseType=0, mUseFlags=0;	// usage
 		int				mUseRX=0, mUseRY=0, mUseRZ=0;
 		bool			bCpu=false, bGpu=false;
-		char*			mCpu=NULL;			
+		char*			mCpu=NULL;
 		
 		int				mGLID=0;				// OpenGL
 

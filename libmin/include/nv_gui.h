@@ -313,7 +313,7 @@
 			void drawSet2D ( nvSet& buf );
 			void drawSet3D ( nvSet& buf );
 			void setLight (int s, float x1, float y1, float z1 );
-			void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c);
+			void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c, Vector4DF d);
 			void setPreciseEye (int s, Camera3D* cam );
 		
 		private:
@@ -342,7 +342,7 @@
 			GLuint				mView[SMAX], mTex[SMAX];
 			GLuint				mLight[SMAX];
 			GLuint				mEyeHi[SMAX], mEyeLo[SMAX];
-			GLuint				mPntP0[SMAX], mPntP1[SMAX], mPntP2[SMAX];
+			GLuint				mPntP0[SMAX], mPntP1[SMAX], mPntP2[SMAX], mPntP3[SMAX];
 
 			GLuint				mVAO;
 		#endif
@@ -455,7 +455,7 @@
 		HELPAPI void draw3D ();
 		HELPAPI void drawGL ();
 		HELPAPI void setLight (int s, float x1, float y1, float z1 );
-		HELPAPI void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c);
+		HELPAPI void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c, Vector4DF d);
 		HELPAPI void setPreciseEye (int s, Camera3D* cam );
 
 		typedef void (*CallbackFunc)(int, float);

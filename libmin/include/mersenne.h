@@ -42,9 +42,14 @@
 
 		uint32_t	randI();
 		uint32_t	randI(int max);
+		uint32_t	randI(int vmin, int vmax);
 		float		randF();			
+		float		randF(float vmin, float vmax);
 		Vector3DF	randV3();
 		Vector3DF	randV3(float vmin, float vmax);
+		Vector3DF	randV3(Vector3DF vmin, Vector3DF vmax);
+		Vector4DF	randV4(float vmin, float vmax);		
+		Vector4DF	randV4(Vector4DF vmin, Vector4DF vmax);
 		Quaternion	randQ();
 	
 	private:

@@ -55,7 +55,7 @@
 	// DataX buffers (GPU)
 	#define	DMAXBUF		16				// fixed for now
 	struct HELPAPI cuDataX {
-		devdata_t	mbuf[DMAXBUF];
+		devdata_t	mbuf[DMAXBUF];				// See DataX::UpdateGPUAccess
 
 		#ifdef CUDA_KERNEL
 			inline __device__ float*  bufF(int n)	{ return (float*) mbuf[n]; }	
@@ -97,6 +97,8 @@
 			char*		ExpandBuffer	( int i, int max_cnt);						
 			void		ResizeBuffer	( int i, int max_cnt, bool safe=false );			// safely resize a buffer. does not change number of elements.
 			
+			void		DeleteBuffer	( int i );			// delete the buffer 
+			void		ClearBuffer		( int i );			// clear memory (free) but keep buffer
 			void		EmptyBuffer		( int i )			{ int b = mRef[i]; if (b != BUNDEF) mBuf[b].mNum = 0; }		// clear active elements
 			void		ReserveBuffer	( int i, int cnt )	{ int b = mRef[i]; if (b != BUNDEF) mBuf[b].mNum = cnt;}	// set number of active elements 
 			
@@ -119,6 +121,7 @@
 			#endif
 			void		UpdateGPUAccess ();													// update GPU symbol to hold updated pointers
 			void		Retrieve ( int i );													// retrieve buffer from GPU to CPU
+			void		RetrieveAll ();
 			void		Commit ( int i );													// commit buffer from CPU to GPU			
 			void		CommitAll ();														// commit all buffers to GPU
 
@@ -192,6 +195,7 @@
 				CUdeviceptr		gpu(int i)		{int b=mRef[i];	return (b==BUNDEF) ? 0 : mBuf[b].mGpu; }
 				CUdeviceptr*	gpuptr(int i)	{int b=mRef[i];	return (b==BUNDEF) ? 0 : &mBuf[b].mGpu; }			
 				CUgraphicsResource* grsc(int i) {int b=mRef[i];	return (b==BUNDEF) ? 0 : &mBuf[b].mGrsc; }
+				cuDataX			getGPUData()	{ return cuDataCPU; }
 			#endif	
 
 	#ifdef USE_BASEOBJ
@@ -228,7 +232,8 @@
 
 			#ifdef USE_CUDA
 			std::string				cuDataName;			// name of datax device variable
-			CUdeviceptr				cuData;				// datax on cuda (all buffers, see above)
+			CUdeviceptr				cuDataGPU;			// data on gpu (all buffers, see above)
+			cuDataX					cuDataCPU;			// data on cpu
 			#endif
 
 			hpos					mHeapNum;			// data buffer heap

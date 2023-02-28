@@ -13,8 +13,7 @@
 	HELPAPI Vector3DF	intersectLineLine(Vector3DF p1, Vector3DF p2, Vector3DF p3, Vector3DF p4);	
 	HELPAPI Vector3DF	intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF pnorm);
 	HELPAPI bool		intersectLineBox(Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bmax, float& t);
-	HELPAPI bool		intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, bool backcull=true );
-	HELPAPI bool		intersectRayTriangleUV ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, Vector3DF& hit, double& u, double& v ) ;
+	HELPAPI bool		intersectRayTriangle ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, float& alpha, float& beta, bool& front );
 	HELPAPI Vector3DF	projectPointLine(Vector3DF p, Vector3DF p0, Vector3DF p1 );
 	HELPAPI Vector3DF	projectPointLine(Vector3DF p, Vector3DF pdir, float& t );
 	HELPAPI Vector3DF	projectPointPlane(Vector3DF p, Vector3DF p0, Vector3DF pn );

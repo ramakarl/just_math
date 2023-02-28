@@ -42,10 +42,11 @@ DataX::~DataX()
 
 void DataX::DeleteAllBuffers ()
 {
-	for (int n=0; n < (int) mBuf.size(); n++) {
+	for (int n=0; n < (int) mBuf.size(); n++) 
 		mBuf[n].Clear ();
-	}
 	mBuf.clear ();
+	
+	for (int n = 0; n < REF_MAX; n++) mRef[n] = BUNDEF;		// clear all refs
 }
 
 void DataX::ClearHeap ()
@@ -76,6 +77,34 @@ int DataX::AddBuffer ( int userid, std::string name, ushort stride, uint64_t max
 	mRef[ userid ] = b;
 	return b;
 }
+
+// delete buffer from list
+void DataX::DeleteBuffer(int i)
+{
+	int b = mRef[i]; if (b == BUNDEF) return;
+	
+	// *NOTE*: For now mBuf[b] remains in mBuf list. Need to erase from list and fix mRef indexes	
+	mBuf[b].Clear ();
+	
+	mRef[i] = BUNDEF;
+}
+
+// clear memory (free) but keep buffer
+void DataX::ClearBuffer(int i)			
+{
+	int b = mRef[i]; if (b == BUNDEF) return;
+	int stride = mBuf[b].mStride;					// save buffer info
+	uchar usetype = mBuf[b].mUseType;
+	uchar useflags = mBuf[b].mUseFlags;
+	int rx = mBuf[b].mUseRX;
+	int ry = mBuf[b].mUseRY;
+	int rz = mBuf[b].mUseRZ;	
+	
+	mBuf[b].Clear();								// clear buffer (free)
+	mBuf[b].SetUsage (usetype, useflags, rx,ry,rz );	// reset usage
+	mBuf[b].Resize(stride, 1, 0x0, useflags);		// resize
+}
+
 void DataX::SetBufferUsage	( int i, uchar dt, uchar use_flags, int rx, int ry, int rz  )
 {
 	int b = mRef[i];  if (b==BUNDEF) return;
@@ -95,7 +124,8 @@ void DataX::SetNum ( int num )
 		char varname[1024];
 		strcpy ( varname, var_name.c_str() );
 
-		cuCheck ( cuModuleGetGlobal ( &cuData, &len,	module, (const char*) varname ), "LoadKernel", "cuModuleGetGlobal", varname, true );
+		// See DataX::UpdateGPUAccess
+		cuCheck ( cuModuleGetGlobal ( &cuDataGPU, &len,	module, (const char*) varname ), "LoadKernel", "cuModuleGetGlobal", varname, true );
 	
 		if ( len != sizeof(cuDataX) ) {
 			dbgprintf ( "ERROR: AssignToGPU. Size of GPU symbol does not match size of cuDataX.\n" );
@@ -108,18 +138,19 @@ void DataX::UpdateGPUAccess ()
 {
 	#ifdef USE_CUDA
 	int userid;
-	cuDataX datax;		
-	memset ( &datax, 0, sizeof(cuDataX) );
+
+	memset ( &cuDataGPU, 0, sizeof(cuDataX) );
 
 	//dbgprintf ("------\n" );
 	for (int i=0; i < mBuf.size(); i++) {		
 		userid = mBuf[i].mRefID;
-		datax.mbuf[ userid ] = mBuf[i].mGpu;
+		cuDataCPU.mbuf[ userid ] = mBuf[i].mGpu;
 		//dbgprintf ("  %d, cpu: %012llx, gpu: %012llx\n", i, cpu(b), gpu(b) );			// debugging		
 	}
-	cuCheck ( cuMemcpyHtoD( cuData,	&datax, sizeof(cuDataX) ), "UpdateGPUAccess", "cuMemcpyHtoD", "cuData", false );
+	cuCheck ( cuMemcpyHtoD( cuDataGPU,	&cuDataCPU, sizeof(cuDataX) ), "UpdateGPUAccess", "cuMemcpyHtoD", "cuData", false );
 	#endif	
 }
+
 void DataX::MatchAllBuffers ( DataX* src, uchar use_flags )
 {
 	int userid;
@@ -154,6 +185,12 @@ void DataX::Commit ( int i )
 	int b = mRef[i];  if (b==BUNDEF) return;
 	mBuf[b].Commit ();
 }
+void DataX::RetrieveAll ()
+{
+	for (int b=0; b < mBuf.size(); b++)
+		mBuf[b].Retrieve(); 
+}
+
 void DataX::Retrieve ( int i )
 {
 	int b = mRef[i];  if (b==BUNDEF) return;
@@ -251,7 +288,7 @@ void DataX::ResizeBuffer ( int i, int max_cnt, bool safe )
 		mBuf[b].mSize = mBuf[b].mMax*mBuf[b].mStride;
 		char* newdata = (char*)malloc(mBuf[b].mSize);
 		if (mBuf[b].mCpu != 0x0) {
-			if (safe) memcpy(newdata, mBuf[b].mCpu, mBuf[b].mNum * mBuf[b].mStride);
+			if (safe) memcpy (newdata, mBuf[b].mCpu, mBuf[b].mNum * mBuf[b].mStride);
 			free(mBuf[b].mCpu);
 		}
 		mBuf[b].mCpu = newdata;

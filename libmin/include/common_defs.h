@@ -22,10 +22,9 @@
 	#pragma warning ( disable: 4005)
 
 	#ifdef _WIN32
-        
         #ifdef BUILD_CMDLINE               
             #define HELPAPI	                            // Build cmdline app. Direct include (not making library)
-        #else
+        #else 
 
             #define NOMINMAX                             // min/max will come from std::min/max
 		    #define WIN32_LEAN_AND_MEAN
@@ -37,6 +36,7 @@
 		    #pragma warning ( disable : 4244 )			// conversion from double to float
 		    #pragma warning ( disable : 4305 )			// truncation from double to float (constants)
             #pragma warning ( disable : 4251 )          // STL objects inside DLL-interface classes
+            #pragma warning ( disable : 4267 )          // return int vs size_t
 
             #if !defined ( LIBHELP_STATIC )
                 #if defined ( LIBHELP_EXPORTS )				// inside DLL
@@ -90,22 +90,11 @@
 
       #else   // ANDOID and linux
 
-        #include <math.h>
-        #include <assert.h>
-        #include <string.h>
-
+			#include <math.h>
+			#include <assert.h>
+			#include <string.h>
             #define ALIGN(x)		__attribute__ ((aligned(x)))
             #define CACHE_ALIGNED   __attribute__ ((aligned(64)))
-
-    // XXX
-        #if !defined ( LIBHELP_STATIC )
-          #if defined ( LIBHELP_EXPORTS )				// inside DLL
-            #define HELPAPI		__attribute__((visibility("default")))
-          #else										// outside DLL
-            #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
-          #endif
-        #endif
-
 
             #include "inttypes.h"
 
@@ -145,7 +134,8 @@
     const f32 ROUNDING_ERROR_f32 = 0.000001f;
     const f64 ROUNDING_ERROR_f64 = 0.00000001;
     const f64 PI64 = 3.1415926535897932384626433832795028841971693993751;
-
+	
+	
     // Universal functions
     #include <vector>
     #include <string>    
@@ -189,6 +179,7 @@
             int	vbo[3];
             int	utex1[3];
             int	utex2[3];
+            int	up0[3];
             int	utexflags[3];
             int	ucoords[3];
             int	uscreen[3];
@@ -230,6 +221,7 @@
 
     // color storage in 4-byte uint
 	typedef uint32_t			CLRVAL;
+    #define CLRA(r,g,b,a)       ( (uint(a)<<24) | (uint(b)<<16) | (uint(g)<<8) | uint(r) )
     #ifndef COLOR
 	    #define COLOR(r,g,b)	( (uint(r*255.0f)<<24) | (uint(g*255.0f)<<16) | (uint(b*255.0f)<<8) )
 	#endif

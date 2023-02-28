@@ -348,11 +348,13 @@ bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI
 	int fbest;
 	float t, tbest, d, dbest;
 	Vector3DF v[3], hit;
+	float alpha, beta;
+	bool front;
 	
 	// find nearest hit triangle	
 	fbest = -1;
-	t = 1.0e20;
-	tbest = 1.0e100;
+	t = 1.0e10;
+	tbest = 1.0e10;
 	f = (AttrV3*) GetStart(BFACEV3);
 	for ( int fi=0; fi < GetNumElem(BFACEV3); fi++) {
 
@@ -360,7 +362,7 @@ bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI
 		v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
 		v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
 
-		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, hit ) ) {	// check for triangle hit
+		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, alpha, beta, front ) ) {	// check for triangle hit
 			if ( t < tbest ) {													// find nearest hit
 				fbest = fi;
 				tbest = t;
@@ -1141,6 +1143,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 			norm.Normalize();
 			fnorm = nlist[n[0]];
 			float flip = (norm.Dot(fnorm) > 0 ? 1 : -1);
+			
 			if ( flip==-1 ) {				// fix winding order
 				tmp = v[1]; v[1] = v[2]; v[2] = tmp;
 				tmp = n[1]; n[1] = n[2]; n[2] = tmp;

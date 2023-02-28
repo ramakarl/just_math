@@ -225,10 +225,10 @@ bool CImageFormatTga::LoadTga ( char* filename )
 
 	size = m_Xres * m_Yres;
 	
-	switch ( m_BitsPerPixel ) {
-	case 32:	eNewFormat = ImageOp::RGBA32;	size *= 4;	break;		
-	case 24:	eNewFormat = ImageOp::RGB24;	size *= 3;	break;	
-	case 8:		eNewFormat = ImageOp::RGB24;		break;
+	switch ( m_BitsPerPixel ) {     // *NOTE* BitsPerPixel is NOT bits per channel
+	case 32:	eNewFormat = ImageOp::RGBA8;	size *= 4;	break;		// 8-bit, 4 channel
+	case 24:	eNewFormat = ImageOp::RGB8; 	size *= 3;	break;	    // 8-bit, 3 channel
+	case 8:		eNewFormat = ImageOp::RGB8;	            	break;      // 8-bit, 1 channel
 	};
 
 	// Allocate image
@@ -240,7 +240,7 @@ bool CImageFormatTga::LoadTga ( char* filename )
 
 	// Read data		
 	//printf ( "Load TGA: %d x %d x %d, %d\n", m_Xres, m_Yres, m_BitsPerPixel, size );
-	switch ( m_BitsPerPixel ) {
+	switch ( m_BitsPerPixel ) {     // *NOTE* BitsPerPixel is NOT bits per channel
 	case 32:	getRGBA( tga, buf, size );	break;
 	case 24:	getRGB( tga, buf, size );	break;
 	case 8:		getGray( tga, buf, size );	break;

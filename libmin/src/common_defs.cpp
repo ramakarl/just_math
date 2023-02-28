@@ -18,8 +18,6 @@
 //
 
 #include "common_defs.h"
-#include "vec.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -70,8 +68,6 @@ char getPathDelimOpposite()
         return '\\';
     #endif
 }
-
-
 
 void addSearchPath ( const char* path )
 {
@@ -354,6 +350,7 @@ void checkMem(xlong& total, xlong& used, xlong& app)
             // Get texture params
             gTex.utex1[n] = glGetUniformLocation(gTex.prog[n], "uTex1");
             gTex.utex2[n] = glGetUniformLocation(gTex.prog[n], "uTex2");
+            gTex.up0[n]   = glGetUniformLocation(gTex.prog[n], "uParam0");
             gTex.utexflags[n] = glGetUniformLocation(gTex.prog[n], "uTexFlags");
             gTex.ucoords[n] = glGetUniformLocation(gTex.prog[n], "uCoords");
             gTex.uscreen[n] = glGetUniformLocation(gTex.prog[n], "uScreen");
@@ -465,7 +462,6 @@ void checkMem(xlong& total, xlong& used, xlong& app)
         glUseProgram(0);
         glDepthMask(GL_TRUE);
     }
-
     void compositeTexGL(float blend, int w, int h, int glid1, int glid2, char inv1, char inv2)
     {
         // Prepare pipeline   
@@ -514,5 +510,14 @@ void checkMem(xlong& total, xlong& used, xlong& app)
 
     #endif
 
+#else
+    //-- not using opengl
+    void checkGL(const char* msg)   { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void initTexGL()                { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void clearGL()                  { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void createTexGL(int& glid, int w, int h, int clamp = 0x812D, int fmt = 0x8058, int typ = 0x1401, int filter = 0x2601) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void renderTexGL(int w, int h, int glid, char inv1 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void renderTexGL(float x1, float y1, float x2, float y2, int glid1, char inv1 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
+    void compositeTexGL(float blend, int w, int h, int glid1, int glid2, char inv1 = 0, char inv2 = 0) { dbgprintf("WARNING: OpenGL not enabled.\n"); }
 #endif
 

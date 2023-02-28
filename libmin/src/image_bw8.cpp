@@ -87,19 +87,19 @@ void Image::ReformatBW8 ( ImageOp::Format eFormat )
 	XBYTE* src_stop = src + getInfo()->GetSize();	
 	XBYTE* dest = new_img->GetData ();
 
-	if ( eFormat==ImageOp::RGB24 ) {			// Target format RGB24
+	if ( eFormat==ImageOp::RGB8 ) {		
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
 			*dest++ = *src++;			
 		}		
-	} else if ( eFormat==ImageOp::BGR24 ) {		// Target format BGR24
+	} else if ( eFormat==ImageOp::BGR8 ) {	
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
 			*dest++ = *src++;
 		}	
-	} else if ( eFormat==ImageOp::RGBA32 ) {	// Target format RGBA32
+	} else if ( eFormat==ImageOp::RGBA8 ) {	
 		for (; src < src_stop; ) {
 			*dest++ = *src;
 			*dest++ = *src;
@@ -110,6 +110,7 @@ void Image::ReformatBW8 ( ImageOp::Format eFormat )
 	TransferFrom ( new_img );
 	delete ( new_img );
 }
+
 
 // Paste - Pastes a portion of an image into another image.
 // Subselection: yes	- Allows sub-selection of source
@@ -136,7 +137,7 @@ void Image::PasteBW8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( dest_format==ImageOp::RGB24 ) {	
+		} else if ( dest_format==ImageOp::RGB8 ) {	
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -148,7 +149,7 @@ void Image::PasteBW8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( dest_format==ImageOp::RGBA32 ) {
+		} else if ( dest_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -239,7 +240,7 @@ void Image::AlphaBW8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Form
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( src_format==ImageOp::RGB24 ) {
+		} else if ( src_format==ImageOp::RGB8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -250,7 +251,7 @@ void Image::AlphaBW8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Form
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( src_format==ImageOp::RGBA32 ) {
+		} else if ( src_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start+3, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {

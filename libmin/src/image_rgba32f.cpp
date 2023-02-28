@@ -1,37 +1,21 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
+
 #include <assert.h>
 
 #include "image.h"
 
-void Image::SetPixelRGBA32 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::SetPixelRGBA32F (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
-		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
+		float* pix = (float*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
 		*pix++ = r;	*pix++ = g;
 		*pix++ = b;	*pix++ = a;
 		// setNotify ( 1 ); // *** NOTIFY(1)
 	}	
 }
-void Image::GetPixelRGBA32 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
+void Image::GetPixelRGBA32F (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
-		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
+		float* pix = (float*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
         r = *pix++;
         g = *pix++;
         b = *pix++;
@@ -39,7 +23,7 @@ void Image::GetPixelRGBA32 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a
 	}
 }
 
-void Image::FillRGBA32 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::FillRGBA32F (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	// Temporary fill buffer
 	assert ( getInfo()->GetBytesPerRow() <= 16384 );
@@ -50,8 +34,8 @@ void Image::FillRGBA32 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 		fillbuf[x++] = a;	
 	}
     
-    XBYTE *dest_pix, *dest_pix_stop;
-	dest_pix = (XBYTE*) GetData();
+    float *dest_pix, *dest_pix_stop;
+	dest_pix = (float*) GetData();
 	dest_pix_stop = dest_pix + getInfo()->GetSize();
 	for (; dest_pix < dest_pix_stop;) {
 		memcpy (dest_pix, fillbuf, getInfo()->GetBytesPerRow());
@@ -60,10 +44,10 @@ void Image::FillRGBA32 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 	// setNotify ( 1 ); // *** NOTIFY(1)
 }
 
-void Image::RemapRGBA32 ( unsigned int vmin, unsigned int vmax )
+void Image::RemapRGBA32F ( unsigned int vmin, unsigned int vmax )
 {
-	XBYTE* src = (XBYTE*) GetData();
-	XBYTE* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
+	float* src = (float*) GetData();
+	float* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
 	
 	unsigned long mMin, mMax;
 	mMin = ( ((unsigned long) 1 ) << 16)-1;
@@ -75,7 +59,7 @@ void Image::RemapRGBA32 ( unsigned int vmin, unsigned int vmax )
 	}
 	if ( vmin == vmax ) return;
 	
-	src = (XBYTE*) GetData();
+	src = (float*) GetData();
 	unsigned int vdelta = vmax-vmin;
 	for (; src < src_stop; ) {
 		*src = (XBYTE) ( float(vmin) + float(*src - mMin)*vdelta / (mMax-mMin) );
@@ -86,22 +70,22 @@ void Image::RemapRGBA32 ( unsigned int vmin, unsigned int vmax )
 
 // Reformat - Reformats given pixel format to
 // another pixel format
-void Image::ReformatRGBA32 ( ImageOp::Format eFormat )
+void Image::ReformatRGBA32F ( ImageOp::Format eFormat )
 {
 	Image* new_img = new Image ( getInfo()->mXres, getInfo()->mYres, eFormat ) ;
 	
-	XBYTE* src = (XBYTE*) GetData();
-	XBYTE* src_stop = src + getInfo()->GetSize();	
+	float* src = (float*) GetData();
+	float* src_stop = src + getInfo()->GetSize();	
 	XBYTE* dest = new_img->GetData ();		
 
-	if ( eFormat==ImageOp::RGB24 ) {		// Target format RGB24
+	if ( eFormat==ImageOp::RGB8 ) {		// Target format RGB24
 		for (; src < src_stop; ) {
 			*dest++ = *src++;
 			*dest++ = *src++;
 			*dest++ = *src++;
 			src++;
 		}		
-	} else if ( eFormat==ImageOp::BGR24 ) {	// Target format BGR24
+	} else if ( eFormat==ImageOp::BGR8 ) {	// Target format BGR24
 		for (; src < src_stop; ) {
 			*dest++ = *(src++ + 2);
 			*dest++ = *src++;
@@ -120,15 +104,14 @@ void Image::ReformatRGBA32 ( ImageOp::Format eFormat )
 // Scaling:      no		- Allows rescaling of source
 // Filtering:    no		- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
-void Image::PasteRGBA32 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::PasteRGBA32F ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
-	XBYTE *src, *src_start, *src_end;
-	XBYTE *dest_start, *dest_end;
+	float *src, *src_start, *src_end;
+	float *dest_start, *dest_end;
 	int src_wid, src_pitch;
 	int dest_wid, dest_pitch, dest_bpr;
 
-
-	if ( dest_format==ImageOp::RGBA32 ) {
+	/*if ( dest_format==ImageOp::RGBA32F ) {
 		if ( getInfo()->QueryPaste ( GetFormat(), GetWidth(), GetHeight(), GetData(), x1, y1, x2, y2,
 						  dest_format, destx, desty, dest, offx, offy,
 						  src_start, src_end, src_wid, src_pitch,
@@ -141,7 +124,7 @@ void Image::PasteRGBA32 ( int x1, int y1, int x2, int y2, int offx, int offy, XB
 				dest += dest_bpr;
 			}
 		}	
-	}	
+	}*/	
 }
 
 // Scale - Rescales an image into another image
@@ -155,20 +138,20 @@ void Image::PasteRGBA32 ( int x1, int y1, int x2, int y2, int offx, int offy, XB
 
 #define BPX		4				// bytes per pixel (fast define)
 
-void Image::ScaleRGBA32 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::ScaleRGBA32F ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	assert ( GetFormat()==dest_format );
-
+	/*
 	// Limitation: Rescaled size must match target buffer
 	int nx = destx;
-	int ny = desty;
+	int ny = desty;	
 
 	// Compute pixel addresses	
 	int dest_bpr = GetBytesPerRow(destx,desty,dest_format);
-	XBYTE* src;												// Current pixel in source
-	XBYTE* src_row;											// Current row in source (start of row)	
-	XBYTE* dest_rowend = dest + dest_bpr;					// End of row in dest
-	XBYTE* dest_end = dest + GetSize(destx,desty,dest_format);			// End of entire image in dest
+	float* src;												// Current pixel in source
+	float* src_row;											// Current row in source (start of row)	
+	float* dest_rowend = dest + dest_bpr;					// End of row in dest
+	float* dest_end = dest + GetSize(destx,desty,dest_format);			// End of entire image in dest
 	double delta_x = double(getInfo()->mXres-2) / double(nx);	// Filtering distances
 	double delta_y = double(getInfo()->mYres-2) / double(ny);
 	int iDiffX = int(delta_x*0.5) * BPX;						// Filtering deltas (in bytes)
@@ -216,20 +199,21 @@ void Image::ScaleRGBA32 ( XBYTE* dest, ImageOp::Format dest_format, int destx, i
 		}
 		sy += (float) delta_y;				
 		dest_rowend += dest_bpr;
-	}	
+	}	*/
 }
 
 
 // Alpha Paste - Copies alpha from another source
-void Image::AlphaRGBA32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
+void Image::AlphaRGBA32F ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
 {
-	XBYTE *src_start, *src_end;
-	XBYTE *dest, *dest_start, *dest_end, *dest_row;
+	float *src_start, *src_end;
+	float *dest, *dest_start, *dest_end, *dest_row;
 	int src_wid, src_pitch;
 	int dest_wid, dest_pitch, dest_bpr;
 
 	// Source is the alpha image (any format)
-	// Dest is 'this' image (RGBA32)
+	// Dest is 'this' image (RGBA8)
+	/* 
 	if ( getInfo()->QueryPaste ( src_format, src_x, src_y, src, x1, y1, x2, y2,
 		  GetFormat(), GetWidth(), GetHeight(), GetData(), 0, 0,
 		  src_start, src_end, src_wid, src_pitch,
@@ -245,7 +229,7 @@ void Image::AlphaRGBA32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::F
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( src_format==ImageOp::RGB24 ) {
+		} else if ( src_format==ImageOp::RGB8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start+3, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -257,7 +241,7 @@ void Image::AlphaRGBA32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::F
 				dest += dest_pitch;
 				src += src_pitch;
 			}			
-		} else if ( src_format==ImageOp::RGBA32 ) {
+		} else if ( src_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start+3, dest = dest_start+3, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -270,5 +254,6 @@ void Image::AlphaRGBA32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::F
 				src += src_pitch;
 			}			
 		}	
-	}
+	}*/
+
 }

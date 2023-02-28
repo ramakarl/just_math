@@ -54,6 +54,7 @@
 
 			//! Constructor
 			inline Quaternion(f32 x, f32 y, f32 z, f32 w)		{ set(x, y, z, w); }
+			inline Quaternion( Vector4DF v )					{ set(v.x, v.y, v.z, v.w); }	// copy from vec4
 
 			//! Constructor which converts euler angles (radians) to a Quaternion
 			inline Quaternion(f32 x, f32 y, f32 z)				{ set(x, y, z); }
@@ -102,6 +103,7 @@
 			//! Normalizes the Quaternion
 			Quaternion& normalize();
 
+
 			// Get operators
 			Matrix4F getMatrix() const;									// Creates a matrix from this Quaternion
 			void getMatrix( Matrix4F &dest, const Vector3DF &translation=Vector3DF() ) const;	// Creates a matrix from this Quaternion
@@ -114,9 +116,13 @@
 			Quaternion negative() { return Quaternion(X, Y, Z, -W); }	// -q = negative quaternion (-W)
 			Quaternion dual(Vector3DF pos);							// dual portion of a dual quaternion
 			
-			// Construct quaternion from orthonormal basis
-			Quaternion& toBasis (Vector3DF c1, Vector3DF c2, Vector3DF c3 );
-		
+			// Construct a quaternion..
+			Quaternion& fromBasis (Vector3DF c1, Vector3DF c2, Vector3DF c3 );		// From orthonormal basis
+			Quaternion& fromAngleAxis (f32 angle, const Vector3DF& axis);			// From rotation angle and axis			
+			Quaternion& fromRotationFromTo(Vector3DF from, Vector3DF to, float frac=1.0);	// From a rotation from one vector to another
+			Quaternion& fromDirectionAndUp ( Vector3DF fwd, Vector3DF up );			// From a direction and up vector
+			Quaternion& changeAngle (f32 angle);
+			
 			// Linear interpolation - Set this Quaternion to the linear interpolation 
 			// q1 = First Quaternion, q2 = Second quaternion, time = parametric value from 0 to 1
 			Quaternion& lerp(Quaternion q1, Quaternion q2, f32 time);
@@ -127,12 +133,6 @@
 			// at some point. This value defines how much of the remaining interpolation will be calculated with lerp. 
 			// Everything from 1-threshold up will be linear interpolation.
 			Quaternion slerp(Quaternion q1, Quaternion q2, f32 time, f32 threshold=.05f);
-
-			// Create Quaternion from rotation angle and rotation axis.
-			// Axis must be unit length. The Quaternion representing the rotation is
-			//   q = cos(A/2)+sin(A/2)*(x*i+y*j+z*k),  where angle = Rotation Angle in radians, axis = Rotation axis
-			Quaternion& fromAngleAxis (f32 angle, const Vector3DF& axis);
-			Quaternion& changeAngle (f32 angle);
 
 			// Fills an angle (radians) around an axis (unit vector)
 			void toAngleAxis (f32 &angle, Vector3DF& axis) const;
