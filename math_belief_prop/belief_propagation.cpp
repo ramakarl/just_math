@@ -1105,6 +1105,16 @@ float BeliefPropagation::BeliefProp_svd () {
   return max_diff;
 }
 
+// WARNING!
+// There might be a bug here.
+//
+// ./bpc -R ./assets/stair_rule.csv -N ./assets/stair_name.csv -I 100000000 -D 10 -G 4 -V 1 -S 124  -e 0.00025
+// ./bpc -R ./assets/stair_rule.csv -N ./assets/stair_name.csv -I 100000000 -D 10 -G 4 -V 1 -S 124  -e 0.00025 -E
+//
+// The svd option for the above fails to converge whereas the non-svd one converges.
+// These should be exactly equivalent, so there's something bad going on.
+//
+//
 float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
   int64_t nei_cell=0;
   int a_idx, a_idx_n;
