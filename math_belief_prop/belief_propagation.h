@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.4.1"
+#define BELIEF_PROPAGATION_VERSION "0.4.2"
 
 #define RUN_OPT_PTRS
 #define RUN_OPT_MUPTR
