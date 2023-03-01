@@ -289,6 +289,8 @@ public:
   //int   single_realize_lest_belief_cb (int64_t it, void (*cb)(void *));
 
   // core methods
+  int   RAMA_single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
+
   int   single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
   int   single_realize_min_entropy_max_belief_cb(int64_t it, void (*cb)(void *));
 

@@ -17,7 +17,7 @@ rule_fn="./stair_rule.csv"
 test_num=0
 test_str="4,3,1"
 res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | \
-  head -n1 | grep -o "$test_str"`
+  grep -P '^m_res: ' | grep -o "$test_str"`
 
 if [[ "$res" != "$test_str" ]] ; then
   echo "TEST $test_num FAILED: expected '$test_str' got '$res'"
@@ -130,7 +130,8 @@ fi
 
 test_num=16
 expect_res=`sha256sum bp_test16_output.txt | cut -f1 -d' '`
-actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | sha256sum | cut -f1 -d' '`
+#actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | sha256sum | cut -f1 -d' '`
+actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | grep -v -P ' version: |m_stat'  | sha256sum | cut -f1 -d' '`
 #res="$?"
 
 if [[ "$expect_res" != "$actual_res" ]] ; then

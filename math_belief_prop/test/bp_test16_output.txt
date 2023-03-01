@@ -1,9 +1,11 @@
 bpc init csv. (./stair_name.csv, ./stair_rule.csv)
 (4,4,4) got: 0
+m_verbose: 0
 m_res: (4,4,4)
 m_bpres: (4,4,4)
 m_num_verts: 64, m_num_values: 46
-m_eps_converge: 0.000977, m_eps_zero: 0.000000
+m_run_cuda: 0, m_use_svd: 0, m_use_checkerboard: 0
+m_eps_converge: 0.000977, m_eps_zero: 0.000000, m_rate: 0.980000, m_max_iteration: 1024, seed: 1
 m_tile_name[46]:
 
  .000( 0):0.0217) |000( 1):0.0217) |001( 2):0.0217) |010( 3):0.0217) |011( 4):0.0217) |100( 5):0.0217) |101( 6):0.0217)

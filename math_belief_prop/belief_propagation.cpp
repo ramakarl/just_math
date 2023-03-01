@@ -363,7 +363,7 @@ float BeliefPropagation::MaxDiffMU () {
     if ( max_diff > max_overall ) {max_overall = max_diff;}
     //printf ( "max overall: %f\n", max_overall );
 
-    SetVal ( BUF_VIZ, j, max_diff );        
+    SetVal ( BUF_VIZ, j, max_diff );
 
   }
 
@@ -2983,7 +2983,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   // will need a corresponding bookeeping call to indexXHeap
   // to keep track of the maximum difference between
   // the two buffers and corresponding cell index information.
-  // 
+  //
   d = step(1);
   d = step(0);
   indexHeap_init();
@@ -3260,8 +3260,28 @@ int BeliefPropagation::single_realize_cb (int64_t it, void (*cb)(void *)) {
 
 
 
+// NOTE: this is setup to be called by app_belief_prop.cpp.
+// The idea behind having a 'step' function was to essentially
+// do what this function is doing and have the 'single_realize...' be
+// wrappers around the step function, instead of then wrapping the single
+// step in it's own single step
+//
+// There's some pre and post processing that needs to be done, so maybe it's
+// better to wrap those in their own function.
+//
+// So something, like:
+//
+//   step_pre()  - supposed to be called before step (NormalizeMu)
+//   step()      - as is
+//   step_post() - do any post processing, assuming it's converged
+//
+// There's a question how to break these out, what information should be
+// passed/saved and what helper functions should be provided, but the
+// below function is, imo, the worst of both worlds.
+//
+//
 
-int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void *)) {
+int BeliefPropagation::RAMA_single_realize_max_belief_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   int64_t cell=-1;
   int32_t tile=-1, tile_idx=-1;
@@ -3275,7 +3295,7 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
       // after we've propagated constraints, BUF_MU
       // needs to be renormalized
       //
-      NormalizeMU();     
+      NormalizeMU();
 
   } else if ( m_step_iter < m_max_iteration ) {
 
@@ -3333,10 +3353,70 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
       return 2;
 
       // non-error but still processing
-      //      
+      //
   }
-  
+
   m_step_iter++;
+
+  return 1;
+}
+
+int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void *)) {
+  int ret;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1;
+  float belief=-1.0, d = -1.0;
+  float _eps = m_eps_converge;
+
+  // after we've propagated constraints, BUF_MU
+  // needs to be renormalized
+  //
+  NormalizeMU();
+
+
+  for (m_step_iter=0; m_step_iter< m_max_iteration; m_step_iter++) {
+
+    // Single step
+
+    d = step(1);
+
+    if (m_verbose > 1) {
+      if ((m_step_iter>0) && ((m_step_iter % 10)==0)) {
+        printf("  [%i/%i] step_iter %i (d:%f)\n", (int) it, (int)m_num_verts, (int) m_step_iter, d); fflush(stdout);
+        if (m_verbose > 2) { gp_state_print(); }
+      }
+    }
+
+    if (cb && ((m_step_iter % m_step_cb) == 0)) {
+      m_state_info_d = d;
+      m_state_info_iter = m_step_iter;
+      cb(NULL);
+    }
+    if (fabs(d) < _eps) { m_step_iter = m_max_iteration; }
+
+  }
+
+  // choose single cell and propagate choice
+  //
+  ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+  if (ret < 0) { return -1; }
+
+  // (success) overall end condition, all cell positions have exactly
+  // one tile in them. return 0 = completed map
+  //
+  if (ret==0) return 0;
+
+  ret = tileIdxCollapse( cell, tile_idx );
+  if (ret < 0) { return -2; }
+
+  m_note_n[ m_grid_note_idx ] = 0;
+  m_note_n[ 1-m_grid_note_idx ] = 0;
+
+  cellFillAccessed(cell, m_grid_note_idx);
+  unfillAccessed(m_grid_note_idx);
+
+  ret = cellConstraintPropagate();
+  if (ret < 0) { return -3; }
 
   return 1;
 }
@@ -3469,7 +3549,7 @@ float BeliefPropagation::step(int update_mu) {
     #ifdef RUN_OPT_MUBOUND
         WriteBoundaryMU();
         WriteBoundaryMUbuf(BUF_MU_NXT);
-    
+
         //EXPERIMENTS
         NormalizeMU( BUF_MU );
     #endif
@@ -3504,7 +3584,7 @@ float BeliefPropagation::step(int update_mu) {
 // idir, cell, tile should be the value to update in the MU buf.
 // That is:
 //
-//   MU[idir][cell][tile] = MU_NXT[idir][cell][tile] 
+//   MU[idir][cell][tile] = MU_NXT[idir][cell][tile]
 //
 // Once that's done, update all neighboring values that would be affected by this change,
 // updating MU_NXT with the new values but also the indexHeap structure to do the
