@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.4.0"
+#define BELIEF_PROPAGATION_VERSION "0.4.1"
 
 #define RUN_OPT_PTRS
 #define RUN_OPT_MUPTR
@@ -131,6 +131,21 @@ public:
     m_use_checkerboard = 0;
 
     m_index_heap_size = 0;
+
+    m_stat_enabled = 1;
+    m_stat_avg_iter = 0.0;
+
+    // unused...
+    m_stat_second_moment_iter = 0.0;
+
+    m_stat_cur_iter = 0;
+    m_stat_max_iter = 0;
+    m_stat_num_culled = 0;
+    m_stat_num_collapsed = 0;
+
+    // unused...
+    m_stat_num_chosen = 0;
+
   };
 
   bool _init();
@@ -301,8 +316,10 @@ public:
   float  step_residue(int32_t idir, int64_t cell, int32_t tile);
 
   float   BeliefProp();
-  float   BeliefProp_cell_residue(int64_t);
   float   BeliefProp_svd ();
+
+  float   BeliefProp_cell_residue(int64_t);
+  float   BeliefProp_cell_residue_svd(int64_t);
 
   void    UpdateMU ();
 
@@ -414,6 +431,19 @@ public:
   int64_t   m_max_iteration;
 
   int64_t   m_index_heap_size;
+
+  // run time statistics and other information
+  //
+
+  void    UpdateRunTimeStat(int64_t num_step);
+  int32_t m_stat_enabled;
+  double  m_stat_avg_iter,
+          m_stat_second_moment_iter;
+  int64_t m_stat_cur_iter,
+          m_stat_max_iter,
+          m_stat_num_culled,
+          m_stat_num_collapsed,
+          m_stat_num_chosen;
 
 };
 

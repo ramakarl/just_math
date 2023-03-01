@@ -1,6 +1,16 @@
 TODO
 ===
 
+###### 2023-02-28
+
+* make sure wfc option is working
+* other window sizes and geometries for img2tile
+* 3d output
+* config file
+* avg color for tilename
+* figure out location and generation of js tilesets (stair)
+* 3d pipe tileset (js?)
+
 ###### 2023-02-22
 
 * extend img2tile to accomodate 3x3 and other windows

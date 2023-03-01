@@ -540,9 +540,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
   anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
 
-  //DEBUG
-  //printf("\n  bp_rz[anch_cell:%i]\n", (int)anch_cell);
-
   // 6 neighbors of j in 3D
   //
   for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
@@ -560,11 +557,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
-        //DEBUG
-        //printf("    bp_cell_rz.0: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
-        //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
-        //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
-
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
       }
@@ -578,11 +570,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
         mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
-
-        //DEBUG
-        //printf("    bp_cell_rz.1: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
-        //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
-        //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
 
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -609,11 +596,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
         mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
 
-        //DEBUG
-        //printf("    bp_cell_rz.2: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
-        //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
-        //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
-
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
       }
@@ -637,11 +619,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
       for (nei_in_idx=0; nei_in_idx < getNumNeighbors(nei_cell); nei_in_idx++ ) {
         _neinei_cell = getNeighbor(nei_cell, nei_in_idx);
         if (nei_in_idx != nei_in_ignore) { H_ij_a *= *currMu; }
-
-        //DEBUG
-        //printf("  bp_rz: nei_idir:%i,nei_cell:%i,nei_tile:%i, currMu:%f, H_ij_a:%f\n",
-        //    (int)nei_in_idx, (int)nei_cell, (int)nei_tile,
-        //    (float)(*currMu), (float)H_ij_a);
 
         currMu++;
       }
@@ -679,11 +656,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
       mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
       mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
-
-      //DEBUG
-      //printf("    bp_cell_rz.3: (idir:%i,cell:%3i,tile:%3i) -> |%f-%f|=%f\n",
-      //    (int)anch_in_idx, (int)anch_cell, (int)anch_tile,
-      //    mu_cur_val, mu_nxt_val, fabs(mu_cur_val - mu_nxt_val) );
 
       indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -1127,6 +1099,177 @@ float BeliefPropagation::BeliefProp_svd () {
 
     }
 
+
+  }
+
+  return max_diff;
+}
+
+float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
+  int64_t nei_cell=0;
+  int a_idx, a_idx_n;
+  int a, b, d, r, c;
+
+  int anch_tile_idx, anch_tile_idx_n;
+  int nei_tile_idx, nei_tile_idx_n;
+  int anch_tile, nei_tile;
+  int64_t _neinei_cell;
+
+  int nei_in_idx, anch_in_idx;
+  int nei_out_idx, anch_out_idx;
+  int nei_to_anch_dir_idx;
+
+  float H_ij_a;
+  float u_nxt_b, u_prev_b;
+  float mu_j, du;
+  float mu_val;
+
+  float rate = 1.0,
+        max_diff=-1.0,
+        mu_cur_val,
+        mu_nxt_val;
+
+  int   odd_even_cell = -1;
+
+  rate = m_rate;
+
+  Vector3DI jp;
+
+  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  jp = getVertexPos(anch_cell);
+
+  // 6 neighbors of j in 3D
+  //
+  for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+    nei_cell = getNeighbor(anch_cell, jp, anch_in_idx);
+
+    // pathological conditions
+    // * cell has none (which is an error) or only 1 tile
+    // * cell's neighbor falls off the end
+    //
+    if (anch_tile_idx_n <= 1) {
+      if (anch_tile_idx_n == 1) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
+        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+
+        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
+        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
+      }
+      continue;
+    }
+    if (nei_cell == -1) {
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+
+        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
+        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
+      }
+      continue;
+    }
+
+    // compute message from `nei` to `anch` for each a..
+    // we're skipping some tiles, so zero out H
+    //
+    for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
+
+    nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+
+    // pathological condition
+    // * neighbor cell has 0 values (error) or only 1
+    //
+    if (nei_tile_idx_n <= 1) {
+      for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+
+        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
+        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
+      }
+      continue;
+    }
+
+    //Vector3DI jp = getVertexPos(nei_cell);
+    //
+    int numbrs = getNumNeighbors(nei_cell);
+
+    // cache direction in which to ignore anch_cell
+    //
+    int nei_in_ignore = getOppositeDir( anch_in_idx );
+
+    // process all tiles for current nei_cell
+    //
+    for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
+
+      nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
+
+      // first compute Hij_t
+      // initialize Hij(a) = gi(a)
+      //
+      H_ij_a = getVal(BUF_G, nei_tile);
+
+      // starting MU for nei_cell and tile
+      //
+      float* currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+
+      // inner loop over neighbors of nei_cell
+      //
+      for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
+
+        // compute: Hij(a) = gi(a) * PROD mu{ki}_a
+
+        // Optimized:
+        // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
+        // - Use direction instead of cell pos to eliminate anchor cell
+
+        // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
+        if (nei_in_idx != nei_in_ignore) {
+          H_ij_a *= *currMu;
+        }
+        currMu++;
+
+      }
+
+      SetVal (BUF_H, nei_tile, H_ij_a);
+    }
+
+
+    //--- ***************
+    //--- ***************
+    //--- ***************
+
+    for (d=0; d < m_num_values; d++) { SetVal( BUF_SVD_VEC, d, 0.0); }
+
+    for (r=0; r < m_svd_nsv[anch_in_idx]; r++) {
+      u_nxt_b = 0.0;
+
+      for (c=0; c < m_num_values; c++) {
+        u_nxt_b += getValF( BUF_SVD_Vt, r, c, anch_in_idx ) * getVal( BUF_H, c );
+      }
+
+      SetVal( BUF_SVD_VEC, r, u_nxt_b );
+    }
+
+    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+
+      u_nxt_b = 0.0;
+      for (c=0; c < m_svd_nsv[anch_in_idx]; c++) {
+        u_nxt_b += getValF( BUF_SVD_U, anch_tile, c, anch_in_idx ) * getVal( BUF_SVD_VEC, c );
+      }
+
+      u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
+      du = u_nxt_b - u_prev_b;
+      if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
+      SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
+
+      mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
+      mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+      indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
+    }
 
   }
 
@@ -2860,6 +3003,8 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 
   //----
 
+  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
+
   // we've converged in BP, so now we choose a cell/tile to collapse
   // and propagate out the implications of that choice.
   //
@@ -2925,6 +3070,8 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
 
     if (fabs(d) < _eps) { break; }
   }
+
+  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
 
   // choose the cell and propagate choice
   //
@@ -2992,6 +3139,8 @@ int BeliefPropagation::single_realize_min_belief_cb (int64_t it, void (*cb)(void
     if (fabs(d) < _eps) { break; }
   }
 
+  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
+
   // choose the cell and propagate choice
   //
   ret = chooseMinBelief( &cell, &tile, &tile_idx, &belief );
@@ -3056,6 +3205,8 @@ int BeliefPropagation::single_realize_min_entropy_min_belief_cb (int64_t it, voi
 
     if (fabs(d) < _eps) { break; }
   }
+
+  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
 
   // choose the cell and propagate choice
   //
@@ -3138,6 +3289,9 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
         cb(NULL);
       }
       if (fabs(d) < _eps) { m_step_iter = m_max_iteration; }
+
+      //if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
+
 
   } else {
 
@@ -3356,19 +3510,10 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
   int32_t _t;
   int64_t n_tile_idx, tile_idx;
 
-  //DEBUG
-  //printf("  step_residue: SET (idir:%i,cell:%i,tile:%i) to %f from %f\n",
-  //    (int)idir, (int)cell, (int)tile,
-  //    (float)getVal( BUF_MU, idir, cell, tile ),
-  //    (float)getVal( BUF_MU_NXT, idir, cell, tile ));
-
   // update BUF_MU with new value
   //
   mu_new = getVal( BUF_MU_NXT, idir, cell, tile );
   SetVal( BUF_MU, idir, cell, tile, mu_new );
-
-  //DEBUG
-  //printf("  step_residue: normalizing cell:%i (BUF_MU)\n", (int)cell);
 
   // the single update to cell:tile requires a
   // renormalization, which can alter all values
@@ -3386,7 +3531,9 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
     nei_cell = getNeighbor( cell, dir_idx );
     if (nei_cell < 0) { continue; }
 
-    BeliefProp_cell_residue(nei_cell);
+    if (m_use_svd)  { BeliefProp_cell_residue_svd(nei_cell); }
+    else            { BeliefProp_cell_residue(nei_cell); }
+
     NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
   }
 
@@ -3472,6 +3619,16 @@ int32_t BeliefPropagation::tileName2ID (char *cs) {
   std::string tile_name = cs;
   return tileName2ID(tile_name);
 }
+
+void BeliefPropagation::UpdateRunTimeStat(int64_t num_step) {
+  m_stat_cur_iter++;
+  m_stat_avg_iter =
+    ((((double)(m_stat_cur_iter-1))*m_stat_avg_iter) + ((double)num_step)) / ((double)m_stat_cur_iter);
+  if (num_step > m_stat_max_iter) {
+    m_stat_max_iter = num_step;
+  }
+}
+
 
 // print out state of BUF_NOTE, BUF_VISITED and BUF_CONSIDER
 //
@@ -3567,6 +3724,14 @@ void BeliefPropagation::debugPrint() {
       (float)m_eps_converge, (float)m_eps_zero,
       (float)m_rate, (int)m_max_iteration,
       (int)m_seed);
+  printf("m_stat_enabled: %i\n", (int)m_stat_enabled);
+  if (m_stat_enabled) {
+    float f_ele = (float)(m_num_values * m_num_verts);
+    printf("m_stat_max_iter: %i, m_stat_avg_iter: %f\n", (int)m_stat_max_iter, (float)m_stat_avg_iter);
+    printf("m_stat_num_culled: %i (density %f), m_stat_num_collapsed: %i (density %f)\n",
+        (int)m_stat_num_culled, (float)m_stat_num_culled / f_ele,
+        (int)m_stat_num_collapsed, (float)m_stat_num_collapsed / f_ele);
+  }
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
@@ -3815,6 +3980,10 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
   SetVali( BUF_TILE_IDX, pos, 0, tile_val );
   SetVali( BUF_TILE_IDX, pos, tile_idx, tv );
   SetVali( BUF_TILE_IDX_N, pos, 1 );
+
+  if (m_stat_enabled) {
+    m_stat_num_collapsed += n-1;
+  }
 
   return 0;
 }
@@ -4086,6 +4255,10 @@ int BeliefPropagation::removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx) {
   SetVali( BUF_TILE_IDX, anch_cell, anch_tile_idx, tval);
 
   SetVali( BUF_TILE_IDX_N, anch_cell, anch_tile_n );
+
+  if (m_stat_enabled) {
+    m_stat_num_culled += 1;
+  }
 
   return 0;
 }
