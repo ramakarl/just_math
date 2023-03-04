@@ -153,7 +153,7 @@ bool CImageFormat::TransferBitmap ( HBITMAP hBmp )
 			} else {
 				// New image does not have same dimensions as old one. Create new image.
 				// (old one will be deleted automatically by Image::Load)
-				m_pNewImage = new ImageRGB24 ( m_Xres, m_Yres );		// Create RGBA Image
+				m_pNewImage = new ImageRGB8 ( m_Xres, m_Yres );		// Create RGBA Image
 			}
 			pDestData = (XBYTE *) m_pNewImage->GetData();
 			m_BytesPerRow = m_pNewImage->GetBytesPerRow();
@@ -175,7 +175,7 @@ bool CImageFormat::TransferBitmap ( HBITMAP hBmp )
 			} else {
 				// New image does not have same dimensions as old one. Create new image.
 				// (old one will be deleted automatically by Image::Load)
-				m_pNewImage = new ImageRGBA32 ( m_Xres, m_Yres );		// Create RGBA Image
+				m_pNewImage = new ImageRGBA8 ( m_Xres, m_Yres );		// Create RGBA Image
 			}				
 			pDestData = (XBYTE *) m_pNewImage->GetData ();
 			m_BytesPerRow = m_pNewImage->GetBytesPerRow();

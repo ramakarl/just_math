@@ -108,10 +108,18 @@ uint32_t Mersenne::randI(int max)
 {
     return (uint64_t(randI()) * uint64_t(max)) / I32_MAX;
 }
+uint32_t Mersenne::randI(int vmin, int vmax)
+{
+    return vmin + (uint64_t(randI()) * uint64_t(vmax-vmin)) / I32_MAX;
+}
 float Mersenne::randF()
 {
     // range: 0 to 1
     return float(randI()) / I32_MAX;
+}
+float Mersenne::randF(float vmin, float vmax)
+{
+    return vmin + float(randI() * (vmax - vmin)) / I32_MAX;
 }
 Vector3DF Mersenne::randV3()
 {
@@ -122,10 +130,33 @@ Vector3DF Mersenne::randV3()
 }
 Vector3DF Mersenne::randV3(float vmin, float vmax)
 {
-    return Vector3DF(vmin + float(randI()*(vmax-vmin)) / I32_MAX,
-                     vmin + float(randI()*(vmax - vmin)) / I32_MAX,
-                     vmin + float(randI()*(vmax - vmin)) / I32_MAX );
+    float a = vmin + float(randI() * (vmax - vmin)) / I32_MAX;
+    float b = vmin + float(randI() * (vmax - vmin)) / I32_MAX;
+    float c = vmin + float(randI() * (vmax - vmin)) / I32_MAX;
+    return Vector3DF(a, b, c );
 }
+Vector3DF Mersenne::randV3(Vector3DF vmin, Vector3DF vmax)
+{
+    float a = vmin.x + float(randI() * (vmax.x - vmin.x)) / I32_MAX;
+    float b = vmin.y + float(randI() * (vmax.y - vmin.y)) / I32_MAX;
+    float c = vmin.z + float(randI() * (vmax.z - vmin.z)) / I32_MAX;
+    return Vector3DF(a, b, c );
+}
+Vector4DF Mersenne::randV4(float vmin, float vmax)
+{
+    return Vector4DF(vmin + float(randI() * (vmax - vmin)) / I32_MAX,
+                    vmin + float(randI() * (vmax - vmin)) / I32_MAX,
+                    vmin + float(randI() * (vmax - vmin)) / I32_MAX,
+                    vmin + float(randI() * (vmax - vmin)) / I32_MAX);
+}
+Vector4DF Mersenne::randV4(Vector4DF vmin, Vector4DF vmax)
+{
+    return Vector4DF(vmin.x + float(randI() * (vmax.x - vmin.x)) / I32_MAX,
+                    vmin.y + float(randI() * (vmax.y - vmin.y)) / I32_MAX,
+                    vmin.z + float(randI() * (vmax.z - vmin.z)) / I32_MAX,
+                    vmin.w + float(randI() * (vmax.w - vmin.w)) / I32_MAX);
+}
+
 
 Quaternion Mersenne::randQ()
 {

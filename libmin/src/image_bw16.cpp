@@ -1,20 +1,3 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
 
 #include "image.h"
 
@@ -99,7 +82,7 @@ void Image::ReformatBW16 ( ImageOp::Format eFormat )
 			*dest++ = *src++;			
 		}		
 		} break;
-	case ImageOp::RGB24: {
+	case ImageOp::RGB8: {
 		XBYTE* dest = (XBYTE*) new_img->GetData ();		
 		for (; src < src_stop; ) {
 			*dest++ = (XBYTE) *src;
@@ -107,7 +90,7 @@ void Image::ReformatBW16 ( ImageOp::Format eFormat )
 			*dest++ = (XBYTE) *src++;			
 		}		
 		} break; 
-	case ImageOp::BGR24: {
+	case ImageOp::BGR8: {
 		XBYTE* dest = (XBYTE*) new_img->GetData ();		
 		for (; src < src_stop; ) {
 			*dest++ = (XBYTE) *src;
@@ -115,7 +98,7 @@ void Image::ReformatBW16 ( ImageOp::Format eFormat )
 			*dest++ = (XBYTE) *src++;
 		}	
 		} break;
-	case ImageOp::RGBA32: {
+	case ImageOp::RGBA8: {
 		XBYTE* dest = (XBYTE*) new_img->GetData ();
 		for (; src < src_stop; ) {
 			*dest++ = (XBYTE) *src;
@@ -154,7 +137,7 @@ void Image::PasteBW16 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYT
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( dest_format==ImageOp::RGB24 ) {	
+		} else if ( dest_format==ImageOp::RGB8 ) {	
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -166,7 +149,7 @@ void Image::PasteBW16 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYT
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( dest_format==ImageOp::RGBA32 ) {
+		} else if ( dest_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -245,7 +228,7 @@ void Image::AlphaBW16 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::For
 	int dest_wid, dest_pitch, dest_bpr;
 
 	// Source is the alpha image (any format)
-	// Dest is 'this' image (RGBA32)
+	// Dest is 'this' image (RGBA8)
 	if ( getInfo()->QueryPaste ( src_format, src_x, src_y, src, x1, y1, x2, y2,
 		  GetFormat(), GetWidth(), GetHeight(), GetData(), 0, 0,
 		  src_start, src_end, src_wid, src_pitch,
@@ -257,7 +240,7 @@ void Image::AlphaBW16 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::For
 				src += GetBytesPerRow ();
 				dest += dest_bpr;
 			}
-		} else if ( src_format==ImageOp::RGB24 ) {
+		} else if ( src_format==ImageOp::RGB8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {
@@ -268,7 +251,7 @@ void Image::AlphaBW16 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::For
 				dest += dest_pitch;
 				src += src_pitch;
 			}
-		} else if ( src_format==ImageOp::RGBA32 ) {
+		} else if ( src_format==ImageOp::RGBA8 ) {
 			dest_bpr = getInfo()->GetBytesPerRow();
 			for (src = src_start+3, dest = dest_start, dest_row = dest_start+dest_wid; dest < dest_end;) {
 				for ( ; dest < dest_row; ) {

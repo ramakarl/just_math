@@ -22,7 +22,6 @@
 
 #include "vec.h"
 #include "quaternion.h"
-#include "camera3d.h"
 
 #undef VTYPE
 #define VTYPE	float
@@ -421,6 +420,15 @@ Vector3DF Vector3DF::Cross(const Vector3DF& v1, const Vector3DF& v2)
 	return c;
 }
 
+Vector3DF Vector3DF::PolarToCartesianX (Vector3DF angs)
+{
+	Vector3DF c;
+	c.x = sin(angs.x * DEGtoRAD);								// pole along X-axis, 
+	c.y = cos(angs.x * DEGtoRAD) * sin(angs.y * DEGtoRAD);		// ang.x = latitude (-90 to 90)
+	c.z = cos(angs.x * DEGtoRAD) * cos(angs.y * DEGtoRAD);		// ang.y = longitude (0 to 360, 0 toward Z-axis)
+	return c;
+}
+
 Vector3DF &Vector3DF::Normalize (void) {
 	double n = (double) x*x + (double) y*y + (double) z*z;
 	if (n!=0.0) {
@@ -546,14 +554,14 @@ Vector4DF &Vector4DF::operator/= (const Vector3DI &op) {x/=(VTYPE) op.x; y/=(VTY
 Vector4DF &Vector4DF::operator/= (const Vector3DF &op) {x/=(VTYPE) op.x; y/=(VTYPE) op.y; z/=(VTYPE) op.z; return *this;}
 Vector4DF &Vector4DF::operator/= (const Vector4DF &op) {x/=(VTYPE) op.x; y/=(VTYPE) op.y; z/=(VTYPE) op.z; w/=(VTYPE) op.w; return *this;}	
 
-Vector4DF &Vector4DF::Cross (const Vector4DF &v) {
-	double ax = x, ay = y, az = z, aw = w; 
-	x = (VTYPE) (ay * (double) v.z - az * (double) v.y); 
-	y = (VTYPE) (-ax * (double) v.z + az * (double) v.x); 
-	z = (VTYPE) (ax * (double) v.y - ay * (double) v.x); 
-	w = (VTYPE) 0; 
-	//return Vector4DF(x,y,z,w);
-	return *this;
+Vector4DF Vector4DF::Cross (const Vector4DF &v) 
+{
+	Vector4DF c;
+	c.x = (VTYPE) (double(y) * (double) v.z - double(z) * (double) v.y); 
+	c.y = (VTYPE) (-double(x) * (double) v.z + double(z) * (double) v.x); 
+	c.z = (VTYPE) (double(x) * (double) v.y - double(y) * (double) v.x); 
+	c.w = (VTYPE) 0; 
+	return c;
 }
 		
 double Vector4DF::Dot(const Vector4DF &v)			{double dot; dot = (double) x*v.x + (double) y*v.y + (double) z*v.z + (double) w*v.w; return dot;}
@@ -633,8 +641,15 @@ Vector4DD &Vector4DD::operator/= (const Vector3DF &op) {x/=(VTYPE) op.x; y/=(VTY
 Vector4DD &Vector4DD::operator/= (const Vector4DF &op) {x/=(VTYPE) op.x; y/=(VTYPE) op.y; z/=(VTYPE) op.z; w/=(VTYPE) op.w; return *this;}	
 Vector4DD &Vector4DD::operator/= (const Vector4DD &op) {x/=(VTYPE) op.x; y/=(VTYPE) op.y; z/=(VTYPE) op.z; w/=(VTYPE) op.w; return *this;}	
 
-
-Vector4DD &Vector4DD::Cross (const Vector4DD &v) {double ax = x, ay = y, az = z, aw = w; x = (VTYPE) (ay * (double) v.z - az * (double) v.y); y = (VTYPE) (-ax * (double) v.z + az * (double) v.x); z = (VTYPE) (ax * (double) v.y - ay * (double) v.x); w = (VTYPE) 0; return *this;}
+Vector4DD Vector4DD::Cross(const Vector4DD& v)
+{
+	Vector4DD c;
+	c.x = (VTYPE)(double(y) * (double)v.z - double(z) * (double)v.y);
+	c.y = (VTYPE)(-double(x) * (double)v.z + double(z) * (double)v.x);
+	c.z = (VTYPE)(double(x) * (double)v.y - double(y) * (double)v.x);
+	c.w = (VTYPE)0;
+	return c;
+}
 		
 double Vector4DD::Dot(const Vector4DD &v)			{double dot; dot = (double) x*v.x + (double) y*v.y + (double) z*v.z + (double) w*v.w; return dot;}
 
@@ -821,19 +836,6 @@ Matrix4F &Matrix4F::operator*= (const float* op) {
 	data[15] = op[12]*orig[3] + op[13]*orig[7] + op[14]*orig[11] + op[15]*orig[15];
 
 	return *this;
-}
-
-
-Matrix4F &Matrix4F::Transpose (void)
-{
-	register float orig[16];				// Temporary storage
-	memcpy ( orig, data, 16*sizeof(VTYPE) );
-	
-	data[0] = orig[0];	data[1] = orig[4];	data[2] = orig[8];	data[3] = orig[12];
-	data[4] = orig[1];	data[5] = orig[5];	data[6] = orig[9];	data[7] = orig[13];
-	data[8] = orig[2];	data[9] = orig[6];	data[10] = orig[10];data[11] = orig[14];
-	data[12] = orig[3];	data[13] = orig[7];	data[14] = orig[11];data[15] = orig[15];
-	return *this;	
 }
 
 Matrix4F &Matrix4F::Identity ()
@@ -1329,6 +1331,167 @@ Matrix4F &Matrix4F::InverseView ( const float* mat, const Vector3DF& pos)
 Vector4DF Matrix4F::GetT ( float* mat )
 {
 	return Vector4DF ( mat[12], mat[13], mat[14], 1.0 );
+}
+
+// equivalent to gluLookAt
+Matrix4F& Matrix4F::makeLookAt(Vector3DF eye, Vector3DF target, Vector3DF up)
+{
+	Vector3DF xaxis, yaxis, zaxis;
+	zaxis = eye-target;			zaxis.Normalize();		// 'forward' vector
+	xaxis = up.Cross(zaxis);	xaxis.Normalize();		// 'side' vector
+	yaxis = zaxis.Cross(xaxis); yaxis.Normalize();		// 'up' vector
+	toBasisInv(xaxis, yaxis, zaxis);	
+	return (*this);
+}
+
+// equivalent to gluLookAt (this one returns the orientation vectors)
+Matrix4F& Matrix4F::makeLookAt(Vector3DF eye, Vector3DF target, Vector3DF up, Vector3DF& xaxis, Vector3DF& yaxis, Vector3DF& zaxis)
+{
+	zaxis = eye - target;			zaxis.Normalize();		// 'forward' vector
+	xaxis = up.Cross(zaxis);	xaxis.Normalize();		// 'side' vector
+	yaxis = zaxis.Cross(xaxis); yaxis.Normalize();		// 'up' vector
+	toBasisInv(xaxis, yaxis, zaxis);
+	return (*this);
+}
+
+// inverse of the upper 3x3 of an orthogonal matrix is its transpose (R^-1 = Rt)    t = transpose, T = translation
+// inverse of the translation components is their inverse rotation. (TR)^-1 = R^-1 T^-1 = Rt T => rotate the translation
+Matrix4F& Matrix4F::makeOrthogonalInverse (Matrix4F& s )
+{
+	data[0] = s.data[0]; data[1] = s.data[4]; data[2] = s.data[8]; data[3] = 0.0f;
+	data[4] = s.data[1]; data[5] = s.data[5]; data[6] = s.data[9]; data[7] = 0.0f;
+	data[8] = s.data[2]; data[9] = s.data[6]; data[10] = s.data[10]; data[11] = 0.0f;
+	data[12] = -(s.data[12] * s.data[0]) - (s.data[13] * s.data[1]) - (s.data[14] * s.data[2]);
+	data[13] = -(s.data[12] * s.data[4]) - (s.data[13] * s.data[5]) - (s.data[14] * s.data[6]);
+	data[14] = -(s.data[12] * s.data[8]) - (s.data[13] * s.data[9]) - (s.data[14] * s.data[10]);
+	data[15] = 1.0f;
+	
+	return (*this);
+}
+
+
+// equivalent to glOrtho
+Matrix4F& Matrix4F::makeOrtho(float left, float right, float bottom, float top, float minz, float maxz)
+{
+	memset ( data, 0, 16*sizeof(float));
+	data[0] = 2/(right-left);	
+	data[5] = 2/(top-bottom);
+	data[10] = -2/(maxz-minz);
+	data[12] = -(right+left)/(right-left);
+	data[13] = -(top+bottom)/(top-bottom);
+	data[14] = -(maxz+minz)/(maxz-minz);
+	data[15] = 1;	
+	return (*this);
+}
+
+
+Matrix4F Matrix4F::Inverse (Matrix4F& m) 
+{
+	Matrix4F minv;
+	VTYPE r1[8], r2[8], r3[8], r4[8];
+	VTYPE* s[4], * tmprow;
+	s[0] = &r1[0]; s[1] = &r2[0]; s[2] = &r3[0]; s[3] = &r4[0];
+
+	register int i, j, p, jj;
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			s[i][j] = m(i, j);
+			if (i == j) s[i][j + 4] = 1.0;
+			else     s[i][j + 4] = 0.0;
+		}
+	}
+	VTYPE scp[4];
+	for (i = 0; i < 4; i++) {
+		scp[i] = VTYPE(fabs(s[i][0]));
+		for (j = 1; j < 4; j++)
+			if (VTYPE(fabs(s[i][j])) > scp[i]) scp[i] = VTYPE(fabs(s[i][j]));
+		if (scp[i] == 0.0) return minv; // singular matrix!
+	}
+
+	int pivot_to;
+	VTYPE scp_max;
+	for (i = 0; i < 4; i++) {
+		// select pivot row
+		pivot_to = i;
+		scp_max = VTYPE(fabs(s[i][i] / scp[i]));
+		// find out which row should be on top
+		for (p = i + 1; p < 4; p++)
+			if (VTYPE(fabs(s[p][i] / scp[p])) > scp_max) {
+				scp_max = VTYPE(fabs(s[p][i] / scp[p]));
+				pivot_to = p;
+			}
+		// Pivot if necessary
+		if (pivot_to != i) {
+			tmprow = s[i];
+			s[i] = s[pivot_to];
+			s[pivot_to] = tmprow;
+			VTYPE tmpscp;
+			tmpscp = scp[i];
+			scp[i] = scp[pivot_to];
+			scp[pivot_to] = tmpscp;
+		}
+
+		VTYPE mji;
+		// perform gaussian elimination
+		for (j = i + 1; j < 4; j++) {
+			mji = s[j][i] / s[i][i];
+			s[j][i] = 0.0;
+			for (jj = i + 1; jj < 8; jj++)
+				s[j][jj] -= mji * s[i][jj];
+		}
+	}
+	if (s[3][3] == 0.0) return minv; // singular matrix!
+
+	//
+	// Now we have an upper triangular matrix.
+	//
+	//  x x x x | y y y y
+	//  0 x x x | y y y y 
+	//  0 0 x x | y y y y
+	//  0 0 0 x | y y y y
+	//
+	//  we'll back substitute to get the inverse
+	//
+	//  1 0 0 0 | z z z z
+	//  0 1 0 0 | z z z z
+	//  0 0 1 0 | z z z z
+	//  0 0 0 1 | z z z z 
+	//
+
+	VTYPE mij;
+	for (i = 3; i > 0; i--) {
+		for (j = i - 1; j > -1; j--) {
+			mij = s[j][i] / s[i][i];
+			for (jj = j + 1; jj < 8; jj++)
+				s[j][jj] -= mij * s[i][jj];
+		}
+	}
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+			minv(i, j) = s[i][j + 4] / s[i][i];
+
+	return minv;
+}
+
+Matrix4F Matrix4F::Transpose(Matrix4F& m) 
+{
+	Matrix4F mtrans;
+	for (int i = 0; i < 4; i++)
+		for (int j = 0; j < 4; j++)
+			mtrans(i, j) = m(j, i);
+	return mtrans;
+}
+Matrix4F& Matrix4F::Transpose()
+{
+	register float orig[16];				// Temporary storage
+	memcpy(orig, data, 16 * sizeof(VTYPE));
+
+	data[0] = orig[0];	data[1] = orig[4];	data[2] = orig[8];	data[3] = orig[12];
+	data[4] = orig[1];	data[5] = orig[5];	data[6] = orig[9];	data[7] = orig[13];
+	data[8] = orig[2];	data[9] = orig[6];	data[10] = orig[10]; data[11] = orig[14];
+	data[12] = orig[3];	data[13] = orig[7];	data[14] = orig[11]; data[15] = orig[15];
+	return *this;
 }
 
 void Matrix4F::Print ()

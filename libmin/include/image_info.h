@@ -39,6 +39,8 @@
 	typedef unsigned short	XBYTE2;	
 	//typedef unsigned short	XBYTE4;	
 
+	// *NOTE* Number here always bits per channel. eg. RGBA16 = 16-bits for each RGBA	
+
 	class HELPAPI ImageOp {
 	public:
 		enum Format {			
@@ -48,18 +50,16 @@
 			BW16,
 			BW32,
 			RGB8,
+			RGBA8,
 			RGB12,
-			RGB16,
-			RGB24,
-			BGR24,			
-			RGBA16,
-			RGBA24,
-			RGBA32,
+			RGB16,			
+			RGBA16,			
+			RGBA32F,
 			BGR8,
 			I420,
 			IYUV,
-			F8,
-			F16,
+			F32,		// full float
+			F16,		// half
 			Custom
 		};
 		enum Filter {

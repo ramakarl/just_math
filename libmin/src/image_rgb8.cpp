@@ -1,25 +1,9 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
+
 #include "image.h"
 
 #include <assert.h>
 
-void Image::SetPixelRGB24 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::SetPixelRGB8 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
 		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
@@ -29,7 +13,7 @@ void Image::SetPixelRGB24 (int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 		//  setNotify ( 1 ); // *** NOTIFY(1)
 	}	
 }
-void Image::GetPixelRGB24 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
+void Image::GetPixelRGB8 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a )
 {
 	if ( x>=0 && y>=0 && x < getInfo()->mXres && y < getInfo()->mYres ) {
 		XBYTE* pix = (XBYTE*) GetData() + ( (y * getInfo()->mXres + x) * getInfo()->GetBytesPerPix() );
@@ -40,7 +24,7 @@ void Image::GetPixelRGB24 (int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a 
 	}
 }
 
-void Image::FillRGB24 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
+void Image::FillRGB8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	// Temporary fill buffer
 	assert ( getInfo()->GetBytesPerRow() <= 16384 );
@@ -61,7 +45,7 @@ void Image::FillRGB24 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 }
 
 
-void Image::RemapRGB24 ( unsigned int vmin, unsigned int vmax )
+void Image::RemapRGB8 ( unsigned int vmin, unsigned int vmax )
 {
 	XBYTE* src = (XBYTE*) GetData();
 	XBYTE* src_stop = src + (getInfo()->mXres*getInfo()->mYres);	
@@ -87,7 +71,7 @@ void Image::RemapRGB24 ( unsigned int vmin, unsigned int vmax )
 
 // Reformat - Reformats given pixel format to
 // another pixel format
-void Image::ReformatRGB24 ( ImageOp::Format eFormat )
+void Image::ReformatRGB8 ( ImageOp::Format eFormat )
 {
 	Image* new_img = new Image (  getInfo()->mXres, getInfo()->mYres, eFormat );
 	
@@ -95,20 +79,20 @@ void Image::ReformatRGB24 ( ImageOp::Format eFormat )
 	XBYTE* src_stop = src + getInfo()->GetSize();	
 	XBYTE* dest = new_img->GetData ();		
 
-	if ( eFormat==ImageOp::RGBA32 ) {		// Target format RGBA32
+	if ( eFormat==ImageOp::RGBA8 ) {		
 		for (; src < src_stop; ) {
 			*dest++ = *src++;
 			*dest++ = *src++;
 			*dest++ = *src++;
 			*dest++ = 255;
 		}		
-	} else if ( eFormat==ImageOp::BGR24 ) {	// Target format BGR24
+	} else if ( eFormat==ImageOp::BGR8 ) {	
 		for (; src < src_stop; ) {
 			*dest++ = *(src++ + 2);
 			*dest++ = *src++;
 			*dest++ = *(src++ - 2);
 		}
-	} else if ( eFormat==ImageOp::BW8 ) {	// Target format BW8		
+	} else if ( eFormat==ImageOp::BW8 ) {		
 		for (; src < src_stop; ) {
 			*dest++ = (*src + int(*(src+1)) + *(src+2)) / 3 ;
 			src += 3;
@@ -125,7 +109,7 @@ void Image::ReformatRGB24 ( ImageOp::Format eFormat )
 // Scaling:      no		- Allows rescaling of source
 // Filtering:    no		- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
-void Image::PasteRGB24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::PasteRGB8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	XBYTE *src, *src_start, *src_end;
 	XBYTE *dest_start, *dest_end;
@@ -133,7 +117,7 @@ void Image::PasteRGB24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBY
 	int dest_wid, dest_pitch, dest_bpr;
 
 
-	if ( dest_format==ImageOp::RGB24 ) {
+	if ( dest_format==ImageOp::RGB8 ) {
 		if ( getInfo()->QueryPaste ( GetFormat(), GetWidth(), GetHeight(), GetData(), x1, y1, x2, y2,
 						  dest_format, destx, desty, dest, offx, offy,
 						  src_start, src_end, src_wid, src_pitch,
@@ -157,7 +141,7 @@ void Image::PasteRGB24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBY
 // Filtering:    yes	- Allows filtering of source
 // Rotation:	 no		- Allows rotation of source
 // Limitations: Rescaled size must match target buffer
-void Image::ScaleRGB24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
+void Image::ScaleRGB8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty )
 {
 	assert ( GetFormat()==dest_format );
 
@@ -215,7 +199,7 @@ void Image::ScaleRGB24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, in
 }
 
 // Alpha Paste - Copies alpha from another source
-void Image::AlphaRGB24 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
+void Image::AlphaRGB8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y )
 {
 	// No alpha channel !
 

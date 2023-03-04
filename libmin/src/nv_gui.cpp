@@ -317,7 +317,7 @@ void nvImg::UpdateTex ()
 	bool init2D ( const char* fontName )		{ return g_2D->Initialize( fontName ); }
 	void drawGL ()		{ g_2D->drawGL(); }
 	void setLight (int s, float x1, float y1, float z1 )	{ g_2D->setLight(s,x1,y1,z1); }
-	void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c )	{ g_2D->setPntParams(a,b,c); }
+	void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c,  Vector4DF d  )	{ g_2D->setPntParams(a,b,c, d); }
 	void setPreciseEye (int s, Camera3D* cam )						{ g_2D->setPreciseEye(s, cam); }
 	void start2D ()		{ g_2D->start2D(); }
 	void start2D (bool bStatic)		{ g_2D->start2D(bStatic); }
@@ -511,7 +511,7 @@ void nvImg::UpdateTex ()
 		Vector3DF q1, q2, n;
 		n = p2 - p1;	n.Normalize();		// normal of circle
 		Quaternion rot;	
-		rot.rotationFromTo ( Vector3DF(0,0,1), n );
+	rot.fromRotationFromTo ( Vector3DF(0,0,1), n );
 
 		q1.Set ( cos( (0/UR1)*PI*2.0 )*r1, sin( (0/UR1)*PI*2.0 )*r1, 0.0f ); q1 = rot.rotateVec(q1); n = q1; q1 += p1;
 		v->x = q1.x; v->y = q1.y; v->z = q1.z;	v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;  v->nx = NO_NORM;  v++;   // repeat first for jump
@@ -547,7 +547,7 @@ void nvImg::UpdateTex ()
 		// orientation of vector from p1 to p2
 		Vector3DF q1, q2, n;
 		Quaternion rot;	
-		rot.rotationFromTo ( Vector3DF(0,0,1), p2-p1 );
+	rot.fromRotationFromTo ( Vector3DF(0,0,1), p2-p1 );
 	
 		q1.Set ( cos( (0/UR1)*PI*2.0 )*r1, sin( (0/UR1)*PI*2.0 )*r1, 0.0f ); q1 = rot.rotateVec(q1); n = q1; q1 += p1;
 		q2.Set ( cos( (0/UR1)*PI*2.0 )*r2, sin( (0/UR1)*PI*2.0 )*r2, 0.0f ); q2 = rot.rotateVec(q2); q2 += p2;
@@ -1541,12 +1541,13 @@ void nvImg::UpdateTex ()
 				"layout(location = 1) in uint inClr;\n"
 				"layout(location = 2) in uint inXtra;\n"
 				"layout(location = 3) in vec3 inVel;\n"	
-				"out vec4 vpos;\n"		
+				"out vec3 vpos;\n"		
 				"out vec4 vclr;\n"
 				"out float vintes;\n"
 				"uniform vec4 venable;\n"
-				"uniform vec4 voffset;\n"
-				"uniform vec4 vextra;\n"
+				"uniform vec4 vreorig;\n"			
+				"uniform vec4 vrescal;\n"
+				"uniform vec4 vrepos;\n"
 				"uniform vec4 eyeHi;\n"
 				"uniform vec4 eyeLo;\n"
 				"uniform mat4 modelMatrix;\n"
@@ -1554,16 +1555,21 @@ void nvImg::UpdateTex ()
 				"uniform mat4 projMatrix;\n"
 				"\n"
 				"vec4 CLR2VEC ( uint c ) {	return vec4( float(c & 255u)/255.0, float((c>>8u) & 255u)/255.0, float((c>>16u) & 255u)/255.0, float((c>>24u) & 255u)/255.0 ); } \n"
-				"vec4 INTENS  ( uint x ) {	float v = 1.0-2.0*float(uint(x) >> 16u)/255.0; return vec4( 2.0*float(uint(x) & 3u)/8.0 - v, -v*.5, -v, 0 ); } \n"
-				"\n"
-				"void main()\n"
-				"{\n"		
-				"    vpos = vec4( inPos*vextra.xyz + (voffset.xyz - eyeHi.xyz), 1 );\n"
-				"    vclr = (venable.y==1.0) ? CLR2VEC(inClr) : vec4(1.0, 1.0, 1.0, 1.0);\n"
-				"    vclr+= (venable.x==1.0) ? INTENS(inXtra) : vec4(0,0,0,0);\n"
-				"    gl_Position = projMatrix * viewMatrix * modelMatrix * vpos;\n"			
-				"	 vpos += eyeHi;\n" 
-				"}\n"
+			"vec4 INTENS  ( uint x ) {	 \n"
+		    "     float v = 1.0-1.0*float(uint(x) >> 16u)/255.0; \n "
+		    "     return vec4( 1.0*float(uint(x) & 3u)/8.0 - v, -v*.5, -v, 0 ); } \n"
+		    "\n"
+			"void main()\n"
+			"{\n"		
+			"    vpos = (inPos+vreorig.xyz)*vrescal.xyz + vrepos.xyz;\n"
+			"    vclr = (venable.y==1.0) ? CLR2VEC(inClr) : vec4(1.0, 1.0, 1.0, 1.0);\n"
+			"    vclr+= (venable.x==1.0) ? INTENS(inXtra) : vec4(0,0,0,0);\n"
+			"	 vclr+= 0.5 * vec4(0, vpos.y/100.0, vpos.y/80.0, 1); \n"
+		    "	 vclr.xyz *= clamp(length(vpos-eyeHi.xyz)*0.005, 0.5, 1.2);\n"		    
+		    "    gl_PointSize = 30 / (length(vpos-eyeHi.xyz)*0.1);\n"
+			"    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(vpos - eyeHi.xyz,1);\n"			
+			"}\n"
+
 		;
 		// float(uint(x) >> 16u)/255.0		intensity 
 		// float(uint(x) & 3u)/8.0			return number
@@ -1581,7 +1587,7 @@ void nvImg::UpdateTex ()
 			"  precision mediump int;\n"
 			"uniform vec4 venable;\n"
 			"uniform sampler2D imgTex;\n"
-			"in vec4		vpos; \n"	
+			"in vec3		vpos; \n"	
 			"in vec4		vclr; \n"
 			"in float		vintes; \n"
 			"in float	vdepth;\n"
@@ -1615,8 +1621,9 @@ void nvImg::UpdateTex ()
 		checkGL( "Get tex" );	
 
 		mPntP0[SPNT] =	glGetUniformLocation ( mSH[SPNT], "venable" );
-		mPntP1[SPNT] =	glGetUniformLocation ( mSH[SPNT], "voffset" );
-		mPntP2[SPNT] =	glGetUniformLocation ( mSH[SPNT], "vextra" );
+		mPntP1[SPNT] =	glGetUniformLocation ( mSH[SPNT], "vreorig" );
+		mPntP2[SPNT] =	glGetUniformLocation ( mSH[SPNT], "vrescal" );
+		mPntP3[SPNT] =	glGetUniformLocation ( mSH[SPNT], "vrepos" );
 		checkGL( "Get spnt p0,p1" );	
 	
 		mEyeHi[SPNT] =	glGetUniformLocation ( mSH[SPNT], "eyeHi" );
@@ -1665,12 +1672,14 @@ void nvImg::UpdateTex ()
 		glUniform4f ( mEyeHi[s], hi.x, hi.y, hi.z, 0 );
 		glUniform4f ( mEyeLo[s], lo.x, lo.y, lo.z, 0 );
 	}
-	void nvDraw::setPntParams ( Vector4DF enable, Vector4DF offs, Vector4DF extra )
+	void nvDraw::setPntParams ( Vector4DF p0, Vector4DF p1, Vector4DF p2, Vector4DF p3 )
 	{
-		glUniform4f ( mPntP0[SPNT], enable.x, enable.y, enable.z, enable.w );
-		glUniform4f ( mPntP1[SPNT], offs.x, offs.y, offs.z, offs.w );
-		glUniform4f ( mPntP2[SPNT], extra.x, extra.y, extra.z, extra.w );
+		glUniform4f ( mPntP0[SPNT], p0.x, p0.y, p0.z, p0.w );
+		glUniform4f ( mPntP1[SPNT], p1.x, p1.y, p1.z, p1.w );
+		glUniform4f ( mPntP2[SPNT], p2.x, p2.y, p2.z, p2.w );
+		glUniform4f ( mPntP3[SPNT], p3.x, p3.y, p3.z, p3.w );	
 	}
+
 
 
 	bool nvDraw::Initialize ( const char* fontName )
@@ -2580,7 +2589,7 @@ void nvImg::UpdateTex ()
 			p3.Set ( mVertices[v3].x, mVertices[v3].y, mVertices[v3].z );        
 			norm = p2; norm -= p1; norm.Normalize ();
 			side = p3; side -= p1; side.Normalize ();
-			norm.Cross ( side );
+			norm = norm.Cross ( side );
 			mVertices[v1].nx += norm.x; mVertices[v1].ny += norm.y; mVertices[v1].nz += norm.z; 
 			mVertices[v2].nx += norm.x; mVertices[v2].ny += norm.y; mVertices[v2].nz += norm.z; 
 			mVertices[v3].nx += norm.x; mVertices[v3].ny += norm.y; mVertices[v3].nz += norm.z; 

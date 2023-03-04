@@ -80,9 +80,9 @@ bool CImageFormatPng::LoadPng (char *filename )
 	char color_type = 6;
 	ImageOp::Format eNewFormat;
 	switch (color_type) {
-	case 0:	eNewFormat = ImageOp::BW8;		break;
-	case 2: eNewFormat = ImageOp::RGB24;	break;
-	case 6: eNewFormat = ImageOp::RGBA32;	break;
+	case 0:	eNewFormat = ImageOp::BW8;		break;		// each pixel is 1x grayscale 
+	case 2: eNewFormat = ImageOp::RGB8;		break;		// each pixel is RGB triple
+	case 6: eNewFormat = ImageOp::RGBA8;	break;		// each pixel is RGBA 
 	default:
 		m_eStatus = ImageOp::DepthNotSupported; return false;
 		break;
@@ -183,7 +183,7 @@ bool CImageFormatPng::SavePng (char *filename)
 	case ImageOp::BW16: ch = 1; break;
 	case ImageOp::BW32: ch = 1; break;		
 	case ImageOp::RGB8: ch = 3; break;
-	case ImageOp::RGBA32: ch = 4; break;
+	case ImageOp::RGBA8: ch = 4; break;
 	};
 
 	save_png ( filename, GetData(m_pOrigImage), GetWidth(m_pOrigImage), GetHeight(m_pOrigImage), ch );

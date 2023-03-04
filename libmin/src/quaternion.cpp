@@ -153,8 +153,8 @@ Quaternion& Quaternion::set(const Vector3DF& vec)
 Quaternion Quaternion::dual(Vector3DF pos)
 {
   return Quaternion(pos, 0.0f) * (*this) * 0.5f;
-	//return (Quaternion(pos, 0.0f) * (*this) * 0.5f);
 }
+
 
 //! Check Quaternion equals the other one (within floating point rounding tolerance)
 bool Quaternion::equals(const Quaternion& other, const f32 tolerance) const
@@ -181,13 +181,13 @@ Quaternion& Quaternion::normalize()
 	//n = 1.0f / sqrtf(n);
 	return (*this *= fast_inv_squareroot(n));
 }
-
 // q^-1 = inverse = <-Qxyz, Qw> / ||Q||
 Quaternion Quaternion::inverse()
 {
 	float N = fast_inv_squareroot(X*X+Y*Y+Z*Z+W*W);
 	return Quaternion(-X*N, -Y*N, -Z*N, W*N);
-}		
+}
+		
 
 // q* = conjugate inverse
 Quaternion Quaternion::conjugate()
@@ -202,7 +202,7 @@ f32 Quaternion::dotProduct(const Quaternion& q2) const
 }
 
 // Quaternion from orthogonal basis
-Quaternion& Quaternion::toBasis (Vector3DF a, Vector3DF b, Vector3DF c)
+Quaternion& Quaternion::fromBasis (Vector3DF a, Vector3DF b, Vector3DF c)
 {
 	float T = a.x + b.y + c.z;
 	float s;
@@ -352,62 +352,28 @@ Vector3DF Quaternion::rotateVec(Vector3DF p)
 	return q;
 }
 
-//---------------------------------------------------------------- rotation from one vector to another
-// Based on Stan Melax's article in Game Programming Gems
-// Copy, since cannot modify local
-/*Vector3DF v0 = from;
-Vector3DF v1 = to;
-v0.Normalize();
-v1.Normalize();
-
-const f32 d = v0.Dot (v1);
-if (d >= 1.0f) // If dot == 1, vectors are the same
-{
-	return makeIdentity();
-}
-else if (d <= -1.0f) // exactly opposite
-{
-	Vector3DF axis(1.0f, 0.f, 0.f);
-	axis = axis.Cross(v0);
-	if (axis.Length()==0)
-	{
-		axis.Set(0.f,1.f,0.f);
-		axis.Cross(v0);
-	}
-	// same as fromAngleAxis(core::PI, axis).normalize();
-	return set(axis.x, axis.y, axis.z, 0).normalize();
-}
-
-const f32 s = sqrtf( (1+d)*2 ); // optimize inv_sqrt
-const f32 invs = 1.f / s;
-const Vector3DF c = v0.Cross(v1)*invs;
-return set(c.x, c.y, c.z, s * 0.5f).normalize();*/
-
-//---------------------------------------------------------------- rotation from one vector to another
-// ---- See rotationFromTo. This func does same thing.
-/*Quaternion Quaternion::fromBasis(Vector3DF from, Vector3DF to)
-{
-	// *assumes* input vectors are all normalized
-	Vector3DF v2;
-	v2 = v2.Cross(from, to);
-	v2.Normalize();											// cross product = axis of rotation, cross of 'from' and 'to' vectors
-	Quaternion q1 = fromAngleAxis(acos(from.Dot(to)), v2);	// dot product = angle of rotation between 'from' and 'to' vectors
-
-	(*this) = q1;
-
-	return *this;
-}*/
-
-
 // Construct a rotation from one vector to another
 // - caller must ensure from and to have been normalized
-void Quaternion::rotationFromTo(Vector3DF from, Vector3DF to)
+Quaternion& Quaternion::fromRotationFromTo(Vector3DF from, Vector3DF to, float frac)
 {
 	Vector3DF axis = to;	
-	axis = axis.Cross( from, to );						// axis of rotation between vectors (from and to unmodified)
+	axis = from.Cross( to );						// axis of rotation between vectors (from and to unmodified)
 	axis.Normalize();							
-	fromAngleAxis(acos(from.Dot(to)), axis);	// dot product = angle of rotation between 'from' and 'to' vectors
+	fromAngleAxis( acos(from.Dot(to))*frac, axis);	// dot product = angle of rotation between 'from' and 'to' vectors
 	normalize();								// normalize quaternion
+	return *this;
+}
+
+// Construct a quaternion given a direction and up vector
+Quaternion& Quaternion::fromDirectionAndUp ( Vector3DF fwd, Vector3DF up )
+{
+	Vector3DF side;
+	fwd.Normalize();
+	side = fwd.Cross(up); side.Normalize();
+	up = side.Cross(fwd); up.Normalize();	
+	fromBasis (fwd, up, side);
+	normalize();		
+	return *this;
 }
 
 // Creates a matrix from this Quaternion
@@ -522,7 +488,7 @@ Quaternion Quaternion::unit_log()
 Quaternion Quaternion::exp()
 {
 	float b = sqrt(X * X + Y * Y + Z * Z);
-	float s = sin(b) / b;
+	float s = (b == 0) ? 0 : sin(b) / b;
 	float e = ::exp(W);
 	return Quaternion ( e*s*X, e*s*Y, e*s*Z, e * cos(b));
 }

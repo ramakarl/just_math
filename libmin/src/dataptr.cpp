@@ -24,14 +24,14 @@
   #include <GL/glew.h>
 #endif
 #ifdef USE_CUDA
-  #include "common_cuda.h"
+	#include "common_cuda.h"
 #endif
 
 int DataPtr::mFBO = -1;
 
 DataPtr::~DataPtr()
 {
-  // must be explicitly freed
+	// must be explicitly freed
 }
 
 void DataPtr::Clear ()
@@ -40,6 +40,12 @@ void DataPtr::Clear ()
 
   #ifdef USE_OPENGL
     if ( mUseFlags & DT_GLTEX ) {
+		#ifdef USE_CUDA
+			if ( mUseFlags & DT_CUMEM ) {				// release cuda-gl interop
+				if ( mGrsc != 0x0 ) cuGraphicsUnregisterResource ( mGrsc );
+				mGrsc=0; mGpu = 0;
+			}
+		#endif
       glDeleteTextures ( 1, (GLuint*) &mGLID );    // free GL texture
 
     }
@@ -71,6 +77,7 @@ int DataPtr::getStride ( uchar dtype )
   switch (dtype) {
   case DT_UCHAR:  bpp = 1; break;
   case DT_UCHAR3:  bpp = 3; break;
+  case DT_USHORT3: bpp = 6; break;
   case DT_UCHAR4:  bpp = 4; break;
   case DT_USHORT: bpp = 2; break;
   case DT_UINT:  bpp = 4; break;
@@ -86,8 +93,6 @@ void DataPtr::SetUsage ( uchar dt, uchar flags, int rx, int ry, int rz )
   if ( flags != DT_MISC ) mUseFlags = flags;
   if ( rz != -1) { mUseRX=rx; mUseRY=ry; mUseRZ=rz; }
 }
-
-
 
 void DataPtr::UpdateUsage ( uchar flags )
 {
@@ -165,6 +170,7 @@ int DataPtr::Append ( int stride, uint64_t added_cnt, char* dat, uchar dest_flag
       switch (mUseType) {
       case DT_UCHAR:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_R8,    mUseRX, mUseRY, 0, GL_RED,  GL_UNSIGNED_BYTE, src );  break;
       case DT_UCHAR3:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,  mUseRX, mUseRY, 0, GL_RGB,  GL_UNSIGNED_BYTE, src );  break; // <-- NOTE: GL_RGBA8 (4 chan) as GL_RGB8 (3 chan) not supported by CUDA interop
+ 	  case DT_USHORT3: glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB16,  mUseRX, mUseRY, 0, GL_RGB,	GL_UNSIGNED_SHORT,src );  break;
       case DT_UCHAR4:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,  mUseRX, mUseRY, 0, GL_RGBA,  GL_UNSIGNED_BYTE, src );  break;
       case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,  GL_UNSIGNED_SHORT,src );  break;
       case DT_INT:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,  GL_UNSIGNED_INT,  src );  break;
@@ -260,10 +266,22 @@ void DataPtr::Commit ()
       case DT_USHORT: glTexImage2D ( GL_TEXTURE_2D, 0, GL_R16F,   mUseRX, mUseRY, 0, GL_RED,  GL_UNSIGNED_SHORT,mCpu );  break;
       case DT_INT:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,   mUseRX, mUseRY, 0, GL_RED,  GL_UNSIGNED_INT,  mCpu );  break;
       case DT_UCHAR3:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,  mUseRX, mUseRY, 0, GL_RGB,  GL_UNSIGNED_BYTE, mCpu );  break;
+	case DT_USHORT3:glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB16,	mUseRX, mUseRY, 0, GL_RGB,	GL_UNSIGNED_SHORT, mCpu );	break;
       case DT_UCHAR4:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA8,  mUseRX, mUseRY, 0, GL_RGBA,  GL_UNSIGNED_BYTE, mCpu );  break;
       case DT_FLOAT:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_R32F,  mUseRX, mUseRY, 0, GL_RED,  GL_FLOAT, mCpu);      break;
       case DT_FLOAT4:  glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGBA32F, mUseRX, mUseRY, 0, GL_RGBA,  GL_FLOAT, mCpu);    break;
       };
+		#ifdef USE_CUDA
+		if ( mUseFlags & DT_CUMEM ) {
+			// CUDA-GL Interop
+			//cuCheck ( cuGraphicsMapResources(1, &mGrsc, 0), "", "cuGraphicsMapResrc", "", false );
+			//size_t szmap = 0;
+			//cuCheck ( cuGraphicsResourceGetMappedPointer ( &mGpu, &szmap, mGrsc ),  "", "cuGraphicsResrcGetMappedPtr", "", false );				
+			cuCheck ( cuMemcpyHtoD ( mGpu, mCpu, sz), "DataPtr::Commit", "cuMemcpyHtoD", "", false );
+			//cuCheck ( cuGraphicsUnmapResources (1, &mGrsc, 0), "DataPtr::Append", "cuGraphicsUnmapResrc", "", false );
+			return;
+		} 		
+		#endif
     }
     if ( mUseFlags & DT_GLVBO ) {            // CPU -> OpenGL VBO
       // OpenGL VBO
@@ -304,6 +322,7 @@ void DataPtr::Retrieve ()
       switch (mUseType) {
       case DT_UCHAR:  glReadPixels(0, 0, w, h, GL_RED, GL_UNSIGNED_BYTE, mCpu );    break;
       case DT_UCHAR3:  glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, mCpu );    break;
+	  case DT_USHORT3: glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_SHORT, mCpu );		break;
       case DT_UCHAR4:  glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, mCpu );    break;
       case DT_USHORT: glReadPixels(0, 0, w, h, GL_RED, GL_UNSIGNED_SHORT, mCpu );    break;
       case DT_FLOAT:  glReadPixels(0, 0, w, h, GL_RED,  GL_FLOAT, mCpu );        break;
@@ -353,7 +372,6 @@ void DataPtr::CopyTo ( DataPtr* dest, uchar dest_flags )
     }
   #endif
 }
-
 
 void DataPtr::FillBuffer ( uchar v )
 {

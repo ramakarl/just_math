@@ -1,21 +1,3 @@
-//--------------------------------------------------------------------------------
-// NVIDIA(R) GVDB VOXELS
-// Copyright 2017, NVIDIA Corporation. 
-//
-// Redistribution and use in source and binary forms, with or without modification, 
-// are permitted provided that the following conditions are met:
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
-//    in the documentation and/or  other materials provided with the distribution.
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived 
-//    from this software without specific prior written permission.
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-// BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
-// OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//-------------------------------------------------------------------------------
 
 #ifdef USE_NETWORK
     #include "network_system.h"
@@ -32,7 +14,6 @@
 #include <d2d1.h>					// Windows DPI awareness (4K displays)
 
 #include <shellapi.h>		        // Open browser in shell
-
 #include <stdio.h>
 #include <fcntl.h>
 #include <io.h>
@@ -334,7 +315,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
 
     //-- Call user startup()
     // This sets the desired window configuration (cflags, opengl version, title, width, height)
-    dbgprintf ( "Starting..\n");
     pApp->startup();
 
     pApp->appHandleArgs( gArgc, gArgv );
@@ -354,8 +334,6 @@ int WINAPI WinMain(HINSTANCE hInstance,
     //-- Main Windows loop
     MSG msg;
     pApp->m_running = true;  
-
-    dbgprintf ( "Running..\n");
 
     while (pApp->m_running) {
 
@@ -505,8 +483,6 @@ LRESULT CALLBACK WinProc (HWND m_hWnd,
 }
 
 
-
-
 //------------------------------------------------------------ Application
 
 Application::Application() : m_renderCnt(1), m_win(0), m_debugFilter(0)
@@ -575,7 +551,7 @@ bool Application::appStartWindow (void* arg1, void* arg2, void* arg3, void* arg4
     int sx, sy;
 
     //-- DPI AWARENESS (4K displays)
-    #ifdef USE_DPI_AWARE    
+    #ifdef USE_DPI_AWARE
         SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
 
         FLOAT dpiX, dpiY;
@@ -623,19 +599,16 @@ bool Application::appStartWindow (void* arg1, void* arg2, void* arg3, void* arg4
         dbgprintf("  init()\n");
         if (!init()) { dbgprintf("ERROR: Unable to init() app.\n"); return false; }
     }
-    dbgprintf("  activate()\n");        // Call user activate() each time window/surface is recreated
     if (!activate()) { dbgprintf("ERROR: Activate failed.\n"); return false; }
     
     // Show the OS Window
     ShowWindow(m_win->_hWnd, SW_SHOW);
     
-    // sysVisibleConsole();
     m_startup = false;
     m_active = true;                // yes, now active.
 
     // Vsync off by default
     appSwapInterval( 0 );    
-
     return true;
 }
 
@@ -776,13 +749,22 @@ void Application::appOpenBrowser ( std::string app, std::string query )
     }
 #endif
 
+void Application::appQuit()
+{
+    PostMessage (pApp->m_win->_hWnd, WM_CLOSE, 0, 0 );
+}
+
 void Application::appResizeWindow(int w, int h)
 {
     RECT rect;
     rect.left = rect.top = 0;
     rect.right = w; rect.bottom = h;
     AdjustWindowRect(&rect, WS_CAPTION, false);
-    SetWindowPos(m_win->_hWnd, 0, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+    
+    // NOTES:
+    // SWP_NOSENDCHANGING - allows for window sizes larger than the desktop resolution    
+
+    SetWindowPos(m_win->_hWnd, 0, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOOWNERZORDER | SWP_NOZORDER | SWP_NOSENDCHANGING);   
 }
 
 void Application::appSetVSync(bool state)
@@ -881,6 +863,8 @@ bool Application::appInitGL()
 
     return true;
 }
+
+#include "image.h"
 
 // from file_png.cpp
 extern void save_png(char* fname, unsigned char* img, int w, int h, int ch);
@@ -1115,29 +1099,33 @@ extern void save_png(char* fname, unsigned char* img, int w, int h, int ch);
         return true;
     }
 
-    void Application::appSaveFrame(char* fname)
-    {        
-        int w = getWidth(), h = getHeight();        
-        unsigned char* pixbuf = (unsigned char*) malloc(w * h * 3);
-         
-        glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixbuf);     // Read back pixels
+void Application::appSaveFrame(char* fname)
+{
+    int w = getWidth();
+    int h = getHeight();
 
-        // Flip Y
-        int pitch = w * 3;
-        unsigned char* buf = (unsigned char*)malloc(pitch);
-        for (int y = 0; y < h / 2; y++) {
-            memcpy(buf, pixbuf + (y * pitch), pitch);
-            memcpy(pixbuf + (y * pitch), pixbuf + ((h - y - 1) * pitch), pitch);
-            memcpy(pixbuf + ((h - y - 1) * pitch), buf, pitch);
-        }
-        // Save png
-        #ifdef BUILD_PNG
-            save_png(fname, pixbuf, w, h, 3);
-        #endif
+    // Read back pixels
+    unsigned char* pixbuf = (unsigned char*) malloc(w * h * 3);
 
-        free(pixbuf);
-        free(buf);   
+    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixbuf);
+
+    // Flip Y
+    int pitch = w * 3;
+    unsigned char* buf = (unsigned char*) malloc( pitch );
+    for (int y = 0; y < h / 2; y++) {
+        memcpy(buf, pixbuf + (y * pitch), pitch);
+        memcpy(pixbuf + (y * pitch), pixbuf + ((h - y - 1) * pitch), pitch);
+        memcpy(pixbuf + ((h - y - 1) * pitch), buf, pitch);
     }
 
+
+    Image img;
+    img.Create ( w, h, ImageOp::RGB8 );
+    img.TransferData ( (char*) pixbuf );
+    img.Save ( fname );
+
+    free(pixbuf);
+    free(buf);
+}
 #endif
 

@@ -51,6 +51,7 @@
 		// Image Creation, Resizing & Reformatting				
 		void Create ();
 		void Create ( int xr, int yr, ImageOp::Format eFormat );		// Create image		
+		void ResizeImage ( int xr, int yr );
 		void ResizeImage ( int xr, int yr, ImageOp::Format eFormat );		
 		void ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat );		
 		void AddChannel ( std::string name, int xr, int yr, ImageOp::Format eFormat );		
@@ -62,6 +63,7 @@
 		void SetUsage ( uchar use_flags );
 		void Commit (uchar use_flags=0);
 		void CommitAll ();
+		void Retrieve();
 		int getGLID()			{ return m_Pix.mGLID; }
 		#ifdef USE_CUDA
 			CUdeviceptr getGPU()	{ return m_Pix.mGpu;  }		
@@ -193,45 +195,65 @@
 		void ReformatBW32 ( ImageOp::Format eFormat );		
 		void AlphaBW32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
 
-		// RGB24
-		void GetPixelRGB24 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
-		void SetPixelRGB24 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void FillRGB24 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void ScaleRGB24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void PasteRGB24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void RemapRGB24 ( unsigned int vmin, unsigned int  vmax );
-		void ReformatRGB24 ( ImageOp::Format eFormat );		
-		void AlphaRGB24 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+		// RGB8
+		void GetPixelRGB8 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelRGB8 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillRGB8 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleRGB8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteRGB8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapRGB8 ( unsigned int vmin, unsigned int  vmax );
+		void ReformatRGB8 ( ImageOp::Format eFormat );		
+		void AlphaRGB8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
 
-		// BGR24
-		void GetPixelBGR24 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
-		void SetPixelBGR24 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void FillBGR24 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void ScaleBGR24 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void PasteBGR24 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void RemapBGR24 ( unsigned int vmin, unsigned int vmax );
-		void ReformatBGR24 ( ImageOp::Format eFormat );		
-		void AlphaBGR24 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+		// RGBA8
+		void GetPixelRGBA8 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelRGBA8 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillRGBA8 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleRGBA8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteRGBA8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapRGBA8 ( unsigned int vmin, unsigned int  vmax );
+		void ReformatRGBA8 ( ImageOp::Format eFormat );		
+		void AlphaRGBA8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+		
+		// RGB16
+		void GetPixelRGB16 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelRGB16 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillRGB16 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleRGB16 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteRGB16 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapRGB16 ( unsigned int vmin, unsigned int  vmax );
+		void ReformatRGB16 ( ImageOp::Format eFormat );		
+		void AlphaRGB16 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
 
-		// RGBA32
-		void GetPixelRGBA32 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
-		void SetPixelRGBA32 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void FillRGBA32 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void ScaleRGBA32 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void PasteRGBA32 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void RemapRGBA32 ( unsigned int vmin, unsigned int vmax );
-		void ReformatRGBA32 ( ImageOp::Format eFormat );		
-		void AlphaRGBA32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+		// BGR8
+		void GetPixelBGR8 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelBGR8 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillBGR8 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleBGR8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteBGR8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapBGR8 ( unsigned int vmin, unsigned int vmax );
+		void ReformatBGR8 ( ImageOp::Format eFormat );		
+		void AlphaBGR8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
 
-		// F8
-		void GetPixelF8 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
-		void SetPixelF8 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void FillF8 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
-		void ScaleF8 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void PasteF8 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
-		void RemapF8 ( unsigned int vmin, unsigned int vmax );
-		void ReformatF8 ( ImageOp::Format eFormat );		
-		void AlphaF8 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+		// RGBA32F
+		void GetPixelRGBA32F ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelRGBA32F ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillRGBA32F ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleRGBA32F ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteRGBA32F ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapRGBA32F ( unsigned int vmin, unsigned int vmax );
+		void ReformatRGBA32F ( ImageOp::Format eFormat );		
+		void AlphaRGBA32F ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
+
+		// F32
+		void GetPixelF32 ( int x, int y, XBYTE& r, XBYTE& g, XBYTE& b, XBYTE& a );
+		void SetPixelF32 ( int x, int y, XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void FillF32 ( XBYTE r, XBYTE g, XBYTE b, XBYTE a );
+		void ScaleF32 ( XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void PasteF32 ( int x1, int y1, int x2, int y2, int offx, int offy, XBYTE* dest, ImageOp::Format dest_format, int destx, int desty );
+		void RemapF32 ( unsigned int vmin, unsigned int vmax );
+		void ReformatF32 ( ImageOp::Format eFormat );		
+		void AlphaF32 ( int x1, int y1, int x2, int y2, XBYTE* src, ImageOp::Format src_format, int src_x, int src_y );
 
 		ImageInfo			m_Info;
 		DataPtr				m_Pix;
@@ -245,7 +267,5 @@
 	};
 
 #endif
-
-
 
 

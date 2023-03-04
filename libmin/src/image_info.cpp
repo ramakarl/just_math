@@ -1,20 +1,4 @@
-//--------------------------------------------------------------------------------
-// Copyright 2007-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
-//
-// * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
-//
-// MIT License:
-// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
-// associated documentation files (the "Software"), to deal in the Software without restriction, including without 
-// limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, 
-// and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS 
-// BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF 
-// OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
+
 #include "image_info.h"
 #include "datax.h"		// for DT_ types
 
@@ -41,16 +25,13 @@ unsigned int ImageInfo::GetFlags ( ImageOp::Format ef )
 	// BW1		-		-		-		-		-		-		T		-		-		-		-
 	// BW8		-		-		-		-		-		-		-		T		-		-		-
 	// RGB8		T		-		-		-		-		-		T		-		-		-		-
+	// RGBA8	T		-		-		-		-		-		T		-		-		-		-
 	// RGB12	T		-		-		-		-		-		-		T		-		-		-
-	// RGB16	T		-		-		-		-		-		-		-		T		-		-
-	// RGB24	T		-		-		-		-		-		-		-		-		T		-
-	// RGBA8	T		-		T		T		-		-		T		-		-		-		-
-	// RGBA16	T		-		T		T		-		-		-		T		-		-		-
-	// RGBA24	T		-		T		T		-		-		-		-		T		-		-
-	// RGBA32	T		-		T		T		-		-		-		-		-		T		-
+	// RGB16	T		-		-		-		-		-		-		-		T		-		-	
+	// RGBA32F	T		-		T		T		-		-		-		-		-		T		-
 	unsigned int flags = 0;
 	switch (ef) {
-	case ImageOp::RGB24: case ImageOp::BGR24: {
+	case ImageOp::RGB8: case ImageOp::BGR8: {
 		SetFlag ( flags, ImageOp::Color, true);		
 		SetFlag ( flags, ImageOp::Alpha, false);
 		SetFlag ( flags, ImageOp::AlphaMerged, true);
@@ -58,7 +39,7 @@ unsigned int ImageInfo::GetFlags ( ImageOp::Format ef )
 		SetFlag ( flags, ImageOp::DepthMerged, true);
 		SetFlag ( flags, ImageOp::Trueclr, true);
 	} break;
-	case ImageOp::RGBA32: {
+	case ImageOp::RGBA8: {
 		SetFlag ( flags, ImageOp::Color, true);
 		SetFlag ( flags, ImageOp::Trueclr, true);
 		SetFlag ( flags, ImageOp::Alpha, true);
@@ -81,7 +62,7 @@ unsigned int ImageInfo::GetFlags ( ImageOp::Format ef )
 		SetFlag ( flags, ImageOp::Alpha, false);
 		SetFlag ( flags, ImageOp::Trueclr, true);
 	} break;
-	case ImageOp::F8: {
+	case ImageOp::F32: {
 		SetFlag ( flags, ImageOp::Color, false);		
 		SetFlag ( flags, ImageOp::Alpha, false);
 		SetFlag ( flags, ImageOp::AlphaMerged, true);
@@ -97,12 +78,14 @@ unsigned int ImageInfo::GetFlags ( ImageOp::Format ef )
 unsigned char ImageInfo::GetBitsPerPix (ImageOp::Format ef)
 {
 	switch (ef) {
-	case ImageOp::RGB24: case ImageOp::BGR24:		return 24;		break;
-	case ImageOp::RGBA32:							return 32;		break;
-	case ImageOp::BW8:								return 8;		break;
-	case ImageOp::BW16:								return 16;		break;
-	case ImageOp::BW32:								return 32;		break;
-	case ImageOp::F8:								return 32;		break;
+	case ImageOp::RGBA32F:						return 128;		break;	// 4 chan,32-bit = 128
+	case ImageOp::RGB16:						return 48;		break;	// 3 chan,16-bit =  24
+	case ImageOp::RGB8: case ImageOp::BGR8:		return 24;		break;	// 3 chan, 8-bit =  24
+	case ImageOp::RGBA8:						return 32;		break;	// 4 chan, 8-bit =  32
+	case ImageOp::BW8:							return 8;		break;	// 1 chan, 8-bit =   8
+	case ImageOp::BW16:							return 16;		break;
+	case ImageOp::BW32:							return 32;		break;
+	case ImageOp::F32:							return 32;		break;
 	}
 	return 0;
 }
@@ -113,11 +96,13 @@ unsigned char ImageInfo::GetDataType (ImageOp::Format ef)
 {
 	switch (ef) {
 	case ImageOp::BW8:								return DT_UCHAR;	break;
-	case ImageOp::RGB24: case ImageOp::BGR24:		return DT_UCHAR3;	break;
-	case ImageOp::RGBA32:							return DT_UCHAR4;	break;	
 	case ImageOp::BW16:								return DT_USHORT;	break;
-	case ImageOp::BW32:								return DT_UINT;		break;
-	case ImageOp::F8:								return DT_FLOAT;	break;
+	case ImageOp::BW32:								return DT_UINT;		break;	
+	case ImageOp::RGB16:							return DT_USHORT3;	break;
+	case ImageOp::RGB8: case ImageOp::BGR8:			return DT_UCHAR3;	break;
+	case ImageOp::RGBA8:							return DT_UCHAR4;	break;		
+	case ImageOp::F32:								return DT_FLOAT;	break;
+	case ImageOp::RGBA32F:							return DT_FLOAT4;	break;	
 	}
 	return 0;
 }

@@ -137,7 +137,7 @@
 		void appMaximize();
 		void appMinimize();
 		void appRestore();
-		void appPostQuit();
+		void appQuit();
 		bool appStopWindow ();
 		void appShutdown ();
 

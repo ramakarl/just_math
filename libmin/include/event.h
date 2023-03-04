@@ -40,8 +40,8 @@
 	class EventPool;
 
 	// Event names
-	std::string	nameToStr ( eventStr_t name );
-	eventStr_t	strToName (	std::string str );
+	HELPAPI std::string	nameToStr ( eventStr_t name );
+	HELPAPI eventStr_t	strToName (	std::string str );
 
 	// Event
 	struct HELPAPI CACHE_ALIGNED Event {

@@ -6,7 +6,6 @@
 #include "mesh.h"
 #include "mesh_info.h"
 #include "string_helper.h"
-#include "nv_gui.h"
 
 #include "main.h"		// for dbgprintf
 
@@ -39,37 +38,38 @@ bool MeshX::Load (std::string fname, float scal )
 	return false;
 }
 
-void MeshX::DrawNormals (float ln, Matrix4F& xform)
-{
-	// Draw normals
-	Vector3DF* vp = (Vector3DF*) GetStart(BVERTPOS);
-	Vector3DF* vn = (Vector3DF*) GetStart(BVERTNORM);
+#ifdef USE_NVGUI
+	void MeshX::DrawNormals (float ln, Matrix4F& xform)
+	{
+		// Draw normals
+		Vector3DF* vp = (Vector3DF*) GetStart(BVERTPOS);
+		Vector3DF* vn = (Vector3DF*) GetStart(BVERTNORM);
 	
-	Vector3DF a, b;
+		Vector3DF a, b;
 
-	for (; vp <= (Vector3DF*) GetEnd(BVERTPOS); ) {		
+		for (; vp <= (Vector3DF*) GetEnd(BVERTPOS); ) {		
 
-		a = *vp;				a *= xform;	
-		b = *vp + (*vn * ln);	b *= xform;
+			a = *vp;				a *= xform;	
+			b = *vp + (*vn * ln);	b *= xform;
 
-		drawLine3D( a, b, Vector4DF(1,1,0,1) );
+			drawLine3D( a, b, Vector4DF(1,1,0,1) );
 
-		vn++;
-		vp++;
-	}
-}
-
-/*void MeshX::Sketch (int w, int h, Camera3D * cam)
-{
-	// Draw triangle edges
-	for (f = (AttrV3*) GetStart(BFACEV3); f <= (AttrV3*) GetEnd(BFACEV3); f++ ) {
-		v1 = *GetVertPos( f->v1 ) + v0;	v2 = *GetVertPos( f->v2 ) + v0;	v3 = *GetVertPos( f->v3 ) + v0;	
-		drawLine3D ( v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, 1,1,1,1 );
-		drawLine3D ( v2.x, v2.y, v2.z, v3.x, v3.y, v3.z, 1,1,1,1 );
-		drawLine3D ( v3.x, v3.y, v3.z, v1.x, v1.y, v1.z, 1,1,1,1 );
+			vn++;
+			vp++;
+		}
 	} 
-}
-*/
+
+	void MeshX::Sketch (int w, int h, Camera3D * cam)
+	{
+		// Draw triangle edges
+		for (f = (AttrV3*) GetStart(BFACEV3); f <= (AttrV3*) GetEnd(BFACEV3); f++ ) {
+			v1 = *GetVertPos( f->v1 ) + v0;	v2 = *GetVertPos( f->v2 ) + v0;	v3 = *GetVertPos( f->v3 ) + v0;	
+			drawLine3D ( v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, 1,1,1,1 );
+			drawLine3D ( v2.x, v2.y, v2.z, v3.x, v3.y, v3.z, 1,1,1,1 );
+			drawLine3D ( v3.x, v3.y, v3.z, v1.x, v1.y, v1.z, 1,1,1,1 );
+		} 
+	}
+#endif
 
 void MeshX::SetFormatFunc ()
 {
@@ -348,11 +348,13 @@ bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI
 	int fbest;
 	float t, tbest, d, dbest;
 	Vector3DF v[3], hit;
+	float alpha, beta;
+	bool front;
 	
 	// find nearest hit triangle	
 	fbest = -1;
-	t = 1.0e20;
-	tbest = 1.0e100;
+	t = 1.0e10;
+	tbest = 1.0e10;
 	f = (AttrV3*) GetStart(BFACEV3);
 	for ( int fi=0; fi < GetNumElem(BFACEV3); fi++) {
 
@@ -360,7 +362,7 @@ bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI
 		v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
 		v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
 
-		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, hit ) ) {	// check for triangle hit
+		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, alpha, beta, front ) ) {	// check for triangle hit
 			if ( t < tbest ) {													// find nearest hit
 				fbest = fi;
 				tbest = t;
@@ -1141,6 +1143,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 			norm.Normalize();
 			fnorm = nlist[n[0]];
 			float flip = (norm.Dot(fnorm) > 0 ? 1 : -1);
+			
 			if ( flip==-1 ) {				// fix winding order
 				tmp = v[1]; v[1] = v[2]; v[2] = tmp;
 				tmp = n[1]; n[1] = n[2]; n[2] = tmp;

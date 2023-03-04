@@ -659,7 +659,7 @@ bool Widgets::OnUpdate3D ( int wi, int x, int y )
 		p = intersectLinePlane ( c1, c2, p0, p1 ); p -= p0; p.Normalize();	// normalize movement angle
 		r = mActP - p0; r.Normalize();										// normalize original angle
 		p1.Normalize();														// normalize axis of rotation (*after* using it for intersection)
-		s.Cross(r, p); s.Normalize();										// use cross product for +/- determination		
+		s = r.Cross(p); s.Normalize();										// use cross product for +/- determination		
 		q.fromAngleAxis ( (s.Dot(p1)>0 ? 1 : -1)*acos(p.Dot(r)), p1 );		// angle of X-rotation
 		w->rot = q * mActWgOrig.rot;	
 		w->rot.normalize();
@@ -668,7 +668,7 @@ bool Widgets::OnUpdate3D ( int wi, int x, int y )
 		p = intersectLinePlane ( c1, c2, p0, p2 ); p -= p0; p.Normalize();	// normalize movement angle
 		r = mActP - p0; r.Normalize();										// normalize original angle
 		p2.Normalize();														// normalize axis of rotation (*after* using it for intersection)
-		s.Cross(r, p); s.Normalize();										// use cross product for +/- determination		
+		s = r.Cross(p); s.Normalize();										// use cross product for +/- determination		
 		q.fromAngleAxis ( (s.Dot(p2)>0 ? 1 : -1)*acos(p.Dot(r)), p2 );		// angle of Y-rotation
 		w->rot = q * mActWgOrig.rot;	
 		w->rot.normalize();
@@ -677,7 +677,7 @@ bool Widgets::OnUpdate3D ( int wi, int x, int y )
 		p = intersectLinePlane ( c1, c2, p0, p3 ); p -= p0; p.Normalize();	// normalize movement angle
 		r = mActP - p0; r.Normalize();										// normalize original angle
 		p3.Normalize();														// normalize axis of rotation (*after* using it for intersection)
-		s.Cross(r, p); s.Normalize();										// use cross product for +/- determination		
+		s = r.Cross(p); s.Normalize();										// use cross product for +/- determination		
 		q.fromAngleAxis ( (s.Dot(p3)>0 ? 1 : -1)*acos(p.Dot(r)), p3 );		// angle of Z-rotation
 		w->rot = q * mActWgOrig.rot;	
 		w->rot.normalize();

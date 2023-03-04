@@ -39,6 +39,12 @@ if (LIBMIN_FOUND)
   LIST( APPEND LIBRARIES_DEBUG "${LIBMIN_LIB_DIR}/${LIBMIN_DEBUG}")	
   _EXPANDLIST( OUTPUT PACKAGE_DLLS SOURCE ${LIBMIN_LIB_DIR} FILES ${LIBMIN_DLLS} )
   message ( STATUS "  ---> Using LIBMIN")
+
+  LIST( APPEND LIBRARIES_OPTIMIZED "shcore.lib")
+  LIST( APPEND LIBRARIES_DEBUG "shcore.lib")	
+  add_definitions(-DUSE_DPI_AWARE)  
+  message ( STATUS "--> Using DPI AWARE")
+
 endif()
 
 ###################################################################################
