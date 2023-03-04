@@ -134,7 +134,7 @@
 
 		void getVectors ( Vector3DF& dir, Vector3DF& up, Vector3DF& side )	{ dir = dir_vec; up = up_vec; side = side_vec; }
 		void getBounds ( float dst, Vector3DF& min, Vector3DF& max );
-		Vector3DF& getNearFar()			{ return Vector3DF(mNear, mFar, mFov); }
+		Vector3DF getNearFar()			{ return Vector3DF(mNear, mFar, mFov); }
 		float getNear ()				{ return mNear; }
 		float getFar ()					{ return mFar; }
 		float getFov ()					{ return mFov; }
