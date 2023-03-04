@@ -718,11 +718,15 @@ int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< fl
         stride_y = 1.0,
         stride_z = 1.0;
 
-  float cx, cy, cz,
+  float cx=0.0, cy=0.0, cz=0.0,
         dx, dy, dz,
         nx, ny, nz;
   int64_t pos;
   int32_t tile_id;
+
+
+  fp = fopen(opt.outstl_fn.c_str(), "w");
+  if (!fp) { return -1; }
 
   for (ix=0; ix<bp.m_res.x; ix++) {
     for (iy=0; iy<bp.m_res.y; iy++) {
@@ -746,6 +750,8 @@ int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< fl
       }
     }
   }
+
+  fclose(fp);
 
   return 0;
 }
@@ -1684,6 +1690,7 @@ int main(int argc, char **argv) {
     }
 
     if (g_opt.tileobj_fn.size() > 0) {
+      g_opt.outstl_fn = g_opt.tilemap_fn;
       write_bp_stl(g_opt, bpc, tri_shape_lib);
     }
     else {
