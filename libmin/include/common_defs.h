@@ -22,10 +22,40 @@
 	#pragma warning ( disable: 4005)
 
 	#ifdef _WIN32
-        #ifdef BUILD_CMDLINE               
-            #define HELPAPI	                            // Build cmdline app. Direct include (not making library)
-        #else 
 
+	        #include "inttypes.h"
+
+            #define ALIGN(x)			__declspec(align(x))
+            #define CACHE_ALIGNED       __declspec(align(64))
+
+	        typedef signed char			sint8_t;
+	        typedef signed short		sint16_t;
+	        typedef signed int			sint32_t;
+	        typedef signed long			sint64_t;
+
+            typedef	unsigned char		        uchar;
+	        typedef uint64_t			xlong;
+	        typedef uint8_t				XCHAR;
+	        typedef uint8_t				XBYTE;
+	        typedef uint16_t			XBYTE2;
+	        typedef uint32_t			XBYTE4;
+	        typedef uint64_t			XBYTE8;
+	        typedef sint8_t				schar;
+	        typedef sint16_t			sshort;
+	        typedef sint32_t			sint;
+	        typedef sint64_t			slong;
+	        typedef	uint8_t				uchar;
+	        typedef uint16_t			ushort;
+	        typedef uint32_t			uint;
+	        typedef uint64_t			uxlong;     // note: keyword 'ulong' cannot be used with NV_ARM. 'slong' is signed, dont use here
+
+	        #define FALSE	0
+	        #define TRUE	1
+
+		    // DWORD included from windows.h (32-bit unsigned int)
+
+            //-- DEFINITION  OF HELPAPI
+            //
             #define NOMINMAX                             // min/max will come from std::min/max
 		    #define WIN32_LEAN_AND_MEAN
 		    #include <windows.h>                        // Build windows (NOT cmdline)
@@ -51,44 +81,12 @@
                     #else
                         #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
                     #endif
-                   #endif          
-                #else
-                #define HELP_API
-            #endif
-        #endif
+                #endif          
+           #else
+                #define HELPAPI
+           #endif        
 
-		#include "inttypes.h"
-
-        #define ALIGN(x)			__declspec(align(x))
-        #define CACHE_ALIGNED       __declspec(align(64))
-
-		typedef signed char			sint8_t;
-		typedef signed short		sint16_t;
-		typedef signed int			sint32_t;
-		typedef signed long			sint64_t;
-
-        typedef	unsigned char		        uchar;
-		typedef uint64_t			xlong;
-		typedef uint8_t				XCHAR;
-		typedef uint8_t				XBYTE;
-		typedef uint16_t			XBYTE2;
-		typedef uint32_t			XBYTE4;
-		typedef uint64_t			XBYTE8;
-		typedef sint8_t				schar;
-		typedef sint16_t			sshort;
-		typedef sint32_t			sint;
-		typedef sint64_t			slong;
-		typedef	uint8_t				uchar;
-		typedef uint16_t			ushort;
-		typedef uint32_t			uint;
-		typedef uint64_t			uxlong;     // note: keyword 'ulong' cannot be used with NV_ARM. 'slong' is signed, dont use here
-
-		#define FALSE	0
-		#define TRUE	1
-
-		// DWORD included from windows.h (32-bit unsigned int)
-
-      #else   // ANDOID and linux
+      #else   // ANDOID and linux        
 
 			#include <math.h>
 			#include <assert.h>
@@ -125,6 +123,18 @@
             #define __stdcall
 
             #include <stdarg.h>  // for va_start, va_args
+
+            //-- DEFINITION OF HELPAPI
+            //
+            #if !defined ( LIBHELP_STATIC )
+              #if defined ( LIBHELP_EXPORTS )				// inside DLL
+                #define HELPAPI		__attribute__((visibility("default")))
+              #else										// outside DLL
+                #define HELPAPI		//https://stackoverflow.com/questions/2164827/explicitly-exporting-shared-library-functions-in-linux
+              #endif
+            #else
+              #define HELPAPI
+            #endif
 
 	#endif
 
