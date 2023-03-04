@@ -426,9 +426,9 @@ void Camera3D::Copy ( Camera3D& op )
 void Camera3D::setAngles ( float ax, float ay, float az )
 {
 	ang_euler = Vector3DF(ax,ay,az);
-	to_pos.x = from_pos.x - (float) (cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) * mDolly);
-	to_pos.y = from_pos.y - (float) (sin ( ang_euler.y * DEGtoRAD ) * mDolly);
-	to_pos.z = from_pos.z - (float) (cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD ) * mDolly);
+	to_pos.x = from_pos.x - (float) (cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) * mOrbitDist);
+	to_pos.y = from_pos.y - (float) (sin ( ang_euler.y * DEGtoRAD ) * mOrbitDist);
+	to_pos.z = from_pos.z - (float) (cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD ) * mOrbitDist);
 	updateMatricies (true);
 }
 
@@ -454,20 +454,9 @@ void Camera3D::updateMatricies (bool compute_view)
 	Vector3DF temp;	
 	
 	if (compute_view) {
-		// compute camera direction vectors	--- MATCHES OpenGL's gluLookAt function (DO NOT MODIFY)
-		dir_vec = to_pos;					// f vector in gluLookAt docs
-		dir_vec -= from_pos;				// eye = from_pos in gluLookAt docs
-		dir_vec.Normalize ();
-		side_vec = dir_vec;
-		side_vec = side_vec.Cross ( up_dir );
-		side_vec.Normalize ();
-		up_vec = side_vec;
-		up_vec = up_vec.Cross ( dir_vec );
-		up_vec.Normalize();
-		dir_vec *= -1;
-
-		// construct rotation matrix - view matrix without translation
-		rotate_matrix.toBasisInv (side_vec, up_vec, dir_vec );		
+		
+		// look matrix (orientation w/o translation). Matches OpenGL's gluLookAt
+		rotate_matrix.makeLookAt ( from_pos, to_pos, up_dir, side_vec, up_vec, dir_vec );
 
 		// construct projection matrix  --- MATCHES OpenGL's gluPerspective function (DO NOT MODIFY)
 		float sx = (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear;
@@ -479,6 +468,8 @@ void Camera3D::updateMatricies (bool compute_view)
 		proj_matrix(2,3) = -(2.0f*mFar * mNear)/(mFar - mNear);		// D
 		proj_matrix(3,2) = -1.0f;
 	}
+
+
 	// construct tile projection matrix --- MATCHES OpenGL's glFrustum function (DO NOT MODIFY) 
 	/*float l, r, t, b;
 	l = -sx + 2.0f*sx*mTile.x;						// Tile is in range 0 <= x,y <= 1

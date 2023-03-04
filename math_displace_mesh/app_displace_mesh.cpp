@@ -158,10 +158,13 @@ bool Sample::init()
 	
 	m_cam->setOrbit ( 26, 38, 0, Vector3DF(0,0,0), 6, 1 );
 
+	dbgprintf ( "from: %f %f %f\n", m_cam->getPos().x, m_cam->getPos().y, m_cam->getPos().z );
+
 //	m_cam->setOrbit ( -57, 16, 0, Vector3DF(-0.3, 0.3664, -0.7), 1 , 1 );
 	
-	m_lgt = Vector3DF(-90, 500, 220);
+	m_lgt = Vector3DF(-90, 400, 220);
 	
+
 	m_currcam = 0;
 
 	int res = 1024;
@@ -374,6 +377,7 @@ bool intersectRayTriangleInOut ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, V
 	Vector3DF e2 = (v2 - orig) / ndotr;
 	float t = n.Dot ( e2 );
 	if ( t<0.0 ) return false;
+
 	Vector3DF i = dir.Cross ( e2 );
 	alpha =	i.x*e0.x + i.y*e0.y + i.z*e0.z;	
 	beta =	i.x*-e1.x + i.y*-e1.y + i.z*-e1.z;		
@@ -617,7 +621,7 @@ bool Sample::IntersectSurface ( int face, int edge, Vector3DF rpos, Vector3DF rd
 		hit += rdir * dt;							
 
 		// point-to-plane distance
-		q0 = (ve2-ve1).Cross ( ve0-ve2 ); //q0.Normalize();
+		q0 = (ve2-ve1).Cross ( ve0-ve2 );
 		de = q0.Dot( ve0 - hit ) / df;
 
 		// advance scanning triangle 
@@ -664,15 +668,14 @@ bool Sample::IntersectSurface ( int face, int edge, Vector3DF rpos, Vector3DF rd
 	float bmphgt0 = displace_depth * m_bump_img->GetPixelFilteredUV ( uv.x, uv.y ).x;
 	// interpolate between previous and current sample
 	float u = (rayhgt0-bmphgt0) / ((rayhgt0-bmphgt0)+(bmphgt-rayhgt));
-	u = (u<0) ? 0 : (u>1) ? 1 : u;
-	// adjust barycentric coords and t
-	bc = bcl + (bc-bcl) * u; 										
+	u = (u<0) ? 0 : (u>1) ? 1 : u;									
 					
 	// Final hit t
 	t = (hit - rpos).Length() - dt + u*dt;
 	
-	// Final update of bcs
 	hit = rpos + rdir * t;
+
+	// Final update of bcs	
 	q0 = (ve2-ve1).Cross ( ve0-ve2 ); 
 	de = q0.Dot( ve0 - hit ) / df;
 	ve0 += vd0 * de;
@@ -750,7 +753,7 @@ bool Sample::ShadeSurface ( int face, Vector3DF bc, float displace_depth, Vector
 				
 	// Diffuse shading	
 	L = m_lgt - q0; L.Normalize();					
-	diffuse = 0.2 + 0.7 * std::max(0.0, n.Dot( L ));
+	diffuse = 0.7 * std::max(0.0, n.Dot( L ));
 	R = n * float(2 * n.Dot(L)) - L; R.Normalize();
 	V = q0 - m_cam->getPos(); V.Normalize();
 	spec = 0.3 * pow ( R.Dot( V ), 20 );

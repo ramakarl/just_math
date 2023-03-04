@@ -79,7 +79,10 @@
 
 		bool Load ( std::string fname, float scal=1.0 );
 
-		void DrawNormals (float ln, Matrix4F& xform);
+		#ifdef USE_NVGUI
+			void DrawNormals (float ln, Matrix4F& xform);
+			void Sketch (int w, int h, Camera3D * cam);
+		#endif
 		
 
 		// Generic creation functions
