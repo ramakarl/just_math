@@ -200,7 +200,8 @@ bool Sample::init()
 	}
 
 	// load mesh
-	getFileLocation ( "surface.obj", fpath );
+	getFileLocation ( "s000.obj", fpath );
+	//getFileLocation ( "surface.obj", fpath );
 	//getFileLocation ( "asteroid.obj", fpath );
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh = new MeshX;

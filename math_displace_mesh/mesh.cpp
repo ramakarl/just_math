@@ -37,38 +37,7 @@ bool MeshX::Load (std::string fname, float scal )
 	return false;
 }
 
-#ifdef USE_NVGUI
-	void MeshX::DrawNormals (float ln, Matrix4F& xform)
-	{
-		// Draw normals
-		Vector3DF* vp = (Vector3DF*) GetStart(BVERTPOS);
-		Vector3DF* vn = (Vector3DF*) GetStart(BVERTNORM);
-	
-		Vector3DF a, b;
 
-		for (; vp <= (Vector3DF*) GetEnd(BVERTPOS); ) {		
-
-			a = *vp;				a *= xform;	
-			b = *vp + (*vn * ln);	b *= xform;
-
-			drawLine3D( a, b, Vector4DF(1,1,0,1) );
-
-			vn++;
-			vp++;
-		}
-	} 
-
-	void MeshX::Sketch (int w, int h, Camera3D * cam)
-	{
-		// Draw triangle edges
-		for (f = (AttrV3*) GetStart(BFACEV3); f <= (AttrV3*) GetEnd(BFACEV3); f++ ) {
-			v1 = *GetVertPos( f->v1 ) + v0;	v2 = *GetVertPos( f->v2 ) + v0;	v3 = *GetVertPos( f->v3 ) + v0;	
-			drawLine3D ( v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, 1,1,1,1 );
-			drawLine3D ( v2.x, v2.y, v2.z, v3.x, v3.y, v3.z, 1,1,1,1 );
-			drawLine3D ( v3.x, v3.y, v3.z, v1.x, v1.y, v1.z, 1,1,1,1 );
-		} 
-	}
-#endif
 
 void MeshX::SetFormatFunc ()
 {
@@ -85,126 +54,6 @@ void MeshX::SetUVRes ( int u, int v )
 	m_Vres = v;
 }
 
-/*bool MeshX::update_data ( bufRef b )
-{
-	PERF_PUSH ( 'ren3', "MeshX::update" );
-
-	DataX* dat = b.dat;
-	GLuint* VBO = (GLuint*) getVBO ();
-	int flgs = dat->getUpdate ();
-
-	if ( flgs & (objFlags) ObjectX::fBuild ) {			
-		// Allocate VBO array
-		#ifdef DEBUG_GLERR
-			glGetError ();
-		#endif
-		if ( VBO != 0x0 ) {
-			glDeleteBuffersARB ( 5, VBO );
-			dat->DeleteVBO ();
-		}
-		VBO = (GLuint*) dat->CreateVBO ( 10 );
-
-		// Generate textures
-		glGenBuffersARB ( 5, VBO );
-		#ifdef DEBUG_GLERR
-			if ( glGetError() != GL_NO_ERROR ) { dat->setUpdate(ObjectX::fBuild); return false; }
-		#endif
-		dat->clearUpdate ( ObjectX::fBuild );																				// clear build
-		dat->setUpdate ( ObjectX::fUpdatePos );
-	}
-	
-	if ( flgs & (objFlags) ObjectX::fUpdatePos ) {
-		VBO[ 5 ] = dat->GetBufStride ( m_PosBuf );
-		glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 0 ] );
-		glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_PosBuf), NULL, GL_STATIC_DRAW_ARB);
-		glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_PosBuf), dat->GetBufData(m_PosBuf), GL_STATIC_DRAW_ARB);
-	}
-	if ( flgs & (objFlags) ObjectX::fUpdateClr ) {
-		VBO[ 6 ] = 0;
-		if ( m_ClrBuf != BUF_UNDEF  ) {
-			VBO[ 6 ] = dat->GetBufStride ( m_ClrBuf );
-			glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 1 ] );
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_ClrBuf), NULL, GL_STATIC_DRAW_ARB);			
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_ClrBuf), dat->GetBufData(m_ClrBuf), GL_STATIC_DRAW_ARB);
-		}
-	}
-	if ( flgs & (objFlags) ObjectX::fUpdateNorm ) {
-		VBO[ 7 ] = 0;
-		if ( m_NormBuf != BUF_UNDEF  ) {
-			VBO[ 7 ] = dat->GetBufStride ( m_NormBuf );
-			glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 2 ] );
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_NormBuf), NULL, GL_STATIC_DRAW_ARB);
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_NormBuf), dat->GetBufData(m_NormBuf), GL_STATIC_DRAW_ARB);
-		}
-	}
-	if ( flgs & (objFlags) ObjectX::fUpdateTex ) {
-		VBO[ 8 ] = 0;
-		if ( m_TexBuf != BUF_UNDEF ) {
-			VBO[ 8 ] = dat->GetBufStride ( m_TexBuf );
-			glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 3 ] );
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_TexBuf), NULL, GL_STATIC_DRAW_ARB);
-			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_TexBuf), dat->GetBufData(m_TexBuf), GL_STATIC_DRAW_ARB);
-		}
-	}
-	if ( flgs & (objFlags) ObjectX::fUpdateElems ) {		
-		glBindBufferARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );
-		glBufferDataARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, dat->GetBufSize( m_FaceV3Buf ), NULL, GL_STATIC_DRAW_ARB);
-		glBufferDataARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, dat->GetBufSize( m_FaceV3Buf ), dat->GetBufData( m_FaceV3Buf ), GL_STATIC_DRAW_ARB);
-	}
-	dat->clearUpdate ( ObjectX::fGeom );			// Scene object has been updated
-
-	PERF_POP ( 'ren3' );
-	return true;
-}*/
-
-
-/*void MeshX::render_data ( bufRef b )
-{
-	if ( rendGL->RenderTransparent() ) return;
-
-	PERF_PUSH ( 'ren3', "MeshX::render" );
-
-	rendGL->runShader ( this, 0 );	
-
-	GLuint* VBO = (GLuint*) b.dat->getVBO();
-
-	glDisable ( GL_TEXTURE_2D );
-	glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 0 ] );	
-	glVertexAttribPointer( localPos, 3, GL_FLOAT, GL_FALSE, 0x0, 0 );
-	glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 2 ] );	
-	glVertexAttribPointer( localNorm, 3, GL_FLOAT, GL_FALSE, 0x0, 0 );
-	glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 3 ] );	
-	glVertexAttribPointer( localTex,  2, GL_FLOAT, GL_FALSE, 0x0, 0 );
-	
-	glBindBuffer ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );	
-
-	glDrawRangeElements ( GL_TRIANGLES, 0, GetNumVert (), GetNumFace3()*3, GL_UNSIGNED_INT, 0x0 );	
-
-	 glEnableClientState ( GL_VERTEX_ARRAY );
-	glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 0 ] );	
-	glVertexPointer ( 3, GL_FLOAT, VBO[ 5 ], 0x0 );
-	glBindBufferARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );	
-	#ifndef BUILD_NOCOLORBUF
-		if ( VBO[ 6 ] != 0 ) { 
-			glEnable ( GL_COLOR_MATERIAL );
-			glColorMaterial ( GL_FRONT_AND_BACK, GL_DIFFUSE );
-			glEnableClientState ( GL_COLOR_ARRAY ); glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 1 ] ); glColorPointer ( GL_BGRA, GL_UNSIGNED_BYTE, VBO[ 6 ], 0x0 );
-			glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
-		}
-	#endif	
-	if ( VBO[ 7 ] != 0 ) { glEnableClientState ( GL_NORMAL_ARRAY );	glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 2 ] ); glNormalPointer ( GL_FLOAT, VBO[ 7 ], 0x0 );}  
-	if ( VBO[ 8 ] != 0 ) { glEnableClientState ( GL_TEXTURE_COORD_ARRAY ); glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 3 ] ); glTexCoordPointer ( VBO[8]>>2, GL_FLOAT, VBO[8], 0x0 );}  
-		
-	 #ifndef BUILD_NOCOLORBUF
-		glDisableClientState ( GL_COLOR_ARRAY );
-	#endif
-	glDisableClientState ( GL_VERTEX_ARRAY );		
-	glDisableClientState ( GL_NORMAL_ARRAY );
-	glDisableClientState ( GL_TEXTURE_COORD_ARRAY ); 
-
-	PERF_POP ( 'ren3' );
-}
-*/
 
 void MeshX::Clear ()
 {
@@ -1071,21 +920,29 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 				t[2] = strToI ( strMidOf  ( fargs[2], "/") )-1;
 				n[2] = strToI ( strRightOf( fargs[2], "/") )-1;	
 
-			} else {
+			} else {												// input line: f v v v
 
-
+				bNeedNormals = true;
+				fargs.clear ();
+				strSplitMultiple ( strline, " \n", fargs);	
+				v[0] = strToI ( fargs[0] )-1;
+				v[1] = strToI ( fargs[1] )-1;
+				v[2] = strToI ( fargs[2] )-1;
 			}
 
-			// check winding order
-			norm = vlist[v[1]] - vlist[v[0]] ;
-			norm = norm.Cross ( vlist[v[2]] - vlist[v[0]] );
-			norm.Normalize();
-			fnorm = nlist[n[0]];
-			float flip = (norm.Dot(fnorm) > 0 ? 1 : -1);
 			
-			if ( flip==-1 ) {				// fix winding order
-				tmp = v[1]; v[1] = v[2]; v[2] = tmp;
-				tmp = n[1]; n[1] = n[2]; n[2] = tmp;
+			// check winding order - only if we have normals
+			if ( !bNeedNormals ) {				
+				norm = vlist[v[1]] - vlist[v[0]] ;
+				norm = norm.Cross ( vlist[v[2]] - vlist[v[0]] );
+				norm.Normalize();
+				fnorm = nlist[n[0]];
+				float flip = (norm.Dot(fnorm) > 0 ? 1 : -1);
+			
+				if ( flip==-1 ) {				// fix winding order
+					tmp = v[1]; v[1] = v[2]; v[2] = tmp;
+					tmp = n[1]; n[1] = n[2]; n[2] = tmp;
+				}
 			}
 
 			// convert face-normals pairs into independent vertex groups			
@@ -1094,16 +951,22 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 					
 					fv[j] = AddVert ( vlist[v[j]] );			// vertex position
 
-					AddVertNorm(nlist[n[j]]);					// vertex normal
+					// vertex normals (optional)
+					if ( !bNeedNormals )
+						AddVertNorm(nlist[n[j]]);					
 					
-					AddVertClr( Vector4DF(1, 1, 1, 1) );		// vertex color (optional)
+					// vertex color (optional)
+					AddVertClr( Vector4DF(1, 1, 1, 1) );		
+					
+					// vertex texcoord (optional)
 					if ( t[0] >= 0 ) 
-						AddVertTex ( tlist[t[j]] );				// vertex texcoord (optional)
+						AddVertTex ( tlist[t[j]] );				
+
 					vnpairs[ pair(v[j],n[j]) ] = fv[j];
+
 				}  else {
-					fv[j] = vnpairs[ pair(v[j],n[j]) ];						
-				}
-				fnorm = *GetVertNorm ( fv[j] );
+					fv[j] = vnpairs[ pair(v[j],n[j]) ];
+				}				
 			}
 
 			// add face				
@@ -1119,6 +982,162 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 
 	return true;
 }
+
+
+#ifdef USE_NVGUI
+	void MeshX::DrawNormals (float ln, Matrix4F& xform)
+	{
+		// Draw normals
+		Vector3DF* vp = (Vector3DF*) GetStart(BVERTPOS);
+		Vector3DF* vn = (Vector3DF*) GetStart(BVERTNORM);
+	
+		Vector3DF a, b;
+
+		for (; vp <= (Vector3DF*) GetEnd(BVERTPOS); ) {		
+
+			a = *vp;				a *= xform;	
+			b = *vp + (*vn * ln);	b *= xform;
+
+			drawLine3D( a, b, Vector4DF(1,1,0,1) );
+
+			vn++;
+			vp++;
+		}
+	} 
+
+	void MeshX::Sketch (int w, int h, Camera3D * cam)
+	{
+		// Draw triangle edges
+		for (f = (AttrV3*) GetStart(BFACEV3); f <= (AttrV3*) GetEnd(BFACEV3); f++ ) {
+			v1 = *GetVertPos( f->v1 ) + v0;	v2 = *GetVertPos( f->v2 ) + v0;	v3 = *GetVertPos( f->v3 ) + v0;	
+			drawLine3D ( v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, 1,1,1,1 );
+			drawLine3D ( v2.x, v2.y, v2.z, v3.x, v3.y, v3.z, 1,1,1,1 );
+			drawLine3D ( v3.x, v3.y, v3.z, v1.x, v1.y, v1.z, 1,1,1,1 );
+		} 
+	}
+
+	
+	/*bool MeshX::update_data ( bufRef b )
+	{
+		PERF_PUSH ( 'ren3', "MeshX::update" );
+
+		DataX* dat = b.dat;
+		GLuint* VBO = (GLuint*) getVBO ();
+		int flgs = dat->getUpdate ();
+
+		if ( flgs & (objFlags) ObjectX::fBuild ) {			
+			// Allocate VBO array
+			#ifdef DEBUG_GLERR
+				glGetError ();
+			#endif
+			if ( VBO != 0x0 ) {
+				glDeleteBuffersARB ( 5, VBO );
+				dat->DeleteVBO ();
+			}
+			VBO = (GLuint*) dat->CreateVBO ( 10 );
+
+			// Generate textures
+			glGenBuffersARB ( 5, VBO );
+			#ifdef DEBUG_GLERR
+				if ( glGetError() != GL_NO_ERROR ) { dat->setUpdate(ObjectX::fBuild); return false; }
+			#endif
+			dat->clearUpdate ( ObjectX::fBuild );																				// clear build
+			dat->setUpdate ( ObjectX::fUpdatePos );
+		}
+	
+		if ( flgs & (objFlags) ObjectX::fUpdatePos ) {
+			VBO[ 5 ] = dat->GetBufStride ( m_PosBuf );
+			glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 0 ] );
+			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_PosBuf), NULL, GL_STATIC_DRAW_ARB);
+			glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_PosBuf), dat->GetBufData(m_PosBuf), GL_STATIC_DRAW_ARB);
+		}
+		if ( flgs & (objFlags) ObjectX::fUpdateClr ) {
+			VBO[ 6 ] = 0;
+			if ( m_ClrBuf != BUF_UNDEF  ) {
+				VBO[ 6 ] = dat->GetBufStride ( m_ClrBuf );
+				glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 1 ] );
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_ClrBuf), NULL, GL_STATIC_DRAW_ARB);			
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_ClrBuf), dat->GetBufData(m_ClrBuf), GL_STATIC_DRAW_ARB);
+			}
+		}
+		if ( flgs & (objFlags) ObjectX::fUpdateNorm ) {
+			VBO[ 7 ] = 0;
+			if ( m_NormBuf != BUF_UNDEF  ) {
+				VBO[ 7 ] = dat->GetBufStride ( m_NormBuf );
+				glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 2 ] );
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_NormBuf), NULL, GL_STATIC_DRAW_ARB);
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_NormBuf), dat->GetBufData(m_NormBuf), GL_STATIC_DRAW_ARB);
+			}
+		}
+		if ( flgs & (objFlags) ObjectX::fUpdateTex ) {
+			VBO[ 8 ] = 0;
+			if ( m_TexBuf != BUF_UNDEF ) {
+				VBO[ 8 ] = dat->GetBufStride ( m_TexBuf );
+				glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 3 ] );
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_TexBuf), NULL, GL_STATIC_DRAW_ARB);
+				glBufferDataARB ( GL_ARRAY_BUFFER_ARB, dat->GetBufSize(m_TexBuf), dat->GetBufData(m_TexBuf), GL_STATIC_DRAW_ARB);
+			}
+		}
+		if ( flgs & (objFlags) ObjectX::fUpdateElems ) {		
+			glBindBufferARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );
+			glBufferDataARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, dat->GetBufSize( m_FaceV3Buf ), NULL, GL_STATIC_DRAW_ARB);
+			glBufferDataARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, dat->GetBufSize( m_FaceV3Buf ), dat->GetBufData( m_FaceV3Buf ), GL_STATIC_DRAW_ARB);
+		}
+		dat->clearUpdate ( ObjectX::fGeom );			// Scene object has been updated
+
+		PERF_POP ( 'ren3' );
+		return true;
+	}*/
+
+
+	/*void MeshX::render_data ( bufRef b )
+	{
+		if ( rendGL->RenderTransparent() ) return;
+
+		PERF_PUSH ( 'ren3', "MeshX::render" );
+
+		rendGL->runShader ( this, 0 );	
+
+		GLuint* VBO = (GLuint*) b.dat->getVBO();
+
+		glDisable ( GL_TEXTURE_2D );
+		glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 0 ] );	
+		glVertexAttribPointer( localPos, 3, GL_FLOAT, GL_FALSE, 0x0, 0 );
+		glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 2 ] );	
+		glVertexAttribPointer( localNorm, 3, GL_FLOAT, GL_FALSE, 0x0, 0 );
+		glBindBuffer ( GL_ARRAY_BUFFER, VBO[ 3 ] );	
+		glVertexAttribPointer( localTex,  2, GL_FLOAT, GL_FALSE, 0x0, 0 );
+	
+		glBindBuffer ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );	
+
+		glDrawRangeElements ( GL_TRIANGLES, 0, GetNumVert (), GetNumFace3()*3, GL_UNSIGNED_INT, 0x0 );	
+
+		 glEnableClientState ( GL_VERTEX_ARRAY );
+		glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 0 ] );	
+		glVertexPointer ( 3, GL_FLOAT, VBO[ 5 ], 0x0 );
+		glBindBufferARB ( GL_ELEMENT_ARRAY_BUFFER_ARB, VBO[ 4 ] );	
+		#ifndef BUILD_NOCOLORBUF
+			if ( VBO[ 6 ] != 0 ) { 
+				glEnable ( GL_COLOR_MATERIAL );
+				glColorMaterial ( GL_FRONT_AND_BACK, GL_DIFFUSE );
+				glEnableClientState ( GL_COLOR_ARRAY ); glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 1 ] ); glColorPointer ( GL_BGRA, GL_UNSIGNED_BYTE, VBO[ 6 ], 0x0 );
+				glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+			}
+		#endif	
+		if ( VBO[ 7 ] != 0 ) { glEnableClientState ( GL_NORMAL_ARRAY );	glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 2 ] ); glNormalPointer ( GL_FLOAT, VBO[ 7 ], 0x0 );}  
+		if ( VBO[ 8 ] != 0 ) { glEnableClientState ( GL_TEXTURE_COORD_ARRAY ); glBindBufferARB ( GL_ARRAY_BUFFER_ARB, VBO[ 3 ] ); glTexCoordPointer ( VBO[8]>>2, GL_FLOAT, VBO[8], 0x0 );}  
+		
+		 #ifndef BUILD_NOCOLORBUF
+			glDisableClientState ( GL_COLOR_ARRAY );
+		#endif
+		glDisableClientState ( GL_VERTEX_ARRAY );		
+		glDisableClientState ( GL_NORMAL_ARRAY );
+		glDisableClientState ( GL_TEXTURE_COORD_ARRAY ); 
+
+		PERF_POP ( 'ren3' );
+	}
+	*/
+#endif
 
 
 // ***** NOTE ********** THIS FUNCTION should be moved outside of Mesh. 
