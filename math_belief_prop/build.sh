@@ -3,6 +3,8 @@
 #  lib/libsvd.a \
 
 g++ -g -I../libmin/include/ \
+  -D__linux__ \
+  -DLIBHELP_STATIC \
   -I /usr/include/eigen3 \
   ../libmin/src/camera3d.cpp \
   ../libmin/src/file_png.cpp \
@@ -12,6 +14,7 @@ g++ -g -I../libmin/include/ \
   ../libmin/src/mersenne.cpp \
   ../libmin/src/common_defs.cpp \
   ../libmin/src/string_helper.cpp \
+  ../libmin/src/datax.cpp \
   -I ../libmin/mains \
   -I ../math_displace_mesh \
   ../math_displace_mesh/mesh.cpp \

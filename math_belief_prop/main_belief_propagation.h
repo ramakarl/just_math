@@ -9,7 +9,8 @@ typedef struct _opt_t {
   std::string fn_rule;
 
   std::string tileset_fn,
-              tilemap_fn;
+              tilemap_fn,
+              tileobj_fn;
   int32_t tileset_stride_x,
           tileset_stride_y;
   int32_t tileset_margin,

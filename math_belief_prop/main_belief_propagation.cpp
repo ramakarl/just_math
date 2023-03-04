@@ -38,7 +38,10 @@
 #include "main_belief_propagation.h"
 
 #include "string_helper.h"
-#include "nv_gui.h"
+//#include "mesh.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 #include "pd_getopt.h"
 extern char *optarg;
@@ -702,6 +705,51 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 //            //
 //------------//
 
+//void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);
+void stl_print(FILE *, std::vector< float > &, float, float, float);
+
+int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< float > > tri_lib) {
+  FILE *fp=stdout;
+
+  int i, j, k, n;
+  int ix, iy, iz;
+
+  float stride_x = 1.0,
+        stride_y = 1.0,
+        stride_z = 1.0;
+
+  float cx, cy, cz,
+        dx, dy, dz,
+        nx, ny, nz;
+  int64_t pos;
+  int32_t tile_id;
+
+  for (ix=0; ix<bp.m_res.x; ix++) {
+    for (iy=0; iy<bp.m_res.y; iy++) {
+      for (iz=0; iz<bp.m_res.z; iz++) {
+        pos = bp.getVertex(ix, iy, iz);
+
+        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+
+        dx = (float)ix*stride_x + cx;
+        dy = (float)iy*stride_y + cy;
+        dz = (float)iz*stride_z + cz;
+
+        if (tile_id >= tri_lib.size()) {
+          fprintf(stderr, "ERROR: tile_id %i, exceeds tri (%i)\n",
+              (int)tile_id, (int)tri_lib.size());
+          continue;
+        }
+
+        stl_print(fp, tri_lib[tile_id], dx, dy, dz);
+
+      }
+    }
+  }
+
+  return 0;
+}
+
 int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   FILE *fp;
   int i, j, n, tileset_size;
@@ -825,6 +873,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -N <fn>  CSV name file\n");
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
+  fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
@@ -866,6 +915,299 @@ void show_version(FILE *fp) {
   fprintf(fp, "bp version: %s\n", BELIEF_PROPAGATION_VERSION);
 }
 
+/*
+void fprint_obj(FILE *fp, tinyobj::ObjReader &reader, float dx, float dy, float dz) {
+  int i, j, k;
+  auto& attrib = reader.GetAttrib();
+  auto& shapes = reader.GetShapes();
+  auto& materials = reader.GetMaterials();
+
+  for (i=0; i<attrib.size(); i+=3) {
+    fprintf(fp, "v %f %f %f\n",
+        (float)(attrib.vertices[i+0] + dx),
+        (float)(attrib.vertices[i+1] + dy),
+        (float)(attrib.vertices[i+2] + dz));
+  }
+
+  // Loop over shapes
+  for (size_t s = 0; s < shapes.size(); s++) {
+
+    // Loop over faces(polygon)
+    size_t index_offset = 0;
+    for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+      size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+      // Loop over vertices in the face.
+      for (size_t v = 0; v < fv; v++) {
+
+        // access to vertex
+        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+        tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+        tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+        tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+        fprintf(fp, "%f %f %f\n", (float)(vx+dx), (float)(vy+dy), (float)(vz+dz));
+
+        // Check if `normal_index` is zero or positive. negative = no normal data
+        if (idx.normal_index >= 0) {
+          tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
+          tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
+          tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+        }
+
+        // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+        if (idx.texcoord_index >= 0) {
+          tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+          tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+        }
+
+        // Optional: vertex colors
+        // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+        // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+        // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+      }
+      index_offset += fv;
+
+      // per-face material
+      shapes[s].mesh.material_ids[f];
+    }
+  }
+
+
+}
+*/
+
+int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::vector< float > > tri) {
+  int i, j, k, n;
+
+  float stride_x = 1.0,
+        stride_y = 1.0,
+        stride_z = 1.0;
+
+  float cx = 0.0,
+        cy = 0.0,
+        cz = 0.0;
+
+  float dx = 1.0,
+        dy = 1.0,
+        dz = 1.0;
+
+  float nx, ny, nz;
+
+  int ix, iy, iz;
+  int64_t pos;
+  int32_t tile_id;
+
+  FILE *fp;
+
+  fp = fopen(ofn.c_str(), "w");
+  if (!fp) { return -1; }
+
+  for (ix=0; ix<bp.m_res.x; ix++) {
+    for (iy=0; iy<bp.m_res.y; iy++) {
+      for (iz=0; iz<bp.m_res.z; iz++) {
+        pos = bp.getVertex(ix, iy, iz);
+
+        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+
+        dx = (float)ix*stride_x + cx;
+        dy = (float)iy*stride_y + cy;
+        dz = (float)iz*stride_z + cz;
+
+        if (tile_id >= tri.size()) {
+          fprintf(stderr, "ERROR: tile_id %i, exceeds tri (%i)\n",
+              (int)tile_id, (int)tri.size());
+          continue;
+        }
+
+        fprintf(fp, "solid\n");
+        for (i=0; i<tri[tile_id].size(); i+=9) {
+          fprintf(fp, "  facet normal %f %f %f\n",
+              (float)nx, (float)ny, (float)nz);
+
+          for (j=0; j<3; j++) {
+            fprintf(fp, "    vertex %f %f %f\n",
+              (float)tri[tile_id][i + 3*j + 0],
+              (float)tri[tile_id][i + 3*j + 1],
+              (float)tri[tile_id][i + 3*j + 2]);
+          }
+
+          fprintf(fp, "  endfacet\n");
+        }
+        fprintf(fp, "endsolid\n");
+
+      }
+    }
+  }
+
+  fclose(fp);
+
+  return 0;
+}
+
+int load_obj2tri(std::string inputfile, std::vector< float > &tri) {
+
+  tri.clear();
+
+  //std::string inputfile = "./examples/.data/s000.obj";
+  tinyobj::ObjReaderConfig reader_config;
+  reader_config.mtl_search_path = "./"; // Path to material files
+
+  tinyobj::ObjReader reader;
+
+  if (!reader.ParseFromFile(inputfile, reader_config)) {
+    if (!reader.Error().empty()) {
+        std::cerr << "TinyObjReader[E]: " << reader.Error();
+    }
+    return -1;
+  }
+
+  if (!reader.Warning().empty()) {
+    std::cout << "TinyObjReader[W]: " << reader.Warning();
+  }
+
+  auto& attrib = reader.GetAttrib();
+  auto& shapes = reader.GetShapes();
+  auto& materials = reader.GetMaterials();
+  // Loop over shapes
+  for (size_t s = 0; s < shapes.size(); s++) {
+
+    //printf("#shape %i\n", (int)s);
+
+    // Loop over faces(polygon)
+    size_t index_offset = 0;
+    for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+      size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+      //printf("# face %i\n", (int)f);
+
+      // Loop over vertices in the face.
+      for (size_t v = 0; v < fv; v++) {
+
+        //printf("#  vertex %i\n", (int)v);
+
+        // access to vertex
+        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+        tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+        tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+        tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+        tri.push_back(vx);
+        tri.push_back(vy);
+        tri.push_back(vz);
+
+        // Check if `normal_index` is zero or positive. negative = no normal data
+        if (idx.normal_index >= 0) {
+
+          tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
+          tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
+          tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+
+          printf("!! normal: %f %f %f\n", nx, ny, nz);
+        }
+
+        // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+        if (idx.texcoord_index >= 0) {
+          tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+          tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+        }
+
+        // Optional: vertex colors
+        // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+        // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+        // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+      }
+      index_offset += fv;
+
+      // per-face material
+      shapes[s].mesh.material_ids[f];
+    }
+  }
+
+  return 0;
+
+  /*
+  tinyobj::attrib_t ax;
+  std::vector< tinyobj::shape_t > sx;
+  std::vector< tinyobj::material_t > mx;
+
+  ax = attrib;
+  sx = shapes;
+  mx = materials;
+
+  bool coordTransform = false;
+  bool ignoreMaterial = true;
+
+  //tinyobj::WriteObj( "./akok.0.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
+  tinyobj::WriteObj( "./akok.0.obj", ax, sx, mx, coordTransform, ignoreMaterial);
+
+  for (size_t i=0; i<ax.vertices.size(); i+=3) {
+    ax.vertices[i+0] += 2.0;
+    ax.vertices[i+1] += 0.0;
+    ax.vertices[i+2] += 0.0;
+  }
+
+  //tinyobj::WriteObj( "./akok.1.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
+  tinyobj::WriteObj( "./akok.1.obj", ax, sx, mx, coordTransform, ignoreMaterial);
+
+  exit(-1);
+  return;
+  */
+
+  /*
+  bool br;
+  MeshX mm;
+
+  br = mm.LoadObj("./examples/.data/s000.obj", 1.0);
+  if (br) { printf("load successful\n"); }
+  else { printf("load failed\n"); }
+
+  exit(-1);
+  */
+
+}
+
+void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0) {
+  int i, j;
+  float nx=0.0, ny=0.0, nz=0.0;
+
+  fprintf(fp, "solid\n");
+  for (i=0; i<tri.size(); i+=9) {
+    fprintf(fp, "  facet normal %f %f %f\n",
+        (float)nx, (float)ny, (float)nz);
+
+    fprintf(fp, "    outer loop\n");
+    for (j=0; j<3; j++) {
+      fprintf(fp, "      vertex %f %f %f\n",
+        (float)tri[i + 3*j + 0] + dx,
+        (float)tri[i + 3*j + 1] + dy,
+        (float)tri[i + 3*j + 2] + dz);
+    }
+
+    fprintf(fp, "    endloop\n");
+    fprintf(fp, "  endfacet\n");
+  }
+  fprintf(fp, "endsolid\n");
+}
+
+int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris) {
+  int i, j, k, ret;
+  std::vector< std::string > obj_fns;
+  std::vector< float > w;
+  std::vector< float > tri;
+
+  ret = _read_name_csv(fn, obj_fns, w);
+  if (ret<0) { return ret; }
+
+  for (i=0; i<obj_fns.size(); i++) {
+    ret = load_obj2tri(obj_fns[i], tri);
+    if (ret<0) { return ret; }
+    tris.push_back(tri);
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
@@ -897,6 +1239,8 @@ int main(int argc, char **argv) {
   std::string constraint_commands;
   std::vector< constraint_op_t > constraint_op_list;
 
+  std::vector< std::vector< float > > tri_shape_lib;
+
   BeliefPropagation bpc;
 
   int arg=1;
@@ -908,7 +1252,7 @@ int main(int argc, char **argv) {
   g_opt.tiled_reverse_y = 0;
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -1020,6 +1364,9 @@ int main(int argc, char **argv) {
         bpc.m_use_checkerboard = 1;
         break;
 
+      case 'L':
+        g_opt.tileobj_fn = optarg;
+        break;
       case 'Q':
         g_opt.tileset_fn = optarg;
         break;
@@ -1061,10 +1408,18 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-
-
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
+
+
+  if (g_opt.tileobj_fn.size() > 0) {
+    ret=load_obj_stl_lib( g_opt.tileobj_fn, tri_shape_lib );
+    if (ret<0) {
+      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", g_opt.tileobj_fn.c_str());
+      exit(-1);
+    }
+  }
+
 
   if (constraint_commands.size() == 0) {
     if (constraint_fn) {
@@ -1328,7 +1683,12 @@ int main(int argc, char **argv) {
       printf("writing tilemap (%s)\n", g_opt.tilemap_fn.c_str());
     }
 
-    write_tiled_json(g_opt, bpc);
+    if (g_opt.tileobj_fn.size() > 0) {
+      write_bp_stl(g_opt, bpc, tri_shape_lib);
+    }
+    else {
+      write_tiled_json(g_opt, bpc);
+    }
   }
 
   if (name_fn) { free(name_fn); }
