@@ -2,7 +2,6 @@
 #include <math.h>
 #include <assert.h>
 
-#include "geom_helper.h"
 #include "mesh.h"
 #include "mesh_info.h"
 #include "string_helper.h"
@@ -334,66 +333,6 @@ Vector3DF MeshX::NormalizeMesh ( float sz, Vector3DF& ctr, int vmin, int vmax )
 		v++;
 	}
 	return (bmax - bmin)*0.5f;
-}
-
-// Raytrace mesh
-// Returns:
-//  vndx  - index of the hit face and nearest vertex
-//  vhit  - position of hit in face
-//  vnear - position of nearest vertex
-//
-bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI& vndx, Vector3DF& vnear, Vector3DF& vhit, Vector3DF& vnorm )
-{
-	AttrV3* f;	
-	int fbest;
-	float t, tbest, d, dbest;
-	Vector3DF v[3], hit;
-	float alpha, beta;
-	bool front;
-	
-	// find nearest hit triangle	
-	fbest = -1;
-	t = 1.0e10;
-	tbest = 1.0e10;
-	f = (AttrV3*) GetStart(BFACEV3);
-	for ( int fi=0; fi < GetNumElem(BFACEV3); fi++) {
-
-		v[0] = *GetVertPos( f->v1 );	v[0] *= xform;							// mesh transform
-		v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
-		v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
-
-		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, alpha, beta, front ) ) {	// check for triangle hit
-			if ( t < tbest ) {													// find nearest hit
-				fbest = fi;
-				tbest = t;
-			}			
-		}
-		f++;
-	}
-	if ( fbest==-1 ) return false;		// no hit
-
-	// find nearest vertex in triangle
-	dbest = 1.0e20;
-	f = (AttrV3*) GetElem(BFACEV3, fbest );
-	v[0] = *GetVertPos( f->v1 );	v[0] *= xform;
-	v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
-	v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
-	
-	for (int i=0; i < 3; i++ ) {
-		d = sqrt( (v[i].x-hit.x)*(v[i].x-hit.x) + (v[i].y-hit.y)*(v[i].y-hit.y) + (v[i].z-hit.z)*(v[i].z-hit.z) );		// distance from hit to each vertex
-		if ( d < dbest ) {													// find nearest vertex
-			vndx.x = fbest;													// face id
-			vndx.y = (i==0) ? f->v1 : ((i==1) ? f->v2 : f->v3);				// vertex id					
-			vndx.z = i;
-			dbest = d;
-		}
-	}
-	vhit = orig + dir * tbest;							// return best hit
-	vnear = v[ vndx.z ];								// and nearest vertex
-	
-	xform.SetTranslate( Vector3DF(0, 0, 0) );						// remove translation from transform
-	vnorm = *GetVertNorm(vndx.y);	vnorm *= xform;		// get oriented normal
-	return true;
 }
 
 void MeshX::Smooth ( int iter )
@@ -1180,3 +1119,67 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 
 	return true;
 }
+
+
+// ***** NOTE ********** THIS FUNCTION should be moved outside of Mesh. 
+// It is more an applied use of Mesh.
+//   #include "geom_helper.h"   // needed for intersectRayTriangle
+// Raytrace mesh
+// Returns:
+//  vndx  - index of the hit face and nearest vertex
+//  vhit  - position of hit in face
+//  vnear - position of nearest vertex
+//
+/* bool MeshX::Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI& vndx, Vector3DF& vnear, Vector3DF& vhit, Vector3DF& vnorm )
+{
+	AttrV3* f;	
+	int fbest;
+	float t, tbest, d, dbest;
+	Vector3DF v[3], hit;
+	float alpha, beta;
+	bool front;
+	
+	// find nearest hit triangle	
+	fbest = -1;
+	t = 1.0e10;
+	tbest = 1.0e10;
+	f = (AttrV3*) GetStart(BFACEV3);
+	for ( int fi=0; fi < GetNumElem(BFACEV3); fi++) {
+
+		v[0] = *GetVertPos( f->v1 );	v[0] *= xform;							// mesh transform
+		v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
+		v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
+
+		if ( intersectRayTriangle ( orig, dir, v[0], v[1], v[2], t, alpha, beta, front ) ) {	// check for triangle hit
+			if ( t < tbest ) {													// find nearest hit
+				fbest = fi;
+				tbest = t;
+			}			
+		}
+		f++;
+	}
+	if ( fbest==-1 ) return false;		// no hit
+
+	// find nearest vertex in triangle
+	dbest = 1.0e20;
+	f = (AttrV3*) GetElem(BFACEV3, fbest );
+	v[0] = *GetVertPos( f->v1 );	v[0] *= xform;
+	v[1] = *GetVertPos( f->v2 );	v[1] *= xform;
+	v[2] = *GetVertPos( f->v3 );	v[2] *= xform;	
+	
+	for (int i=0; i < 3; i++ ) {
+		d = sqrt( (v[i].x-hit.x)*(v[i].x-hit.x) + (v[i].y-hit.y)*(v[i].y-hit.y) + (v[i].z-hit.z)*(v[i].z-hit.z) );		// distance from hit to each vertex
+		if ( d < dbest ) {													// find nearest vertex
+			vndx.x = fbest;													// face id
+			vndx.y = (i==0) ? f->v1 : ((i==1) ? f->v2 : f->v3);				// vertex id					
+			vndx.z = i;
+			dbest = d;
+		}
+	}
+	vhit = orig + dir * tbest;							// return best hit
+	vnear = v[ vndx.z ];								// and nearest vertex
+	
+	xform.SetTranslate( Vector3DF(0, 0, 0) );						// remove translation from transform
+	vnorm = *GetVertNorm(vndx.y);	vnorm *= xform;		// get oriented normal
+	return true;
+} */

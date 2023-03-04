@@ -104,8 +104,7 @@
 		xref		AddFaceFast (xref v1, xref v2, xref v3, xref v4 )	{ return (this->*m_AddFaceFast4Func) (v1, v2, v3, v4); }
 
 		void		ComputeBounds (Vector3DF& bmin, Vector3DF& bmax, int vmin=0, int vmax=0);
-		Vector3DF	NormalizeMesh ( float sz, Vector3DF& ctr, int vmin = 0, int vmax = 0);
-		bool		Raytrace ( Vector3DF orig, Vector3DF dir, Matrix4F& xform, Vector3DI& vndx, Vector3DF& vnear, Vector3DF& vhit, Vector3DF& vnorm );
+		Vector3DF	NormalizeMesh ( float sz, Vector3DF& ctr, int vmin = 0, int vmax = 0);		
 
 		//void		BindFormat ( bufPos b );
 		void		SetFormatFunc ();
