@@ -97,6 +97,10 @@ Residual BP might give 4x (speculative), with SVD at 3x gives 12x.
 ---
 
 * [gamedev SO on contradictions in WFC](https://gamedev.stackexchange.com/questions/178443/resolving-contradictions-in-wfc-more-efficiently-than-naive-backtracking)
+  - [tileset gif](https://imgur.com/1b8FYNG)
+  - [oskar stalberg pipes (tw)](https://twitter.com/Nolithius/status/1218534693903138818)
+  - imgur [link0](https://imgur.com/ZLVkuaI) [link1](https://imgur.com/XXyrpmc)
+  - [reddit post](https://www.reddit.com/r/proceduralgeneration/comments/eq2vxh/resolving_error_states_in_wfc_more_efficiently/)
 
 ---
 
@@ -125,6 +129,7 @@ References
 * [procjam WFC](https://www.procjam.com/tutorials/wfc/)
 * [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
 * [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+* [Tilings and Projection Set Algorithms](https://gvarnavides.com/musings/tilings-and-projection-set-algorithms/)
 
 
 

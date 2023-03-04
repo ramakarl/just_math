@@ -37,6 +37,9 @@
 #include "belief_propagation.h"
 #include "main_belief_propagation.h"
 
+#include "string_helper.h"
+#include "nv_gui.h"
+
 #include "pd_getopt.h"
 extern char *optarg;
 
@@ -409,6 +412,287 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 }
 
+//-------------------------------------------------//
+//                      _             _       _    //
+//   ___ ___  _ __  ___| |_ _ __ __ _(_)_ __ | |_  //
+//  / __/ _ \| '_ \/ __| __| '__/ _` | | '_ \| __| //
+// | (_| (_) | | | \__ \ |_| | | (_| | | | | | |_  //
+//  \___\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__| //
+//                                                 //
+//-------------------------------------------------//
+
+// Split string on separator
+//   e.g. "object:car, other".. left='object:car', right='other'
+bool strSplit_ ( std::string str, std::string sep, std::string& left, std::string& right ) {
+  std::string result;
+  size_t f1, f2;
+
+  //f1 = str.find_first_not_of ( sep );
+  //if ( f1 == std::string::npos ) f1 = 0;
+  f1 = 0;
+  f2 = str.find_first_of ( sep, f1 );
+  if ( f2 != std::string::npos) {
+    left = str.substr ( f1, f2-f1 );
+    right = str.substr ( f2+1 );
+    return true;
+  }
+  left = "";
+  right = str;
+  return false;
+}
+
+
+
+int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) {
+  int err_code = 0;
+  int val, iret;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+  range.push_back(0);
+  range.push_back(dim.size());
+
+  if (s.size()==0) { return -1; }
+
+  r = strSplit_( s, csep, l_innard, r_innard );
+  if (!r) {
+
+    iret = strToI(r_innard, val);
+    if (iret<0) { return -1; }
+    range[0] = val;
+    range[1] = range[0]+1;
+    return 0;
+  }
+
+  if (l_innard.size() > 0) {
+    iret = strToI(l_innard, val);
+    if (iret < 0) { return -1; }
+    if (val < 0) { val = dim[0] + val; }
+    range[0] = val;
+  }
+
+  if (r_innard.size() > 0) {
+    iret = strToI(r_innard, val);
+    if (iret < 0) { return -1; }
+    if (val < 0) { val = dim[1] + val; }
+    range[1] = val+1;
+  }
+
+  return err_code;
+}
+
+int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) {
+  int dim_idx=0;
+  int err_code = 0;
+  int val, iret;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string lsep = "[", rsep = "]", csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+
+  for (dim_idx=0; dim_idx<dim.size(); dim_idx++) {
+    range.push_back(0);
+    range.push_back(dim[dim_idx]);
+  }
+
+  if (s.size()==0) { return 0; }
+
+  for (dim_idx=0; dim_idx<dim.size(); dim_idx++) {
+
+    r = strGet( cur_s, lsep, rsep, innard, pos );
+    if (!r) {
+      err_code = -1-dim_idx;
+      break;
+    }
+
+    if (innard.size()==0) { err_code = -4; break; }
+    if ((innard[0] != lsep[0]) ||
+        (innard[ innard.size()-1 ] != rsep[0])) {
+      err_code = -5;
+      break;
+    }
+
+    // lop off first range
+    //
+    cur_s  = cur_s.substr(pos + innard.size());
+
+    if (innard.size()==2) { continue; }
+
+    // lop off left and right separator
+    //
+    innard = innard.substr(1, innard.size()-2);
+
+    r = strSplit_( innard, csep, l_innard, r_innard );
+    if (!r) {
+      iret = strToI(r_innard, val);
+      if (iret<0) { return -1; }
+      range[2*dim_idx] = val;
+      range[2*dim_idx+1] = range[2*dim_idx]+1;
+      continue;
+    }
+
+    if (l_innard.size() > 0) {
+      iret = strToI(l_innard, val);
+      if (iret < 0) { return -1; }
+      if (val < 0) { val = dim[dim_idx] + val; }
+      range[2*dim_idx] = val;
+    }
+
+    if (r_innard.size() > 0) {
+      iret = strToI(r_innard, val);
+      if (iret < 0) { return -1; }
+      if (val < 0) { val = dim[dim_idx] + val; }
+      range[2*dim_idx+1] = val;
+    }
+
+
+  }
+
+  return err_code;
+}
+
+int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name) {
+  int i, n, r;
+  std::vector< std::string > raw_tok;
+  std::string ws_sep = " \n\t";
+  std::vector< std::string > tok;
+  std::vector< int > tiledim;
+
+  constraint_op_t op;
+
+  std::string srange;
+
+  tiledim.push_back(0);
+  tiledim.push_back(name.size());
+
+  op_list.clear();
+
+  n = strSplitMultiple( s, ws_sep, raw_tok );
+
+  for (i=0; i<n; i++) {
+    if (raw_tok[i].size() > 0) {
+      tok.push_back( raw_tok[i] );
+    }
+  }
+
+  if ((tok.size()%2) != 0) { return -1; }
+
+  for (i=0; i<tok.size(); i+=2) {
+
+    op.dim_range.clear();
+    op.tile_range.clear();
+
+    srange = tok[i].substr(1);
+
+    op.op = tok[i][0];
+    r = parse_bracket_range(op.dim_range, srange, dim);
+    if (r<0) { return -1; }
+
+    r = parse_range(op.tile_range, tok[i+1], tiledim);
+    if (r<0) { return -2; }
+
+    op_list.push_back(op);
+  }
+
+  return 0;
+}
+
+void debug_constraint_op_list(std::vector< constraint_op_t > &op_list) {
+  int i, j;
+  for (i=0; i<op_list.size(); i++) {
+    printf("op_list[%i] op:%c dim_range", i, op_list[i].op);
+    for (j=0; j<op_list[i].dim_range.size(); j+=2) {
+      printf("[%i:%i]",
+          (int)op_list[i].dim_range[j],
+          (int)op_list[i].dim_range[j+1]);
+    }
+    printf(" tile_range");
+    for (j=0; j<op_list[i].tile_range.size(); j+=2) {
+      printf("(%i:%i)",
+          (int)op_list[i].tile_range[j],
+          (int)op_list[i].tile_range[j+1]);
+    }
+    printf("\n");
+  }
+}
+
+int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list) {
+  int op_idx, i, j, k, n;
+  int x,y,z,t;
+  int64_t pos;
+
+  std::vector<int32_t> v;
+
+  debug_constraint_op_list(op_list);
+
+  for (op_idx=0; op_idx<op_list.size(); op_idx++) {
+
+    // discard
+    //
+    if (op_list[op_idx].op == 'd') {
+
+      v.clear();
+      for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
+        v.push_back(t);
+      }
+
+      for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
+          for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
+            pos = bp.getVertex(x,y,z);
+            bp.filterDiscard(pos, v);
+          }
+        }
+      }
+
+    }
+
+    // force (only)
+    //
+    else if (op_list[op_idx].op == 'f') {
+
+      v.clear();
+      for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
+        v.push_back(t);
+      }
+
+      for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[4]; y++) {
+          for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
+            pos = bp.getVertex(x,y,z);
+            bp.filterKeep(pos, v);
+          }
+        }
+      }
+
+    }
+
+    else if (op_list[op_idx].op == 'a') {
+      // sorry
+    }
+
+    else {
+      return -1;
+    }
+
+  }
+
+  return 0;
+}
+
 //------------//
 //       _ _  //
 //   ___| (_) //
@@ -610,6 +894,8 @@ int main(int argc, char **argv) {
   std::vector< std::vector< int32_t > > constraint_list;
 
   std::vector< int32_t > cull_list;
+  std::string constraint_commands;
+  std::vector< constraint_op_t > constraint_op_list;
 
   BeliefPropagation bpc;
 
@@ -622,7 +908,7 @@ int main(int argc, char **argv) {
   g_opt.tiled_reverse_y = 0;
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:u")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -719,6 +1005,9 @@ int main(int argc, char **argv) {
       case 'c':
         cull_list.push_back( (int32_t)atoi(optarg) );
         break;
+      case 'J':
+        constraint_commands = optarg;
+        break;
 
       case 'W':
         wfc_flag = 1;
@@ -752,18 +1041,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  //DEBUG
-  /*
-  printf("tileset_fn: %s\n", g_opt.tileset_fn.c_str());
-  printf("tilemap_fn: %s\n", g_opt.tilemap_fn.c_str());
-  printf("stride: %i %i\n", g_opt.tileset_stride_x, g_opt.tileset_stride_y);
-  printf("width,height: %i %i\n", g_opt.tileset_width, g_opt.tileset_height);
-  printf("margin: %i\n", g_opt.tileset_margin);
-  printf("spacing: %i\n", g_opt.tileset_spacing);
-  exit(-1);
-  */
-  //DEBUG
-
   if ((!name_fn) || (!rule_fn)) {
     printf("\nprovide name file and rule file CSV\n\n");
     show_usage(stderr);
@@ -776,34 +1053,70 @@ int main(int argc, char **argv) {
     Z = D;
   }
 
+
+
   if ((X<=0) || (Y<=0) || (Z<=0)) {
     fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
     show_usage(stderr);
     exit(-1);
   }
 
+
+
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
-  if (constraint_fn) {
-    constraint_fn_str = constraint_fn;
-    _read_constraint_csv(constraint_fn_str, constraint_list);
 
-    if (bpc.m_verbose > 0) {
-      printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+  if (constraint_commands.size() == 0) {
+    if (constraint_fn) {
+      constraint_fn_str = constraint_fn;
+      _read_constraint_csv(constraint_fn_str, constraint_list);
+
+      if (bpc.m_verbose > 0) {
+        printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+      }
     }
   }
 
   if (bpc.m_verbose > 0) {
-    printf ( "bpc init csv. (%s, %s)\n", name_fn_str.c_str(), rule_fn_str.c_str() ); fflush(stdout);
+    printf ( "bpc init csv. (%s, %s)\n",
+        name_fn_str.c_str(),
+        rule_fn_str.c_str() );
+    fflush(stdout);
   }
+
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
+
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
     exit(-1);
   }
 
+  if (constraint_commands.size() > 0) {
+    std::vector< int > dim;
+    dim.push_back(X);
+    dim.push_back(Y);
+    dim.push_back(Z);
+    printf("%s\n", constraint_commands.c_str());
 
-  if (constraint_fn) {
+    ret = parse_constraint_dsl(constraint_op_list, constraint_commands, dim, bpc.m_tile_name);
+    if (ret < 0) {
+      fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+      exit(-1);
+    }
+
+    ret = constrain_bp( bpc, constraint_op_list);
+    if (ret < 0) {
+      fprintf(stderr, "constrain_bp failure\n");
+      exit(-1);
+    }
+
+    if (bpc.m_verbose > 1) {
+      printf("after constraint dsl:\n");
+      bpc.debugPrint();
+    }
+
+  }
+  else if (constraint_fn) {
     if (bpc.m_verbose > 0) {
       printf ( "#filter constraints.\n" );
     }

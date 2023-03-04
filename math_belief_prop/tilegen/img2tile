@@ -39,6 +39,9 @@ info = {
     "basedir": "./",
     "rule_weight": False, #True,
     "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
+
+    "barf_supertile": True,
+
     #"neighbor_type": 0,
     "debug": False
   },
@@ -144,8 +147,8 @@ def parse_param_2_1(a):
   else:
     return [-1,-1]
 
-  if x <= 0: return [-1,-1]
-  if y <= 0: return [-1,-1]
+  if x < 0: return [-1,-1]
+  if y < 0: return [-1,-1]
   return [x,y]
 
 try:
@@ -175,7 +178,7 @@ for o,a in opts:
   elif o == "-o":
     _xy = parse_param_2_1(a)
     if _xy[0] < 0:
-      sys.stderr.write("provide valid offset\n")
+      sys.stderr.write("provide valid offset (" + str(_xy[0]) + ")\n" )
       usage(sys.stderr)
       sys.exit(-1)
     info["offset"][0] = _xy[0]
@@ -770,6 +773,7 @@ def dedup_block(data):
 
   window = pxltile["window"]
   stride = pxltile["stride"]
+  base = pxltile["base"]
 
   null_pxl = data["null_pixel"]
 
@@ -785,11 +789,14 @@ def dedup_block(data):
   n_dedup_id = 1
   for src_tile_id in range(n_block):
     src_pxl = id_block_map[src_tile_id]
-    if ((src_pxl[0] == null_pxl[0]) and
-        (src_pxl[1] == null_pxl[1]) and
-        (src_pxl[2] == null_pxl[2])):
+
+    b_idx = (base[row_idx]*stride[col_idx] + base[col_idx]) * 3;
+    if ((src_pxl[b_idx+0] == null_pxl[0]) and
+        (src_pxl[b_idx+1] == null_pxl[1]) and
+        (src_pxl[b_idx+2] == null_pxl[2])):
       src_id_dedup_id_map[src_tile_id] = 0
       continue
+
     dedup_id_block_map[n_dedup_id] = id_block_map[src_tile_id]
     src_id_dedup_id_map[src_tile_id] = n_dedup_id
     n_dedup_id += 1
@@ -822,8 +829,10 @@ def dedup_block(data):
   data["dedup_id_block_map"] = dedup_id_block_map
 
   #DEBUG
-  #for idx in range(n_dedup_id):
-  #  barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], "tmp/" + str(idx) + ".png")
+  _opt = data["info"]["opt"]
+  if _opt["barf_supertile"]:
+    for idx in range(n_dedup_id):
+      barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
 
 
 def debug_print_rule(data):
