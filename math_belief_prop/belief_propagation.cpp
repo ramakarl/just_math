@@ -2903,6 +2903,8 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   int ret;
   float belief=-1.0, d = -1.0;
   float _eps = m_eps_converge;
+  Vector3DI vp;
+  int32_t n_idx;
 
   int64_t step_iter=0;
 
@@ -2917,6 +2919,18 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
           tile=-1,
           tile_idx=-1;
   float f_residue;
+
+  float f_it = (float)it;
+  float f_it_n = (float)m_num_verts;
+
+  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+
+  if (m_verbose > 1) {
+    printf("# _eps %f (%i/%i) {%f:%f}\n",
+        (float)_eps, (int)it, (int)m_num_verts,
+        (float)m_eps_converge_beg, (float)m_eps_converge_end);
+  }
+
 
 
   // after we've propagated constraints, BUF_MU
@@ -2991,6 +3005,16 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
   if (ret < 0) { return -1; }
 
+  if (m_verbose > 1) {
+    vp = getVertexPos(cell);
+    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
+        (int)vp.x, (int)vp.y, (int)vp.z,
+        (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
+  }
+
+
+
   // (success) end condition, all cell positions have exactly
   // one tile in them.
   //
@@ -3029,6 +3053,17 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
   // needs to be renormalized
   //
   NormalizeMU();
+
+  float f_it = (float)it;
+  float f_it_n = (float)m_num_verts;
+
+  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+
+  if (m_verbose > 1) {
+    printf("# _eps %f (%i/%i) {%f:%f}\n",
+        (float)_eps, (int)it, (int)m_num_verts,
+        (float)m_eps_converge_beg, (float)m_eps_converge_end);
+  }
 
   // iterate bp until converged
   //

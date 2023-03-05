@@ -1,15 +1,35 @@
 TODO
 ===
 
-###### 2023-02-28
+###### 2023-03-04
 
-* make sure wfc option is working
-* other window sizes and geometries for img2tile
+* ~make sure wfc option is working~
+  - think it is...
+* ~other window sizes and geometries for img2tile~
+  - 3x3 works
+  - nixing the other geometries. Cross is adds complexity without
+    giving anything valid
 * 3d output
+  - obj input, stl output
+  - needs some fixing up
 * config file
 * avg color for tilename
 * figure out location and generation of js tilesets (stair)
 * 3d pipe tileset (js?)
+  - oskar pipe (not checked in?)
+* converge eps start/end along with interpolation function
+  - we can guess how to interpolate based on how many tiles
+    we've fixed so far
+  - degenerate is just fixed eps, so doesn't break anything
+    to put in
+  - default to linear
+  - can specify python notation range for the `-e` option
+* getting worried about what looks to be a preference
+  for one tile type over another. Some results look too
+  homogeneous.
+  - Regardless, needs to be explained
+  - try and figure out how to test if there is a preference
+    either based on location, tile order or something else
 
 ###### 2023-02-22
 

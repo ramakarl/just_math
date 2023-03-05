@@ -445,6 +445,47 @@ bool strSplit_ ( std::string str, std::string sep, std::string& left, std::strin
 }
 
 
+int parse_frange(std::vector<float> &range, std::string &s) {
+  int err_code = 0, iret;
+  float val;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+  range.push_back(0);
+  range.push_back(0);
+
+  if (s.size()==0) { return -1; }
+
+  r = strSplit_( s, csep, l_innard, r_innard );
+  if (!r) {
+    iret = strToF(r_innard, val);
+    if (iret<0) { return -1; }
+    range[0] = val;
+    range[1] = val;
+    return 0;
+  }
+
+  if (l_innard.size() > 0) {
+    iret = strToF(l_innard, val);
+    if (iret < 0) { return -1; }
+    range[0] = val;
+  }
+
+  if (r_innard.size() > 0) {
+    iret = strToF(r_innard, val);
+    if (iret < 0) { return -1; }
+    range[1] = val;
+  }
+
+  return err_code;
+}
 
 int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) {
   int err_code = 0;
@@ -460,7 +501,8 @@ int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) 
 
   range.clear();
   range.push_back(0);
-  range.push_back(dim.size());
+  range.push_back(0);
+  if (dim.size() > 0) { range[1] = dim[0]; }
 
   if (s.size()==0) { return -1; }
 
@@ -469,6 +511,11 @@ int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) 
 
     iret = strToI(r_innard, val);
     if (iret<0) { return -1; }
+    if (val<0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
     range[0] = val;
     range[1] = range[0]+1;
     return 0;
@@ -476,15 +523,25 @@ int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) 
 
   if (l_innard.size() > 0) {
     iret = strToI(l_innard, val);
+
     if (iret < 0) { return -1; }
-    if (val < 0) { val = dim[0] + val; }
+    if (val < 0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
     range[0] = val;
   }
 
   if (r_innard.size() > 0) {
     iret = strToI(r_innard, val);
+
     if (iret < 0) { return -1; }
-    if (val < 0) { val = dim[1] + val; }
+    if (val < 0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
     range[1] = val+1;
   }
 
@@ -521,6 +578,8 @@ int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int
       break;
     }
 
+    // bad parse or not enclosed in brackets
+    //
     if (innard.size()==0) { err_code = -4; break; }
     if ((innard[0] != lsep[0]) ||
         (innard[ innard.size()-1 ] != rsep[0])) {
@@ -542,6 +601,7 @@ int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int
     if (!r) {
       iret = strToI(r_innard, val);
       if (iret<0) { return -1; }
+      if (val<0) { val = dim[dim_idx] + val; }
       range[2*dim_idx] = val;
       range[2*dim_idx+1] = range[2*dim_idx]+1;
       continue;
@@ -578,7 +638,7 @@ int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s
 
   std::string srange;
 
-  tiledim.push_back(0);
+  //tiledim.push_back(0);
   tiledim.push_back(name.size());
 
   op_list.clear();
@@ -673,7 +733,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
       }
 
       for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
-        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[4]; y++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
             bp.filterKeep(pos, v);
@@ -1219,7 +1279,9 @@ int main(int argc, char **argv) {
   char ch;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
-  std::string name_fn_str, rule_fn_str, constraint_fn_str;
+  std::string name_fn_str,
+              rule_fn_str,
+              constraint_fn_str;
 
   int test_num = -1;
   int X=0, Y=0, Z=0, D=0;
@@ -1236,7 +1298,12 @@ int main(int argc, char **argv) {
   std::string base_png = "out";
   char imgfile[512] = {0};
 
-  float eps_zero = -1.0, eps_converge = -1.0, step_factor = 1.0;
+  float eps_zero = -1.0,
+        eps_converge = -1.0,
+        step_factor = 1.0;
+  std::string _eps_str;
+  std::vector<float> eps_range;
+
   int max_iter = -1, it, n_it;
 
   std::vector< std::vector< int32_t > > constraint_list;
@@ -1248,6 +1315,9 @@ int main(int argc, char **argv) {
   std::vector< std::vector< float > > tri_shape_lib;
 
   BeliefPropagation bpc;
+
+  eps_range.push_back( bpc.m_eps_converge );
+  eps_range.push_back( bpc.m_eps_converge );
 
   int arg=1;
 
@@ -1292,10 +1362,24 @@ int main(int argc, char **argv) {
         break;
 
       case 'e':
+        /*
         eps_converge = atof(optarg);
         if (eps_converge > 0.0) {
           bpc.m_eps_converge = eps_converge;
         }
+        */
+
+        _eps_str = optarg;
+
+        ret = parse_frange( eps_range, _eps_str );
+        if (ret < 0) {
+          fprintf(stderr, "bad value for convergence epsilon\n");
+          show_usage(stderr);
+          exit(-1);
+        }
+        bpc.m_eps_converge_beg = eps_range[0];
+        bpc.m_eps_converge_end = eps_range[1];
+
         break;
       case 'z':
         eps_zero = atof(optarg);
@@ -1457,7 +1541,6 @@ int main(int argc, char **argv) {
     dim.push_back(X);
     dim.push_back(Y);
     dim.push_back(Z);
-    printf("%s\n", constraint_commands.c_str());
 
     ret = parse_constraint_dsl(constraint_op_list, constraint_commands, dim, bpc.m_tile_name);
     if (ret < 0) {
@@ -1472,7 +1555,7 @@ int main(int argc, char **argv) {
     }
 
     if (bpc.m_verbose > 1) {
-      printf("after constraint dsl:\n");
+      printf("*************** after constraint dsl:\n");
       bpc.debugPrint();
     }
 

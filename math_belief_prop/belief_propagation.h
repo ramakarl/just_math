@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.4.2"
+#define BELIEF_PROPAGATION_VERSION "0.4.4"
 
 #define RUN_OPT_PTRS
 #define RUN_OPT_MUPTR
@@ -145,6 +145,9 @@ public:
 
     // unused...
     m_stat_num_chosen = 0;
+
+    m_eps_converge_beg = m_eps_converge;
+    m_eps_converge_end = m_eps_converge;
 
   };
 
@@ -419,6 +422,10 @@ public:
   int m_verbose;
 
   float m_eps_converge;
+
+  float m_eps_converge_beg,
+        m_eps_converge_end;
+
   float m_eps_zero;
 
   

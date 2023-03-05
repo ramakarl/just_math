@@ -1,21 +1,21 @@
 //--------------------------------------------------------------------------------
 // NVIDIA(R) GVDB VOXELS
-// Copyright 2017, NVIDIA Corporation. 
+// Copyright 2017, NVIDIA Corporation.
 //
-// Redistribution and use in source and binary forms, with or without modification, 
+// Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer
 //    in the documentation and/or  other materials provided with the distribution.
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived 
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived
 //    from this software without specific prior written permission.
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
-// BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT 
-// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+// BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+// SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 // OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Version 1.0: Rama Hoetzlein, 5/1/2017
 //----------------------------------------------------------------------------------
 
@@ -54,15 +54,15 @@
 
 int strToI (std::string s) {
   //return ::atoi ( s.c_str() );
-  std::istringstream str_stream ( s ); 
-  int x; 
+  std::istringstream str_stream ( s );
+  int x;
   if (str_stream >> x) return x;    // this is the correct way to convert std::string to int, do not use atoi
   return 0;
 };
 
 int strToI (std::string s, int &x) {
   //return ::atoi ( s.c_str() );
-  std::istringstream str_stream ( s ); 
+  std::istringstream str_stream ( s );
 
    // this is the correct way to convert std::string to int, do not use atoi
    //
@@ -73,53 +73,64 @@ int strToI (std::string s, int &x) {
 float strToDateF( std::string s, int mp, int mc, int dp, int dc, int yp, int yc )
 {
   #ifdef USE_TIMEX
-    // default format: mm-dd-yyyy  
-    TimeX t;  
+    // default format: mm-dd-yyyy
+    TimeX t;
     return t.SetDateF ( s, mp, mc, dp, dc, yp, yc );
   #else
     dbgprintf ( "TimeX not loaded.\n");
     return 0;
-  #endif    
+  #endif
 }
 
 void strFromDateF ( float f, int& m, int& d, int& y )
 {
   #ifdef USE_TIMEX
     TimeX t;
-    t.GetDateF ( f, m, d, y );  
+    t.GetDateF ( f, m, d, y );
   #else
     dbgprintf ( "TimeX not loaded.\n");
-  #endif  
+  #endif
 }
 
 bool isFloat (std::string s) {
-  
-  int st = 0;  
+
+  int st = 0;
   char ch = s.at(st);
-  if (ch == 43 || ch==45 ) st++;          // check +, -  
+  if (ch == 43 || ch==45 ) st++;          // check +, -
 
   for (int n = st; n < s.length(); n++) {
     ch = s.at(n);
     if ( ch < 48 || ch > 57 || ch != 46 )    // fast check for non-numerical
       return false;
-  } 
+  }
   return true;
 }
+
 float strToF (std::string s) {
   //return ::atof ( s.c_str() );
-  std::istringstream str_stream ( s ); 
-  float x; 
+  std::istringstream str_stream ( s );
+  float x;
   if (str_stream >> x) return x;    // this is the correct way to convert std::string to float, do not use atof
   return 0;
 };
+
+int strToF (std::string s, float &val) {
+  std::istringstream str_stream ( s );
+
+  // this is the correct way to convert std::string to float, do not use atof
+  //
+  if (str_stream >> val) { return 0; }
+  return -1;
+};
+
 double strToD (std::string s) {
   //return ::atof ( s.c_str() );
-  std::istringstream str_stream ( s ); 
-  double x; 
+  std::istringstream str_stream ( s );
+  double x;
   if (str_stream >> x) return x;    // this is the correct way to convert std::string to float, do not use atof
   return 0;
 };
-unsigned long strToUL ( std::string s ) 
+unsigned long strToUL ( std::string s )
 {
   std::istringstream str_stream ( s );
   unsigned long x;
@@ -135,8 +146,8 @@ unsigned char strToC ( std::string s ) {
 // match the first 4 ASCII chars of string given.
 unsigned long strToID ( std::string str )
 {
-  str = str + "    ";  
-  return (static_cast<unsigned long>(str.at(0)) << 24) | 
+  str = str + "    ";
+  return (static_cast<unsigned long>(str.at(0)) << 24) |
        (static_cast<unsigned long>(str.at(1)) << 16) |
        (static_cast<unsigned long>(str.at(2)) << 8) |
        (static_cast<unsigned long>(str.at(3)) );
@@ -172,7 +183,7 @@ objType strToType (  std::string str )
 
 std::string typeToStr ( objType name )      // static function
 {
-  char buf[5];  
+  char buf[5];
   buf[0] = ((char*) &name)[3];
   buf[1] = ((char*) &name)[2];
   buf[2] = ((char*) &name)[1];
@@ -212,21 +223,21 @@ std::string xlToStr ( uint64_t f )
 std::string strFilebase ( std::string str )
 {
   size_t pos = str.find_last_of ( '.' );
-  if ( pos != std::string::npos ) 
+  if ( pos != std::string::npos )
     return str.substr ( 0, pos );
   return str;
 }
 std::string strFilepath ( std::string str )
 {
   size_t pos = str.find_last_of ( '\\' );
-  if ( pos != std::string::npos ) 
+  if ( pos != std::string::npos )
     return str.substr ( 0, pos+1 );
   return str;
 }
 
-// Parse string inside two separators. 
+// Parse string inside two separators.
 //   e.g. "object<car>,other".. str='other', key='object', val='car'
-// Parse string inside two separators. 
+// Parse string inside two separators.
 //   e.g. "object<car>,other".. str='other', key='object', val='car'
 bool strParseKeyVal ( std::string& str, uchar lsep, uchar rsep, std::string& key, std::string& val )
 {
@@ -246,7 +257,7 @@ bool strParseKeyVal ( std::string& str, uchar lsep, uchar rsep, std::string& key
       key = str.substr ( 0, lfound );
       str = str.substr ( rfound+1 );
       return true;
-    } 
+    }
   }
   return false;
 }
@@ -256,16 +267,16 @@ bool strParseKeyVal ( std::string& str, uchar lsep, uchar rsep, std::string& key
 // Get string from inside two separators. Input is unchanged.
 //  e.g. object<car> --> result: car
 bool strGet ( std::string str, std::string& result, std::string lsep, std::string rsep )
-{  
+{
   size_t lfound, rfound;
 
   lfound = str.find_first_of ( lsep );
   if ( lfound != std::string::npos) {
     rfound = str.find_first_of ( rsep, lfound+1 );
     if ( rfound != std::string::npos ) {
-      result = str.substr ( lfound+1, rfound-lfound-1 );          // return string strickly between lsep and rsep      
+      result = str.substr ( lfound+1, rfound-lfound-1 );          // return string strickly between lsep and rsep
       return true;
-    } 
+    }
   }
   return false;
 }
@@ -289,7 +300,7 @@ bool strGet ( const std::string& str, std::string lsep, std::string rsep, std::s
 }
 
 
-// SplitLeft 
+// SplitLeft
 //
 // WARNING, this skips over separators at the front of the string
 //
@@ -306,8 +317,8 @@ bool strSplitLeft ( std::string str, std::string sep, std::string& key, std::str
   size_t f1;
   f1 = str.find_first_of ( sep );
   if ( f1 == std::string::npos) return false;
-  key = str.substr ( 0, f1 );  
-  val = str.substr( f1+1 );    
+  key = str.substr ( 0, f1 );
+  val = str.substr( f1+1 );
   return true;
 }
 // Split string on separator. Return right.
@@ -317,9 +328,9 @@ std::string strSplitRight ( std::string& str, std::string sep )
   size_t f1;
   f1 = str.find_first_of ( sep );
   if ( f1 != std::string::npos) {
-    result = str.substr ( f1+1 );  
+    result = str.substr ( f1+1 );
     str = str.substr( 0, f1 );    // left side is continued in str
-  } 
+  }
   return result;
 }
 
@@ -335,7 +346,7 @@ bool strSplit ( std::string str, std::string sep, std::string& left, std::string
   f2 = str.find_first_of ( sep, f1 );
   if ( f2 != std::string::npos) {
     left = str.substr ( f1, f2-f1 );
-    right = str.substr ( f2+1 );    
+    right = str.substr ( f2+1 );
     return true;
   }
   left = "";
@@ -349,29 +360,29 @@ bool strSplit ( std::string str, std::string sep, std::string& left, std::string
   list.clear ();
   size_t f1;
   f1 = str.find_first_of ( sep );
-  
+
   while ( f1 != std::string::npos  ) {
     list.push_back ( str.substr(0,f1) );
     str = str.substr ( f1+1 );
-    f1 = str.find_first_of ( sep );    
-  }  
+    f1 = str.find_first_of ( sep );
+  }
   list.push_back ( str );
   return (int) list.size();
 }
 
 bool strFileSplit ( std::string str, std::string& path, std::string& name, std::string& ext )
-{  
+{
   size_t slash = str.find_last_of ( "/\\" );
   if ( slash != std::string::npos ) {
     path = str.substr ( 0, slash );
     str = str.substr ( slash+1 );
   } else {
-    path = "";    
+    path = "";
   }
   size_t dot = str.find_last_of ( '.' );
   if ( dot != std::string::npos ) {
     name = str.substr ( 0, dot );
-    ext = str.substr ( dot+1 );    
+    ext = str.substr ( dot+1 );
   } else {
     name = str;
     ext = "";
@@ -382,7 +393,7 @@ bool strFileSplit ( std::string str, std::string& path, std::string& name, std::
 
 
 // Parse out
-// e.g. "date=VEC4 | more" --> result "VEC4", str="date | more" 
+// e.g. "date=VEC4 | more" --> result "VEC4", str="date | more"
 std::string strParseOut ( std::string& str, std::string lsep, std::string rsep )
 {
   std::string result, rest;
@@ -394,14 +405,14 @@ bool strParseOut ( std::string str, std::string lsep, std::string rsep, std::str
 {
   size_t f1, f2;
   result = "";
-  
+
   f1 = str.find_first_of ( lsep );          // find separators
   if ( f1 == std::string::npos) return false;
   f2 = str.find_first_of ( rsep, f1 );
   if ( f2 == std::string::npos ) return false;
-  
-  result = str.substr ( f1+1, f2-f1-1 );    
-  rest = str.substr ( 0, f1 ) + str.substr ( f2+1 );  // keep left & right side    
+
+  result = str.substr ( f1+1, f2-f1-1 );
+  rest = str.substr ( 0, f1 ) + str.substr ( f2+1 );  // keep left & right side
   return true;
 }
 
@@ -435,7 +446,7 @@ std::string strParseFirst ( std::string& str, std::string sep, std::string other
   std::string result;
   size_t lfound, ofound;
 
-  lfound = str.find_first_of ( sep );  
+  lfound = str.find_first_of ( sep );
   ofound = str.find_first_of ( others );
   lfound = ( lfound==std::string::npos || ( ofound!=std::string::npos && ofound<lfound) ) ? ofound : lfound;
 
@@ -466,9 +477,9 @@ bool strReplace ( std::string& str, std::string src, std::string dest, int& cnt 
 {
   cnt = 0;
   size_t pos = 0;
-  
+
   pos = str.find ( src, pos );
-  if ( pos != std::string::npos ) return false;  
+  if ( pos != std::string::npos ) return false;
   while ( pos != std::string::npos ) {
     str = str.substr(0,pos) + dest + str.substr(pos + src.length() );
     pos += dest.length() - src.length() + 1;
@@ -523,7 +534,7 @@ int strFindFromList ( std::string str, std::vector<std::string>& list, int& pos 
 bool strIsNum ( std::string str, float& f )
 {
   if (str.empty()) return false;
-  std::string::iterator it;  
+  std::string::iterator it;
   char ch;
   for (it = str.begin(); it != str.end(); it++ ) {
     ch = (*it);
@@ -548,9 +559,9 @@ bool strToVec ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* ve
   std::string key, vstr;
 
   if ( !strParseKeyVal( str, lsep, rsep, key, vstr ) )
-    return false;    
-  
-  vstr += insep;  
+    return false;
+
+  vstr += insep;
   p = 0;
 
   for (int i=0; i < cpt; i++ ) {
@@ -558,17 +569,17 @@ bool strToVec ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* ve
     r = vstr.find_first_of ( insep, l );    if ( r == std::string::npos ) return false;
     vec[i] = atof ( vstr.substr ( l, r-l ).c_str() );
     p = r;
-  }  
+  }
   return true;
 }
 
 bool strToVec3 ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec )
 {
-  return strToVec ( str, lsep, insep, rsep, vec, 3 );  
+  return strToVec ( str, lsep, insep, rsep, vec, 3 );
 }
 bool strToVec4 ( std::string& str, uchar lsep, uchar insep, uchar rsep, float* vec )
 {
-  return strToVec ( str, lsep, insep, rsep, vec, 4 );  
+  return strToVec ( str, lsep, insep, rsep, vec, 4 );
 }
 Vector3DF strToVec3(std::string str, uchar sep)
 {
@@ -592,7 +603,7 @@ std::string wsToStr ( const std::wstring& str )
   int len = WideCharToMultiByte ( CP_ACP, 0, str.c_str(), (int) str.length(), 0, 0, 0, 0);
   char* buf = new char[ len+1 ];
   memset ( buf, '\0', len+1 );
-  WideCharToMultiByte ( CP_ACP, 0, str.c_str(), (int) str.length(), buf, len+1, 0, 0);  
+  WideCharToMultiByte ( CP_ACP, 0, str.c_str(), (int) str.length(), buf, len+1, 0, 0);
 #else
     int len = wcstombs( NULL, str.c_str(), 0 );
   char* buf = new char[ len ];
@@ -623,7 +634,7 @@ std::wstring strToWs (const std::string& s)
 #include <cctype>
 
 // trim left
-std::string strLTrim(std::string str) 
+std::string strLTrim(std::string str)
 {
   size_t lft = str.find_first_not_of(" \t\r\n");
   if ( lft==std::string::npos ) return "";
@@ -631,12 +642,12 @@ std::string strLTrim(std::string str)
 }
 
 // trim right
-std::string strRTrim(std::string str) 
+std::string strRTrim(std::string str)
 {
   size_t rgt = str.find_last_not_of(" \t\r\n");
   if ( rgt == std::string::npos) return "";
     return str.substr( 0, rgt);
-} 
+}
 
 // trim from both ends
 std::string strTrim(std::string str)
@@ -652,16 +663,16 @@ std::string strTrim ( std::string str, std::string ch )
   size_t found1 = str.find_first_not_of ( ch );
   size_t found2;
   if ( found1 != std::string::npos ) {
-    str = str.substr ( found1 );  
+    str = str.substr ( found1 );
     found2 = str.find_last_not_of ( ch );
-    if ( found2 != std::string::npos ) 
+    if ( found2 != std::string::npos )
       str = str.substr ( 0, found2+1 );
-  } else {  
+  } else {
     found2 = str.find_last_not_of ( ch );
-    if ( found2 != std::string::npos ) 
+    if ( found2 != std::string::npos )
       str = str.substr ( 0, found2+1 );
     else
-      str = "";     
+      str = "";
   }
   return str;
 }
@@ -724,19 +735,19 @@ std::string readword ( char* line, char delim )
 bool readword ( char *line, char delim, char *word, int max_size )
 {
   char *buf_pos;
-  char *start_pos;  
+  char *start_pos;
 
   // read past spaces/tabs, or until end of line/string
   for (buf_pos=line; (*buf_pos==' ' || *buf_pos=='\t') && *buf_pos!='\n' && *buf_pos!='\0';)
     buf_pos++;
-  
+
   // if end of line/string found, then no words found, return null
   if (*buf_pos=='\n' || *buf_pos=='\0') {*word = '\0'; return false;}
 
   // mark beginning of word, read until end of word
   for (start_pos = buf_pos; *buf_pos != delim && *buf_pos!='\t' && *buf_pos!='\n' && *buf_pos!='\0';)
     buf_pos++;
-  
+
   if (*buf_pos=='\n' || *buf_pos=='\0') {  // buf_pos now points to the end of buffer
         strncpy_sc (word, max_size, start_pos, max_size);  // copy word to output string
     if ( *buf_pos=='\n') *(word + strlen(word)-1) = '\0';
@@ -748,7 +759,7 @@ bool readword ( char *line, char delim, char *word, int max_size )
                       // move start_pos to beginning of entire buffer
     strcpy ( start_pos, buf_pos );    // copy remainder of buffer to beginning of buffer
   }
-  return true;            // return word(s) copied  
+  return true;            // return word(s) copied
 }
 
 
