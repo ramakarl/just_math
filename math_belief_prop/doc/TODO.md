@@ -10,14 +10,14 @@ TODO
   - nixing the other geometries. Cross is adds complexity without
     giving anything valid
 * 3d output
-  - obj input, stl output
+  - ~obj input, stl output~
   - needs some fixing up
 * config file
 * avg color for tilename
 * figure out location and generation of js tilesets (stair)
-* 3d pipe tileset (js?)
-  - oskar pipe (not checked in?)
-* converge eps start/end along with interpolation function
+* ~3d pipe tileset (js?)~
+  - ~oskar pipe (not checked in?)~
+* ~converge eps start/end along with interpolation function~
   - we can guess how to interpolate based on how many tiles
     we've fixed so far
   - degenerate is just fixed eps, so doesn't break anything

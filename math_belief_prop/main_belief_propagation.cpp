@@ -967,7 +967,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -s <#>   png tile stride\n");
   fprintf(fp, "  -c <#>   cull tile id\n");
 
-  fprintf(fp, "  -d       debug print\n");
+  //fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
@@ -1338,9 +1338,11 @@ int main(int argc, char **argv) {
         show_version(stdout);
         exit(0);
         break;
-      case 'd':
-        debug_print = 1;
-        break;
+
+      //case 'd':
+      //  debug_print = 1;
+      //  break;
+
       case 'V':
         bpc.m_verbose = atoi(optarg);
         break;
@@ -1490,8 +1492,6 @@ int main(int argc, char **argv) {
     Z = D;
   }
 
-
-
   if ((X<=0) || (Y<=0) || (Z<=0)) {
     fprintf(stderr, "dimensions must all be >0 (%i,%i,%i)\n", X,Y,Z);
     show_usage(stderr);
@@ -1500,7 +1500,6 @@ int main(int argc, char **argv) {
 
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
-
 
   if (g_opt.tileobj_fn.size() > 0) {
     ret=load_obj_stl_lib( g_opt.tileobj_fn, tri_shape_lib );
@@ -1554,10 +1553,12 @@ int main(int argc, char **argv) {
       exit(-1);
     }
 
+    /*
     if (bpc.m_verbose > 1) {
       printf("*************** after constraint dsl:\n");
       bpc.debugPrint();
     }
+    */
 
   }
   else if (constraint_fn) {
@@ -1598,6 +1599,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  /*
   if (debug_print) {
 
     //DEBUG!!!!
@@ -1642,6 +1644,7 @@ int main(int argc, char **argv) {
     bpc.debugPrint();
     exit(0);
   }
+  */
 
   if (test_num >= 0) {
     run_test(test_num);

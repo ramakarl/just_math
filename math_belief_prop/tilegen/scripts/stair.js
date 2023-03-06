@@ -1,3 +1,4 @@
+// LICENSE: cc0
 //
 // To the extent possible under law, the person who associated CC0 with
 // this code has waived all copyright and related or neighboring rights
@@ -6,6 +7,9 @@
 // You should have received a copy of the CC0 legalcode along with this
 // work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
+
+var fs = require("fs");
+var jeom = require("./jeom.js");
 
 const TILE_WIDTH = 1/3;
 const TILE_HEIGHT = 1/4;
@@ -171,6 +175,9 @@ var m4 = {
 //----
 
 function _template_rot_mov(tplate, rx, ry, rz, tx, ty, tz) {
+  tx = ((typeof tx === "undefined") ? 0 : tx);
+  ty = ((typeof ty === "undefined") ? 0 : ty);
+  tz = ((typeof tz === "undefined") ? 0 : tz);
 
   let tri = [];
 
@@ -280,12 +287,16 @@ let _template = {
     ".": 1,
 
     "s": 1,
-    "|": 1,
+
+    //"|": 1,
+    "p": 1,
+
     "r": 1,
 
-    "t": 1,
-    "-": 1,
-    "/": 1
+    "c": 1,
+    "v": 1
+
+    //"/": 1
 
     //"|": 1,
     //"+": 1,
@@ -299,12 +310,15 @@ let _template = {
     ".": -1,
 
     "s": 1,
-    "|": 1,
+    //"|": 1,
+    "p": 1,
     "r": 1,
 
-    "t": 1,
-    "-": 1,
-    "/": 1
+    //"t": 1,
+    //"-": 1,
+    //"/": 1
+    "c": 1,
+    "v": 1,
 
     //"|": -1,
     //"+": -1,
@@ -325,11 +339,14 @@ let _template = {
   //
   "endpoint": {},
 
-  "|" : [],
-  //"p" : [],
+  ".": [],
+  //"|" : [],
+  "p" : [],
   "r" : [],
-  "^" : [],
-  "+" : [],
+  //"^" : [],
+  "v" : [],
+  //"+" : [],
+  "c" : [],
   "T" : []
 
 };
@@ -495,7 +512,8 @@ function init_template(template) {
 
     //"d": [],
 
-    "|": [
+    //"|": [
+    "p": [
       [ -_g_w/2, -1/2, -_g_h/2 ], [ _g_w/2, -1/2, -_g_h/2 ],
       [ -_g_w/2, -1/2, +_g_h/2 ], [ _g_w/2, -1/2, +_g_h/2 ],
 
@@ -519,7 +537,8 @@ function init_template(template) {
     ],
 
 
-    "+": [
+    //"+": [
+    "c": [
       [ -_g_w/2,  1/2, -_g_h/2 ], [  _g_w/2,  1/2, -_g_h/2 ],
       [ -_g_w/2,  1/2, +_g_h/2 ], [  _g_w/2,  1/2, +_g_h/2 ],
 
@@ -532,25 +551,26 @@ function init_template(template) {
       [ -1/2,  _g_w/2, -_g_h/2 ], [ -1/2, -_g_w/2, -_g_h/2 ],
       [ -1/2,  _g_w/2, +_g_h/2 ], [ -1/2, -_g_w/2, +_g_h/2 ]
     ],
-    
+
     "T": [
       [  _g_w/2, -1/2, -_g_h/2 ], [ -_g_w/2, -1/2, -_g_h/2 ],
       [  _g_w/2, -1/2, +_g_h/2 ], [ -_g_w/2, -1/2, +_g_h/2 ],
-  
+
       [ -1/2,  _g_w/2, -_g_h/2 ], [ -1/2, -_g_w/2, -_g_h/2 ],
       [ -1/2,  _g_w/2, +_g_h/2 ], [ -1/2, -_g_w/2, +_g_h/2 ],
-  
+
       [  1/2,  _g_w/2, -_g_h/2 ], [  1/2, -_g_w/2, -_g_h/2 ],
       [  1/2,  _g_w/2, +_g_h/2 ], [  1/2, -_g_w/2, +_g_h/2 ]
     ],
 
-    "^": [
+    //"^": [
+    "v": [
       [  _g_w/2, -1/2, -_g_h/2 ], [ -_g_w/2, -1/2, -_g_h/2 ],
       [  _g_w/2, -1/2, +_g_h/2 ], [ -_g_w/2, -1/2, +_g_h/2 ],
 
       [  _g_w/2,  +_g_h/2,  1/2 ], [ -_g_w/2, +_g_h/2,  1/2 ],
       [  _g_w/2,  -_g_h/2,  1/2 ], [ -_g_w/2, -_g_h/2,  1/2 ]
-    
+
     ]
 
   };
@@ -565,9 +585,12 @@ function init_template(template) {
       -1/2,  1/2, 0,   1/2,  1/2, 0,   -1/2, -1/2, 0,
       -1/2, -1/2, 0,   1/2,  1/2, 0,    1/2, -1/2, 0
     ];
-  }   
-  
-  template["|"] = [
+  }
+
+  template["endpoint_order"] = [ ".", "p", "r", "c", "T", "v" ];
+
+  //template["|"] = [
+  template["p"] = [
 
     // front panel
     //
@@ -897,7 +920,7 @@ function init_template(template) {
     for (let j=0; j<_r.length; j++) { st.push(_r[j]); }
 
 
-    // left side stair 
+    // left side stair
     //
     dx = -_g_w/2;
     dy = -0.5 + _st_ds/2 + i*_st_ds;
@@ -963,7 +986,7 @@ function init_template(template) {
     1-parity);
   for (let j=0; j<_r.length; j++) { st.push(_r[j]); }
 
- 
+
   dx = -_g_w/2;
   dy = + (_st_ds/2);
   dz = 0.5 - (_st_ds/2);
@@ -1004,7 +1027,8 @@ function init_template(template) {
     }
   }
 
-  template["^"] = flat_st;
+  //template["^"] = flat_st;
+  template["v"] = flat_st;
 
 
   //---
@@ -1141,7 +1165,8 @@ function init_template(template) {
     }
   }
 
-  template["+"] = flat_pl;
+  //template["+"] = flat_pl;
+  template["c"] = flat_pl;
 
 
   //----
@@ -1176,8 +1201,11 @@ function build_tile_library( template ) {
   let admissible_nei = {};
 
   let _endp_lib = template.endpoint;
+  let _endp_order = template.endpoint_order;
 
-  for (let pkey in _endp_lib) {
+  //for (let pkey in _endp_lib) {
+  for (let pkey_idx=0; pkey_idx<_endp_order.length; pkey_idx++) {
+    let pkey = _endp_order[pkey_idx];
 
     let _endp = _endp_lib[pkey];
 
@@ -1218,7 +1246,7 @@ function build_tile_library( template ) {
     // once in the library, go through and compare each
     // to see if they're equivalent by seeing if the endpoints
     // line up
-    //  
+    //
     for (let i=0; i<_type_a.length; i++) {
       for (let j=i+1; j<_type_a.length; j++) {
 
@@ -1265,6 +1293,14 @@ function build_tile_library( template ) {
   // be joined
   //
   for (let anchor_key in uniq_repr) {
+
+    let _tp_tri = template[ anchor_key[0] ];
+    let _rx = rot_lib[ anchor_key].r[0] * Math.PI * 0.5;
+    let _ry = rot_lib[ anchor_key].r[1] * Math.PI * 0.5;
+    let _rz = rot_lib[ anchor_key].r[2] * Math.PI * 0.5;
+
+    uniq_repr[anchor_key].tri = _template_rot_mov( _tp_tri, _rx, _ry, _rz );
+
     if ((anchor_key.charAt(0) == '.') ||
         (anchor_key.charAt(0) == 'd')) { continue; }
     for (let test_key in uniq_repr) {
@@ -1616,7 +1652,71 @@ function filter_steeple(template) {
 
 }
 
+function write_objs(template, odir) {
+  let uniq_repr = template.uniq_repr;
+
+  for (let tile_name in uniq_repr) {
+    let tri = uniq_repr[tile_name].tri;
+    let fn = odir + "/" + tile_name + ".obj";
+    let fp = fs.createWriteStream(odir + "/" + tile_name + ".obj");
+    jeom.obj_print(fp, tri);
+    fp.end();
+  }
+}
+
+
+function write_name(template, ofn) {
+  let fp = fs.createWriteStream(ofn);
+  for (let ii=0; ii<template.tile_name.length; ii++) {
+    fp.write( ii.toString() + "," + template.tile_name[ii] + "\n");
+  }
+  fp.end();
+}
+
+function write_rule(template, ofn) {
+
+  let idir_a = [
+    "1:0:0", "-1:0:0",
+    "0:1:0", "0:-1:0",
+    "0:0:1", "0:0:-1"
+  ];
+
+  let idir_map = {
+    "1:0:0": 0, "-1:0:0": 1,
+    "0:1:0": 2, "0:-1:0": 3,
+    "0:0:1": 4, "0:0:-1": 5,
+  };
+
+  let n_tile = template.tile_name.length;
+
+  let fp = fs.createWriteStream(ofn);
+  let F = template.F;
+  for (let idir=0; idir<6; idir++) {
+    dkey = idir_a[idir];
+    for (let ii=0; ii<n_tile; ii++) {
+      for (let jj=0; jj<n_tile; jj++) {
+        fp.write( ii.toString() + "," + jj.toString() + "," + idir.toString() + "," + F[dkey][ii][jj].toString() + "\n");
+      }
+    }
+  }
+  fp.end();
+}
+
+function write_objloc(template, ofn, odir) {
+  let fp = fs.createWriteStream(ofn);
+  for (let ii=0; ii<template.tile_name.length; ii++) {
+    fp.write( ii.toString() + "," + odir + "/" + template.tile_name[ii] + ".obj\n" );
+  }
+  fp.end();
+}
+
+
 init_template(_template);
 build_tile_library(_template);
 
-console.log(JSON.stringify(_template, null, 2));
+write_objs(_template,   "../example_tile_collection/stair/");
+write_name(_template,   "../example_tile_collection/stair_name.csv");
+write_rule(_template,   "../example_tile_collection/stair_rule.csv");
+write_objloc(_template, "../example_tile_collection/stair_objloc.csv", "./stair");
+
+

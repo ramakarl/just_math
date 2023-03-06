@@ -1,3 +1,4 @@
+// LICENSE: cc0
 //
 // To the extent possible under law, the person who associated CC0 with
 // this code has waived all copyright and related or neighboring rights
@@ -1297,13 +1298,21 @@ function write_rule(template, ofn) {
   fp.end();
 }
 
+function write_objloc(template, ofn, odir) {
+  let fp = fs.createWriteStream(ofn);
+  for (let ii=0; ii<template.tile_name.length; ii++) {
+    fp.write( ii.toString() + "," + odir + "/" + template.tile_name[ii] + ".obj\n" );
+  }
+  fp.end();
+}
+
 init_template(_template);
 build_tile_library(_template);
 
-write_objs(_template, ".data");
-
-write_name(_template, ".data/oskar-pipe_name.csv");
-write_rule(_template, ".data/oskar-pipe_rule.csv");
+write_objs(_template,   "../example_tile_collection/oskar_pipe/");
+write_name(_template,   "../example_tile_collection/oskar-pipe_name.csv");
+write_rule(_template,   "../example_tile_collection/oskar-pipe_rule.csv");
+write_objloc(_template, "../example_tile_collection/oskar-pipe_objloc.csv", "./oskar_pipe");
 
 //console.log(JSON.stringify(_template, null, 2));
 
