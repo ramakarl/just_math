@@ -34,6 +34,7 @@ id2chr_map = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ`~!@
 
 info = {
   "opt": {
+    "basic": False,
     "tile_symmetry": False,
     "tile_zero_boundary_condition":True,
     "basedir": "./",
@@ -66,6 +67,7 @@ def usage(fp):
   fp.write("  -o        offset (default 0)\n")
   fp.write("  -w        window (default " + str(info["window"][0]) + "))\n")
   fp.write("  -d        base directory (default './')\n")
+  fp.write("  -B        basic - create simple tiled map and tileset without neighbor constraints\n")
   fp.write("  -M <fn>   output tilemap filename (JSON)\n")
   fp.write("  -S <fn>   output tileset (PNG)\n")
   fp.write("  -N <fn>   outpt tile name file (CSV)\n")
@@ -167,6 +169,8 @@ for o,a in opts:
     sys.exit(0)
   elif o == "-i":
     fn = a
+  elif o == "-B":
+    info["opt"]["basic"] = True
   elif o == "-s":
     _xy = parse_param_2_1(a)
     if _xy[0] < 0:

@@ -1,6 +1,14 @@
 TODO
 ===
 
+###### 2023-03-06
+
+* img2tile improvements:
+  - avg color
+  - add an optional 'base' tileset in case people just want to use
+    it to parse an example file with base tiles
+* add 3d stl input instead of just obj
+
 ###### 2023-03-04
 
 * ~make sure wfc option is working~
@@ -14,7 +22,7 @@ TODO
   - needs some fixing up
 * config file
 * avg color for tilename
-* figure out location and generation of js tilesets (stair)
+* ~figure out location and generation of js tilesets (stair)~
 * ~3d pipe tileset (js?)~
   - ~oskar pipe (not checked in?)~
 * ~converge eps start/end along with interpolation function~

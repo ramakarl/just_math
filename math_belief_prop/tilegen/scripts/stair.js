@@ -1591,7 +1591,8 @@ function filter_steeple(template) {
   let delete_list = [];
 
   for (let key_anchor in admissible_nei) {
-    if (key_anchor.charAt(0) != '^') { continue; }
+    //if (key_anchor.charAt(0) != '^') { continue; }
+    if (key_anchor.charAt(0) != 'v') { continue; }
 
     let anc_p_repr = [0,0,0];
     let endp = raw_lib[key_anchor];
@@ -1609,7 +1610,8 @@ function filter_steeple(template) {
       let dv_nei = [ -dv_anc[0], -dv_anc[1], -dv_anc[2] ];
 
       for (let key_nei in admissible_nei[key_anchor][dv_anc_key]) {
-        if (key_nei.charAt(0) != '^') { continue; }
+        //if (key_nei.charAt(0) != '^') { continue; }
+        if (key_nei.charAt(0) != 'v') { continue; }
         if (!admissible_nei[key_anchor][dv_anc_key][key_nei].conn) { continue; }
 
         let nei_p_repr = [0,0,0];
