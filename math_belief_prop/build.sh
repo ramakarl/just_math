@@ -16,15 +16,13 @@ g++ -g -I../libmin/include/ \
   ../libmin/src/string_helper.cpp \
   ../libmin/src/datax.cpp \
   -I ../libmin/mains \
-  helper.cpp \
+  bp_helper.cpp \
   belief_propagation.cpp \
   belief_propagation_residue.cpp \
   tests_belief_propagation.cpp \
   main_belief_propagation.cpp \
   -lm \
   -o bpc.debug
-
-exit
 
 #  -I ../math_displace_mesh \
 #  ../math_displace_mesh/mesh.cpp \
@@ -43,6 +41,7 @@ g++ -O3 -I../libmin/include/ \
   ../libmin/src/string_helper.cpp \
   ../libmin/src/datax.cpp \
   -I ../libmin/mains \
+  bp_helper.cpp \
   belief_propagation.cpp \
   belief_propagation_residue.cpp \
   tests_belief_propagation.cpp \

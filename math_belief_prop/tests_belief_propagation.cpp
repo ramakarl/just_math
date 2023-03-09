@@ -36,7 +36,7 @@
 
 #include "belief_propagation.h"
 #include "main_belief_propagation.h"
-#include "helper.h"
+#include "bp_helper.h"
 
 extern opt_t g_opt;
 
@@ -2452,31 +2452,6 @@ int test_wfc0(int x, int y, int z) {
   bp.debugPrint();
   return 0;
 }
-
-
-
-//TAKEOUT
-/*
-void _debugstate() {
-  int a, b, i, j, k, d;
-
-  BeliefPropagation bp;
-  bp.init(3,3,1);
-
-  for (a=0; a<bp.m_num_values; a++) {
-    for (b=0; b<bp.m_num_values; b++) {
-      for (i=0; i<6; i++) {
-        printf("%s(%i) -(%s(%i))-> %s(%i): %f\n",
-            bp.m_tile_name[a].c_str(), a,
-            bp.m_dir_desc[i].c_str(), i,
-            bp.m_tile_name[b].c_str(), b,
-            bp.getValF(BUF_F, a, b, i));
-      }
-    }
-
-  }
-}
-*/
 
 int run_test(int test_num) {
   switch(test_num) {

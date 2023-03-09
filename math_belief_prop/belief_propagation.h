@@ -191,13 +191,6 @@ public:
 
   //------------------------ belief propagation, mid-level API
 
-  //TAKEOUT
-  /*
-  int   init_CSV (int, std::string &, std::string &);
-  int   init_CSV (int, int, int, std::string &, std::string &);
-  int   init_F_CSV(std::string &, std::string &);
-  */
-
   int   init( int, int, int,
               std::vector< std::string  >           tile_name_list,
               std::vector< float >                  tile_weight_list,

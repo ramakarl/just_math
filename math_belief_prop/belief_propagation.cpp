@@ -2313,68 +2313,6 @@ void BeliefPropagation::Restart() {
 
 //----
 
-//TAKEOUT
-/*
-// constraint file format:
-//
-// <x>,<y>,<z>,<tile_id>
-//
-int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile) 
-{
-  int i;
-  
-  FILE *fp;
-  std::string line, tok;
-  std::vector<std::string> toks;
-  std::vector<float> v;
-
-  int x, y, z, tileid;
-
-  std::vector< int32_t > v32;
-
-  fp = fopen(fn.c_str(), "r");
-  if (!fp) { return -1; }
-
-  while (!feof(fp)) {
-    line.clear();
-    _read_line(fp, line);
-
-    toks.clear();
-    tok.clear();
-    for (i=0; i<line.size(); i++) {
-      if (line[i]==',') {
-        toks.push_back(tok);
-        tok.clear();
-        continue;
-      }
-      tok += line[i];
-    }
-    toks.push_back(tok);
-
-    if ((toks.size() < 3) || (toks.size() > 4)) { continue; }
-
-    x = atoi(toks[0].c_str());
-    y = atoi(toks[1].c_str());
-    z = atoi(toks[2].c_str());
-    tileid = atoi(toks[3].c_str());
-
-    v32.clear();
-    v32.push_back(x);
-    v32.push_back(y);
-    v32.push_back(z);
-    v32.push_back(tileid);
-
-    admissible_tile.push_back(v32);
-
-  }
-  fclose (fp);
-
-  return 0;
-}
-*/
-
-//----
-
 int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &constraint_list) {
   int i;
   int32_t tile_id, x, y, z, n;
@@ -2557,22 +2495,12 @@ int BeliefPropagation::init_SVD(void)
     U = svd.matrixU();
     V = svd.matrixV();
 
-    //printf("S(%i,%i), U(%i,%i), V(%i,%i)\n",
-    //    (int)S.rows(), (int)S.cols(),
-    //    (int)U.rows(), (int)U.cols(),
-    //    (int)V.rows(), (int)V.cols());
-    //printf("idir[%i] S:", idir);
-
     m_svd_nsv[idir] = 0;
     for (i=0; i<S.rows(); i++) {
 
-
       if ( fabs(S(i,0)) < _eps ) { break; }
       m_svd_nsv[idir]++;
-
-      //printf(" %f", S(i,0));
     }
-    //printf(" (((%i)))\n", (int)m_svd_nsv[idir]);
 
 
     // U * (S * V^t)
@@ -2588,7 +2516,6 @@ int BeliefPropagation::init_SVD(void)
         SetValF( BUF_SVD_Vt, r, c, idir, S(r,0)*V(c,r));
       }
     }
-
 
     // CHECK
     /*
@@ -2610,130 +2537,10 @@ int BeliefPropagation::init_SVD(void)
     }
     */
 
-
   }
 
   return 0;
 }
-
-//TAKEOUT
-/*
-int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_fn) {
-  return init_CSV(R, R, R, name_fn, rule_fn);
-}
-
-
-int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, std::string &rule_fn) 
-{
-  int ret = 0;
-  int B;
-
-  //m_rate = 0.98;
-
-  init_dir_desc();
-
-  m_dir_inv[0] = 1;
-  m_dir_inv[1] = 0;
-  m_dir_inv[2] = 3;
-  m_dir_inv[3] = 2;
-  m_dir_inv[4] = 5;
-  m_dir_inv[5] = 4;
-
-  ret = init_F_CSV(name_fn, rule_fn);
-  if (ret<0) { return ret; }
-
-  //---
-
-  m_rand.seed ( m_seed++ );
-
-  m_bpres.Set ( Rx, Ry, Rz );
-  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
-  m_num_values = m_tile_name.size();
-  m_res.Set ( Rx, Ry, Rz );
-
-  ConstructTileIdx();
-  ConstructConstraintBuffers();
-
-  ConstructMU();
-  NormalizeMU ();
-
-  AllocBPVec( BUF_BELIEF, m_num_values );
-
-  AllocViz ( BUF_VIZ, m_num_verts );
-
-  // options
-  //
-  m_run_cuda  = false;
-
-  if (m_use_svd) {
-    // m_num_values x m_num_values is an upper bound
-    // ont he matrix size. The dimensions used will
-    // be m_num_values x d and d x m_num_values for
-    // U and V respectivley.
-    //
-    B = m_num_values;
-    AllocBPMap( BUF_SVD_U, 6, B );
-    memset( m_buf[BUF_SVD_U].getData(), 0, 6*B*B*sizeof(float) );
-
-    AllocBPMap( BUF_SVD_Vt, 6, B );
-    memset( m_buf[BUF_SVD_Vt].getData(), 0, 6*B*B*sizeof(float) );
-
-    AllocBPVec( BUF_SVD_VEC, B );
-
-    init_SVD();
-  }
-
-  return 0;
-}
-*/
-
-//TAKEOUT
-/*
-bool BeliefPropagation::_init() {
-  int i;
-  std::string name_fn = "examples/stair_name.csv";
-  std::string rule_fn = "examples/stair_rule.csv";
-  std::vector< std::string > tile_name;
-  std::vector< std::vector<float> > tile_rule;
-  std::vector< float > tile_weight;
-
-  _read_name_csv(name_fn, tile_name, tile_weight);
-  _read_rule_csv(rule_fn, tile_rule);
-
-  //---
-  m_rand.seed ( m_seed++ );
-
-  int R = 32;
-  //int R = 10;
-  m_bpres.Set ( R, R, R );
-  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
-  m_num_values = tile_name.size();
-  m_res.Set ( R, R, R );
-
-  // F
-  //
-  int B = m_num_values;
-  AllocBPMap ( BUF_F, 6, B );
-  memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );
-  for (i=0; i<tile_rule.size(); i++) {
-    SetValF( BUF_F, tile_rule[i][0], tile_rule[i][1], tile_rule[i][2], tile_rule[i][3] );
-  }
-
-  ConstructGH();
-  ConstructMU();
-  NormalizeMU ();
-
-  AllocBPVec( BUF_BELIEF, m_num_values );
-
-  // options
-  //
-  m_run_cuda  = false;
-
-  printf("init done\n"); fflush(stdout);
-
-  return true;
-}
-*/
 
 //---
 
