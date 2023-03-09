@@ -177,6 +177,9 @@ public:
     m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
     m_alg_run_opt = ALG_RUN_VANILLA;
 
+    m_run_iter = 0;
+    m_step_iter = 0;
+
   };
 
   //------------------------ high level API
