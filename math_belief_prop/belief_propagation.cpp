@@ -491,6 +491,9 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
 }
 
 
+// WFC  cnt = getTilesAtVertex( j );
+// DMU  dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVal ( BUF_DMU, j ), 0.1f ) ));
+
 Vector4DF BeliefPropagation::getVisSample ( int buf, int64_t v )
 {
     Vector4DF s;
@@ -2565,6 +2568,7 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
 
   return 0;
 }
+
 
 int BeliefPropagation::init_F_CSV(std::string &name_fn, std::string &rule_fn) {
   int i, ret;

@@ -1391,7 +1391,7 @@ void nvImg::UpdateTex ()
 		glShaderSource(vs, 1, &vss, 0);
 		glCompileShader(vs);
 		glGetShaderInfoLog ( vs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR ShaderInst vert: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateSInst vert: %s\n", buf );
 		checkGL( "Compile vertex shader" );
 
 		GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -1412,7 +1412,7 @@ void nvImg::UpdateTex ()
 		glShaderSource(fs, 1, &fss, 0);
 		glCompileShader(fs);
 		glGetShaderInfoLog ( fs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR ShaderInst frag: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateSInst frag: %s\n", buf );
 		checkGL( "Compile fragment shader" );
 
 		mSH[SINST] = glCreateProgram();
@@ -1469,11 +1469,12 @@ void nvImg::UpdateTex ()
 				"	 vnorm = inNorm;\n"
 				"    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(inPosition, 1.f);\n"
 				"}\n"
-		;
+			;
+
 		glShaderSource(vs, 1, &vss, 0);
 		glCompileShader(vs);
 		glGetShaderInfoLog ( vs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR Shader3D vert: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateS3D vert: %s\n", buf );
 		checkGL( "Compile vertex shader" );
 
 		GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -1503,7 +1504,7 @@ void nvImg::UpdateTex ()
 		glShaderSource(fs, 1, &fss, 0);
 		glCompileShader(fs);
 		glGetShaderInfoLog ( fs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR Shader3D frag: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateS3D frag: %s\n", buf );
 		checkGL( "Compile fragment shader" );
 
 		mSH[S3D] = glCreateProgram();
@@ -1554,21 +1555,26 @@ void nvImg::UpdateTex ()
 				"uniform mat4 viewMatrix;\n"
 				"uniform mat4 projMatrix;\n"
 				"\n"
-				"vec4 CLR2VEC ( uint c ) {	return vec4( float(c & 255u)/255.0, float((c>>8u) & 255u)/255.0, float((c>>16u) & 255u)/255.0, float((c>>24u) & 255u)/255.0 ); } \n"
-			"vec4 INTENS  ( uint x ) {	 \n"
-		    "     float v = 1.0-1.0*float(uint(x) >> 16u)/255.0; \n "
-		    "     return vec4( 1.0*float(uint(x) & 3u)/8.0 - v, -v*.5, -v, 0 ); } \n"
-		    "\n"
-			"void main()\n"
-			"{\n"		
-			"    vpos = (inPos+vreorig.xyz)*vrescal.xyz + vrepos.xyz;\n"
-			"    vclr = (venable.y==1.0) ? CLR2VEC(inClr) : vec4(1.0, 1.0, 1.0, 1.0);\n"
-			"    vclr+= (venable.x==1.0) ? INTENS(inXtra) : vec4(0,0,0,0);\n"
-			"	 vclr+= 0.5 * vec4(0, vpos.y/100.0, vpos.y/80.0, 1); \n"
-		    "	 vclr.xyz *= clamp(length(vpos-eyeHi.xyz)*0.005, 0.5, 1.2);\n"		    
-		    "    gl_PointSize = 30 / (length(vpos-eyeHi.xyz)*0.1);\n"
-			"    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(vpos - eyeHi.xyz,1);\n"			
-			"}\n"
+				"vec4 CLR2VEC ( uint c ) { \n"
+			    "     return vec4( float(c & 255u)/255.0,  \n"
+			    "                  float((c>>8u) & 255u)/255.0,  \n"
+			    "                  float((c>>16u) & 255u)/255.0, \n"
+			    "                  float((c>>24u) & 255u)/255.0 ); } \n"
+			    "\n"
+				"vec4 INTENS  ( uint x ) { \n"
+				"     float v = 1.0-1.0*float(uint(x) >> 16u)/255.0; \n "
+				"     return vec4( 1.0*float(uint(x) & 3u)/8.0 - v, -v*.5, -v, 0 ); } \n"
+				"\n"
+				"void main()\n"
+				"{\n"		
+				"    vpos = (inPos+vreorig.xyz)*vrescal.xyz + vrepos.xyz;\n"
+				"    vclr = (venable.y==1.0) ? CLR2VEC(inClr) : vec4(1.0, 1.0, 1.0, 1.0);\n"
+				"    vclr+= (venable.x==1.0) ? INTENS(inXtra) : vec4(0,0,0,0);\n"
+				"	 vclr+= 0.5 * vec4(0, vpos.y/100.0, vpos.y/80.0, 1); \n"
+				"	 vclr.xyz *= clamp(length(vpos-eyeHi.xyz)*0.005, 0.5, 1.2);\n"		    
+				"    gl_PointSize = 30.0 / (length(vpos-eyeHi.xyz)*0.1);\n"
+				"    gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(vpos - eyeHi.xyz,1);\n"			
+				"}\n"
 
 		;
 		// float(uint(x) >> 16u)/255.0		intensity 
@@ -1577,7 +1583,7 @@ void nvImg::UpdateTex ()
 		glShaderSource(vs, 1, &vss, 0);
 		glCompileShader(vs);
 		glGetShaderInfoLog ( vs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR Shader3D vert: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateSPnt vert: %s\n", buf );
 		checkGL( "Compile vertex shader" );
 
 		GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
@@ -1601,7 +1607,7 @@ void nvImg::UpdateTex ()
 		glShaderSource(fs, 1, &fss, 0);
 		glCompileShader(fs);
 		glGetShaderInfoLog ( fs, 16384, (GLsizei*) &len, buf );
-		if ( len > 0 ) dbgprintf  ( "ERROR Shader3D frag: %s\n", buf );
+		if ( len > 0 ) dbgprintf  ( "ERROR CreateSPnt frag: %s\n", buf );
 		checkGL( "Compile fragment shader" );
 
 		mSH[SPNT] = glCreateProgram();

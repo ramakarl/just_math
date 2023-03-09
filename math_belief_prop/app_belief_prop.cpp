@@ -95,9 +95,7 @@ public:
   std::vector< int32_t > m_cull_list;
 
   // Volume rendering
-  void      VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id );
-  void      VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id );
-  void      VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id );
+  void      Visualize ( BeliefPropagation& src, int vol_id );  
 
   void      AllocVolume(int id, Vector3DI res, int chan=1);
   float     getVoxel ( int id, int x, int y, int z );
@@ -236,87 +234,19 @@ Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
   return *dat;
 }
 
-
-void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) 
+void Sample::Visualize ( BeliefPropagation& src, int vol_id ) 
 {
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+    // volume to write to
+    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
+    Vector4DF clr;
 
-   float dmu;
-   float scalar = 1.0;
+    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
 
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     
-     dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVal ( bp_id, j ), 0.1f ) ));
+        // map BP sample to RGBA voxel
+        clr = src.getVisSample ( j );
 
-     vox->x = dmu;
-     vox->y = dmu;
-     vox->z = dmu;
-     vox->w = dmu;
-     vox++;
-   }
-}
-
-
-void Sample::VisualizeBelief ( BeliefPropagation& src, int bp_id, int vol_id ) {
-
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-
-   float dmu;
-   float scalar = 0.5;
-
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-
-     dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVertexBelief (j), 0.1f ) ));
-    
-     vox->x = dmu;
-     vox->y = dmu;
-     vox->z = dmu;
-     vox->w = dmu;
-     vox++;
-   }
-}
-
-
-void Sample::VisualizeWFC ( BeliefPropagation& src, int bp_id, int vol_id ) {
-
-   Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-
-   float maxv;
-   int cnt;
-
-   // dbgprintf ( "  visualize: vol %p, verts %d, res %dx%dx%d\n", vox, src.getNumVerts(), m_vres.x, m_vres.y, m_vres.z);
-
-   // map belief to RGBA voxel
-   for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-     cnt = src.getTilesAtVertex( j );
-
-     // red
-     maxv = 0.0;
-     for (int k=1; k <= 30; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->x = maxv;
-
-     // green
-     maxv = 0.0;
-     for (int k=31; k <= 60; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->y = maxv;
-
-     // blue
-     maxv = 0.0;
-     for (int k=61; k <= 90; k++) {
-        maxv = std::max(maxv, src.getVal( BUF_BELIEF, k ));
-     }
-     vox->z = maxv;
-     //vox->z = 0.0;
-
-     vox->w = std::max(vox->x, std::max(vox->y, vox->z));
-
-     vox++;
+        // write voxel
+        *vox++ = clr;        
    }
 }
 
@@ -556,6 +486,8 @@ bool Sample::init()
     m_Z = m_D;
   }
 
+
+
   if (m_run_bpc) {
       
       // init belief prop
@@ -700,17 +632,14 @@ void Sample::display()
 
   if ( m_run_wfc ) {
       Vector3DF wfc_off(0,0,-10);
-      VisualizeWFC ( wfc, BUF_BELIEF, BUF_VOL );
+      Visualize ( wfc, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
   }
 
-  if ( m_run_bpc ) {
-      Vector3DF bpc_off(0,0,0);      
-      //VisualizeDMU ( bpc, BUF_VIZ, BUF_VOL );
-      //RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+  if ( m_run_bpc ) {  
       
       //-- regular belief viz
-      VisualizeBelief ( bpc, BUF_BELIEF, BUF_VOL );
+      Visualize ( bpc, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }
 
