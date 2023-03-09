@@ -127,23 +127,26 @@ public:
 
   void  init_dir_desc();
 
-  // belief prop
-  void    Restart();
-  void    ZeroBPVec (int id);
-  void    AllocBPVec (int id, int cnt);                  // vector alloc
-  void    AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
-  void    AllocBPMap (int id, int nbrs, int vals);
 
-  void    AllocViz (int id, uint64_t cnt );
 
-  void    AllocTileIdx (int, int, int);
-  void    AllocTileIdxN(int, int );
+  //----------------------- visualization
+  Vector4DF getSample ( int buf, int64_t v );
 
-  void    AllocVeci32(int, int);
-  void    AllocVeci32(int, int, int);
 
-  void    AllocSVD(int, int, int, int);
+  //---
 
+  //------------------------ memory management  
+  void     Restart();
+  void     ZeroBPVec (int id);
+  void     AllocBPVec (int id, int cnt);                  // vector alloc
+  void     AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
+  void     AllocBPMap (int id, int nbrs, int vals);
+  void     AllocViz (int id, uint64_t cnt );
+  void     AllocTileIdx (int, int, int);
+  void     AllocTileIdxN(int, int );
+  void     AllocVeci32(int, int);
+  void     AllocVeci32(int, int, int);
+  void     AllocSVD(int, int, int, int);
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
   int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
   Vector3DI  getVertexPos(int64_t j);
@@ -151,20 +154,14 @@ public:
   int      getTilesAtVertex ( int64_t vtx );
   int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
 
-
+  //----------------------- accessor functions
   inline int      getNumNeighbors(int j)        {return 6;}
   inline int      getNumValues(int j)          {return m_num_values;}
   inline int      getNumVerts()            {return m_num_verts;}
-
-  //---
-
-  // belief matrix packing
-
   // G and H vectors, size B
   inline float*  getPtr(int id, int a)                  {return  (float*) m_buf[id].getPtr (a);}            
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
-
 
 #ifdef RUN_OPT_PTRS
   // Optimized: Closest values in memory are most used in inner loops
@@ -174,7 +171,7 @@ public:
   inline float   getVal(int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
   inline void    SetVal(int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
 
-  // Belief mapping (F), BxB
+  // belief mapping (F), BxB
   inline float*  getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
   inline float   getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
   inline void    SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ) = val; }
@@ -193,16 +190,12 @@ public:
 
   inline int32_t getVali(int id, int i)                { return *(int32_t *) m_buf[id].getPtr (i); }
   inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }
-
   inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
-  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val;
-  }
-
+  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val; }
   inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }
 
-  //---
-
+  
   int   start();
 
  

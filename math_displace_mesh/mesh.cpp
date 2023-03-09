@@ -932,7 +932,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 
 			
 			// check winding order - only if we have normals
-			if ( !bNeedNormals ) {				
+			/* if ( !bNeedNormals ) {				
 				norm = vlist[v[1]] - vlist[v[0]] ;
 				norm = norm.Cross ( vlist[v[2]] - vlist[v[0]] );
 				norm.Normalize();
@@ -943,7 +943,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 					tmp = v[1]; v[1] = v[2]; v[2] = tmp;
 					tmp = n[1]; n[1] = n[2]; n[2] = tmp;
 				}
-			}
+			} */
 
 			// convert face-normals pairs into independent vertex groups			
 			for (int j=0; j < 3; j++ ) {

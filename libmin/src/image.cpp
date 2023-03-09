@@ -224,6 +224,31 @@ Vector4DF Image::GetPixelFilteredUV (float x, float y)
 	return Vector4DF(c[6].x/255.0f,c[6].y/255.0f,c[6].z/255.0f,c[6].w/255.0f); 
 }
 
+float Image::GetPixelFilteredUV16 (float x, float y)
+{
+	float u = x * (getInfo()->mXres - 1);
+	float v = y * (getInfo()->mYres - 1);
+	int xu = u;
+	int yu = v;
+	u -= xu;
+	v -= yu;
+	
+	XBYTE r,g,b,a;
+	float c[7];
+
+	(this->*m_GetPixelFunc) ( xu,    yu, r,g,b,a ); c[0] = (r+(g/255.0f))/255.0f;
+	(this->*m_GetPixelFunc) ( xu+1,  yu, r,g,b,a ); c[1] = (r+(g/255.0f))/255.0f;
+	(this->*m_GetPixelFunc) ( xu,  yu+1, r,g,b,a ); c[2] = (r+(g/255.0f))/255.0f;
+	(this->*m_GetPixelFunc) ( xu+1,yu+1, r,g,b,a ); c[3] = (r+(g/255.0f))/255.0f;
+	
+	// bi-linear filtering
+	c[4] = c[0] + (c[1]-c[0]) * u;
+	c[5] = c[2] + (c[3]-c[2]) * u;
+	c[6] = c[4] + (c[5]-c[4]) * v;	
+	
+	return c[6];
+}
+
 
 void Image::SetFormatFunc ( int chan )
 {
