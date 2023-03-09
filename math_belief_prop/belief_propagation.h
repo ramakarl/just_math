@@ -375,9 +375,9 @@ public:
   inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}  
   inline float   getValF(int id, int x=0, int y=0, int z=0)            {return *(float*) m_buf[id].getPtr (x, y, z);}  
     
-  inline void   SetValI(int id, int32_t val, int x=0, int y=0, int z=0)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
-  inline void   SetValL(int id, int64_t val, int x=0, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
-  inline void   SetValF(int id, float   val, int x=0, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
+  inline void   SetValI(int id, int32_t val, int x, int y=1, int z=1)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
+  inline void   SetValL(int id, int64_t val, int x, int y=1, int z=1)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
+  inline void   SetValF(int id, float val, int x, int y=1, int z=1)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
 
   inline int    getNumNeighbors(int j)        {return 6;}
   inline int    getNumValues(int j)          {return m_num_values;}
