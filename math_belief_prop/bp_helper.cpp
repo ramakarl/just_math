@@ -35,6 +35,11 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+
+// global g_opt for bp helper
+opt_t g_opt;
+
+
 int _read_line(FILE *fp, std::string &line) {
   int ch=0, count=0;
 
@@ -634,9 +639,16 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   opt.tileset_width *= opt.tileset_stride_x;
   opt.tileset_height *= opt.tileset_stride_y;
 
+  if (bpc.m_verbose >= 1) {
+    printf("Writing tilemap (%s)\n", opt.tilemap_fn.c_str());
+  }
 
   fp = fopen( opt.tilemap_fn.c_str(), "w");
-  if (!fp) { return -1; }
+  if (!fp) { 
+      printf("ERROR: Failed to write (%s)\n", opt.tilemap_fn.c_str());
+      return -1; 
+  
+  }
 
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
@@ -650,14 +662,19 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   // so we need to reverse the y direction when exporting
   //
 
+  int tile;
 
   if (opt.tiled_reverse_y) {
 
     for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
       for (j=0; j<(int)bpc.m_res.x; j++) {
+
         vtx = bpc.getVertex(j, i, 0);
 
-        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+        //tile = bpc.getMaxBeliefTile ( vtx );
+         tile = bpc.getVali( BUF_TILE_IDX, vtx, 0 );
+
+        fprintf(fp, " %i", tile );
         if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
         else                                { fprintf(fp, "%s", ","); }
       }
@@ -668,9 +685,12 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   else {
     for (i=0; i<(int)(bpc.m_res.y); i++) {
       for (j=0; j<(int)bpc.m_res.x; j++) {
-        vtx = bpc.getVertex(j, i, 0);
+         vtx = bpc.getVertex(j, i, 0);
 
-        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
+         //tile = bpc.getMaxBeliefTile ( vtx );
+          tile = bpc.getVali( BUF_TILE_IDX, vtx, 0 );
+
+         fprintf(fp, " %i", tile );
         if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
         else                                { fprintf(fp, "%s", ","); }
       }

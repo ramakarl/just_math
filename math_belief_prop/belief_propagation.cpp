@@ -225,12 +225,17 @@ void BeliefPropagation::ConstructTileIdx()
 
   AllocVeci32( BUF_TILE_IDX, m_num_verts * m_num_values );
   AllocVeci32( BUF_TILE_IDX_N, m_num_verts );
+  
+  // initialize to all tiles per vertex
   for (i=0; i<m_num_verts; i++) {
     SetVali( BUF_TILE_IDX_N, i, m_num_values );
+
     for (j=0; j<m_num_values; j++) {
       SetVali( BUF_TILE_IDX, i, j, (int32_t)j );
     }
   }
+
+
 }
 
 void BeliefPropagation::ConstructConstraintBuffers() 
@@ -246,13 +251,12 @@ void BeliefPropagation::ConstructConstraintBuffers()
 }
 
 
-void BeliefPropagation::ConstructF () {
-  int B = m_num_values;
+void BeliefPropagation::ConstructF () 
+{
+  int B;
 
+  B = m_num_values;
   AllocBPMap ( BUF_F, 6, B );
-
-  // randomly enable interactions among values
-  //
   memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );
 
 }
@@ -269,7 +273,8 @@ void BeliefPropagation::ConstructGH () {
 
 
 
-void BeliefPropagation::ConstructMU () {
+void BeliefPropagation::ConstructMU () 
+{
   AllocBPMtx ( BUF_MU, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_NXT, 6, m_num_verts, m_num_values );
   AllocBPMtx ( BUF_MU_RESIDUE, 6, m_num_verts, m_num_values );
@@ -280,20 +285,30 @@ void BeliefPropagation::ConstructMU () {
   AllocBPMtx_i64 ( BUF_RESIDUE_HEAP_CELL_BP, 6, m_num_verts, m_num_values );
   AllocBPMtx_i64 ( BUF_RESIDUE_CELL_HEAP, 6, m_num_verts, m_num_values );
 
+  RandomizeMU ();
+
+}
+
+
+void BeliefPropagation::RandomizeMU ()
+{
+  int i;
+  Vector3DI jp;
+
   float w;
   float *mu = (float*) m_buf[BUF_MU].getData();
   uint64_t cnt = 6 * m_num_verts * m_num_values;
   memset ( mu, 0, cnt * sizeof(float) );
 
-  int i;
-  Vector3DI jp;
-
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
+    
     for (int jnbr=0; jnbr < getNumNeighbors(j); jnbr++) {
       i = getNeighbor(j, jp, jnbr);
-      for (int a=0; a < m_num_values;a++) {
-        w = m_rand.randF();
+
+      for (int a=0; a < m_num_values; a++) {
+        
+        float w = m_rand.randF();
 
         // randomize MU
         //
@@ -303,30 +318,98 @@ void BeliefPropagation::ConstructMU () {
   }
 }
 
-void BeliefPropagation::ComputeDiffMUField () {
+void BeliefPropagation::ComputeDiffMUField () 
+{
   int i, n_a, a;
-  float v0,v1, d, max_dmu;
+  float v0, v1, d, max_diff;
   Vector3DI jp;
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
 
+    max_diff = 0;
+
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
       n_a = getVali( BUF_TILE_IDX_N, j );
-      max_dmu = 0;
+
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getVali( BUF_TILE_IDX, j, a_idx );
         v0 = getVal( BUF_MU, in, j, a );
         v1 = getVal( BUF_MU_NXT, in, j, a );
+
         d = fabs(v0-v1);
-        if (d > max_dmu) { max_dmu = d; }
+        if (d > max_diff) { max_diff = d; }
       }
     }
-    //printf ( "%f\n", max_dmu );
-    SetVal ( BUF_VIZ, j, max_dmu );
+    SetVal ( BUF_VIZ, j, max_diff );
+
   }
  }
+
+int BeliefPropagation::getMaxBeliefTile ( uint64_t j )
+{
+    int tile_idx_n, tile_idx, tile_val;
+    float b, maxb;
+    int maxtv;
+
+    // list of tile beliefs for single vertex
+    getVertexBelief ( j );
+
+    // walk the tile vals to get max belief
+    b = 0;
+    maxb = 0;
+    maxtv = 0;
+    tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+        
+    if ( tile_idx_n > 1 ) {
+            
+        for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
+            tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+
+            b = getVal (BUF_BELIEF, tile_val );
+            if ( b > maxb) {
+                maxb = b;
+                maxtv = tile_val;
+            }
+        }
+    }
+
+    return maxtv;
+}
+
+
+void BeliefPropagation::ComputeBeliefField () 
+{
+    int tile_idx_n, tile_idx, tile_val;
+
+    float b, maxb;
+  
+    for (int j=0; j < m_num_verts; j++) {
+        
+        // list of tile beliefs for single vertex
+        getVertexBelief ( j );
+
+        // walk the tile vals to get max belief
+        b = 0;
+        maxb = 0;
+        tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+        
+        if ( tile_idx_n > 1 ) {
+            
+            for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
+                tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+
+                b = getVal (BUF_BELIEF, tile_val );
+                if ( b > maxb) maxb = b;
+            }
+        }
+
+        // set max belief for this vertex
+        SetVal( BUF_VIZ, j, maxb );
+
+    }
+}
 
 //---
 
@@ -357,8 +440,6 @@ float BeliefPropagation::MaxDiffMU () {
     }
     if ( max_diff > max_overall ) {max_overall = max_diff;}
     //printf ( "max overall: %f\n", max_overall );
-
-    SetVal ( BUF_VIZ, j, max_diff );
 
   }
 
@@ -490,9 +571,22 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
 
 }
 
-void BeliefPropagation::StartVis (int vopt)
+void BeliefPropagation::SetVis (int vopt)
 {
     m_viz_opt = vopt;
+
+    std::string msg;
+    switch ( vopt ) {
+    case VIZ_MU:            msg = "VIZ_MU"; break;
+    case VIZ_DMU:           msg = "VIZ_DMU"; break;
+    case VIZ_BELIEF:        msg = "VIZ_BELIEF"; break;
+    case VIZ_CONSTRAINT:    msg = "VIZ_CONSTRAINT"; break;
+    case VIZ_TILECOUNT:     msg = "VIZ_TILECOUNT"; break;
+    case VIZ_ENTROPY:       msg = "VIZ_ENTROPY"; break;
+    case VIZ_CHANGE:        msg = "VIZ_CHANGE"; break;
+    case VIZ_RESPICK:       msg = "VIZ_RESPICK"; break;
+    };
+    printf ( "started: %s\n", msg.c_str() );    
 }
 
 // WFC  cnt = getTilesAtVertex( j );
@@ -503,8 +597,8 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v )
     float f;
     Vector4DF s;
     
-    float vscale = 1.0f;
-    float vexp = 0.1f;
+    float vscale = 2.0f;
+    float vexp = 0.2f;
 
     switch (m_viz_opt) {
     case VIZ_MU:        
@@ -518,7 +612,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v )
         s = Vector4DF(f,f,f,f);
         break;
     case VIZ_BELIEF:
-        f = getVal ( BUF_BELIEF, v );
+        f = getVal ( BUF_VIZ, v );
         s = Vector4DF(f,f,f,f);
         break;
     }
@@ -2260,7 +2354,6 @@ float BeliefPropagation::getVertexBelief ( uint64_t j ) {
       _bi = getVal( BUF_BELIEF, tile_val ) / sum;
       SetVal( BUF_BELIEF, tile_val, _bi );
     }
-
   }
 
   return sum;
@@ -2299,16 +2392,22 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
   return sum;
 }
 
-void BeliefPropagation::Restart() {
-  m_rand.seed ( m_seed++ );
+void BeliefPropagation::Restart () 
+{  
+  m_rand.seed ( m_seed );
 
-  ConstructF ();
-  ConstructGH ();
-  ConstructMU ();
+  printf ("Restart. seed=%d\n", m_seed );
+
+  ConstructMU ();   // clear mu and mu_nxt
+ 
+  RandomizeMU ();
+
   NormalizeMU ();
 
   ConstructTileIdx();
   ConstructConstraintBuffers();
+
+  m_seed += 10;
 }
 
 //----
@@ -2402,14 +2501,14 @@ int BeliefPropagation::init(
 
   // F
   //
-  B = m_num_values;
-  AllocBPMap ( BUF_F, 6, B );
-  memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );
+  ConstructF ();
 
-  for (i=0; i<tile_rule_list.size(); i++) {
+  for (int i=0; i < tile_rule_list.size(); i++) {
     SetValF( BUF_F, tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2], tile_rule_list[i][3] );
   }
 
+  // G & H
+  //
   ConstructGH();
 
   for (i=0; i<m_num_values; i++) {
@@ -2420,7 +2519,7 @@ int BeliefPropagation::init(
 
   //---
 
-  m_rand.seed ( m_seed++ );
+  m_rand.seed ( m_seed );
 
   m_bpres.Set ( Rx, Ry, Rz );
   m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
@@ -2431,6 +2530,7 @@ int BeliefPropagation::init(
   ConstructConstraintBuffers();
 
   ConstructMU();
+  
   NormalizeMU ();
 
   AllocBPVec( BUF_BELIEF, m_num_values );
@@ -2613,7 +2713,8 @@ int BeliefPropagation::wfc_step(int64_t it) {
 }
 
 
-int BeliefPropagation::start () {
+int BeliefPropagation::start () 
+{
   int ret=0;
 
   ret = CullBoundary();
@@ -3395,8 +3496,6 @@ int BeliefPropagation::single_realize (int64_t it) {
   //
   NormalizeMU();
 
-  if ( m_viz_opt == VIZ_DMU )
-    ComputeDiffMUField ();
 
   // iterate bp until converged
   //
@@ -3513,12 +3612,27 @@ float BeliefPropagation::step (int update_mu)
 
   // run main bp, store in BUF_MU_NXT
   //
-  if (m_use_svd)  { BeliefProp_svd(); }
-  else            { BeliefProp();     }
+  if (m_use_svd)  { 
+
+      BeliefProp_svd(); 
+
+  } else {
+
+      BeliefProp();     
+  }
 
   // renormalize BUF_MU_NXT
   //
   NormalizeMU( BUF_MU_NXT );
+
+
+  // visualize before updateMU
+  if ( m_viz_opt == VIZ_DMU )
+    ComputeDiffMUField ();
+
+  if ( m_viz_opt == VIZ_BELIEF )
+    ComputeBeliefField ();
+
 
   // calculate the difference between
   // BUF_MU_NXT and BUF_MU

@@ -79,5 +79,7 @@ int load_obj2tri(std::string inputfile, std::vector< float > &tri);
 void stl_print(FILE *fp, std::vector< float > &tri, float dx, float dy, float dz);
 int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris);
 
+extern opt_t g_opt;
+
 #endif
 

@@ -186,7 +186,7 @@ public:
   int       RealizePost();
   int       Realize();
 
-  void      StartVis (int viz_opt);
+  void      SetVis (int viz_opt);
 
 
   //------------------------ belief propagation, mid-level API
@@ -269,6 +269,8 @@ public:
   float getVertexBelief ( uint64_t j );
   float _getVertexBelief ( uint64_t j );
 
+  int   getMaxBeliefTile ( uint64_t j );
+
   void  cellUpdateBelief(int64_t anch_cell);
   int   chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
@@ -281,8 +283,9 @@ public:
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
   float MaxDiffMU();
-  float MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);
-  void  ComputeDiffMUField ();
+  float MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);  
+
+  void  RandomizeMU ();
 
   void  NormalizeMU ();
   void  NormalizeMU (int id);
@@ -292,6 +295,11 @@ public:
   void  filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
   int32_t tileName2ID (std::string &tile_name);
   int32_t tileName2ID (char *);
+
+  // used for visualization
+  void  ComputeDiffMUField ();
+  void  ComputeBeliefField ();
+
 
   // non "strict" bp functions but helpful still
   //

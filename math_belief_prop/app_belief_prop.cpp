@@ -43,7 +43,7 @@
 #include <time.h>
 
 #include "belief_propagation.h"
-#include "helper.h"
+#include "bp_helper.h"
 
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -61,6 +61,7 @@
 #include <string>
 
 #define BUF_VOL      0      // render volume
+
 
 class Sample : public Application {
 public:
@@ -104,11 +105,11 @@ public:
   void      ClearImg (Image* img);
   void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );
 
-  int       write_tiled_json ( BeliefPropagation &bpc );
-
   Camera3D* m_cam;          // camera
   Image*    m_img;          // output image
   Image*    m_img2;
+  
+  int       m_viz;
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
 
@@ -209,9 +210,12 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         m_Z = strToI(optarg);
         break;
 
-      case 'W':
-        wfc_flag = 1;
-        break;
+      case 'w': {
+        float step_factor = strToF(optarg);
+        if (step_factor > 0.0) {
+          bpc.m_rate = step_factor;
+        }
+        }break;
     }
     }
 }
@@ -247,7 +251,7 @@ void Sample::Visualize ( BeliefPropagation& src, int vol_id )
         clr = src.getVisSample ( j );
 
         // write voxel
-        *vox++ = clr;        
+        *vox++ = clr;
    }
 }
 
@@ -297,7 +301,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 
         // accumulate along ray
         for (iter=0; iter < 512 && clr.w < 0.99 && p.x >= 0 && p.y >= 0 && p.z >= 0 && p.x < m_vres.x && p.y < m_vres.y && p.z < m_vres.z; iter++) {
-          val = getVoxel4 ( BUF_VOL, p.x, p.y, p.z );          // get voxel value
+          val = getVoxel4 ( BUF_VOL, p.x, m_vres.y-p.y, p.z );          // get voxel value
           //alpha = val.w;                        // opacity = linear transfer
           alpha = 1.0 / (1+exp(-(val.w-1.0)*kWidth));        // opacity = sigmoid transfer - accentuates boundaries at 0.5
           clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color
@@ -322,116 +326,42 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 
 void Sample::Restart()
 {
+    int ret;
+
+    // reset dynamic buffers
+    //
+    bpc.Restart ();
+
+    // apply dsl constraints
+    if (m_constraint_cmd.size() > 0) {
+
+        std::vector< int > dim;
+        dim.push_back(m_X);
+        dim.push_back(m_Y);
+        dim.push_back(m_Z);
+        std::vector< constraint_op_t > constraint_op_list;
+
+        ret = parse_constraint_dsl ( constraint_op_list, m_constraint_cmd, dim, bpc.m_tile_name);
+        if (ret < 0) {
+            fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+            exit(-1);
+        }
+
+        ret = constrain_bp ( bpc, constraint_op_list);
+        if (ret < 0) {
+            fprintf(stderr, "constrain_bp failure\n");
+            exit(-1);
+        }
+    } 
+
+    ret = bpc.start ();
+    
+    ret = bpc.RealizePre ();
+
+    // make sure were running
+    m_run = true;
+   
 }
-
-int Sample::write_tiled_json ( BeliefPropagation &bpc ) 
-{
-  FILE *fp;
-  int i, j; 
-  int64_t vtx;
-
-  int tilecount = (int)bpc.m_tile_name.size();
-  tilecount--;
-
-  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
-  int tileset_width = ceil( sqrt( (double) tilecount ) );
-  int tileset_height = m_tileset_width;
-
-  m_tileset_width *= m_tileset_stride_x;
-  m_tileset_height *= m_tileset_stride_y;
-
-  fp = fopen( m_tilemap_fn.c_str(), "w");
-  if (!fp) { return -1; }
-
-  fprintf(fp, "{\n");
-  fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
-  fprintf(fp, "  \"height\": %i,\n", (int)bpc.m_res.y);
-  fprintf(fp, "  \"width\": %i,\n", (int)bpc.m_res.x);
-  fprintf(fp, "  \"layers\": [{\n");
-
-  fprintf(fp, "    \"data\": [");
-
-  // tiled expects y to increment in the negative direction
-  // so we need to reverse the y direction when exporting
-  //
-  if ( 0 ) {
-    // reversed y
-    for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
-      for (j=0; j<(int)bpc.m_res.x; j++) {
-        vtx = bpc.getVertex(j, i, 0);
-        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
-        if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        else                                { fprintf(fp, "%s", ","); }
-      }
-      fprintf(fp, "\n  ");
-    }
-
-  } else {
-    // standard y
-    for (i=0; i<(int)(bpc.m_res.y); i++) {
-      for (j=0; j<(int)bpc.m_res.x; j++) {
-        vtx = bpc.getVertex(j, i, 0);
-        fprintf(fp, " %i", (int)bpc.getVali( BUF_TILE_IDX, vtx, 0 ));
-        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        else                                { fprintf(fp, "%s", ","); }
-      }
-      fprintf(fp, "\n  ");
-    }
-  }
-
-  /*
-  n = bpc.m_num_verts;
-  for (i=0; i<n; i++) {
-    if ((i%(int)bpc.m_res.x)==0) {
-      fprintf(fp, "\n   ");
-    }
-    fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
-  }
-  */
-
-  fprintf(fp, "\n    ],\n");
-  fprintf(fp, "    \"name\":\"main\",\n");
-  fprintf(fp, "    \"opacity\":1,\n");
-  fprintf(fp, "    \"type\":\"tilelayer\",\n");
-  fprintf(fp, "    \"visible\":true,\n");
-  fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
-  fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
-  fprintf(fp, "    \"x\":0,\n");
-  fprintf(fp, "    \"y\":0\n");
-
-  fprintf(fp, "  }\n");
-
-  fprintf(fp, "  ],\n");
-  fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
-  fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
-  fprintf(fp, "  \"properties\": [ ],\n");
-  fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
-  fprintf(fp, "  \"tileheight\": %i,\n", (int) m_tileset_stride_y);
-  fprintf(fp, "  \"tilewidth\": %i,\n", (int) m_tileset_stride_x);
-  fprintf(fp, "  \"tilesets\": [{\n");
-
-  fprintf(fp, "    \"firstgid\": %i,\n", 1);
-  fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
-  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
-  fprintf(fp, "    \"image\": \"%s\",\n", m_tileset_fn.c_str());
-  fprintf(fp, "    \"imageheight\": %i,\n", (int) m_tileset_height);
-  fprintf(fp, "    \"imagewidth\": %i,\n", (int) m_tileset_width);
-  //fprintf(fp, "    \"margin\": %i,\n", (int) m_tileset_margin);
-  //fprintf(fp, "    \"spacing\": %i,\n", (int) m_tileset_spacing);
-  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
-  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
-  fprintf(fp, "    \"tileheight\": %i,\n", (int) m_tileset_stride_y);
-  fprintf(fp, "    \"tilewidth\": %i\n", (int) m_tileset_stride_x);
-
-  fprintf(fp, "  }],\n");
-  fprintf(fp, "  \"version\": %i\n", 1);
-  fprintf(fp, "}\n");
-
-  fclose(fp);
-
-  return 0;
-}
-
 
 
 bool Sample::init()
@@ -440,6 +370,7 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
+  m_viz = VIZ_DMU;
   m_run_bpc = true;
   m_run_wfc = false;
   m_D = 0;
@@ -492,43 +423,24 @@ bool Sample::init()
   if (m_run_bpc) {
       
       // init belief prop
-      ret = bpc.init_CSV(m_X, m_Y, m_Z, name_path, rule_path );
+      ret = init_CSV ( bpc, m_X, m_Y, m_Z, name_path, rule_path );
       if (ret<0) {
         fprintf(stderr, "bpc error loading CSV\n");
         exit(-1);
       }
 
-      // dsl constraints
-      /* if (m_constraint_cmds.size() > 0) {
-        std::vector< int > dim;
-        dim.push_back(m_X);
-        dim.push_back(m_Y);
-        dim.push_back(m_Z);
-
-        ret = bpc.parse_constraint_dsl ( constraint_op_list, m_constraint_cmmds, dim, bpc.m_tile_name);
-        if (ret < 0) {
-          fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
-          exit(-1);
-        }
-
-        ret = bpc.constrain_bp ( bpc, constraint_op_list);
-        if (ret < 0) {
-          fprintf(stderr, "constrain_bp failure\n");
-          exit(-1);
-        }
-      } */
-
       // start belief prop
-      
-      ret = bpc.start ();
+      //
+      Restart ();
 
-      ret = bpc.RealizePre ();
+
+      bpc.SetVis ( VIZ_DMU );
 
    }
 
   if (m_run_wfc) {
       // init wfc
-      ret = wfc.init_CSV( m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
+      ret = init_CSV( bpc, m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
       if (ret<0) {
         fprintf(stderr, "wfc error loading CSV\n");
         exit(-1);
@@ -571,7 +483,6 @@ void Sample::display()
             // finish this iteration
             ret = bpc.RealizePost();
             
-            
             if ( ret > 0) {
                 // iteration complete
                 // start next iteration
@@ -587,15 +498,17 @@ void Sample::display()
                 m_t2 = clock();
                 float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
                 printf ( "Elapsed time: %f msec\n", elapsed);
-                m_run=false;
+
+                m_run = false;
 
                 // write json output
-                if (m_tilemap_fn.size() > 0) {
-                    if (bpc.m_verbose >= 1) {
-                        printf("Writing tilemap (%s)\n", m_tilemap_fn.c_str());
-                    }
-                    write_tiled_json( bpc );
-                }
+                g_opt.tileset_stride_x = m_tileset_stride_x;
+                g_opt.tileset_stride_y = m_tileset_stride_y;
+                g_opt.tileset_fn = m_tileset_fn;
+                g_opt.tilemap_fn = m_tilemap_fn;                
+
+
+                write_tiled_json( g_opt, bpc );                
 
             } else {
 
@@ -630,7 +543,7 @@ void Sample::display()
 
 
   Vector3DF wfc_off(0,0,-10);
-  Vector3DF bfc_off(0,0,0);
+  Vector3DF bpc_off(0,0,0);
 
   // Raycast
   ClearImg (m_img);
@@ -641,9 +554,8 @@ void Sample::display()
       RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
   }
 
-  if ( m_run_bpc ) {  
-      
-      //-- regular belief viz
+  if ( m_run_bpc && bpc.m_step_iter % 5 == 0) { 
+
       Visualize ( bpc, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }
@@ -737,8 +649,35 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   if (action==AppEnum::BUTTON_RELEASE) return;
 
   switch (keycode) {
+      
+  case 'w':  
+
+      g_opt.tileset_stride_x = m_tileset_stride_x;
+      g_opt.tileset_stride_y = m_tileset_stride_y;
+      g_opt.tileset_fn = m_tileset_fn;
+      g_opt.tilemap_fn = m_tilemap_fn;
+
+      write_tiled_json( g_opt, bpc ); 
+
+      break;
+
   case ' ':  m_run = !m_run;  break;
-  case 'g':  printf("??\n"); fflush(stdout); Restart();  break;
+  
+  case 'g':  
+      Restart();  
+      break;
+
+  case ',':  
+      m_viz--; 
+      if (m_viz < VIZ_DMU) m_viz = VIZ_BELIEF;  
+      bpc.SetVis ( m_viz );
+      break;
+  case '.':  
+      m_viz++; 
+      if (m_viz > VIZ_BELIEF) m_viz = VIZ_DMU;  
+      bpc.SetVis ( m_viz );
+      break;
+
   };
 }
 
