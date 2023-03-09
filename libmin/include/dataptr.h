@@ -64,6 +64,7 @@
 					#endif			
 					}
 		~DataPtr();
+
 		
 		// Buffer operations
 		void			Resize ( int stride, uint64_t cnt, char* dat=0x0, uchar dest_flags=DT_CPU );
@@ -89,6 +90,10 @@
 		#endif
 		void			SetElem(uint64_t n,  void* dat)	{ memcpy ( mCpu+n*mStride, dat, mStride); }
 		char*			getPtr(uint64_t n)		{ return mCpu + n*mStride; }		
+
+		// Multi-dimensional Get/Set
+		char*			getPtr(uint64_t x, uint64_t y, uint64_t z) {
+									return mCpu + (z*mUseRY + y)*mUseRX + x; }
 
 		// Helper functions		
 		void			SetElemInt(uint64_t n, int val)	{ * (int*) (mCpu+n*mStride) = val; }

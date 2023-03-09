@@ -89,26 +89,32 @@
 #define ALG_RUN_VANILLA         35
 #define ALG_RUN_RESIDUAL        36
 
+// memory locations: cpu + (z*mUseRY + y)*mUseRX + x
 
-#define BUF_VOL         0     // volume: n^3
-#define BUF_G           1     // beliefprop, G(a) vector
-#define BUF_H           2     // beliefprop, H(a) vector
-#define BUF_F           3     // beliefprop, F(a,b) vector - assume independent of i,j
-#define BUF_MU          4     // beliefprop, mu{i,j}(a,b) vector
-#define BUF_MU_NXT      5     // beliefprop, mu'{i,j}(a,b) vector
-#define BUF_BELIEF      6     // Belief array
-#define BUF_TILE_IDX    7     // volume 'dynamic' array of current tile indexes per cell
-#define BUF_TILE_IDX_N  8     // volume number of tiles at cell position
-#define BUF_CONSIDER    9     // volume consider/scan (of size cell count (i32))
-#define BUF_VISITED     10    // volume visited/picked (of size cell count (i32))
-#define BUF_NOTE        11    // volume to keep track of which cells have been processed to  (of size cell count (i32))
-#define BUF_VIZ         12    // volume for vizualization
+// static buffers (input)                                                                                               // Allocation (B=num_vals)
+#define BUF_G           1     // tile weights,  weight, all values - beliefprop, G(a) vector                            // <B, 1, 1>
+#define BUF_F           2     // tile rules,    rule-to-rule - beliefprop, F(a,b) vector - assume independent of vtx    // <B, B, 6>
 
-#define BUF_MU_RESIDUE  13
+// dynamic buffers
+#define BUF_MU          3     // message prob,  6*B,        all verts - beliefprop, mu{i,j}(a,b) vector (B=# values)    // <6, B, num_vert>
+#define BUF_MU_NXT      4     // message prob', 6*B,        all verts - beliefprop, mu'{i,j}(a,b) vector (B=# values)   // <6, B, num_vert>
+#define BUF_TILE_IDX    5     // tile indexes,  val list,   all verts - beliefprof                                      // <B, num_vert, 1>
+#define BUF_TILE_IDX_N  6     // # of tile idx, 1x int,     all verts - beliefprof                                      // <num_vert, 1, 1>
 
-#define BUF_SVD_U       14
-#define BUF_SVD_Vt      15
-#define BUF_SVD_VEC     16
+// scratch buffers
+#define BUF_H           7     // temporary,     val list,   single vert - beliefprop                                    // <B, 1, 1>
+#define BUF_BELIEF      8     // temporary,     val list,   single vert - beliefprop                                    // <B, 1, 1>
+#define BUF_VISITED     9     // temporary,     1x int,     all verts - beliefprop                                      // <num_vert, 1, 1>
+#define BUF_NOTE        10    // which cells,   2x int,     all verts (of size cell count (i32))                        // <num_vert, 2, 1>
+#define BUF_VIZ         11    // vizualization, 1x float,   all verts                                                   // <num_vert, 1, 1>
+#define BUF_TILES       12    // max belief ,   1x int,     all verts                                                   // <num_vert, 1, 1>
+#define BUF_C           13    // num constraint,1x int,     all verts                                                   // <num_vert, 1, 1>
+
+// svd & residual bp
+#define BUF_SVD_U       14    //                                                                                        // <B,  B*, 6>
+#define BUF_SVD_Vt      15    //                                                                                        // <B*, B,  6>
+#define BUF_SVD_VEC     16    //                                                                                        // <B*, 1,  1>
+
 
 // auxiliary buffers for residual belief propagaion
 //
@@ -117,8 +123,8 @@
 // BUF_RESIDUE_CELL_HEAP    : mapping of cell (and direction, value) to heap position (in64_t).
 //                            That is, mapping of mu index to position in heap
 //
-// All sizes should be (Vol)*(2*D)*(B).
-// That is, {volume} x {#neighbors} x {#values} : (dim[0]*dim[1]*dim[2]*6*B).
+// All sizes should be (Vol) * 6 * B.
+// That is, {volume} x {#neighbors} x {#values} : (dim[0]*dim[1]*dim[2] * 6 * B).
 //
 // All these structures are for book keeping so that we can get the maximum difference of
 // mu and mu_nxt in addition to allowing arbitrary updates on other cells.
@@ -127,9 +133,9 @@
 // from the mu_nxt buffer to the mu buffer, then update neighboring cells by updating their
 // mu_nxt values, updating the residue_heap along the way.
 //
-#define BUF_RESIDUE_HEAP          17
-#define BUF_RESIDUE_HEAP_CELL_BP  18
-#define BUF_RESIDUE_CELL_HEAP     19
+#define BUF_RESIDUE_HEAP          19    //                                                                               // <6*B*num_vert, 1, 1>
+#define BUF_RESIDUE_HEAP_CELL_BP  20    //                                                                               // <6*B*num_vert, 1, 1>
+#define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
 
 class BeliefPropagation {
 public:
@@ -191,6 +197,9 @@ public:
   int       RealizeStep();
   int       RealizePost();
   int       Realize();
+
+  int       CheckConstraints ( int64_t p );
+  int       CheckConstraints ();
  
   void      SetVis (int viz_opt);
 
@@ -263,6 +272,13 @@ public:
 
   
   //----------------------- belief propagation (low-level)
+  
+  void  ConstructStaticBufs ();
+  void  ConstructDynamicBufs ();
+  void  ConstructTempBufs ();
+  void  ConstructConstraintBufs();
+  void  ConstructSVDBufs ();
+    
   float BeliefProp();
   float BeliefProp_svd ();
 
@@ -310,8 +326,7 @@ public:
   //
   int   CullBoundary();
   int   _CullBoundary();
-  void  ConstructConstraintBuffers();
-  int   cellConstraintPropagate();
+    int   cellConstraintPropagate();
   void  cellFillAccessed(uint64_t vtx, int32_t note_idx);
   int   cellFillSingle(uint64_t vtx, int32_t note_idx);
 
@@ -330,10 +345,9 @@ public:
 
 
   //------------------------ memory management    
-  void     ConstructF ();
-  void     ConstructGH ();
-  void     ConstructMU ();
-  void     ConstructTileIdx();
+  
+  void      AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+
   void     ZeroBPVec (int id);
   void     AllocBPVec (int id, int cnt);                  // vector alloc
   void     AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
@@ -352,6 +366,19 @@ public:
   int      getTilesAtVertex ( int64_t vtx );
   int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
   
+  //----------------------- new accessor functions
+    
+  inline void*  getPtr(int id, int x, int y=1, int z=1)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
+
+  inline int32_t getValI(int id, int x, int y=1, int z=1)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}  
+  inline int64_t getValL(int id, int x, int y=1, int z=1)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}  
+  inline float   getValF(int id, int x, int y=1, int z=1)            {return *(float*) m_buf[id].getPtr (x, y, z);}  
+    
+  inline void   SetValI(int id, float val, int x, int y=1, int z=1)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
+  inline void   SetValL(int id, float val, int x, int y=1, int z=1)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
+  inline void   SetValF(int id, float val, int x, int y=1, int z=1)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
+
+
   
   //----------------------- accessor functions
 
@@ -360,9 +387,9 @@ public:
   inline int    getNumVerts()            {return m_num_verts;}
   
   // G and H vectors, size B
-  inline float* getPtr(int id, int a)                  {return  (float*) m_buf[id].getPtr (a);}            
-  inline float  getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
-  inline void   SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
+    inline float* getPtr (int id, int n )             {return   (float*) m_buf[id].getPtr (n); } 
+  inline float  getVal (int id, int n )             {return * (float*) m_buf[id].getPtr (n); } 
+  inline void   SetVal (int id, int n )             {       * (float*) m_buf[id].getPtr (n) = val; }
 
   //  belief prop residue access functions (int64_t)
   //  index heap - ih
@@ -384,14 +411,16 @@ public:
   // Optimized: Closest values in memory are most used in inner loops
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
-  inline float* getPtr(int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
-  inline float  getVal(int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
-  inline void   SetVal(int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
+  inline float* getPtrMU (int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
+  inline float  getValMU (int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
+  inline void   SetValMU (int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
 
   // belief mapping (F), BxB
   inline float* getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
   inline float  getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
   inline void   SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ) = val; }
+
+ 
 
 #else
   // MU matrix
