@@ -608,7 +608,7 @@ int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< fl
       for (iz=0; iz<bp.m_res.z; iz++) {
         pos = bp.getVertex(ix, iy, iz);
 
-        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+        tile_id = bp.getValI ( BUF_TILE_IDX, 0, pos );
 
         dx = (float)ix*stride_x + cx;
         dy = (float)iy*stride_y + cy;
@@ -681,7 +681,7 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
         vtx = bpc.getVertex(j, i, 0);
 
         //tile = bpc.getMaxBeliefTile ( vtx );
-         tile = bpc.getVali( BUF_TILE_IDX, vtx, 0 );
+         tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
 
         fprintf(fp, " %i", tile );
         if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
@@ -697,7 +697,7 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
          vtx = bpc.getVertex(j, i, 0);
 
          //tile = bpc.getMaxBeliefTile ( vtx );
-          tile = bpc.getVali( BUF_TILE_IDX, vtx, 0 );
+          tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
 
          fprintf(fp, " %i", tile );
         if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
@@ -791,7 +791,7 @@ int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::v
       for (iz=0; iz<bp.m_res.z; iz++) {
         pos = bp.getVertex(ix, iy, iz);
 
-        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+        tile_id = bp.getValI( BUF_TILE_IDX, 0, pos );
 
         dx = (float)ix*stride_x + cx;
         dy = (float)iy*stride_y + cy;
