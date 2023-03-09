@@ -1671,8 +1671,8 @@ int test_residual2() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
-    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1693,10 +1693,10 @@ int test_residual2() {
       return ret;
     }
 
-    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+    bp.SetValF( _buf, _a, _idir, _tile, _cell );
 
-    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+    _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+    _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
     bp.indexHeap_update( mu_idx, fabs(_a-_b) );
 
@@ -1744,8 +1744,8 @@ int test_residual3() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
-    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1779,10 +1779,10 @@ int test_residual3() {
     }
 
 
-    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+    bp.SetValF( _buf, _a, _idir, _tile, _cell );
 
-    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+    _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+    _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
     bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
 
@@ -1834,8 +1834,8 @@ int test_residual4() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
-    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1869,10 +1869,10 @@ int test_residual4() {
     }
 
 
-    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+    bp.SetValF( _buf, _a, _idir, _tile, _cell );
 
-    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+    _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+    _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
     bp.indexHeap_update( mu_idx, fabs(_a-_b) );
 
@@ -1932,8 +1932,8 @@ int test_residual5() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1966,10 +1966,10 @@ int test_residual5() {
       return -1;
     }
 
-    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+    bp.SetValF( _buf, _a, _idir, _tile, _cell );
 
-    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+    _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+    _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
     bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
 
@@ -1981,8 +1981,8 @@ int test_residual5() {
     for (_cell=0; _cell<bp.m_num_verts; _cell++) {
       for (_tile=0; _tile<bp.m_num_values; _tile++) {
 
-        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+        _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+        _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
         f = fabs(_a-_b);
 
@@ -2020,8 +2020,8 @@ int test_residual5() {
   for (_idir=0; _idir<6; _idir++) {
     for (_cell=0; _cell<bp.m_num_verts; _cell++) {
       for (_tile=0; _tile<bp.m_num_values; _tile++) {
-        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
-        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+        _a = bp.getValF( BUF_MU,     _idir, _tile, _cell );
+        _b = bp.getValF( BUF_MU_NXT, _idir, _tile, _cell );
 
         f = fabs(_a-_b);
 
