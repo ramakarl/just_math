@@ -223,6 +223,10 @@ void bp_cb_V2(void *dat) {
 }
 
 void bp_cb_v1(void *dat) {
+}
+
+/*
+void bp_cb_v1(void *dat) {
   char imgfile[512];
   std::string base_png = "out";
   int it=0;
@@ -319,6 +323,7 @@ void bp_cb_v1(void *dat) {
   save_png ( imgfile, m_img, m_iresx, m_iresy, 3 );
 
 }
+*/
 
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres ) {
 
@@ -343,7 +348,7 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
     //
     maxv = 0.0;
     for (int k=r_l; k <= r_u; k++) {
-      maxv = std::max(maxv, src.getVal( bp_id, k ));
+      maxv = std::max(maxv, src.getValF( bp_id, k ));
     }
     vox->x = maxv;
 
@@ -351,7 +356,7 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
     //
     maxv = 0.0;
     for (int k=g_l; k <= g_u; k++) {
-      maxv = std::max(maxv, src.getVal( bp_id, k ));
+      maxv = std::max(maxv, src.getValF( bp_id, k ));
     }
     vox->y = maxv;
 
@@ -359,7 +364,7 @@ void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI
     //
     maxv = 0.0;
     for (int k=b_l; k <= b_u; k++) {
-      maxv = std::max(maxv, src.getVal( bp_id, k ));
+      maxv = std::max(maxv, src.getValF( bp_id, k ));
     }
     vox->z = maxv;
 
@@ -392,7 +397,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      //
      maxv = 0.0;
      for (int k=r_l; k <= r_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
+        maxv = std::max(maxv, src.getValF( bp_id, k ));
      }
      vox->x = maxv;
 
@@ -400,7 +405,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      //
      maxv = 0.0;
      for (int k=g_l; k <= g_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
+        maxv = std::max(maxv, src.getValF( bp_id, k ));
      }
      vox->y = maxv;
 
@@ -408,7 +413,7 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
      //
      maxv = 0.0;
      for (int k=b_l; k <= b_u; k++) {
-        maxv = std::max(maxv, src.getVal( bp_id, k ));
+        maxv = std::max(maxv, src.getValF( bp_id, k ));
      }
      vox->z = maxv;
 

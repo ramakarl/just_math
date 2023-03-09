@@ -2308,10 +2308,11 @@ int BeliefPropagation::start () {
 
   printf ("Restart. seed=%d\n", m_seed );
 
+  ConstructConstraintBufs();
+
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
   
-  // randomize mu
   RandomizeMU ();
 
   // cull boundary
