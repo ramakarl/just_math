@@ -1564,8 +1564,8 @@ int test_residual0() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1612,8 +1612,8 @@ int test_residual1() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetValF( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetValF( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1671,8 +1671,8 @@ int test_residual2() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1744,8 +1744,8 @@ int test_residual3() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
@@ -1834,8 +1834,8 @@ int test_residual4() {
     _a = bp.m_rand.randF();
     _b = bp.m_rand.randF();
 
-    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    bp.SetVal( BUF_MU,     _a, _idir, _tile, _cell );
+    bp.SetVal( BUF_MU_NXT, _b, _idir, _tile, _cell );
   }
 
   bp.indexHeap_init();
