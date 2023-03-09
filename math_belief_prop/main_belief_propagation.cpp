@@ -40,10 +40,13 @@
 #include "string_helper.h"
 //#include "mesh.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
+//#define TINYOBJLOADER_IMPLEMENTATION
+//#include "tiny_obj_loader.h"
 
 #include "pd_getopt.h"
+
+#include "helper.h"
+
 extern char *optarg;
 
 opt_t g_opt;
@@ -424,6 +427,8 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 //                                                 //
 //-------------------------------------------------//
 
+//TAKEOUT
+/*
 // Split string on separator
 //   e.g. "object:car, other".. left='object:car', right='other'
 bool strSplit_ ( std::string str, std::string sep, std::string& left, std::string& right ) {
@@ -755,6 +760,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 
   return 0;
 }
+*/
 
 //------------//
 //       _ _  //
@@ -766,8 +772,10 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 //------------//
 
 //void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);
-void stl_print(FILE *, std::vector< float > &, float, float, float);
+//void stl_print(FILE *, std::vector< float > &, float, float, float);
 
+//TAKEOUT
+/*
 int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< float > > tri_lib) {
   FILE *fp=stdout;
 
@@ -878,16 +886,6 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   }
 
-  /*
-  n = bpc.m_num_verts;
-  for (i=0; i<n; i++) {
-    if ((i%(int)bpc.m_res.x)==0) {
-      fprintf(fp, "\n   ");
-    }
-    fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
-  }
-  */
-
   fprintf(fp, "\n    ],\n");
   fprintf(fp, "    \"name\":\"main\",\n");
   fprintf(fp, "    \"opacity\":1,\n");
@@ -930,6 +928,7 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   return 0;
 }
+*/
 
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
@@ -965,7 +964,6 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Q <fn>  tileset filename (PNG)\n");
   fprintf(fp, "  -u       reverse y for tiled output (default 0)\n");
   fprintf(fp, "  -s <#>   png tile stride\n");
-  fprintf(fp, "  -c <#>   cull tile id\n");
 
   //fprintf(fp, "  -d       debug print\n");
 
@@ -981,68 +979,8 @@ void show_version(FILE *fp) {
   fprintf(fp, "bp version: %s\n", BELIEF_PROPAGATION_VERSION);
 }
 
+//TAKEOUT
 /*
-void fprint_obj(FILE *fp, tinyobj::ObjReader &reader, float dx, float dy, float dz) {
-  int i, j, k;
-  auto& attrib = reader.GetAttrib();
-  auto& shapes = reader.GetShapes();
-  auto& materials = reader.GetMaterials();
-
-  for (i=0; i<attrib.size(); i+=3) {
-    fprintf(fp, "v %f %f %f\n",
-        (float)(attrib.vertices[i+0] + dx),
-        (float)(attrib.vertices[i+1] + dy),
-        (float)(attrib.vertices[i+2] + dz));
-  }
-
-  // Loop over shapes
-  for (size_t s = 0; s < shapes.size(); s++) {
-
-    // Loop over faces(polygon)
-    size_t index_offset = 0;
-    for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
-      size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
-
-      // Loop over vertices in the face.
-      for (size_t v = 0; v < fv; v++) {
-
-        // access to vertex
-        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
-        tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
-        tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
-        tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
-
-        fprintf(fp, "%f %f %f\n", (float)(vx+dx), (float)(vy+dy), (float)(vz+dz));
-
-        // Check if `normal_index` is zero or positive. negative = no normal data
-        if (idx.normal_index >= 0) {
-          tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
-          tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
-          tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
-        }
-
-        // Check if `texcoord_index` is zero or positive. negative = no texcoord data
-        if (idx.texcoord_index >= 0) {
-          tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
-          tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
-        }
-
-        // Optional: vertex colors
-        // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
-        // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
-        // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
-      }
-      index_offset += fv;
-
-      // per-face material
-      shapes[s].mesh.material_ids[f];
-    }
-  }
-
-
-}
-*/
-
 int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::vector< float > > tri) {
   int i, j, k, n;
 
@@ -1192,45 +1130,6 @@ int load_obj2tri(std::string inputfile, std::vector< float > &tri) {
 
   return 0;
 
-  /*
-  tinyobj::attrib_t ax;
-  std::vector< tinyobj::shape_t > sx;
-  std::vector< tinyobj::material_t > mx;
-
-  ax = attrib;
-  sx = shapes;
-  mx = materials;
-
-  bool coordTransform = false;
-  bool ignoreMaterial = true;
-
-  //tinyobj::WriteObj( "./akok.0.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
-  tinyobj::WriteObj( "./akok.0.obj", ax, sx, mx, coordTransform, ignoreMaterial);
-
-  for (size_t i=0; i<ax.vertices.size(); i+=3) {
-    ax.vertices[i+0] += 2.0;
-    ax.vertices[i+1] += 0.0;
-    ax.vertices[i+2] += 0.0;
-  }
-
-  //tinyobj::WriteObj( "./akok.1.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
-  tinyobj::WriteObj( "./akok.1.obj", ax, sx, mx, coordTransform, ignoreMaterial);
-
-  exit(-1);
-  return;
-  */
-
-  /*
-  bool br;
-  MeshX mm;
-
-  br = mm.LoadObj("./examples/.data/s000.obj", 1.0);
-  if (br) { printf("load successful\n"); }
-  else { printf("load failed\n"); }
-
-  exit(-1);
-  */
-
 }
 
 void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0) {
@@ -1273,6 +1172,7 @@ int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris) 
 
   return 0;
 }
+*/
 
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
@@ -1308,7 +1208,6 @@ int main(int argc, char **argv) {
 
   std::vector< std::vector< int32_t > > constraint_list;
 
-  std::vector< int32_t > cull_list;
   std::string constraint_commands;
   std::vector< constraint_op_t > constraint_op_list;
 
@@ -1438,9 +1337,6 @@ int main(int argc, char **argv) {
         Z = atoi(optarg);
         break;
 
-      case 'c':
-        cull_list.push_back( (int32_t)atoi(optarg) );
-        break;
       case 'J':
         constraint_commands = optarg;
         break;
@@ -1510,6 +1406,8 @@ int main(int argc, char **argv) {
   }
 
 
+  // TAKEOUT
+  /*
   if (constraint_commands.size() == 0) {
     if (constraint_fn) {
       constraint_fn_str = constraint_fn;
@@ -1520,6 +1418,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+  */
 
   if (bpc.m_verbose > 0) {
     printf ( "bpc init csv. (%s, %s)\n",
@@ -1528,7 +1427,29 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
+  init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
+
+  //TAKEOUT
+  /*
+  std::vector< std::string > name_list;
+  std::vector< float > weight_list;
+  std::vector< std::vector< float > > rule_list;
+
+  ret = _read_name_csv( name_fn_str, name_list, weight_list );
+  if (ret<0) {
+    fprintf(stderr, "error loading name CSV\n");
+    exit(-1);
+  }
+
+  ret =_read_rule_csv( rule_fn_str, rule_list );
+  if (ret<0) {
+    fprintf(stderr, "error loading rule CSV\n");
+    exit(-1);
+  }
+
+  //ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
+  ret = bpc.init( 
+  */
 
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
@@ -1553,43 +1474,6 @@ int main(int argc, char **argv) {
       exit(-1);
     }
 
-  }
-  else if (constraint_fn) {
-    if (bpc.m_verbose > 0) {
-      printf ( "#filter constraints.\n" );
-    }
-    bpc.filter_constraint(constraint_list);
-  }
-
-  if (cull_list.size() > 0) {
-    int cull_idx;
-    int64_t tile_idx, pos;
-    int32_t tile_id, n, cull_tile_id;
-    if (bpc.m_verbose > 0) {
-      printf( "#culling tile ids\n" );
-    }
-    for (cull_idx=0; cull_idx<cull_list.size(); cull_idx++) {
-      cull_tile_id = cull_list[cull_idx];
-
-      for (pos=0; pos<bpc.m_num_verts; pos++) {
-        n = bpc.getVali( BUF_TILE_IDX_N, pos );
-        for (tile_idx=0; tile_idx<n; tile_idx++) {
-          if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
-            break;
-          }
-        }
-        if (tile_idx < n) {
-          if (bpc.m_verbose > 1) {
-            printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
-          }
-          tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
-          bpc.SetVali( BUF_TILE_IDX, pos, n-1, cull_tile_id );
-          bpc.SetVali( BUF_TILE_IDX, pos, tile_idx, tile_id );
-          n--;
-          bpc.SetVali( BUF_TILE_IDX_N, pos, n );
-        }
-      }
-    }
   }
 
   if (test_num >= 0) {

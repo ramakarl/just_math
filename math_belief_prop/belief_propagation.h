@@ -189,21 +189,21 @@ public:
 
 
   //------------------------ belief propagation, mid-level API
-  bool  _init();
 
+  //TAKEOUT
+  /*
   int   init_CSV (int, std::string &, std::string &);
   int   init_CSV (int, int, int, std::string &, std::string &);
   int   init_F_CSV(std::string &, std::string &);
+  */
+
+  int   init( int, int, int,
+              std::vector< std::string  >           tile_name_list,
+              std::vector< float >                  tile_weight_list,
+              std::vector< std::vector < float > >  rule_list );
 
   int   init_SVD(void);
 
-  //DEBUG
-  //DEBUG
-  int   init(int);
-  int   init(int, int, int);
-  //DEBUG
-  //DEBUG
-    
   int   start();
 
   int   realize();
@@ -506,16 +506,5 @@ public:
 
 };
 
-typedef struct constraint_op_type {
-  char op;
-  std::vector< int > dim_range;
-  std::vector< int > tile_range;
-} constraint_op_t;
-
-int _read_line(FILE *fp, std::string &line);
-int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector<float> &weight);
-int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
-int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile);
-int _parse_constraint_dsl (std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name);
 
 #endif
