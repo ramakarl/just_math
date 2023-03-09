@@ -2422,7 +2422,7 @@ int BeliefPropagation::init(
 
   // populate F - tile rules
   for (int i=0; i < tile_rule_list.size(); i++) {
-    SetValF( BUF_F, tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2], tile_rule_list[i][3] );
+    SetValF( BUF_F, tile_rule_list[i][3], tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2] );
   }
   // populate G - tile weights
   for (i=0; i<m_num_values; i++) {
