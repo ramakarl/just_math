@@ -86,7 +86,7 @@ void BeliefPropagation::indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b) {
   //SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b, cell_idx_a );
 
   SetValF( BUF_RESIDUE_HEAP,         val_a,       heap_idx_b );
-  SetValL( BUF_RESIDUE_HEAP_CELL_BP, call_idx_a,  heap_idx_b );
+  SetValL( BUF_RESIDUE_HEAP_CELL_BP, cell_idx_a,  heap_idx_b );
 
   //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_a, heap_idx_b );
   //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_b, heap_idx_a );
