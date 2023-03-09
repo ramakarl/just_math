@@ -3130,12 +3130,6 @@ int BeliefPropagation::Realize(void) {
 
 int BeliefPropagation::CheckConstraints ( int64_t p )
 {
-
-
-}
-
-int BeliefPropagation::CheckConstraints ( int64_t p )
-{
     int a, b, c, cnt;
     float v;
     int64_t pnbr, f;
