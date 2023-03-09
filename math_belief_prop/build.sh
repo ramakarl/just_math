@@ -16,8 +16,7 @@ g++ -g -I../libmin/include/ \
   ../libmin/src/string_helper.cpp \
   ../libmin/src/datax.cpp \
   -I ../libmin/mains \
-  -I ../math_displace_mesh \
-  ../math_displace_mesh/mesh.cpp \
+  helper.cpp \
   belief_propagation.cpp \
   belief_propagation_residue.cpp \
   tests_belief_propagation.cpp \
@@ -26,6 +25,9 @@ g++ -g -I../libmin/include/ \
   -o bpc.debug
 
 exit
+
+#  -I ../math_displace_mesh \
+#  ../math_displace_mesh/mesh.cpp \
 
 g++ -O3 -I../libmin/include/ \
   -D__linux__ \
@@ -41,13 +43,14 @@ g++ -O3 -I../libmin/include/ \
   ../libmin/src/string_helper.cpp \
   ../libmin/src/datax.cpp \
   -I ../libmin/mains \
-  -I ../math_displace_mesh \
-  ../math_displace_mesh/mesh.cpp \
   belief_propagation.cpp \
   belief_propagation_residue.cpp \
   tests_belief_propagation.cpp \
   main_belief_propagation.cpp \
   -lm \
   -o bpc
+
+#  -I ../math_displace_mesh \
+#  ../math_displace_mesh/mesh.cpp \
 
 

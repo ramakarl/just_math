@@ -36,6 +36,7 @@
 
 #include "belief_propagation.h"
 #include "main_belief_propagation.h"
+#include "helper.h"
 
 extern opt_t g_opt;
 
@@ -56,7 +57,7 @@ int test0() {
   int ret;
 
   BeliefPropagation bp;
-  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   //bp.init(4,3,1);
@@ -83,7 +84,7 @@ int test1() {
 
   BeliefPropagation bp;
   //bp.init(4,3,1);
-  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.filterDiscard(6, discard_list);
@@ -106,7 +107,7 @@ int test2() {
 
   BeliefPropagation bp;
   //bp.init(4,3,1);
-  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -120,7 +121,7 @@ int test3() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(4,3,1);
-  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -212,7 +213,7 @@ int test4_() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(4,3,1);
-  ret = bp.init_CSV(4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -338,7 +339,7 @@ int test4() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_rate = 1.0;
@@ -521,7 +522,7 @@ int test5() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -620,7 +621,7 @@ int test5_1() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -718,7 +719,7 @@ int test_cull0() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(2,2,1);
-  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -750,7 +751,7 @@ int test_cull1() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -782,7 +783,7 @@ int test_cull2() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -826,7 +827,7 @@ int test_cull3() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,2);
-  ret = bp.init_CSV(3,3,2, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,2, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -891,7 +892,7 @@ int test_cull4() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(2,2,1);
-  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -955,7 +956,7 @@ int test6() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -1046,7 +1047,7 @@ int test_realize0() {
 
   //bp.init(2,2,1);
   //bp.init(3,3,1);
-  ret = bp.init_CSV(2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -1074,7 +1075,7 @@ int test_realize1() {
 
   //bp.init(3,3,1);
   //bp.init(3,3,1);
-  ret = bp.init_CSV(3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
 
@@ -1099,7 +1100,7 @@ int test_realize2(int x, int y, int z) {
   BeliefPropagation bp;
 
   //bp.init(x,y,z);
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   ret = bp.realize();
@@ -1127,7 +1128,7 @@ int test_step0(void) {
 
   bp.m_seed = 0;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   ret = bp.start();
@@ -1169,7 +1170,7 @@ int test_step1() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
   //bp.init(3,3,1);
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -1264,7 +1265,7 @@ int test_step2() {
 
   bp.m_use_svd = 1;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -1359,7 +1360,7 @@ int test_step3() {
   bp.m_use_svd = 0;
   bp.m_use_checkerboard = 1;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -1456,7 +1457,7 @@ int test_step4() {
   bp.m_use_svd = 1;
   bp.m_use_checkerboard = 1;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -1552,7 +1553,7 @@ int test_residual0() {
 
   BeliefPropagation bp;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1600,7 +1601,7 @@ int test_residual1() {
 
   BeliefPropagation bp;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1659,7 +1660,7 @@ int test_residual2() {
 
   BeliefPropagation bp;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1732,7 +1733,7 @@ int test_residual3() {
 
   BeliefPropagation bp;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1822,7 +1823,7 @@ int test_residual4() {
 
   BeliefPropagation bp;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1920,7 +1921,7 @@ int test_residual5() {
 
   _eps = bp.m_eps_zero;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -2092,7 +2093,7 @@ int test_residual6() {
 
   bp.m_use_svd = 0;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -2252,7 +2253,7 @@ int test_residual7() {
 
   bp.m_use_svd = 0;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -2354,7 +2355,7 @@ int test_residual8() {
 
   bp.m_use_svd = 1;
 
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   bp.m_eps_converge = 1.0/1024.0;
@@ -2441,7 +2442,7 @@ int test_wfc0(int x, int y, int z) {
   BeliefPropagation bp;
 
   //bp.init(x,y,z);
-  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   ret = bp.wfc();
@@ -2454,6 +2455,8 @@ int test_wfc0(int x, int y, int z) {
 
 
 
+//TAKEOUT
+/*
 void _debugstate() {
   int a, b, i, j, k, d;
 
@@ -2473,6 +2476,7 @@ void _debugstate() {
 
   }
 }
+*/
 
 int run_test(int test_num) {
   switch(test_num) {
