@@ -64,26 +64,35 @@ void BeliefPropagation::indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b) {
   float val_a,
         val_b;
 
-  val_a       = getVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_a );
-  cell_idx_a  = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a );
+  //val_a       = getVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_a );
+  //cell_idx_a  = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a );
 
-  val_b       = getVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_b );
-  cell_idx_b  = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b );
+  val_a       = getValF( BUF_RESIDUE_HEAP,         heap_idx_a );
+  cell_idx_a  = getValL( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a );
 
-  SetVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_a, val_b );
-  SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a, cell_idx_b );
+  //val_b       = getVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_b );
+  //cell_idx_b  = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b );
 
-  SetVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_b, val_a );
-  SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b, cell_idx_a );
+  val_b       = getValF( BUF_RESIDUE_HEAP,         heap_idx_b );
+  cell_idx_b  = getValL( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b );
 
-  //cell_idx_a = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a );
-  //cell_idx_b = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b );
+  //SetVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_a, val_b );
+  //SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_a, cell_idx_b );
 
-  //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_a, heap_idx_a );
-  //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_b, heap_idx_b );
+  SetValF( BUF_RESIDUE_HEAP,         val_b,       heap_idx_a );
+  SetValL( BUF_RESIDUE_HEAP_CELL_BP, cell_idx_b,  heap_idx_a );
 
-  SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_a, heap_idx_b );
-  SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_b, heap_idx_a );
+  //SetVal_ihf( BUF_RESIDUE_HEAP,         heap_idx_b, val_a );
+  //SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, heap_idx_b, cell_idx_a );
+
+  SetValF( BUF_RESIDUE_HEAP,         val_a,       heap_idx_b );
+  SetValL( BUF_RESIDUE_HEAP_CELL_BP, call_idx_a,  heap_idx_b );
+
+  //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_a, heap_idx_b );
+  //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,  cell_idx_b, heap_idx_a );
+
+  SetValL( BUF_RESIDUE_CELL_HEAP,  heap_idx_b, cell_idx_a );
+  SetValL( BUF_RESIDUE_CELL_HEAP,  heap_idx_a, cell_idx_b );
 
 }
 
@@ -107,12 +116,17 @@ void BeliefPropagation::indexHeap_init() {
 
   for (idir=0; idir<6; idir++) {
     for (cell=0; cell<m_num_verts; cell++) {
-      n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      //n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      n_tile_idx = getValI( BUF_TILE_IDX_N, cell );
       for (tile_idx=0; tile_idx<n_tile_idx; tile_idx++) {
-        tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+        //tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+        tile = getValI( BUF_TILE_IDX, cell, tile_idx );
 
-        mu_cur = getVal( BUF_MU,      idir, cell, tile );
-        mu_nxt = getVal( BUF_MU_NXT,  idir, cell, tile );
+        //mu_cur = getVal( BUF_MU,      idir, cell, tile );
+        //mu_nxt = getVal( BUF_MU_NXT,  idir, cell, tile );
+
+        mu_cur = getValF( BUF_MU,      idir, tile, cell );
+        mu_nxt = getValF( BUF_MU_NXT,  idir, tile, cell );
 
         mu_del = fabs(mu_cur - mu_nxt);
 
@@ -120,19 +134,6 @@ void BeliefPropagation::indexHeap_init() {
       }
     }
   }
-
-  /*
-  for (mu_idx=0; mu_idx<mu_n; mu_idx++) {
-    getMuPos( mu_idx, &idir, &cell, &tile );
-
-    mu_cur = getVal( BUF_MU,      idir, cell, tile );
-    mu_nxt = getVal( BUF_MU_NXT,  idir, cell, tile );
-
-    mu_del = fabs(mu_cur - mu_nxt);
-
-    indexHeap_push( mu_del );
-  }
-  */
 
 }
 
@@ -144,16 +145,23 @@ int32_t BeliefPropagation::indexHeap_push(float val) {
 
   if (m_index_heap_size >= mu_n) { return -1; }
 
-  SetVal_ihf( BUF_RESIDUE_HEAP,         m_index_heap_size, val );
-  SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, m_index_heap_size, m_index_heap_size );
-  SetVal_ih ( BUF_RESIDUE_CELL_HEAP,    m_index_heap_size, m_index_heap_size );
+  //SetVal_ihf( BUF_RESIDUE_HEAP,         m_index_heap_size, val );
+  //SetVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, m_index_heap_size, m_index_heap_size );
+  //SetVal_ih ( BUF_RESIDUE_CELL_HEAP,    m_index_heap_size, m_index_heap_size );
+
+  SetValF( BUF_RESIDUE_HEAP,         val, m_index_heap_size );
+  SetValL( BUF_RESIDUE_HEAP_CELL_BP, m_index_heap_size, m_index_heap_size );
+  SetValL( BUF_RESIDUE_CELL_HEAP,    m_index_heap_size, m_index_heap_size );
 
   idx = m_index_heap_size;
   while (idx > 0) {
     idx_par = (idx-1)/2;
 
-    val_par = getVal_ihf( BUF_RESIDUE_HEAP, idx_par );
-    val_cur = getVal_ihf( BUF_RESIDUE_HEAP, idx );
+    //val_par = getVal_ihf( BUF_RESIDUE_HEAP, idx_par );
+    //val_cur = getVal_ihf( BUF_RESIDUE_HEAP, idx );
+
+    val_par = getValF( BUF_RESIDUE_HEAP, idx_par );
+    val_cur = getValF( BUF_RESIDUE_HEAP, idx );
 
     if ( val_par < val_cur ) {
       indexHeap_swap( idx_par, idx );
@@ -168,14 +176,16 @@ int32_t BeliefPropagation::indexHeap_push(float val) {
 
 void BeliefPropagation::indexHeap_update_mu_idx(int64_t mu_idx, float val) {
   int64_t heap_idx;
-  heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+  //heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+  heap_idx = getValL( BUF_RESIDUE_CELL_HEAP, mu_idx );
   indexHeap_update( heap_idx, val );
 }
 
 void BeliefPropagation::indexHeap_update_mu_pos(int32_t idir, int64_t cell, int32_t tile, float val) {
   int64_t heap_idx, mu_idx;
   mu_idx = getMuIdx(idir, cell, tile);
-  heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+  //heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+  heap_idx = getValL( BUF_RESIDUE_CELL_HEAP, mu_idx );
   indexHeap_update( heap_idx, val );
 }
 
@@ -197,14 +207,16 @@ void BeliefPropagation::indexHeap_update(int64_t heap_idx, float val) {
   heap_n = m_index_heap_size;
   //heap_n = 6*m_num_verts*m_num_values;
 
-  SetVal_ihf( BUF_RESIDUE_HEAP, heap_idx, val );
+  //SetVal_ihf( BUF_RESIDUE_HEAP, heap_idx, val );
+  SetValF( BUF_RESIDUE_HEAP, val, heap_idx );
 
   // bubble up value until we can't anymore
   //
   while (heap_idx > 0) {
     heap_idx_par = _parent(heap_idx);
 
-    par_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_par );
+    //par_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_par );
+    par_val = getValF( BUF_RESIDUE_HEAP, heap_idx_par );
 
     if ( val <= par_val ) { break; }
     indexHeap_swap( heap_idx_par, heap_idx );
@@ -236,10 +248,12 @@ void BeliefPropagation::indexHeap_update(int64_t heap_idx, float val) {
     heap_idx_rc = _rchild(heap_idx_par);
 
     max_heap_idx = heap_idx_par;
-    max_heap_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_par );
+    //max_heap_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_par );
+    max_heap_val = getValF( BUF_RESIDUE_HEAP, heap_idx_par );
 
     if (heap_idx_lc < heap_n) {
-      child_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_lc );
+      //child_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_lc );
+      child_val = getValF( BUF_RESIDUE_HEAP, heap_idx_lc );
       if (child_val > max_heap_val) {
         max_heap_idx = heap_idx_lc;
         max_heap_val = child_val;
@@ -247,7 +261,8 @@ void BeliefPropagation::indexHeap_update(int64_t heap_idx, float val) {
     }
 
     if (heap_idx_rc < heap_n) {
-      child_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_rc );
+      //child_val = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx_rc );
+      child_val = getValF( BUF_RESIDUE_HEAP, heap_idx_rc );
       if (child_val > max_heap_val) {
         max_heap_idx = heap_idx_rc;
         max_heap_val = child_val;
@@ -267,8 +282,11 @@ int64_t BeliefPropagation::indexHeap_peek(int64_t *mu_idx, float *val) {
   int64_t _mu_idx, _heap_idx;
   float _f;
 
-  _f         = getVal_ihf( BUF_RESIDUE_HEAP,         0 );
-  _mu_idx    = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, 0 );
+  //_f         = getVal_ihf( BUF_RESIDUE_HEAP,         0 );
+  //_mu_idx    = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, 0 );
+
+  _f         = getValF( BUF_RESIDUE_HEAP,         0 );
+  _mu_idx    = getValL( BUF_RESIDUE_HEAP_CELL_BP, 0 );
 
   if (mu_idx) { *mu_idx = _mu_idx; }
   if (val)    { *val = _f; }
@@ -280,8 +298,11 @@ int64_t BeliefPropagation::indexHeap_peek_mu_pos(int32_t *idir, int64_t *cell, i
   int64_t _mu_idx, _heap_idx;
   float _f;
 
-  _f         = getVal_ihf( BUF_RESIDUE_HEAP,         0 );
-  _mu_idx    = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, 0 );
+  //_f         = getVal_ihf( BUF_RESIDUE_HEAP,         0 );
+  //_mu_idx    = getVal_ih ( BUF_RESIDUE_HEAP_CELL_BP, 0 );
+
+  _f         = getValF( BUF_RESIDUE_HEAP,         0 );
+  _mu_idx    = getValL( BUF_RESIDUE_HEAP_CELL_BP, 0 );
 
   getMuPos(_mu_idx, idir, cell, tile_val);
 
@@ -313,7 +334,8 @@ void BeliefPropagation::indexHeap_debug_print(void) {
       printf("\n   ");
       p2_c = p2;
     }
-    printf(" %i", (int)getVal_ih( BUF_RESIDUE_CELL_HEAP, i ) );
+    //printf(" %i", (int)getVal_ih( BUF_RESIDUE_CELL_HEAP, i ) );
+    printf(" %i", (int)getValL( BUF_RESIDUE_CELL_HEAP, i ) );
     p2_c--;
   }
   printf("\n");
@@ -328,8 +350,10 @@ void BeliefPropagation::indexHeap_debug_print(void) {
       p2_c = p2;
     }
     printf(" %f[%i]",
-        (float)getVal_ihf( BUF_RESIDUE_HEAP, i ),
-        (int)getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, i ) );
+        (float)getValF( BUF_RESIDUE_HEAP, i ),
+        (int)getValL( BUF_RESIDUE_HEAP_CELL_BP, i ) );
+        //(float)getVal_ihf( BUF_RESIDUE_HEAP, i ),
+        //(int)getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, i ) );
     p2_c--;
   }
   printf("\n");
@@ -362,19 +386,26 @@ int32_t BeliefPropagation::indexHeap_mu_consistency(void) {
 
   for (idir=0; idir<6; idir++) {
     for (cell=0; cell<m_num_verts; cell++) {
-      n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      //n_tile_idx = getVali( BUF_TILE_IDX_N, cell );
+      n_tile_idx = getValI( BUF_TILE_IDX_N, cell );
       for (tile_idx=0; tile_idx<n_tile_idx; tile_idx++) {
-        tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+        //tile = getVali( BUF_TILE_IDX, cell, tile_idx );
+        tile = getValI( BUF_TILE_IDX, tile_idx, cell );
 
         mu_idx = getMuIdx(idir, cell, tile);
 
-        heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+        //heap_idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, mu_idx );
+        heap_idx = getValL( BUF_RESIDUE_CELL_HEAP, mu_idx );
 
-        mu_cur_val = getVal( BUF_MU,      idir, cell, tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  idir, cell, tile );
+        //mu_cur_val = getVal( BUF_MU,      idir, cell, tile );
+        //mu_nxt_val = getVal( BUF_MU_NXT,  idir, cell, tile );
+        mu_cur_val = getValF( BUF_MU,      idir, tile, cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  idir, tile, cell );
+
         mu_diff = fabs(mu_cur_val - mu_nxt_val);
 
-        rz_diff = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx );
+        //rz_diff = getVal_ihf( BUF_RESIDUE_HEAP, heap_idx );
+        rz_diff = getValF( BUF_RESIDUE_HEAP, heap_idx );
 
         if (fabs(mu_diff - rz_diff) > m_eps_zero) {
           return -1;
@@ -439,7 +470,8 @@ int32_t BeliefPropagation::indexHeap_consistency(void) {
   //
   for (i=0; i<heap_n; i++) { tbuf[i] = 0; }
   for (i=0; i<heap_n; i++) {
-    idx = getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, i );
+    //idx = getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, i );
+    idx = getValL( BUF_RESIDUE_HEAP_CELL_BP, i );
     if ((idx < 0) || (idx >= heap_n)) { return -4; }
     if (tbuf[idx] !=0 ) { return -5; }
     tbuf[idx] = 1;
@@ -452,7 +484,8 @@ int32_t BeliefPropagation::indexHeap_consistency(void) {
   //
   for (i=0; i<heap_n; i++) { tbuf[i] = 0; }
   for (i=0; i<heap_n; i++) {
-    idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, i );
+    //idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, i );
+    idx = getValL( BUF_RESIDUE_CELL_HEAP, i );
     if ((idx < 0) || (idx >= heap_n)) { return -7; }
     if (tbuf[idx] !=0 ) { return -8; }
     tbuf[idx] = 1;
@@ -465,8 +498,10 @@ int32_t BeliefPropagation::indexHeap_consistency(void) {
   // to it.
   //
   for (i=0; i<heap_n; i++) {
-    idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, i );
-    if (i != getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, idx )) { return -10; }
+    //idx = getVal_ih( BUF_RESIDUE_CELL_HEAP, i );
+    //if (i != getVal_ih( BUF_RESIDUE_HEAP_CELL_BP, idx )) { return -10; }
+    idx = getValL( BUF_RESIDUE_CELL_HEAP, i );
+    if (i != getValL( BUF_RESIDUE_HEAP_CELL_BP, idx )) { return -10; }
   }
 
   //---
@@ -477,16 +512,20 @@ int32_t BeliefPropagation::indexHeap_consistency(void) {
     idx_child = _lchild(i);
     if (idx_child < 0) { return -11; }
     if (idx_child < heap_n) {
-      val_a = getVal_ihf( BUF_RESIDUE_HEAP, i );
-      val_b = getVal_ihf( BUF_RESIDUE_HEAP, idx_child );
+      //val_a = getVal_ihf( BUF_RESIDUE_HEAP, i );
+      //val_b = getVal_ihf( BUF_RESIDUE_HEAP, idx_child );
+      val_a = getValF( BUF_RESIDUE_HEAP, i );
+      val_b = getValF( BUF_RESIDUE_HEAP, idx_child );
       if ( val_a < val_b ) { return -12; }
     }
 
     idx_child = _rchild(i);
     if (idx_child < 0) { return -13; }
     if (idx_child < heap_n) {
-      val_a = getVal_ihf( BUF_RESIDUE_HEAP, i );
-      val_b = getVal_ihf( BUF_RESIDUE_HEAP, idx_child );
+      //val_a = getVal_ihf( BUF_RESIDUE_HEAP, i );
+      //val_b = getVal_ihf( BUF_RESIDUE_HEAP, idx_child );
+      val_a = getValF( BUF_RESIDUE_HEAP, i );
+      val_b = getValF( BUF_RESIDUE_HEAP, idx_child );
       if ( val_a < val_b ) { return -14;
       }
     }

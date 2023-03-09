@@ -1,0 +1,22 @@
+#!/bin/bash
+
+logfn="log/run-op-g2-12.log"
+
+mkdir -p log
+rm -f $logfn
+
+for s in `seq 100`; do
+  echo -n "oskar-pipe 8 seed $s" >> run.log
+  ../bpc \
+    -N ../tilegen/example_tile_collection/oskar-pipe_name.csv \
+    -R ../tilegen/example_tile_collection/oskar-pipe_rule.csv \
+    -D 12 \
+    -I 100000000 \
+    -e 0.00001 \
+    -G 2 \
+    -w 0.96 \
+    -S $s \
+    -J 'd[][1:][] 1' \
+    -V 1 | grep got >> $logfn
+done
+

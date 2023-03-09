@@ -2301,7 +2301,10 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
 }
 
 int BeliefPropagation::start () {  
+  int ret=0;
+
   m_rand.seed ( m_seed );
+  m_seed++;
 
   printf ("Restart. seed=%d\n", m_seed );
 
@@ -2311,17 +2314,17 @@ int BeliefPropagation::start () {
   // randomize mu
   RandomizeMU ();
 
-  // requires tileidx filled (above)
-  NormalizeMU ();       
-
-  m_seed += 10;
-
   // cull boundary
-  int ret = CullBoundary();
+  //
+  ret = CullBoundary();
+
+  // requires tileidx filled (above)
+  //
+  NormalizeMU ();       
 
   // caller should remove constrained tiles
   // right after this func
-
+  //
   return ret;
 }
 
@@ -3660,6 +3663,7 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
     SetValI( BUF_TILE_IDX_N, n, pos  );
 
     idx--;
+
   }
 
 }
@@ -4176,56 +4180,6 @@ int BeliefPropagation::CullBoundary() {
 
   return ret;
 }
-
-int BeliefPropagation::_CullBoundary() {
-  int64_t anch_cell;
-  int64_t anch_in_idx, nei_cell;
-  float fval,
-        _eps = m_eps_zero;
-        //_eps = (1.0/(1024.0*1024.0));
-
-  int boundary_tile = 0;
-  int anch_tile_idx, anch_tile, anch_tile_n, tval;
-
-  int count = 0;
-  Vector3DI jp;
-
-  for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
-    anch_tile_n = getValI ( BUF_TILE_IDX_N, anch_cell );
-    jp = getVertexPos(anch_cell);
-
-    for (anch_tile_idx=0; anch_tile_idx<anch_tile_n; anch_tile_idx++) {
-
-      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
-
-      for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
-        nei_cell = getNeighbor(anch_cell, jp, anch_in_idx);
-        if (nei_cell != -1) { continue; }
-
-        fval = getValF( BUF_F, anch_tile, boundary_tile, anch_in_idx);
-        if (fval > _eps) { continue; }
-
-        anch_tile_n--;
-        tval = getValI( BUF_TILE_IDX, anch_tile_n, anch_cell );
-        SetValI( BUF_TILE_IDX, (anch_tile), anch_tile_n, anch_cell );
-        SetValI( BUF_TILE_IDX, (tval), anch_tile_idx, anch_cell );
-
-        SetValI( BUF_TILE_IDX_N, (anch_tile_n), anch_cell );
-
-        count++;
-
-        anch_tile_idx--;
-        break;
-      }
-
-    }
-
-
-  }
-
-  return count;
-}
-
 
 // To speed up the 'collapse' propagation, two
 // auxiliary data structures are stored, one a copy

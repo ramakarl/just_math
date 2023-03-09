@@ -1,0 +1,19 @@
+#!/bin/bash
+
+rm -f run.log
+
+for s in `seq 100`; do
+  echo -n "oskar-pipe 8 seed $s" >> run.log
+  ../bpc \
+    -N ../example_tile_collection/oskar-pipe_name.csv \
+    -R ../example_tile_collection/oskar-pipe_rule.csv \
+    -D 8 \
+    -I 100000000 \
+    -e 0.0001 \
+    -G 4 \
+    -w 0.9 \
+    -S $s \
+    -J 'd[][1:][] 1' \
+    -V 1 | grep got >> run.log
+done
+

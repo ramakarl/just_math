@@ -734,12 +734,6 @@ int main(int argc, char **argv) {
       exit(-1);
     }
 
-    ret = constrain_bp( bpc, constraint_op_list);
-    if (ret < 0) {
-      fprintf(stderr, "constrain_bp failure\n");
-      exit(-1);
-    }
-
   }
 
   if (test_num >= 0) {
@@ -784,6 +778,15 @@ int main(int argc, char **argv) {
   }
 
   if (wfc_flag) {
+
+    if (constraint_op_list.size() > 0) {
+      ret = constrain_bp( bpc, constraint_op_list);
+      if (ret < 0) {
+        fprintf(stderr, "constrain_bp failure\n");
+        exit(-1);
+      }
+    }
+
 
     if (bpc.m_verbose > 0) {
       printf ( "wfc realize.\n" );
@@ -833,6 +836,17 @@ int main(int argc, char **argv) {
       exit(-1);
     }
 
+    // updating constrints has to happen after start()
+    //
+    if (constraint_op_list.size() > 0) {
+      ret = constrain_bp( bpc, constraint_op_list);
+      if (ret < 0) {
+        fprintf(stderr, "constrain_bp failure\n");
+        exit(-1);
+      }
+
+    }
+
     n_it = bpc.m_num_verts * bpc.m_num_values;
 
     //for (int64_t it=0; it < bpc.m_num_verts; it++) {
@@ -841,37 +855,20 @@ int main(int argc, char **argv) {
       ret = bpc.RealizePre();
       if (ret < 0) { break; }
 
+      printf("cp.0: ret: %i\n", ret);
+
       ret = 1;
       while (ret>0) {
         ret = bpc.RealizeStep();
       }
+      if (ret<0) { break; }
+
+      printf("cp.1: ret: %i\n", ret);
 
       ret = bpc.RealizePost();
       if (ret <= 0) { break; }
 
-      /*
-      //ret = bpc.single_realize_cb(it, NULL);
-      //ret = bpc.single_realize_cb(it, bp_cb);
-
-      if (g_opt.alg_idx == 1) {
-        ret = bpc.single_realize_min_belief_cb(it, _cb_f);
-      }
-      else if (g_opt.alg_idx == 2) {
-        ret = bpc.single_realize_min_entropy_max_belief_cb(it, _cb_f);
-      }
-      else if (g_opt.alg_idx == 3) {
-        ret = bpc.single_realize_min_entropy_min_belief_cb(it, _cb_f);
-      }
-      else if (g_opt.alg_idx == 4) {
-        ret = bpc.single_realize_residue_cb(it, _cb_f);
-      }
-      else {
-        //ret = bpc.single_realize_cb(it, _cb_f);
-        ret = bpc.single_realize_max_belief_cb(it, _cb_f);
-      }
-
-      if (ret<=0) { break; }
-      */
+      printf("cp.2: ret: %i\n", ret);
 
       if ( raycast )  {
 
