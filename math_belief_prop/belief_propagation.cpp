@@ -2375,21 +2375,33 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
   return sum;
 }
 
-void BeliefPropagation::Restart () {
+int BeliefPropagation::start () {  
   m_rand.seed ( m_seed );
 
   printf ("Restart. seed=%d\n", m_seed );
 
-  ConstructMU ();   // clear mu and mu_nxt
-
-  RandomizeMU ();
-
-  NormalizeMU ();
-
-  ConstructTileIdx();
+  // all tiles enabled
+  ConstructTileIdx();   
+  
   ConstructConstraintBuffers();
 
+  // clear mu and mu_nxt
+  ConstructMU ();       
+ 
+  RandomizeMU ();
+
+  // requires tileidx filled (above)
+  NormalizeMU ();       
+
   m_seed += 10;
+
+  // cull boundary
+  int ret = CullBoundary();
+
+  // caller should remove constrained tiles
+  // right after this func
+
+  return ret;
 }
 
 //----
@@ -2499,22 +2511,22 @@ int BeliefPropagation::init(
     }
   }
 
-  //---
-
-  m_rand.seed ( m_seed );
+  // Prepare problem size
+  //
 
   m_bpres.Set ( Rx, Ry, Rz );
   m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
   m_num_values = m_tile_name.size();
   m_res.Set ( Rx, Ry, Rz );
+  
+  // Reset dynamic buffers
+  // MU, MU_NXT, TILE_IDX
+  //
 
-  ConstructTileIdx();
-  ConstructConstraintBuffers();
+  start();
 
-  ConstructMU();
-
-  NormalizeMU ();
-
+  // Init temp buffers
+  //
   AllocBPVec( BUF_BELIEF, m_num_values );
 
   AllocViz ( BUF_VIZ, m_num_verts );
@@ -2694,15 +2706,6 @@ int BeliefPropagation::wfc_step(int64_t it) {
 }
 
 
-int BeliefPropagation::start () {
-  int ret=0;
-
-  ret = CullBoundary();
-  return ret;
-}
-
-// WIP
-//
 int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   float belief=-1.0, d = -1.0;
@@ -3019,7 +3022,7 @@ int BeliefPropagation::RealizeStep(void) {
     if (fabs(d) < _eps) { ret = 0; }
 
     m_step_iter++;
-    if (m_step_iter >= m_max_iteration) { ret=-1; }
+    if (m_step_iter >= m_max_iteration) { ret=-2; }
 
   }
 

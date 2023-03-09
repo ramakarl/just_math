@@ -77,7 +77,7 @@ public:
   virtual void shutdown();
 
   // Belief Propagation
-  void      Restart();
+  void      Restart ( bool init );
 
   BeliefPropagation bpc;
   BeliefPropagation wfc;
@@ -324,13 +324,14 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   #endif
 }
 
-void Sample::Restart()
+void Sample::Restart ( bool init )
 {
     int ret;
 
     // reset dynamic buffers
     //
-    bpc.Restart ();
+    if (!init) 
+       bpc.start ();
 
     // apply dsl constraints
     if (m_constraint_cmd.size() > 0) {
@@ -353,8 +354,6 @@ void Sample::Restart()
             exit(-1);
         }
     } 
-
-    ret = bpc.start ();
     
     ret = bpc.RealizePre ();
 
@@ -431,7 +430,7 @@ bool Sample::init()
 
       // start belief prop
       //
-      Restart ();
+      Restart ( true );  // true = first init
 
 
       bpc.SetVis ( VIZ_DMU );
@@ -477,8 +476,12 @@ void Sample::display()
 
         int ret = bpc.RealizeStep ();
 
-        if (ret == 0 ) {
+        if (ret == 0 || ret == -2) {
             // step complete
+
+            if (ret==-2) {
+                printf ( "Warning: Hit max iter.\n" );
+            }   
             
             // finish this iteration
             ret = bpc.RealizePost();
@@ -499,16 +502,15 @@ void Sample::display()
                 float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
                 printf ( "Elapsed time: %f msec\n", elapsed);
 
-                m_run = false;
-
                 // write json output
                 g_opt.tileset_stride_x = m_tileset_stride_x;
                 g_opt.tileset_stride_y = m_tileset_stride_y;
                 g_opt.tileset_fn = m_tileset_fn;
-                g_opt.tilemap_fn = m_tilemap_fn;                
+                g_opt.tilemap_fn = m_tilemap_fn; 
+                write_tiled_json( g_opt, bpc );      
 
-
-                write_tiled_json( g_opt, bpc );                
+                // stop
+                m_run = false;
 
             } else {
 
@@ -520,9 +522,7 @@ void Sample::display()
                 };                
             }
 
-        }
-
-       
+        } 
     }
     
 
@@ -664,7 +664,7 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   case ' ':  m_run = !m_run;  break;
   
   case 'g':  
-      Restart();  
+      Restart ( false );    // false = dynamic init
       break;
 
   case ',':  

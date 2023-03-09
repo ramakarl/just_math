@@ -145,7 +145,7 @@ int DataPtr::Append ( int stride, uint64_t added_cnt, char* dat, uchar dest_flag
   // CPU allocation
   if ( dest_flags & DT_CPU ) {
     ReallocateCPU ( old_size, new_size );
-    if ( dat != 0x0 ) {
+    if ( dat != 0x0 && mCpu != 0 ) {
       memcpy ( mCpu + old_size, dat, added_size );
     }
   }

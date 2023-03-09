@@ -94,6 +94,8 @@ void Mersenne::seed (uint32_t value)
     index = MT_SIZE;
     for (uint_fast32_t i = 1; i < MT_SIZE; ++i)
         MT[i] = 0x6c078965 * (MT[i - 1] ^ MT[i - 1] >> 30) + i;
+
+    generate_numbers();
 }
 
 uint32_t Mersenne::randI ()
