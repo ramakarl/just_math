@@ -68,8 +68,11 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
   // get type size
   switch (dt) {
   case 'i': type_sz = sizeof(int32_t);  buf_dt = DT_UINT;   break;
-  case 'x': type_sz = sizeof(int64_t);  buf_dt = DT_UINT64; break;
+  case 'l': type_sz = sizeof(int64_t);  buf_dt = DT_UINT64; break;
   case 'f': type_sz = sizeof(float);    buf_dt = DT_FLOAT;  break;
+  default:
+      printf ("ERROR: Type not available.\n" );
+      exit(-4);
   };  
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
  
@@ -80,8 +83,7 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
   // set usage by dimension
   m_buf[id].SetUsage ( buf_dt, flags, resx, resy, resz );
 
-  uint64_t sz = type_sz * total_cnt;
-  memset( (void *) (m_buf[id].getPtr(0)), 0, sz );
+  ZeroBuf ( id );
 }
 
 void BeliefPropagation::ZeroBuf ( int id ) {
@@ -192,6 +194,18 @@ void BeliefPropagation::ConstructDynamicBufs () {
 
 void BeliefPropagation::ConstructTempBufs ()
 {
+    //-- Construct visited
+    AllocBuf ( BUF_VISITED, 'l', m_num_verts );
+    
+    //-- Construct note
+    AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
+
+    long long int* ptr = (long long int*) m_buf[10].mCpu;
+
+    m_note_n[0] = 0;
+    m_note_n[1] = 0;
+    m_grid_note_idx = 0;
+
     //-- Construct belief
     AllocBuf ( BUF_BELIEF, 'f', m_num_values );
 
@@ -216,16 +230,6 @@ void BeliefPropagation::ConstructSVDBufs () {
 }
 
 
-void BeliefPropagation::ConstructConstraintBufs() {
-
-  AllocBuf ( BUF_VISITED, 'l', m_num_verts );
-
-  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
-
-  m_note_n[0] = 0;
-  m_note_n[1] = 0;
-  m_grid_note_idx = 0;
-}
 
 
 
@@ -2308,8 +2312,6 @@ int BeliefPropagation::start () {
 
   printf ("Restart. seed=%d\n", m_seed );
 
-  ConstructConstraintBufs();
-
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
   
@@ -2441,16 +2443,15 @@ int BeliefPropagation::init(
   m_num_values = m_tile_name.size();
   m_res.Set ( Rx, Ry, Rz );
   
-  // Reset dynamic buffers
-  // MU, MU_NXT, TILE_IDX
-  //
-
-  start();
-
   //-- Construct temp buffers 
   //
   ConstructTempBufs ();
 
+  //-- Reset dynamic buffers
+  // MU, MU_NXT, TILE_IDX
+  //
+
+  start();
 
   // options
   //
@@ -4196,7 +4197,7 @@ int BeliefPropagation::CullBoundary() {
 // positions) that need to be inspected to determine
 // if any tiles should be removed.
 //
-void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_idx) {
+void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_plane ) {
   int64_t i, nei_vtx;
 
 
@@ -4207,19 +4208,21 @@ void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_idx) {
     if (nei_vtx<0) { continue; }
     if (getValL ( BUF_VISITED, nei_vtx ) != 0) { continue; }
 
-    SetValL ( BUF_NOTE, nei_vtx, m_note_n[note_idx], note_idx );
+    int32_t new_vert_idx = m_note_n [ note_plane ];
+    SetValL ( BUF_NOTE, nei_vtx, new_vert_idx, note_plane );
     SetValL ( BUF_VISITED, 1, nei_vtx );
-    m_note_n[note_idx]++;
+    m_note_n[note_plane]++;
   }
 
 }
 
-int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_idx) {
+int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_plane) {
   if (getValL( BUF_VISITED, vtx ) != 0) { return 0; }
 
-  SetValL ( BUF_NOTE,    vtx, m_note_n[note_idx], note_idx );
+  int32_t new_vert_idx = m_note_n [ note_plane ];
+  SetValL ( BUF_NOTE,    vtx, new_vert_idx, note_plane );
   SetValL ( BUF_VISITED, 1, vtx  );
-  m_note_n[note_idx]++;
+  m_note_n[ note_plane ]++;
 
   return 1;
 }
@@ -4364,8 +4367,10 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   while (still_culling) {
 
-    for (note_idx=0; note_idx < (int64_t) m_note_n[m_grid_note_idx]; note_idx++) {
+    for (note_idx=0; note_idx < (int64_t) m_note_n[ m_grid_note_idx ]; note_idx++) {
+
       anch_cell = getValL ( BUF_NOTE, note_idx, m_grid_note_idx );
+
       jp = getVertexPos(anch_cell);
 
       anch_n_tile = getValI ( BUF_TILE_IDX_N, anch_cell );
