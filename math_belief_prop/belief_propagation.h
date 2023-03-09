@@ -60,12 +60,34 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.3.1"
+#define BELIEF_PROPAGATION_VERSION "0.5.0"
 
-#define RUN_OPT_PTRS
-#define RUN_OPT_MUPTR
-#define RUN_OPT_FH
-#define RUN_OPT_MUBOUND
+#define OPT_PTRS
+#define OPT_MUPTR
+#define OPT_FH
+#define OPT_MUBOUND
+
+#define MU_NOCOPY 0
+#define MU_COPY 1
+
+
+#define VIZ_NONE        0
+#define VIZ_MU          1
+#define VIZ_DMU         2
+#define VIZ_BELIEF      3
+#define VIZ_CONSTRAINT  4
+#define VIZ_TILECOUNT   5
+#define VIZ_ENTROPY     6
+#define VIZ_CHANGE      7
+#define VIZ_RESPICK     8
+
+#define ALG_CELL_ANY            32
+#define ALG_CELL_MIN_ENTROPY    33
+
+#define ALG_TILE_MAX_BELIEF     34
+
+#define ALG_RUN_VANILLA         35
+#define ALG_RUN_RESIDUAL        36
 
 
 #define BUF_VOL         0     // volume: n^3
@@ -88,6 +110,27 @@
 #define BUF_SVD_Vt      15
 #define BUF_SVD_VEC     16
 
+// auxiliary buffers for residual belief propagaion
+//
+// BUF_RESIDUE_HEAP         : heap of absolute differences of mu and mu_nxt (float)
+// BUF_RESIDUE_HEAP_CELL_BP : back pointer of heap value location in CELL_HEAP (in64_t)
+// BUF_RESIDUE_CELL_HEAP    : mapping of cell (and direction, value) to heap position (in64_t).
+//                            That is, mapping of mu index to position in heap
+//
+// All sizes should be (Vol)*(2*D)*(B).
+// That is, {volume} x {#neighbors} x {#values} : (dim[0]*dim[1]*dim[2]*6*B).
+//
+// All these structures are for book keeping so that we can get the maximum difference of
+// mu and mu_nxt in addition to allowing arbitrary updates on other cells.
+//
+// The basic residual bp update step will fetch the maximum difference, copy the mu value
+// from the mu_nxt buffer to the mu buffer, then update neighboring cells by updating their
+// mu_nxt values, updating the residue_heap along the way.
+//
+#define BUF_RESIDUE_HEAP          17
+#define BUF_RESIDUE_HEAP_CELL_BP  18
+#define BUF_RESIDUE_CELL_HEAP     19
+
 class BeliefPropagation {
 public:
   BeliefPropagation() {
@@ -108,6 +151,32 @@ public:
 
     m_use_svd = 0;
     m_use_checkerboard = 0;
+
+    m_index_heap_size = 0;
+
+    m_stat_enabled = 1;
+    m_stat_avg_iter = 0.0;
+
+    // unused...
+    m_stat_second_moment_iter = 0.0;
+
+    m_stat_cur_iter = 0;
+    m_stat_max_iter = 0;
+    m_stat_num_culled = 0;
+    m_stat_num_collapsed = 0;
+
+    // unused...
+    m_stat_num_chosen = 0;
+
+    m_eps_converge_beg = m_eps_converge;
+    m_eps_converge_end = m_eps_converge;
+
+    m_viz_opt = VIZ_NONE;
+
+    m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    m_alg_run_opt = ALG_RUN_VANILLA;
+
   };
 
   bool _init();
@@ -127,8 +196,6 @@ public:
 
   void  init_dir_desc();
 
-
-
   //----------------------- visualization
   Vector4DF getSample ( int buf, int64_t v );
 
@@ -140,6 +207,7 @@ public:
   void     ZeroBPVec (int id);
   void     AllocBPVec (int id, int cnt);                  // vector alloc
   void     AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
+  void     AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals);
   void     AllocBPMap (int id, int nbrs, int vals);
   void     AllocViz (int id, uint64_t cnt );
   void     AllocTileIdx (int, int, int);
@@ -163,7 +231,9 @@ public:
   inline float   getVal(int id, int a)                  {return *(float*) m_buf[id].getPtr (a);}  
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
 
-#ifdef RUN_OPT_PTRS
+
+#ifdef OPT_PTRS
+
   // Optimized: Closest values in memory are most used in inner loops
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
@@ -178,8 +248,8 @@ public:
 
 #else
   // MU matrix
-  inline float*  getPtr(int id, int n, int j, int a)                {return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline float   getVal(int id, int n, int j, int a)                {return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline float*  getPtr(int id, int n, int j, int a)                { return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline float   getVal(int id, int n, int j, int a)                { return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
   inline void    SetVal(int id, int n, int j, int a, float val )    { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
   
   // Belief mapping (F), BxB
@@ -192,12 +262,52 @@ public:
   inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }
   inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
   inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val; }
+
+
   inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }
 
-  
-  int   start();
+  //  belief prop residue access functions (int64_t)
+  //  index heap - ih
+  //
+  inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline int64_t  getVal_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  inline void     SetVal_ih(int32_t id, int32_t n, int64_t j, int32_t a, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
 
+  inline int64_t* getPtr_ih(int32_t id, int64_t idx)                { return  (int64_t*) m_buf[id].getPtr ( idx ); }
+  inline int64_t  getVal_ih(int32_t id, int64_t idx)                { return *(int64_t*) m_buf[id].getPtr ( idx ); }
+  inline void     SetVal_ih(int32_t id, int64_t idx, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( idx ) = val; }
+
+  inline float* getPtr_ihf(int32_t id, int64_t idx)             { return  (float*) m_buf[id].getPtr ( idx ); }
+  inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
+  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; }
+
+  // residual belief propagation helper functions
+  //
+  int64_t getMuIdx( int32_t idir, int64_t cell, int32_t tile );
+  int64_t getMuPos( int64_t idx, int32_t *idir, int64_t *cell, int32_t *tile );
+
+  void    indexHeap_init(void);
+  void    indexHeap_swap(int64_t heap_idx_a, int64_t heap_idx_b);
+  int32_t indexHeap_push(float val);
+
+  void    indexHeap_update(int64_t heap_idx, float val);
+  void    indexHeap_update_mu_idx(int64_t mu_idx, float val);
+  void    indexHeap_update_mu_pos(int32_t idir, int64_t cell, int32_t tile, float val);
+
+  int64_t indexHeap_peek(int64_t *mu_idx, float *val);
+  int64_t indexHeap_peek_mu_pos(int32_t *idir, int64_t *cell, int32_t *tile_val, float *val);
+
+
+  int32_t indexHeap_consistency(void);
+  int32_t indexHeap_mu_consistency(void);
+
+  void    indexHeap_debug_print(void);
+
+
+  //---
+
+  int   start();
  
   // legacy
   int   single_realize (int64_t it);
@@ -205,6 +315,8 @@ public:
   //int   single_realize_lest_belief_cb (int64_t it, void (*cb)(void *));
 
   // core methods
+  int   RAMA_single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
+
   int   single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
   int   single_realize_min_entropy_max_belief_cb(int64_t it, void (*cb)(void *));
 
@@ -221,6 +333,23 @@ public:
   int   _pick_tile_min_belief(int64_t anch_cell, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
   int   _pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
+  //----
+
+  int32_t     m_run_opt;
+
+  int32_t     m_viz_opt;
+  int32_t     m_alg_cell_opt;
+  int32_t     m_alg_tile_opt;
+  int32_t     m_alg_run_opt;
+
+  int64_t     m_run_iter;
+  int         RealizePre();
+  int         RealizeRun();
+  int         RealizeStep();
+  int         RealizePost();
+  int         Realize();
+
+  //----
 
   int    realize();
   int    wfc();
@@ -228,11 +357,14 @@ public:
   int    wfc_step(int64_t it);
 
   float  step(int update_mu);
-  float  step_residue(float *max_diff, int64_t *max_residue_cell, int64_t *max_residue_tile_idx, int64_t *max_dir_idx);
+  //float  step_residue(float *max_diff, int64_t *max_residue_cell, int64_t *max_residue_tile_idx, int64_t *max_dir_idx);
+  float  step_residue(int32_t idir, int64_t cell, int32_t tile);
 
   float   BeliefProp();
-  float   BeliefProp_cell(int64_t);
   float   BeliefProp_svd ();
+
+  float   BeliefProp_cell_residue(int64_t);
+  float   BeliefProp_cell_residue_svd(int64_t);
 
   void    UpdateMU ();
 
@@ -261,6 +393,8 @@ public:
   void    NormalizeMU ();
   void    NormalizeMU (int id);
 
+  void    NormalizeMU_cell_residue (int id, int64_t cell);
+
   void    ConstructTileIdx();
 
   uint64_t  m_num_verts;    // Xi = 0..X (graph domain)
@@ -287,6 +421,7 @@ public:
   void debugPrint();
   void debugPrintC();
   void debugPrintS();
+  void debugPrintMU();
 
   std::vector< std::string > m_tile_name;
   std::vector< std::string > m_dir_desc;
@@ -315,6 +450,7 @@ public:
   int removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int sanityAccessed();
 
+
   uint64_t m_note_n[2];
 
   int64_t m_grid_note_idx;
@@ -326,6 +462,10 @@ public:
   int m_verbose;
 
   float m_eps_converge;
+
+  float m_eps_converge_beg,
+        m_eps_converge_end;
+
   float m_eps_zero;
 
   
@@ -338,6 +478,21 @@ public:
 
   int64_t   m_step_iter;
   int64_t   m_max_iteration;
+
+  int64_t   m_index_heap_size;
+
+  // run time statistics and other information
+  //
+
+  void    UpdateRunTimeStat(int64_t num_step);
+  int32_t m_stat_enabled;
+  double  m_stat_avg_iter,
+          m_stat_second_moment_iter;
+  int64_t m_stat_cur_iter,
+          m_stat_max_iter,
+          m_stat_num_culled,
+          m_stat_num_collapsed,
+          m_stat_num_chosen;
 
 };
 

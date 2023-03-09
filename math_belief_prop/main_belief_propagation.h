@@ -9,7 +9,9 @@ typedef struct _opt_t {
   std::string fn_rule;
 
   std::string tileset_fn,
-              tilemap_fn;
+              tilemap_fn,
+              tileobj_fn,
+              outstl_fn;
   int32_t tileset_stride_x,
           tileset_stride_y;
   int32_t tileset_margin,
@@ -22,6 +24,17 @@ typedef struct _opt_t {
 } opt_t;
 
 extern opt_t g_opt;
+
+typedef struct constraint_op_type {
+  char op;
+  std::vector< int > dim_range;
+  std::vector< int > tile_range;
+} constraint_op_t;
+
+int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);
+int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);
+int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name);
+
 
 
 

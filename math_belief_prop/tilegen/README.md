@@ -18,3 +18,12 @@ These images were exported form the [Tiled](https://www.mapeditor.org/) program.
 | PM |
 |---|
 | ![pm](example_tile_collection/pm_D32_S1234.png) |
+
+| Amarelo |
+|---|
+| ![amarelo](example_tile_collection/amarelo_D42_S124.png) |
+
+| Stair |
+|---|
+| ![stair](example_tile_collection/stair_X24Y12Z6.png) |
+
