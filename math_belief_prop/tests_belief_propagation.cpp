@@ -729,7 +729,7 @@ int test_cull0() {
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   ret = bp.cellConstraintPropagate();
 
@@ -761,7 +761,7 @@ int test_cull1() {
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   ret = bp.cellConstraintPropagate();
 
@@ -793,19 +793,19 @@ int test_cull2() {
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
   bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(2,2,0), keep_list);
   bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   ret = bp.cellConstraintPropagate();
 
@@ -837,37 +837,37 @@ int test_cull3() {
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r002") );
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
   bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,1), keep_list);
   bp.cellFillAccessed(4, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r000") );
   bp.filterKeep( bp.getVertex(0,2,1), keep_list);
   bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(2,2,1), keep_list);
   bp.cellFillAccessed(8, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   ret = bp.cellConstraintPropagate();
 
@@ -904,7 +904,7 @@ int test_cull4() {
   keep_list.push_back( bp.tileName2ID((char *)"^012") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
   bp.cellFillAccessed(0, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
@@ -912,7 +912,7 @@ int test_cull4() {
   keep_list.push_back( bp.tileName2ID((char *)"^011") );
   bp.filterKeep( bp.getVertex(1,0,0), keep_list);
   bp.cellFillAccessed(1, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
@@ -920,7 +920,7 @@ int test_cull4() {
   keep_list.push_back( bp.tileName2ID((char *)"r000") );
   bp.filterKeep( bp.getVertex(0,1,0), keep_list);
   bp.cellFillAccessed(2, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
@@ -928,7 +928,7 @@ int test_cull4() {
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
   bp.cellFillAccessed(3, bp.m_grid_note_idx);
-  bp.unfillAccessed(bp.m_grid_note_idx);
+  bp.unfillVisited(bp.m_grid_note_idx);
 
   ret = bp.cellConstraintPropagate();
 

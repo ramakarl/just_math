@@ -2607,7 +2607,8 @@ int BeliefPropagation::wfc_step(int64_t it) {
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
+
   //ret = cellConstraintPropagate(cell);
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2744,7 +2745,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2869,7 +2870,7 @@ int BeliefPropagation::RealizePost(void) {
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3104,7 +3105,7 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3168,7 +3169,7 @@ int BeliefPropagation::single_realize_min_belief_cb (int64_t it, void (*cb)(void
 
   cellFillSingle(cell, m_grid_note_idx);
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3231,7 +3232,7 @@ int BeliefPropagation::single_realize_min_entropy_min_belief_cb (int64_t it, voi
 
   cellFillSingle(cell, m_grid_note_idx);
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3332,7 +3333,7 @@ int BeliefPropagation::RAMA_single_realize_max_belief_cb (int64_t it, void (*cb)
       m_note_n[ 1-m_grid_note_idx ] = 0;
 
       cellFillAccessed(cell, m_grid_note_idx);
-      unfillAccessed(m_grid_note_idx);
+      unfillVisited(m_grid_note_idx);
 
       ret = cellConstraintPropagate();
       if (ret < 0) { return -3; }
@@ -3401,7 +3402,7 @@ int BeliefPropagation::single_realize_max_belief_cb (int64_t it, void (*cb)(void
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3453,7 +3454,7 @@ int BeliefPropagation::single_realize (int64_t it) {
   m_note_n[ 1-m_grid_note_idx ] = 0;
 
   cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  unfillVisited(m_grid_note_idx);
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -4269,7 +4270,7 @@ int BeliefPropagation::getTilesAtVertex ( int64_t vtx ) {
 
 // unwind/remove all 'filled' cells
 //
-void BeliefPropagation::unfillAccessed(int32_t note_idx){
+void BeliefPropagation::unfillVisited(int32_t note_idx){
   int64_t i, vtx;
 
   for (i=0; i < (int64_t) m_note_n[note_idx]; i++) {
@@ -4495,7 +4496,7 @@ int BeliefPropagation::cellConstraintPropagate() {
       }
     }
 
-    unfillAccessed(1-m_grid_note_idx);
+    unfillVisited(1-m_grid_note_idx);
 
     if (m_note_n[m_grid_note_idx] == 0) { still_culling = 0; }
 

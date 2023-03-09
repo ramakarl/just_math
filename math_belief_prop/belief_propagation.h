@@ -333,7 +333,7 @@ public:
 
   // note_idx is the 'plane' of BUF_NOTE to unwind
   //
-  void  unfillAccessed(int32_t note_idx);
+  void  unfillVisited(int32_t note_idx);
   int   removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int   sanityAccessed();
 
