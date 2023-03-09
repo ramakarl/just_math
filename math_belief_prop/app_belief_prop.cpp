@@ -328,7 +328,8 @@ void Sample::Restart ( bool init )
 {
     int ret;
 
-    // reset dynamic buffers
+    // dynamic restart
+    // (not needed if this is first init)
     //
     if (!init) 
        bpc.start ();
