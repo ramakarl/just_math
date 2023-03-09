@@ -93,7 +93,7 @@
 
 // static buffers (input)                                                                                               // Allocation (B=num_vals)
 #define BUF_G           1     // tile weights,  weight, all values - beliefprop, G(a) vector                            // <B, 1, 1>
-#define BUF_F           2     // tile rules,    rule-to-rule - beliefprop, F(a,b) vector - assume independent of vtx    // <B, B, 6>
+#define BUF_F           2     // tile rules,    rule-to-rule - beliefprop, F(a,b) vector - <src, dest, direction>       // <B, B, 6>
 
 // dynamic buffers
 #define BUF_MU          3     // message prob,  6*B,        all verts - beliefprop, mu{i,j}(a,b) vector (B=# values)    // <6, B, num_vert>
@@ -346,9 +346,10 @@ public:
 
   //------------------------ memory management    
   
-  void      AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+  void     AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+  void     ZeroBuf (int id);
 
-  void     ZeroBPVec (int id);
+  /* void     ZeroBPVec (int id);
   void     AllocBPVec (int id, int cnt);                  // vector alloc
   void     AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
   void     AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals);
@@ -358,7 +359,8 @@ public:
   void     AllocTileIdxN(int, int );
   void     AllocVeci32(int, int);
   void     AllocVeci32(int, int, int);
-  void     AllocSVD(int, int, int, int);
+  void     AllocSVD(int, int, int, int); */
+
   int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
   int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
   Vector3DI  getVertexPos(int64_t j);
@@ -368,33 +370,27 @@ public:
   
   //----------------------- new accessor functions
     
-  inline void*  getPtr(int id, int x, int y=1, int z=1)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
+  inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
 
-  inline int32_t getValI(int id, int x, int y=1, int z=1)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}  
-  inline int64_t getValL(int id, int x, int y=1, int z=1)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}  
-  inline float   getValF(int id, int x, int y=1, int z=1)            {return *(float*) m_buf[id].getPtr (x, y, z);}  
+  inline int32_t getValI(int id, int x=0, int y=0, int z=0)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}  
+  inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}  
+  inline float   getValF(int id, int x=0, int y=0, int z=0)            {return *(float*) m_buf[id].getPtr (x, y, z);}  
     
-  inline void   SetValI(int id, float val, int x, int y=1, int z=1)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
-  inline void   SetValL(int id, float val, int x, int y=1, int z=1)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
-  inline void   SetValF(int id, float val, int x, int y=1, int z=1)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
-
-
-  
-  //----------------------- accessor functions
+  inline void   SetValI(int id, int32_t val, int x=0, int y=0, int z=0)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
+  inline void   SetValL(int id, int64_t val, int x=0, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
+  inline void   SetValF(int id, float   val, int x=0, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
 
   inline int    getNumNeighbors(int j)        {return 6;}
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
   
-  // G and H vectors, size B
-    inline float* getPtr (int id, int n )             {return   (float*) m_buf[id].getPtr (n); } 
-  inline float  getVal (int id, int n )             {return * (float*) m_buf[id].getPtr (n); } 
-  inline void   SetVal (int id, int n )             {       * (float*) m_buf[id].getPtr (n) = val; }
+    
+  //----------------------- LEGACY accessor functions
 
   //  belief prop residue access functions (int64_t)
   //  index heap - ih
   //
-  inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
+  /* inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
   inline int64_t  getVal_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
   inline void     SetVal_ih(int32_t id, int32_t n, int64_t j, int32_t a, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
 
@@ -404,51 +400,17 @@ public:
 
   inline float* getPtr_ihf(int32_t id, int64_t idx)             { return  (float*) m_buf[id].getPtr ( idx ); }
   inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
-  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; }
+  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; } */
 
-#ifdef OPT_PTRS
+/* inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
+   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }  */
 
-  // Optimized: Closest values in memory are most used in inner loops
-  // MU matrix
-  // n=nbr (0-6), j=vertex (D), a=tile (B)
-  inline float* getPtrMU (int id, int nbr, int j, int a)              {return  (float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }  
-  inline float  getValMU (int id, int nbr, int j, int a)              {return *(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ); }
-  inline void   SetValMU (int id, int nbr, int j, int a, float val )  {*(float*) m_buf[id].getPtr ( uint64_t(a*m_num_verts + j)*6 + nbr ) = val; }
-
-  // belief mapping (F), BxB
-  inline float* getPtrF(int id, int a, int b, int n)      { return (float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); }  
-  inline float  getValF(int id, int a, int b, int n)      { return *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ); } 
-  inline void   SetValF(int id, int a, int b, int n, float val ) { *(float*) m_buf[id].getPtr ( (b*6 + n)*m_num_values + a ) = val; }
-
- 
-
-#else
-  // MU matrix
-  inline float*  getPtr(int id, int n, int j, int a)                { return  (float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline float   getVal(int id, int n, int j, int a)                { return *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline void    SetVal(int id, int n, int j, int a, float val )    { *(float*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
-  
-  // Belief mapping (F), BxB
-  inline float*  getPtrF(int id, int a, int b, int n)               { return  (float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }
-  inline float   getValF(int id, int a, int b, int n)               { return *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n ); }
-  inline void    SetValF(int id, int a, int b, int n, float val )   { *(float*) m_buf[id].getPtr ( (b*m_num_values + a)*6 + n) = val; }
-#endif
-
-  inline int32_t getVali(int id, int i)                { return *(int32_t *) m_buf[id].getPtr (i); }
-  inline void    SetVali(int id, int i, int32_t val)   { *(int32_t *) m_buf[id].getPtr (i) = val;  }
-  inline int32_t getVali(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_values + a) ); }
-  inline void    SetVali(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_values + a) ) = val; }
-
-
-  inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
-  inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }
 
   //-------------------------- wave function collapse
   int   wfc();
   int   wfc_start();
   int   wfc_step(int64_t it);
-
-  
+   
   
   //-------------------------- debugging functions
 
