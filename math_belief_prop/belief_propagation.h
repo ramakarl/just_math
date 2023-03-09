@@ -180,12 +180,13 @@ public:
   };
 
   //------------------------ high level API
-  int         RealizePre();
-  int         RealizeRun();
-  int         RealizeStep();
-  int         RealizePost();
-  int         Realize();
+  int       RealizePre();
+  int       RealizeRun();
+  int       RealizeStep();
+  int       RealizePost();
+  int       Realize();
 
+  void      StartVis (int viz_opt);
 
 
   //------------------------ belief propagation, mid-level API
@@ -318,7 +319,7 @@ public:
   int   sanityAccessed();
 
   //----------------------- visualization
-  Vector4DF getVisSample ( int buf, int64_t v );
+  Vector4DF getVisSample ( int64_t v );
 
 
 

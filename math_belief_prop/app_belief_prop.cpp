@@ -43,6 +43,7 @@
 #include <time.h>
 
 #include "belief_propagation.h"
+#include "helper.h"
 
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -627,11 +628,15 @@ void Sample::display()
     fflush(stdout);
   }
 
+
+  Vector3DF wfc_off(0,0,-10);
+  Vector3DF bfc_off(0,0,0);
+
   // Raycast
   ClearImg (m_img);
 
   if ( m_run_wfc ) {
-      Vector3DF wfc_off(0,0,-10);
+      
       Visualize ( wfc, BUF_VOL );
       RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
   }

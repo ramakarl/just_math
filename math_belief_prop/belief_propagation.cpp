@@ -490,36 +490,40 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
 
 }
 
+void BeliefPropagation::StartVis (int vopt)
+{
+    m_viz_opt = vopt;
+}
 
 // WFC  cnt = getTilesAtVertex( j );
 // DMU  dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVal ( BUF_DMU, j ), 0.1f ) ));
 
-Vector4DF BeliefPropagation::getVisSample ( int buf, int64_t v )
+Vector4DF BeliefPropagation::getVisSample ( int64_t v )
 {
+    float f;
     Vector4DF s;
+    
+    float vscale = 1.0f;
+    float vexp = 0.1f;
 
-    /*
-    int t, c, f[6];
-    float x, a;
-
-    switch (buf) {
-    case BUF_BELIEF: 
-        t = getVal(buf, v);
-        a = pow( getVal(BUF_R, v), 0.1 );
-        if (t==0) a=0;
-        s = Vector4DF( m_clr[t], a);
+    switch (m_viz_opt) {
+    case VIZ_MU:        
+        f = getVal ( BUF_MU, v );
+        s = Vector4DF(f,f,f,f);
         break;
-    case BUF_MU:
-         t = getVal(BUF_T,v);
-        c = CountBits( GetVertexConstraints( v ) );
-        a = getVal(BUF_R, v);
-        x = float(c); // 6.0;
-        s = Vector4DF(x,x,x,1); 
+    case VIZ_DMU:        
+        // dmu written into viz by ComputeDiffMU
+        f = getVal ( BUF_VIZ, v );
+        f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
+        s = Vector4DF(f,f,f,f);
         break;
-   }; 
-   */
-
-   return s;
+    case VIZ_BELIEF:
+        f = getVal ( BUF_BELIEF, v );
+        s = Vector4DF(f,f,f,f);
+        break;
+    }
+ 
+    return s;
 }
 
 
@@ -3584,7 +3588,8 @@ int BeliefPropagation::single_realize (int64_t it) {
   //
   NormalizeMU();
 
-  ComputeDiffMUField ();
+  if ( m_viz_opt == VIZ_DMU )
+    ComputeDiffMUField ();
 
   // iterate bp until converged
   //
