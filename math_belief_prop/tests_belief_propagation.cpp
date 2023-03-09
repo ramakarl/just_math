@@ -1054,7 +1054,7 @@ int test_realize0() {
   //bp.debugPrintC();
   //bp.debugPrintS();
 
-  ret = bp.realize();
+  // ret = bp.realize();
 
   //bp.CullBoundary();
 
@@ -1082,7 +1082,7 @@ int test_realize1() {
   //bp.debugPrintC();
   //bp.debugPrintS();
 
-  ret = bp.realize();
+  // ret = bp.realize();
 
   //bp.CullBoundary();
 
@@ -1103,7 +1103,7 @@ int test_realize2(int x, int y, int z) {
   ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
-  ret = bp.realize();
+  // ret = bp.realize();
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
 
@@ -1136,7 +1136,7 @@ int test_step0(void) {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -1235,7 +1235,7 @@ int test_step1() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -1330,7 +1330,7 @@ int test_step2() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -1425,7 +1425,7 @@ int test_step3() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -1522,7 +1522,7 @@ int test_step4() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -2319,7 +2319,7 @@ int test_residual7() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_residue_cb(max_iter, NULL);
+    // ret = bp.single_realize_residue_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
@@ -2421,7 +2421,7 @@ int test_residual8() {
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    ret = bp.single_realize_residue_cb(max_iter, NULL);
+    // ret = bp.single_realize_residue_cb(max_iter, NULL);
     if (ret<=0) { break; }
   }
 
