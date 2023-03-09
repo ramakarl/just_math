@@ -78,7 +78,7 @@
 	
 
 	typedef void (*OSProc)(void);
-	class OSWindow;							// Forward reference. Described specifically by each platform.
+	struct OSWindow;							// Forward reference. Described specifically by each platform.
 	struct Event;
 
 	//----------------- to be declared in the code of the sample: so the sample can decide how to display messages

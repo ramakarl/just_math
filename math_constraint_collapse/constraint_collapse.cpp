@@ -511,7 +511,6 @@ void ConstraintCollapse::fix_constraints (bool stuck)
     m_flip = 1 - m_flip;
 }
 
-
 Vector4DF ConstraintCollapse::getSample ( int buf, int64_t v )
 {
     Vector4DF s;

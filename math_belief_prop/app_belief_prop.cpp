@@ -128,7 +128,6 @@ Sample obj;
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
-    int alg_idx;    
     float valf;
     int vali;
     int wfc_flag = 0;
@@ -237,14 +236,11 @@ Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
 }
 
 
-void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) {
-
+void Sample::VisualizeDMU ( BeliefPropagation& src, int bp_id, int vol_id ) 
+{
    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
 
-   float maxv;
    float dmu;
-
-   float v;
    float scalar = 1.0;
 
    // map belief to RGBA voxel
@@ -337,7 +333,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   Vector3DF vdel = m_vres;
   Vector4DF val;
   int iter;
-  float alpha, k;
+  float alpha;
   float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
   float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
@@ -399,10 +395,8 @@ void Sample::Restart()
 int Sample::write_tiled_json ( BeliefPropagation &bpc ) 
 {
   FILE *fp;
-  int i, j, n, tileset_size;
+  int i, j; 
   int64_t vtx;
-
-  int sy, ey_inc;
 
   int tilecount = (int)bpc.m_tile_name.size();
   tilecount--;
@@ -510,7 +504,7 @@ int Sample::write_tiled_json ( BeliefPropagation &bpc )
 
 bool Sample::init()
 {
-  int i, ret;
+  int ret;
 
   addSearchPath(ASSET_PATH);
 
@@ -532,7 +526,7 @@ bool Sample::init()
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
   m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );
+  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
 
   printf("Init done\n");
   fflush(stdout);
@@ -580,16 +574,18 @@ bool Sample::init()
 
       // cull list
       if (m_cull_list.size() > 0) {
+
         int cull_idx;
         int64_t tile_idx, pos;
         int32_t tile_id, n, cull_tile_id;
+
         if (bpc.m_verbose > 0) {
             printf( "#culling tile ids\n" );
         }
         for (cull_idx=0; cull_idx < m_cull_list.size(); cull_idx++) {
             cull_tile_id = m_cull_list[cull_idx];
 
-            for (pos=0; pos<bpc.m_num_verts; pos++) {
+            for (pos=0; pos < (int64_t) bpc.m_num_verts; pos++) {
             n = bpc.getVali( BUF_TILE_IDX_N, pos );
             for (tile_idx=0; tile_idx<n; tile_idx++) {
                 if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
@@ -636,7 +632,7 @@ void Sample::display()
   int ret;
   float md= 0.0;
   char savename[256] = {'\0'};
-  char msg[256];
+
   Vector3DF a, b, c;
   Vector3DF p, q, d;
 
