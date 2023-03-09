@@ -309,7 +309,6 @@ public:
   // non "strict" bp functions but helpful still
   //
   int   CullBoundary();
-  int   _CullBoundary();
   void  ConstructConstraintBuffers();
   int   cellConstraintPropagate();
   void  cellFillAccessed(uint64_t vtx, int32_t note_idx);

@@ -35,10 +35,8 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-
 // global g_opt for bp helper
 opt_t g_opt;
-
 
 int _read_line(FILE *fp, std::string &line) {
   int ch=0, count=0;
@@ -499,6 +497,7 @@ void debug_constraint_op_list(std::vector< constraint_op_t > &op_list) {
 }
 
 int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list) {
+  int ret=0;
   int op_idx, i, j, k, n;
   int x,y,z,t;
   int64_t pos;
@@ -506,6 +505,9 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
   std::vector<int32_t> v;
 
   debug_constraint_op_list(op_list);
+
+  bp.m_note_n[0] = 0;
+  bp.m_note_n[1] = 0;
 
   for (op_idx=0; op_idx<op_list.size(); op_idx++) {
 
@@ -523,6 +525,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
             bp.filterDiscard(pos, v);
+
+            //bp.cellFillAccessed(pos, bp.m_grid_note_idx);
           }
         }
       }
@@ -543,6 +547,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
             bp.filterKeep(pos, v);
+
+            //bp.cellFillAccessed(pos, bp.m_grid_note_idx);
           }
         }
       }
@@ -559,7 +565,10 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 
   }
 
-  return 0;
+  //ret = bp.cellConstraintPropagate();
+  //if (ret == 0) { bp.NormalizeMU(); }
+
+  return ret;
 }
 
 //------------//

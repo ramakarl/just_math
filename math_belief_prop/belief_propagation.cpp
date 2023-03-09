@@ -2376,31 +2376,34 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
 }
 
 int BeliefPropagation::start () {  
+  int ret=0;
+
   m_rand.seed ( m_seed );
+  m_seed++;
 
   printf ("Restart. seed=%d\n", m_seed );
 
   // all tiles enabled
+  //
   ConstructTileIdx();   
-  
   ConstructConstraintBuffers();
 
   // clear mu and mu_nxt
+  //
   ConstructMU ();       
- 
   RandomizeMU ();
 
-  // requires tileidx filled (above)
-  NormalizeMU ();       
-
-  m_seed += 10;
-
   // cull boundary
-  int ret = CullBoundary();
+  //
+  ret = CullBoundary();
+
+  // requires tileidx filled (above)
+  //
+  NormalizeMU ();       
 
   // caller should remove constrained tiles
   // right after this func
-
+  //
   return ret;
 }
 
@@ -3715,6 +3718,7 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
     SetVali( BUF_TILE_IDX_N, pos, n );
 
     idx--;
+
   }
 
 }
@@ -4236,55 +4240,6 @@ int BeliefPropagation::CullBoundary() {
   ret = cellConstraintPropagate();
 
   return ret;
-}
-
-int BeliefPropagation::_CullBoundary() {
-  int64_t anch_cell;
-  int64_t anch_in_idx, nei_cell;
-  float fval,
-        _eps = m_eps_zero;
-        //_eps = (1.0/(1024.0*1024.0));
-
-  int boundary_tile = 0;
-  int anch_tile_idx, anch_tile, anch_tile_n, tval;
-
-  int count = 0;
-  Vector3DI jp;
-
-  for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
-    anch_tile_n = getVali( BUF_TILE_IDX_N, anch_cell );
-    jp = getVertexPos(anch_cell);
-
-    for (anch_tile_idx=0; anch_tile_idx<anch_tile_n; anch_tile_idx++) {
-
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-
-      for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
-        nei_cell = getNeighbor(anch_cell, jp, anch_in_idx);
-        if (nei_cell != -1) { continue; }
-
-        fval = getValF( BUF_F, anch_tile, boundary_tile, anch_in_idx);
-        if (fval > _eps) { continue; }
-
-        anch_tile_n--;
-        tval = getVali( BUF_TILE_IDX, anch_cell, anch_tile_n );
-        SetVali( BUF_TILE_IDX, anch_cell, anch_tile_n, anch_tile);
-        SetVali( BUF_TILE_IDX, anch_cell, anch_tile_idx, tval);
-
-        SetVali( BUF_TILE_IDX_N, anch_cell, anch_tile_n );
-
-        count++;
-
-        anch_tile_idx--;
-        break;
-      }
-
-    }
-
-
-  }
-
-  return count;
 }
 
 
