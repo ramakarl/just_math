@@ -1490,7 +1490,7 @@ void nvImg::UpdateTex ()
 			"out vec4		outColor;\n"
 			"void main () {\n"		
 			"    vec4 imgclr = texture(imgTex, vtexcoord);\n"
-			"    vec4 clr = (vcolor.w > 0.f) ? vcolor * imgclr: vec4( vcolor.x, vcolor.y, vcolor.z, -vcolor.w*imgclr.x); \n"
+			"    vec4 clr = (vcolor.w > 0.f) ? vcolor * imgclr: vec4( vcolor.x, vcolor.y, vcolor.z, -vcolor.w * imgclr.w); \n"
 			"    float d = (vnorm.x < -1.f) ? 1.0f : 0.1f + 0.9f * clamp( dot ( vnorm, normalize(lightpos-vpos) ), 0.f, 1.f); \n"
 			"    outColor = vec4(d, d, d, 1) * clr;\n"
 			"}\n"

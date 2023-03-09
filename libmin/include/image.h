@@ -88,7 +88,8 @@
 		inline float GetPixelF ( int x, int y )			{ return *(float*) (GetData()  + (y*getInfo()->mXres+x) * getInfo()->GetBytesPerPix()); }
 
 		// Image Operations
-		Vector4DF GetPixelFilteredUV (float x, float y);
+		Vector4DF	GetPixelFilteredUV (float x, float y);
+		float		GetPixelFilteredUV16 (float x, float y);
 		inline Vector4DF GetPixelUV (float x, float y)	{ XBYTE r,g,b,a; (this->*m_GetPixelFunc) ( (int) (x*(getInfo()->mXres-1)), (int) (y*(getInfo()->mYres-1)),r,g,b,a); return Vector4DF(r/255.0f,g/255.0f,b/255.0f,a/255.0f); }
 		inline float GetPixelUV16 ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) (r+(g/255.0f))/255.0f; }
 		inline float GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }		

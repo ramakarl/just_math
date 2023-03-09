@@ -422,7 +422,7 @@ bool Sample::init()
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
   m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB24 );
+  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
   
   printf("Init done\n"); 
   fflush(stdout);

@@ -491,6 +491,43 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
 
 }
 
+
+Vector4DF BeliefPropagation::getSample ( int buf, int64_t v )
+{
+    Vector4DF s;
+/*
+    int t, c, f[6];
+    float x, a;
+
+    switch (buf) {
+    case BUF_T: 
+        t = getVal(buf, v);
+        a = pow( getVal(BUF_R, v), 0.1 );
+        if (t==0) a=0;
+        s = Vector4DF( m_clr[t], a);
+        break;
+    case BUF_C:
+        t = getVal(BUF_T,v);
+        c = CountBits( GetVertexConstraints( v ) );
+        a = getVal(BUF_R, v);
+        x = float(c); // 6.0;
+        s = Vector4DF(x,x,x,1);
+        break;
+    case BUF_E:
+        x = getVal(buf, v);        
+        s = Vector4DF(x,x,x,x);
+        break;
+    case BUF_R:
+        x = getVal(buf, v);
+        x = pow(x, 0.1 );
+        s = Vector4DF(x,x,x,x);
+        break;
+   };
+*/
+   return s;
+}
+
+
 // do the belief propagation step but only on a single cell,
 // updating BUF_MU_NXT with the new values
 //
