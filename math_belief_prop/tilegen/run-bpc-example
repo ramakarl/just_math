@@ -55,13 +55,14 @@ bpc_bin="../bpc"
 ######
 ######
 
-echo "running 'smb' tile collection, producing '$tileset_fn'"
-
 name_fn="./example_tile_collection/smb_tilename.csv"
 rule_fn="./example_tile_collection/smb_tilerule.csv"
 tiled_fn="./example_tile_collection/smb_tiled.json"
 tileset_fn="./smb_tileset.png"
 stride=16
+
+echo "running 'smb' tile collection, producing '$tileset_fn'"
+
 $bpc_bin \
   -N $name_fn \
   -R $rule_fn \
@@ -78,13 +79,14 @@ $bpc_bin \
 ######
 ######
 
-echo "running 'pm' tile collection, producing '$tileset_fn'"
 
 name_fn="./example_tile_collection/pm_tilename.csv"
 rule_fn="./example_tile_collection/pm_tilerule.csv"
 tiled_fn="./example_tile_collection/pm_tiled.json"
 tileset_fn="./pm_tileset.png"
 stride=8
+
+echo "running 'pm' tile collection, producing '$tileset_fn'"
 
 $bpc_bin \
   -N $name_fn \
@@ -98,5 +100,111 @@ $bpc_bin \
   -I 100000 \
   -S 1234 \
   -V 2 | tee log/pm.log
+
+
+######
+######
+
+
+name_fn="./example_tile_collection/amarelo_tilename.csv"
+rule_fn="./example_tile_collection/amarelo_tilerule.csv"
+tiled_fn="./example_tile_collection/amarelo_tiled.json"
+tileset_fn="./amarelo_tileset.png"
+stride=8
+
+echo "running 'amarelo' tile collection, producing '$tileset_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -s $stride  \
+  -X 42 -Y 42 -Z 1 \
+  -G 2 \
+  -c 0 \
+  -I 100000 \
+  -S 124 \
+  -e 0.000001 \
+  -V 2 | tee log/amarelo.log
+
+
+######
+######
+
+
+name_fn="./example_tile_collection/stair_name.csv"
+rule_fn="./example_tile_collection/stair_rule.csv"
+objloc_fn="./example_tile_collection/stair_objloc.csv"
+stl_fn="./example_tile_collection/stair_X24Y12Z6.stl"
+
+echo "running 'stair' 3D tile collection, producing '$stl_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -L $objloc_fn \
+  -X 24 \
+  -Y 12 \
+  -Z 6 \
+  -M $stl_fn \
+  -G 2 \
+  -I 100000000 \
+  -S 126 \
+  -e 0.000025 \
+  -V 2 | tee log/stair_X24Y12Z6.log
+
+######
+######
+
+
+name_fn="./example_tile_collection/stair_name.csv"
+rule_fn="./example_tile_collection/stair_rule.csv"
+objloc_fn="./example_tile_collection/stair_objloc.csv"
+stl_fn="./example_tile_collection/stair_r_D12.stl"
+
+echo "running 'stair' 3D tile collection (residual bp), producing '$stl_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -L $objloc_fn \
+  -D 12 \
+  -M $stl_fn \
+  -G 4 \
+  -I 100000000 \
+  -S 127 \
+  -e 0.0000125 \
+  -w 0.96 \
+  -V 2 | tee log/stair_r_D12.log
+
+
+######
+######
+
+
+name_fn="./example_tile_collection/oskar-pipe_name.csv"
+rule_fn="./example_tile_collection/oskar-pipe_rule.csv"
+objloc_fn="./example_tile_collection/oskar-pipe_objloc.csv"
+stl_fn="./example_tile_collection/oskar-pipe_r_D8.stl"
+
+echo "running 'oskar-pipe' 3D tile collection (residual bp), producing '$stl_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -L $objloc_fn \
+  -M $stl_fn \
+  -D 8 \
+  -G 4 \
+  -I 100000000 \
+  -e 0.0001 \
+  -w 0.9 \
+  -S 123 \
+  -J 'd[][1:][] 1' \
+  -V 2 | tee log/oskar-pipe_r_D8.log
+
+
+
 
 

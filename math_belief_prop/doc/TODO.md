@@ -1,6 +1,44 @@
 TODO
 ===
 
+###### 2023-03-06
+
+* img2tile improvements:
+  - avg color
+  - add an optional 'base' tileset in case people just want to use
+    it to parse an example file with base tiles
+* add 3d stl input instead of just obj
+
+###### 2023-03-04
+
+* ~make sure wfc option is working~
+  - think it is...
+* ~other window sizes and geometries for img2tile~
+  - 3x3 works
+  - nixing the other geometries. Cross is adds complexity without
+    giving anything valid
+* 3d output
+  - ~obj input, stl output~
+  - needs some fixing up
+* config file
+* avg color for tilename
+* ~figure out location and generation of js tilesets (stair)~
+* ~3d pipe tileset (js?)~
+  - ~oskar pipe (not checked in?)~
+* ~converge eps start/end along with interpolation function~
+  - we can guess how to interpolate based on how many tiles
+    we've fixed so far
+  - degenerate is just fixed eps, so doesn't break anything
+    to put in
+  - default to linear
+  - can specify python notation range for the `-e` option
+* getting worried about what looks to be a preference
+  for one tile type over another. Some results look too
+  homogeneous.
+  - Regardless, needs to be explained
+  - try and figure out how to test if there is a preference
+    either based on location, tile order or something else
+
 ###### 2023-02-22
 
 * extend img2tile to accomodate 3x3 and other windows
@@ -11,6 +49,7 @@ TODO
   confirm tileset is meaningful
 * run on wfc to see results and make sure it's still working
   - create statistics of failures for various tile collections
+* put back in weighting option for img2tile (name and rule)
 
 ###### 2022-11-30
 
@@ -86,6 +125,10 @@ Residual BP might give 4x (speculative), with SVD at 3x gives 12x.
 ---
 
 * [gamedev SO on contradictions in WFC](https://gamedev.stackexchange.com/questions/178443/resolving-contradictions-in-wfc-more-efficiently-than-naive-backtracking)
+  - [tileset gif](https://imgur.com/1b8FYNG)
+  - [oskar stalberg pipes (tw)](https://twitter.com/Nolithius/status/1218534693903138818)
+  - imgur [link0](https://imgur.com/ZLVkuaI) [link1](https://imgur.com/XXyrpmc)
+  - [reddit post](https://www.reddit.com/r/proceduralgeneration/comments/eq2vxh/resolving_error_states_in_wfc_more_efficiently/)
 
 ---
 
@@ -114,6 +157,7 @@ References
 * [procjam WFC](https://www.procjam.com/tutorials/wfc/)
 * [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
 * [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+* [Tilings and Projection Set Algorithms](https://gvarnavides.com/musings/tilings-and-projection-set-algorithms/)
 
 
 

@@ -37,6 +37,12 @@
 #include "belief_propagation.h"
 #include "main_belief_propagation.h"
 
+#include "string_helper.h"
+//#include "mesh.h"
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 #include "pd_getopt.h"
 extern char *optarg;
 
@@ -409,6 +415,347 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 }
 
+//-------------------------------------------------//
+//                      _             _       _    //
+//   ___ ___  _ __  ___| |_ _ __ __ _(_)_ __ | |_  //
+//  / __/ _ \| '_ \/ __| __| '__/ _` | | '_ \| __| //
+// | (_| (_) | | | \__ \ |_| | | (_| | | | | | |_  //
+//  \___\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__| //
+//                                                 //
+//-------------------------------------------------//
+
+// Split string on separator
+//   e.g. "object:car, other".. left='object:car', right='other'
+bool strSplit_ ( std::string str, std::string sep, std::string& left, std::string& right ) {
+  std::string result;
+  size_t f1, f2;
+
+  //f1 = str.find_first_not_of ( sep );
+  //if ( f1 == std::string::npos ) f1 = 0;
+  f1 = 0;
+  f2 = str.find_first_of ( sep, f1 );
+  if ( f2 != std::string::npos) {
+    left = str.substr ( f1, f2-f1 );
+    right = str.substr ( f2+1 );
+    return true;
+  }
+  left = "";
+  right = str;
+  return false;
+}
+
+
+int parse_frange(std::vector<float> &range, std::string &s) {
+  int err_code = 0, iret;
+  float val;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+  range.push_back(0);
+  range.push_back(0);
+
+  if (s.size()==0) { return -1; }
+
+  r = strSplit_( s, csep, l_innard, r_innard );
+  if (!r) {
+    iret = strToF(r_innard, val);
+    if (iret<0) { return -1; }
+    range[0] = val;
+    range[1] = val;
+    return 0;
+  }
+
+  if (l_innard.size() > 0) {
+    iret = strToF(l_innard, val);
+    if (iret < 0) { return -1; }
+    range[0] = val;
+  }
+
+  if (r_innard.size() > 0) {
+    iret = strToF(r_innard, val);
+    if (iret < 0) { return -1; }
+    range[1] = val;
+  }
+
+  return err_code;
+}
+
+int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) {
+  int err_code = 0;
+  int val, iret;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+  range.push_back(0);
+  range.push_back(0);
+  if (dim.size() > 0) { range[1] = dim[0]; }
+
+  if (s.size()==0) { return -1; }
+
+  r = strSplit_( s, csep, l_innard, r_innard );
+  if (!r) {
+
+    iret = strToI(r_innard, val);
+    if (iret<0) { return -1; }
+    if (val<0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
+    range[0] = val;
+    range[1] = range[0]+1;
+    return 0;
+  }
+
+  if (l_innard.size() > 0) {
+    iret = strToI(l_innard, val);
+
+    if (iret < 0) { return -1; }
+    if (val < 0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
+    range[0] = val;
+  }
+
+  if (r_innard.size() > 0) {
+    iret = strToI(r_innard, val);
+
+    if (iret < 0) { return -1; }
+    if (val < 0) {
+      if (dim.size() > 0) {
+        val = dim[0] + val;
+      }
+    }
+    range[1] = val+1;
+  }
+
+  return err_code;
+}
+
+int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int> &dim) {
+  int dim_idx=0;
+  int err_code = 0;
+  int val, iret;
+
+  std::string cur_s = s;
+  std::string innard;
+  std::string lsep = "[", rsep = "]", csep = ":";
+  std::string l_innard, r_innard;
+  size_t pos=0;
+
+  bool r;
+
+  range.clear();
+
+  for (dim_idx=0; dim_idx<dim.size(); dim_idx++) {
+    range.push_back(0);
+    range.push_back(dim[dim_idx]);
+  }
+
+  if (s.size()==0) { return 0; }
+
+  for (dim_idx=0; dim_idx<dim.size(); dim_idx++) {
+
+    r = strGet( cur_s, lsep, rsep, innard, pos );
+    if (!r) {
+      err_code = -1-dim_idx;
+      break;
+    }
+
+    // bad parse or not enclosed in brackets
+    //
+    if (innard.size()==0) { err_code = -4; break; }
+    if ((innard[0] != lsep[0]) ||
+        (innard[ innard.size()-1 ] != rsep[0])) {
+      err_code = -5;
+      break;
+    }
+
+    // lop off first range
+    //
+    cur_s  = cur_s.substr(pos + innard.size());
+
+    if (innard.size()==2) { continue; }
+
+    // lop off left and right separator
+    //
+    innard = innard.substr(1, innard.size()-2);
+
+    r = strSplit_( innard, csep, l_innard, r_innard );
+    if (!r) {
+      iret = strToI(r_innard, val);
+      if (iret<0) { return -1; }
+      if (val<0) { val = dim[dim_idx] + val; }
+      range[2*dim_idx] = val;
+      range[2*dim_idx+1] = range[2*dim_idx]+1;
+      continue;
+    }
+
+    if (l_innard.size() > 0) {
+      iret = strToI(l_innard, val);
+      if (iret < 0) { return -1; }
+      if (val < 0) { val = dim[dim_idx] + val; }
+      range[2*dim_idx] = val;
+    }
+
+    if (r_innard.size() > 0) {
+      iret = strToI(r_innard, val);
+      if (iret < 0) { return -1; }
+      if (val < 0) { val = dim[dim_idx] + val; }
+      range[2*dim_idx+1] = val;
+    }
+
+
+  }
+
+  return err_code;
+}
+
+int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name) {
+  int i, n, r;
+  std::vector< std::string > raw_tok;
+  std::string ws_sep = " \n\t";
+  std::vector< std::string > tok;
+  std::vector< int > tiledim;
+
+  constraint_op_t op;
+
+  std::string srange;
+
+  //tiledim.push_back(0);
+  tiledim.push_back(name.size());
+
+  op_list.clear();
+
+  n = strSplitMultiple( s, ws_sep, raw_tok );
+
+  for (i=0; i<n; i++) {
+    if (raw_tok[i].size() > 0) {
+      tok.push_back( raw_tok[i] );
+    }
+  }
+
+  if ((tok.size()%2) != 0) { return -1; }
+
+  for (i=0; i<tok.size(); i+=2) {
+
+    op.dim_range.clear();
+    op.tile_range.clear();
+
+    srange = tok[i].substr(1);
+
+    op.op = tok[i][0];
+    r = parse_bracket_range(op.dim_range, srange, dim);
+    if (r<0) { return -1; }
+
+    r = parse_range(op.tile_range, tok[i+1], tiledim);
+    if (r<0) { return -2; }
+
+    op_list.push_back(op);
+  }
+
+  return 0;
+}
+
+void debug_constraint_op_list(std::vector< constraint_op_t > &op_list) {
+  int i, j;
+  for (i=0; i<op_list.size(); i++) {
+    printf("op_list[%i] op:%c dim_range", i, op_list[i].op);
+    for (j=0; j<op_list[i].dim_range.size(); j+=2) {
+      printf("[%i:%i]",
+          (int)op_list[i].dim_range[j],
+          (int)op_list[i].dim_range[j+1]);
+    }
+    printf(" tile_range");
+    for (j=0; j<op_list[i].tile_range.size(); j+=2) {
+      printf("(%i:%i)",
+          (int)op_list[i].tile_range[j],
+          (int)op_list[i].tile_range[j+1]);
+    }
+    printf("\n");
+  }
+}
+
+int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list) {
+  int op_idx, i, j, k, n;
+  int x,y,z,t;
+  int64_t pos;
+
+  std::vector<int32_t> v;
+
+  debug_constraint_op_list(op_list);
+
+  for (op_idx=0; op_idx<op_list.size(); op_idx++) {
+
+    // discard
+    //
+    if (op_list[op_idx].op == 'd') {
+
+      v.clear();
+      for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
+        v.push_back(t);
+      }
+
+      for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
+          for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
+            pos = bp.getVertex(x,y,z);
+            bp.filterDiscard(pos, v);
+          }
+        }
+      }
+
+    }
+
+    // force (only)
+    //
+    else if (op_list[op_idx].op == 'f') {
+
+      v.clear();
+      for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
+        v.push_back(t);
+      }
+
+      for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
+          for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
+            pos = bp.getVertex(x,y,z);
+            bp.filterKeep(pos, v);
+          }
+        }
+      }
+
+    }
+
+    else if (op_list[op_idx].op == 'a') {
+      // sorry
+    }
+
+    else {
+      return -1;
+    }
+
+  }
+
+  return 0;
+}
+
 //------------//
 //       _ _  //
 //   ___| (_) //
@@ -417,6 +764,57 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 //  \___|_|_| //
 //            //
 //------------//
+
+//void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);
+void stl_print(FILE *, std::vector< float > &, float, float, float);
+
+int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< float > > tri_lib) {
+  FILE *fp=stdout;
+
+  int i, j, k, n;
+  int ix, iy, iz;
+
+  float stride_x = 1.0,
+        stride_y = 1.0,
+        stride_z = 1.0;
+
+  float cx=0.0, cy=0.0, cz=0.0,
+        dx, dy, dz,
+        nx, ny, nz;
+  int64_t pos;
+  int32_t tile_id;
+
+
+  fp = fopen(opt.outstl_fn.c_str(), "w");
+  if (!fp) { return -1; }
+
+  for (ix=0; ix<bp.m_res.x; ix++) {
+    for (iy=0; iy<bp.m_res.y; iy++) {
+      for (iz=0; iz<bp.m_res.z; iz++) {
+        pos = bp.getVertex(ix, iy, iz);
+
+        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+
+        dx = (float)ix*stride_x + cx;
+        dy = (float)iy*stride_y + cy;
+        dz = (float)iz*stride_z + cz;
+
+        if (tile_id >= tri_lib.size()) {
+          fprintf(stderr, "ERROR: tile_id %i, exceeds tri (%i)\n",
+              (int)tile_id, (int)tri_lib.size());
+          continue;
+        }
+
+        stl_print(fp, tri_lib[tile_id], dx, dy, dz);
+
+      }
+    }
+  }
+
+  fclose(fp);
+
+  return 0;
+}
 
 int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   FILE *fp;
@@ -541,6 +939,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -N <fn>  CSV name file\n");
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
+  fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
@@ -568,7 +967,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -s <#>   png tile stride\n");
   fprintf(fp, "  -c <#>   cull tile id\n");
 
-  fprintf(fp, "  -d       debug print\n");
+  //fprintf(fp, "  -d       debug print\n");
 
   fprintf(fp, "  -V <#>   set verbosity level (default 0)\n");
   fprintf(fp, "  -r       enable raycast visualization\n");
@@ -582,12 +981,307 @@ void show_version(FILE *fp) {
   fprintf(fp, "bp version: %s\n", BELIEF_PROPAGATION_VERSION);
 }
 
+/*
+void fprint_obj(FILE *fp, tinyobj::ObjReader &reader, float dx, float dy, float dz) {
+  int i, j, k;
+  auto& attrib = reader.GetAttrib();
+  auto& shapes = reader.GetShapes();
+  auto& materials = reader.GetMaterials();
+
+  for (i=0; i<attrib.size(); i+=3) {
+    fprintf(fp, "v %f %f %f\n",
+        (float)(attrib.vertices[i+0] + dx),
+        (float)(attrib.vertices[i+1] + dy),
+        (float)(attrib.vertices[i+2] + dz));
+  }
+
+  // Loop over shapes
+  for (size_t s = 0; s < shapes.size(); s++) {
+
+    // Loop over faces(polygon)
+    size_t index_offset = 0;
+    for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+      size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+      // Loop over vertices in the face.
+      for (size_t v = 0; v < fv; v++) {
+
+        // access to vertex
+        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+        tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+        tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+        tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+        fprintf(fp, "%f %f %f\n", (float)(vx+dx), (float)(vy+dy), (float)(vz+dz));
+
+        // Check if `normal_index` is zero or positive. negative = no normal data
+        if (idx.normal_index >= 0) {
+          tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
+          tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
+          tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+        }
+
+        // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+        if (idx.texcoord_index >= 0) {
+          tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+          tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+        }
+
+        // Optional: vertex colors
+        // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+        // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+        // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+      }
+      index_offset += fv;
+
+      // per-face material
+      shapes[s].mesh.material_ids[f];
+    }
+  }
+
+
+}
+*/
+
+int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::vector< float > > tri) {
+  int i, j, k, n;
+
+  float stride_x = 1.0,
+        stride_y = 1.0,
+        stride_z = 1.0;
+
+  float cx = 0.0,
+        cy = 0.0,
+        cz = 0.0;
+
+  float dx = 1.0,
+        dy = 1.0,
+        dz = 1.0;
+
+  float nx, ny, nz;
+
+  int ix, iy, iz;
+  int64_t pos;
+  int32_t tile_id;
+
+  FILE *fp;
+
+  fp = fopen(ofn.c_str(), "w");
+  if (!fp) { return -1; }
+
+  for (ix=0; ix<bp.m_res.x; ix++) {
+    for (iy=0; iy<bp.m_res.y; iy++) {
+      for (iz=0; iz<bp.m_res.z; iz++) {
+        pos = bp.getVertex(ix, iy, iz);
+
+        tile_id = bp.getVali( BUF_TILE_IDX, pos, 0 );
+
+        dx = (float)ix*stride_x + cx;
+        dy = (float)iy*stride_y + cy;
+        dz = (float)iz*stride_z + cz;
+
+        if (tile_id >= tri.size()) {
+          fprintf(stderr, "ERROR: tile_id %i, exceeds tri (%i)\n",
+              (int)tile_id, (int)tri.size());
+          continue;
+        }
+
+        fprintf(fp, "solid\n");
+        for (i=0; i<tri[tile_id].size(); i+=9) {
+          fprintf(fp, "  facet normal %f %f %f\n",
+              (float)nx, (float)ny, (float)nz);
+
+          for (j=0; j<3; j++) {
+            fprintf(fp, "    vertex %f %f %f\n",
+              (float)tri[tile_id][i + 3*j + 0],
+              (float)tri[tile_id][i + 3*j + 1],
+              (float)tri[tile_id][i + 3*j + 2]);
+          }
+
+          fprintf(fp, "  endfacet\n");
+        }
+        fprintf(fp, "endsolid\n");
+
+      }
+    }
+  }
+
+  fclose(fp);
+
+  return 0;
+}
+
+int load_obj2tri(std::string inputfile, std::vector< float > &tri) {
+
+  tri.clear();
+
+  //std::string inputfile = "./examples/.data/s000.obj";
+  tinyobj::ObjReaderConfig reader_config;
+  reader_config.mtl_search_path = "./"; // Path to material files
+
+  tinyobj::ObjReader reader;
+
+  if (!reader.ParseFromFile(inputfile, reader_config)) {
+    if (!reader.Error().empty()) {
+        std::cerr << "TinyObjReader[E]: " << reader.Error();
+    }
+    return -1;
+  }
+
+  if (!reader.Warning().empty()) {
+    std::cout << "TinyObjReader[W]: " << reader.Warning();
+  }
+
+  auto& attrib = reader.GetAttrib();
+  auto& shapes = reader.GetShapes();
+  auto& materials = reader.GetMaterials();
+  // Loop over shapes
+  for (size_t s = 0; s < shapes.size(); s++) {
+
+    //printf("#shape %i\n", (int)s);
+
+    // Loop over faces(polygon)
+    size_t index_offset = 0;
+    for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+      size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
+
+      //printf("# face %i\n", (int)f);
+
+      // Loop over vertices in the face.
+      for (size_t v = 0; v < fv; v++) {
+
+        //printf("#  vertex %i\n", (int)v);
+
+        // access to vertex
+        tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+        tinyobj::real_t vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
+        tinyobj::real_t vy = attrib.vertices[3*size_t(idx.vertex_index)+1];
+        tinyobj::real_t vz = attrib.vertices[3*size_t(idx.vertex_index)+2];
+
+        tri.push_back(vx);
+        tri.push_back(vy);
+        tri.push_back(vz);
+
+        // Check if `normal_index` is zero or positive. negative = no normal data
+        if (idx.normal_index >= 0) {
+
+          tinyobj::real_t nx = attrib.normals[3*size_t(idx.normal_index)+0];
+          tinyobj::real_t ny = attrib.normals[3*size_t(idx.normal_index)+1];
+          tinyobj::real_t nz = attrib.normals[3*size_t(idx.normal_index)+2];
+
+          printf("!! normal: %f %f %f\n", nx, ny, nz);
+        }
+
+        // Check if `texcoord_index` is zero or positive. negative = no texcoord data
+        if (idx.texcoord_index >= 0) {
+          tinyobj::real_t tx = attrib.texcoords[2*size_t(idx.texcoord_index)+0];
+          tinyobj::real_t ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
+        }
+
+        // Optional: vertex colors
+        // tinyobj::real_t red   = attrib.colors[3*size_t(idx.vertex_index)+0];
+        // tinyobj::real_t green = attrib.colors[3*size_t(idx.vertex_index)+1];
+        // tinyobj::real_t blue  = attrib.colors[3*size_t(idx.vertex_index)+2];
+      }
+      index_offset += fv;
+
+      // per-face material
+      shapes[s].mesh.material_ids[f];
+    }
+  }
+
+  return 0;
+
+  /*
+  tinyobj::attrib_t ax;
+  std::vector< tinyobj::shape_t > sx;
+  std::vector< tinyobj::material_t > mx;
+
+  ax = attrib;
+  sx = shapes;
+  mx = materials;
+
+  bool coordTransform = false;
+  bool ignoreMaterial = true;
+
+  //tinyobj::WriteObj( "./akok.0.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
+  tinyobj::WriteObj( "./akok.0.obj", ax, sx, mx, coordTransform, ignoreMaterial);
+
+  for (size_t i=0; i<ax.vertices.size(); i+=3) {
+    ax.vertices[i+0] += 2.0;
+    ax.vertices[i+1] += 0.0;
+    ax.vertices[i+2] += 0.0;
+  }
+
+  //tinyobj::WriteObj( "./akok.1.obj", attrib, shapes, materials, coordTransform, ignoreMaterial);
+  tinyobj::WriteObj( "./akok.1.obj", ax, sx, mx, coordTransform, ignoreMaterial);
+
+  exit(-1);
+  return;
+  */
+
+  /*
+  bool br;
+  MeshX mm;
+
+  br = mm.LoadObj("./examples/.data/s000.obj", 1.0);
+  if (br) { printf("load successful\n"); }
+  else { printf("load failed\n"); }
+
+  exit(-1);
+  */
+
+}
+
+void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0) {
+  int i, j;
+  float nx=0.0, ny=0.0, nz=0.0;
+
+  fprintf(fp, "solid\n");
+  for (i=0; i<tri.size(); i+=9) {
+    fprintf(fp, "  facet normal %f %f %f\n",
+        (float)nx, (float)ny, (float)nz);
+
+    fprintf(fp, "    outer loop\n");
+    for (j=0; j<3; j++) {
+      fprintf(fp, "      vertex %f %f %f\n",
+        (float)tri[i + 3*j + 0] + dx,
+        (float)tri[i + 3*j + 1] + dy,
+        (float)tri[i + 3*j + 2] + dz);
+    }
+
+    fprintf(fp, "    endloop\n");
+    fprintf(fp, "  endfacet\n");
+  }
+  fprintf(fp, "endsolid\n");
+}
+
+int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris) {
+  int i, j, k, ret;
+  std::vector< std::string > obj_fns;
+  std::vector< float > w;
+  std::vector< float > tri;
+
+  ret = _read_name_csv(fn, obj_fns, w);
+  if (ret<0) { return ret; }
+
+  for (i=0; i<obj_fns.size(); i++) {
+    ret = load_obj2tri(obj_fns[i], tri);
+    if (ret<0) { return ret; }
+    tris.push_back(tri);
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) {
   int i, j, k, idx, ret;
   char ch;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
-  std::string name_fn_str, rule_fn_str, constraint_fn_str;
+  std::string name_fn_str,
+              rule_fn_str,
+              constraint_fn_str;
 
   int test_num = -1;
   int X=0, Y=0, Z=0, D=0;
@@ -604,14 +1298,26 @@ int main(int argc, char **argv) {
   std::string base_png = "out";
   char imgfile[512] = {0};
 
-  float eps_zero = -1.0, eps_converge = -1.0, step_factor = 1.0;
+  float eps_zero = -1.0,
+        eps_converge = -1.0,
+        step_factor = 1.0;
+  std::string _eps_str;
+  std::vector<float> eps_range;
+
   int max_iter = -1, it, n_it;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
   std::vector< int32_t > cull_list;
+  std::string constraint_commands;
+  std::vector< constraint_op_t > constraint_op_list;
+
+  std::vector< std::vector< float > > tri_shape_lib;
 
   BeliefPropagation bpc;
+
+  eps_range.push_back( bpc.m_eps_converge );
+  eps_range.push_back( bpc.m_eps_converge );
 
   int arg=1;
 
@@ -622,7 +1328,7 @@ int main(int argc, char **argv) {
   g_opt.tiled_reverse_y = 0;
   g_opt.alpha = 0.5;
   g_opt.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:u")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -632,9 +1338,11 @@ int main(int argc, char **argv) {
         show_version(stdout);
         exit(0);
         break;
-      case 'd':
-        debug_print = 1;
-        break;
+
+      //case 'd':
+      //  debug_print = 1;
+      //  break;
+
       case 'V':
         bpc.m_verbose = atoi(optarg);
         break;
@@ -656,10 +1364,24 @@ int main(int argc, char **argv) {
         break;
 
       case 'e':
+        /*
         eps_converge = atof(optarg);
         if (eps_converge > 0.0) {
           bpc.m_eps_converge = eps_converge;
         }
+        */
+
+        _eps_str = optarg;
+
+        ret = parse_frange( eps_range, _eps_str );
+        if (ret < 0) {
+          fprintf(stderr, "bad value for convergence epsilon\n");
+          show_usage(stderr);
+          exit(-1);
+        }
+        bpc.m_eps_converge_beg = eps_range[0];
+        bpc.m_eps_converge_end = eps_range[1];
+
         break;
       case 'z':
         eps_zero = atof(optarg);
@@ -719,6 +1441,9 @@ int main(int argc, char **argv) {
       case 'c':
         cull_list.push_back( (int32_t)atoi(optarg) );
         break;
+      case 'J':
+        constraint_commands = optarg;
+        break;
 
       case 'W':
         wfc_flag = 1;
@@ -731,6 +1456,9 @@ int main(int argc, char **argv) {
         bpc.m_use_checkerboard = 1;
         break;
 
+      case 'L':
+        g_opt.tileobj_fn = optarg;
+        break;
       case 'Q':
         g_opt.tileset_fn = optarg;
         break;
@@ -752,18 +1480,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  //DEBUG
-  /*
-  printf("tileset_fn: %s\n", g_opt.tileset_fn.c_str());
-  printf("tilemap_fn: %s\n", g_opt.tilemap_fn.c_str());
-  printf("stride: %i %i\n", g_opt.tileset_stride_x, g_opt.tileset_stride_y);
-  printf("width,height: %i %i\n", g_opt.tileset_width, g_opt.tileset_height);
-  printf("margin: %i\n", g_opt.tileset_margin);
-  printf("spacing: %i\n", g_opt.tileset_spacing);
-  exit(-1);
-  */
-  //DEBUG
-
   if ((!name_fn) || (!rule_fn)) {
     printf("\nprovide name file and rule file CSV\n\n");
     show_usage(stderr);
@@ -784,26 +1500,68 @@ int main(int argc, char **argv) {
 
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
-  if (constraint_fn) {
-    constraint_fn_str = constraint_fn;
-    _read_constraint_csv(constraint_fn_str, constraint_list);
 
-    if (bpc.m_verbose > 0) {
-      printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+  if (g_opt.tileobj_fn.size() > 0) {
+    ret=load_obj_stl_lib( g_opt.tileobj_fn, tri_shape_lib );
+    if (ret<0) {
+      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", g_opt.tileobj_fn.c_str());
+      exit(-1);
+    }
+  }
+
+
+  if (constraint_commands.size() == 0) {
+    if (constraint_fn) {
+      constraint_fn_str = constraint_fn;
+      _read_constraint_csv(constraint_fn_str, constraint_list);
+
+      if (bpc.m_verbose > 0) {
+        printf ( "reading constraints file. %s, %d\n", constraint_fn_str.c_str(), (int) constraint_list.size() );
+      }
     }
   }
 
   if (bpc.m_verbose > 0) {
-    printf ( "bpc init csv. (%s, %s)\n", name_fn_str.c_str(), rule_fn_str.c_str() ); fflush(stdout);
+    printf ( "bpc init csv. (%s, %s)\n",
+        name_fn_str.c_str(),
+        rule_fn_str.c_str() );
+    fflush(stdout);
   }
+
   ret = bpc.init_CSV(X,Y,Z,name_fn_str, rule_fn_str);
+
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
     exit(-1);
   }
 
+  if (constraint_commands.size() > 0) {
+    std::vector< int > dim;
+    dim.push_back(X);
+    dim.push_back(Y);
+    dim.push_back(Z);
 
-  if (constraint_fn) {
+    ret = parse_constraint_dsl(constraint_op_list, constraint_commands, dim, bpc.m_tile_name);
+    if (ret < 0) {
+      fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+      exit(-1);
+    }
+
+    ret = constrain_bp( bpc, constraint_op_list);
+    if (ret < 0) {
+      fprintf(stderr, "constrain_bp failure\n");
+      exit(-1);
+    }
+
+    /*
+    if (bpc.m_verbose > 1) {
+      printf("*************** after constraint dsl:\n");
+      bpc.debugPrint();
+    }
+    */
+
+  }
+  else if (constraint_fn) {
     if (bpc.m_verbose > 0) {
       printf ( "#filter constraints.\n" );
     }
@@ -841,10 +1599,52 @@ int main(int argc, char **argv) {
     }
   }
 
+  /*
   if (debug_print) {
+
+    //DEBUG!!!!
+    //testing out residual belief propagation wwork
+    //
+
+    int64_t idx, n, _cell;
+    int32_t _tile, _idir;
+    float _a, _b;
+
+    n = bpc.m_num_values * bpc.m_num_verts*6;
+    for (idx=0; idx<n; idx++) {
+      bpc.getMuPos( idx, &_idir, &_cell, &_tile );
+
+      _a = bpc.m_rand.randF();
+      _b = bpc.m_rand.randF();
+
+      printf(" heap_idx:%i -> (idir:%i, cell:%i, tile:%i) mu_cur:%f, mu_nxt:%f\n",
+          (int)idx, (int)_idir, (int)_cell, (int)_tile, _a, _b);
+      bpc.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+      bpc.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+    }
+
+    printf("---\n");
+
+    printf("about to init:\n");
+    bpc.indexHeap_init();
+
+    printf("---\n");
+
+    printf("heap:\n");
+    bpc.indexHeap_debug_print();
+
+    printf("---\n");
+
+    ret = bpc.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+    exit(0);
+    //
+    //DEBUG!!!
+
     bpc.debugPrint();
     exit(0);
   }
+  */
 
   if (test_num >= 0) {
     run_test(test_num);
@@ -899,6 +1699,20 @@ int main(int argc, char **argv) {
       printf("# wfc got: %i\n", ret);
       bpc.debugPrint();
     }
+
+  }
+
+  else if (g_opt.alg_idx == 5) {
+    ret = bpc.Realize();
+    printf("bpc.Realize got: %i\n", ret);
+
+    if (bpc.m_verbose > 0) {
+      printf("# bp realize got: %i\n", ret);
+
+      printf("####################### DEBUG PRINT\n" );
+      bpc.debugPrint();
+    }
+
 
   }
   else {
@@ -975,7 +1789,13 @@ int main(int argc, char **argv) {
       printf("writing tilemap (%s)\n", g_opt.tilemap_fn.c_str());
     }
 
-    write_tiled_json(g_opt, bpc);
+    if (g_opt.tileobj_fn.size() > 0) {
+      g_opt.outstl_fn = g_opt.tilemap_fn;
+      write_bp_stl(g_opt, bpc, tri_shape_lib);
+    }
+    else {
+      write_tiled_json(g_opt, bpc);
+    }
   }
 
   if (name_fn) { free(name_fn); }

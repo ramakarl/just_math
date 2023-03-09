@@ -1257,14 +1257,6 @@ int test_step2() {
   y = 3;
   z = 1;
 
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
   int iter, max_iter=100;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
@@ -1358,14 +1350,6 @@ int test_step3() {
   x = 3;
   y = 3;
   z = 1;
-
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
 
   int iter, max_iter=100;
   float maxdiff, _eps = (1.0/(1024*1024));
@@ -1464,14 +1448,6 @@ int test_step4() {
   y = 3;
   z = 1;
 
-  // expect:
-  //
-  // 0,1,0: 2/5 |000, 3/5 T003
-  // 2,1,0: 2/5 |000, 3/5 T001
-  // 1,2,0: 2/5 |001, 3/5 T000
-  // 1,1,0: 1/5 all
-  //
-
   int iter, max_iter=100;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
@@ -1554,6 +1530,906 @@ int test_step4() {
 
   return ret;
 }
+
+// populate BUF_MU and BUF_MU_NXT
+// with random values, add the differences
+// to the indexHeap structures/buffers (through
+// indexHeap_init) and then run consistency
+// checks on the heap.
+// 
+int test_residual0() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+// populate BUF_MU and BUF_MU_NXT
+// with random values, add the differences
+// to the indexHeap structures/buffers (through
+// indexHeap_init) and then run consistency
+// checks on the heap.
+// 
+int test_residual1() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (idx==n);
+    _a = bp.m_rand.randF();
+    bp.indexHeap_update( idx, _a );
+
+    ret = bp.indexHeap_consistency();
+
+    if (ret < 0) {
+      printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+      return ret;
+    }
+
+  }
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual2() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update( mu_idx, fabs(_a-_b) );
+
+    ret = bp.indexHeap_consistency();
+    if (ret < 0) {
+      printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+      return ret;
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual3() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
+
+    if ((it%1000)==0) {
+
+      ret = bp.indexHeap_consistency();
+      if (ret < 0) {
+        printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+        return ret;
+      }
+
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual4() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx;
+  int32_t _tile, _idir;
+  float _a, _b;
+
+  int _buf;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update( mu_idx, fabs(_a-_b) );
+
+    if ((it%1000)==0) {
+
+      ret = bp.indexHeap_consistency();
+      if (ret < 0) {
+        printf("[%i/%i] indexHeap_consistency got: %i\n", (int)it, (int)n_it, (int)ret);
+        return ret;
+      }
+
+    }
+
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+int test_residual5() {
+  int ret, _buf;
+  int64_t it, n_it;
+  int x, y, z;
+
+  int64_t idx, n, _cell, mu_idx, heap_idx;
+  int32_t _tile, _idir;
+  float _a, _b, mu_max_diff, f, mu_buf_max;
+
+  int64_t mu_max_idir,
+          mu_max_cell,
+          mu_max_tile,
+          ih_idx_max;
+
+  float _eps;
+  int mu_pos_found=0;
+
+  x = 3;
+  y = 2;
+  z = 1;
+
+  BeliefPropagation bp;
+
+  _eps = bp.m_eps_zero;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  n = bp.m_num_values * bp.m_num_verts * 6;
+
+  for (idx=0; idx<n; idx++) {
+    bp.getMuPos( idx, &_idir, &_cell, &_tile );
+
+    _a = bp.m_rand.randF();
+    _b = bp.m_rand.randF();
+
+    bp.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
+    bp.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
+  }
+
+  bp.indexHeap_init();
+
+  n = bp.m_index_heap_size;
+
+  n_it = n*n*10;
+  for (it=0; it<n_it; it++) {
+    do {
+      mu_idx = (int64_t)(bp.m_rand.randF() * (float)n);
+    } while (mu_idx==n);
+    _a = bp.m_rand.randF();
+    _buf = ((bp.m_rand.randF() < 0.5) ? BUF_MU : BUF_MU_NXT);
+
+    ret = bp.getMuPos( mu_idx, &_idir, &_cell, &_tile );
+    if (ret < 0) {
+      printf("ERROR!\n");
+      return ret;
+    }
+
+    if ((_idir < 0) ||
+        (_idir >= 6) ||
+        (_cell < 0) ||
+        (_cell >= bp.m_num_verts) ||
+        (_tile < 0) ||
+        (_tile >= bp.m_num_values)) {
+      printf("!!!!! mu_idx:%i -> (%i,%i,%i)\n",
+          (int)mu_idx,
+          (int)_idir, (int)_cell, (int)_tile);
+      return -1;
+    }
+
+    bp.SetVal( _buf, _idir, _cell, _tile, _a );
+
+    _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+    _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+    bp.indexHeap_update_mu_idx( mu_idx, fabs(_a-_b) );
+
+  }
+
+
+  mu_buf_max = -1.0;
+  for (_idir=0; _idir<6; _idir++) {
+    for (_cell=0; _cell<bp.m_num_verts; _cell++) {
+      for (_tile=0; _tile<bp.m_num_values; _tile++) {
+
+        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+        f = fabs(_a-_b);
+
+        if (mu_buf_max < f) {
+          mu_buf_max = f;
+        }
+
+      }
+    }
+  }
+
+  bp.indexHeap_peek_mu_pos( &_idir, &_cell, &_tile, &_a);
+  mu_max_idir = _idir;
+  mu_max_cell = _cell;
+  mu_max_tile = _tile;
+  mu_max_diff = _a;
+
+  //printf("mu_max (idir:%i,cell:%i,tile:%i,val:%f)\n",
+  //    (int)mu_max_idir, (int)mu_max_cell, (int)mu_max_tile, (float)mu_max_diff);
+
+  if ( fabs(mu_max_diff - mu_buf_max) > _eps ) {
+    printf("observed maximum in MU/MU_NXT buf (%f) disagrees with indexHeap maximum (%f)\n",
+        (float)mu_buf_max, (float)mu_max_diff);
+
+    ret = bp.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+
+
+    return -103;
+  }
+
+  //if ( fabs(mu_max_diff - mu_buf_max) < _eps) { printf("yes, they're close\n"); }
+
+  mu_pos_found = 0;
+  for (_idir=0; _idir<6; _idir++) {
+    for (_cell=0; _cell<bp.m_num_verts; _cell++) {
+      for (_tile=0; _tile<bp.m_num_values; _tile++) {
+        _a = bp.getVal( BUF_MU,     _idir, _cell, _tile );
+        _b = bp.getVal( BUF_MU_NXT, _idir, _cell, _tile );
+
+        f = fabs(_a-_b);
+
+        if ( (fabs(mu_max_diff - f) <= _eps) ||
+             (fabs(f - mu_max_diff) <= _eps) ) {
+
+          //printf(">>max<< %i %i %i (%f,%f,%f)\n", (int)_idir, (int)_cell, (int)_tile, f, (float)mu_max_diff, (float)fabs(mu_max_diff-f));
+
+          if ((_idir == mu_max_idir) &&
+              (_cell == mu_max_cell) &&
+              (_tile == mu_max_tile)) {
+
+            //printf("!!found!! %i %i %i\n", (int)_idir, (int)_cell, (int)_tile);
+
+            mu_pos_found = 1;
+            break;
+
+          }
+
+        }
+
+      }
+      if (mu_pos_found) { break; }
+    }
+    if (mu_pos_found) { break; }
+  }
+
+  if (mu_pos_found==0) {
+    printf("did not retrieve maximum mu position. Expected (idir:%i,cell:%i,tile:%i) (%f), observied max: %f\n",
+      (int)mu_max_idir, (int)mu_max_cell, (int)mu_max_tile, (float)mu_max_diff, (float)mu_buf_max);
+
+    ret = bp.indexHeap_consistency();
+    printf("indexHeap_consistency got: %i\n", (int)ret);
+
+    return -101;
+  }
+
+  //bp.indexHeap_debug_print();
+
+  ret = bp.indexHeap_consistency();
+  printf("indexHeap_consistency got: %i\n", (int)ret);
+
+  return ret;
+}
+
+// test residual bp run until converged
+//
+int test_residual6() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=100000;
+  float maxdiff;
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.m_use_svd = 0;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  bp.m_eps_converge = 1.0/1024.0;
+  bp.m_rate = 1.0;
+
+  bp.m_verbose = 3;
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
+
+  //ret = bp.single_realize_residue_cb(max_iter, NULL);
+
+  int32_t idir, tile;
+  int64_t cell, mu_idx;
+  float f_residue, d;
+  int _verbose = 1;
+
+  int32_t c_0, c_1;
+
+  // after we've propagated constraints, BUF_MU
+  // needs to be renormalized
+  //
+  bp.WriteBoundaryMU();
+  bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.NormalizeMU();
+  bp.NormalizeMU(BUF_MU_NXT);
+  d = bp.step(1);
+  d = bp.step(0);
+  bp.indexHeap_init();
+
+  if (_verbose > 0) {
+    printf("--MU>>>\n");
+    bp.debugPrintMU();
+
+    c_0 = bp.indexHeap_consistency();
+    c_1 = bp.indexHeap_mu_consistency();
+
+    printf("  consist:(%i,%i))\n", (int)c_0, (int)c_1);
+    printf("--MU<<<\n");
+  }
+
+  // iterate bp until converged or max iteration count tripped
+  //
+  for (iter=1; iter<max_iter; iter++) {
+
+    mu_idx = bp.indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
+    if (f_residue < bp.m_eps_converge) { break; }
+
+    if (_verbose > 0) {
+      printf("\n");
+      printf("  [it:%i,step:%i] [idir:%i,cell:%i,tile:%i](mu_idx:%i) residue %f\n",
+          (int)iter, (int)max_iter,
+          (int)idir, (int)cell, (int)tile, (int)mu_idx, (float)f_residue);
+    }
+
+    d = bp.step_residue( idir, cell, tile );
+
+    if (_verbose > 0) {
+      c_0 = bp.indexHeap_consistency();
+      c_1 = bp.indexHeap_mu_consistency();
+
+      printf("  consist:(%i,%i))\n", (int)c_0, (int)c_1);
+    }
+
+    
+  }
+
+  printf("---\n");
+
+  //printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  //bp.debugPrint();
+  bp.debugPrintMU();
+
+  printf("---\n");
+
+  return ret;
+}
+
+
+// test residual bp run until converged
+//
+int test_residual7() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=1000;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.m_use_svd = 0;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  bp.m_eps_converge = 1.0/1024.0;
+  bp.m_rate = 1.0;
+
+  bp.m_verbose = 3;
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
+  n_it = bp.m_num_verts * bp.m_num_values;
+  for (it=0; it<n_it; it++) {
+    ret = bp.single_realize_residue_cb(max_iter, NULL);
+    if (ret<=0) { break; }
+  }
+
+  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  bp.debugPrint();
+
+  return ret;
+}
+
+// test residual bp run until converged
+//
+int test_residual8() {
+  int ret;
+  int64_t it, n_it;
+  int x, y, z;
+
+  x = 3;
+  y = 3;
+  z = 1;
+
+  // expect:
+  //
+  // 0,1,0: 2/5 |000, 3/5 T003
+  // 2,1,0: 2/5 |000, 3/5 T001
+  // 1,2,0: 2/5 |001, 3/5 T000
+  // 1,1,0: 1/5 all
+  //
+
+  int iter, max_iter=1000;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  bp.m_use_svd = 1;
+
+  ret = bp.init_CSV(x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  if (ret<0) { return ret; }
+
+  bp.m_eps_converge = 1.0/1024.0;
+  bp.m_rate = 1.0;
+
+  bp.m_verbose = 3;
+
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"T000") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)".000") );
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  keep_list.push_back( bp.tileName2ID((char *)"T002") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|000") );
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
+  n_it = bp.m_num_verts * bp.m_num_values;
+  for (it=0; it<n_it; it++) {
+    ret = bp.single_realize_residue_cb(max_iter, NULL);
+    if (ret<=0) { break; }
+  }
+
+  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  bp.debugPrint();
+
+  return ret;
+}
+
 
 
 
@@ -1670,6 +2546,34 @@ int run_test(int test_num) {
 
     case 20:
       test_step4();
+      break;
+
+    case 21:
+      test_residual0();
+      break;
+    case 22:
+      test_residual1();
+      break;
+    case 23:
+      test_residual2();
+      break;
+    case 24:
+      test_residual3();
+      break;
+    case 25:
+      test_residual4();
+      break;
+    case 26:
+      test_residual5();
+      break;
+    case 27:
+      test_residual6();
+      break;
+    case 28:
+      test_residual7();
+      break;
+    case 29:
+      test_residual8();
       break;
 
     default:
