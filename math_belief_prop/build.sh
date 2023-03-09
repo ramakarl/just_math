@@ -25,7 +25,6 @@ g++ -g -I../libmin/include/ \
   -o bpc.debug
 
 exit
-
 #  -I ../math_displace_mesh \
 #  ../math_displace_mesh/mesh.cpp \
 

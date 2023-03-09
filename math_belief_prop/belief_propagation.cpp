@@ -68,7 +68,7 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
   // get type size
   switch (dt) {
   case 'i': type_sz = sizeof(int32_t);  buf_dt = DT_UINT;   break;
-  case 'x': type_sz = sizeof(int64_t);  buf_dt = DT_UINT64; break;
+  case 'l': type_sz = sizeof(int64_t);  buf_dt = DT_UINT64; break;
   case 'f': type_sz = sizeof(float);    buf_dt = DT_FLOAT;  break;
   };  
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
