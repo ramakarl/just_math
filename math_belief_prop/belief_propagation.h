@@ -506,10 +506,16 @@ public:
 
 };
 
+typedef struct constraint_op_type {
+  char op;
+  std::vector< int > dim_range;
+  std::vector< int > tile_range;
+} constraint_op_t;
+
 int _read_line(FILE *fp, std::string &line);
 int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector<float> &weight);
 int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
 int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &admissible_tile);
-
+int _parse_constraint_dsl (std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name);
 
 #endif
