@@ -166,8 +166,8 @@ void BeliefPropagation::ConstructStaticBufs ()
 void BeliefPropagation::ConstructDynamicBufs () {
 
   //-- Construct MU
-  AllocBuf ( BUF_MU, 'f', 6, m_num_values, m_num_verts );
-  AllocBuf ( BUF_MU, 'f', 6, m_num_values, m_num_verts );  
+  AllocBuf ( BUF_MU,     'f', 6, m_num_values, m_num_verts );
+  AllocBuf ( BUF_MU_NXT, 'f', 6, m_num_values, m_num_verts );  
 
   //-- Construct TILE_IDX
   AllocBuf ( BUF_TILE_IDX,   'i', m_num_values, m_num_verts );
@@ -828,7 +828,6 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
     }
   }
 }
-
 
 void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
   Vector3DI jp;
