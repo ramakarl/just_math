@@ -199,8 +199,6 @@ void BeliefPropagation::ConstructTempBufs ()
     //-- Construct note
     AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
 
-    long long int* ptr = (long long int*) m_buf[10].mCpu;
-
     m_note_n[0] = 0;
     m_note_n[1] = 0;
     m_grid_note_idx = 0;
@@ -4114,12 +4112,17 @@ int BeliefPropagation::CullBoundary() {
   int64_t x, y, z, vtx;
   Vector3DI vp;
 
+  long long int* ptr = (long long int*) m_buf[10].mCpu;
+
+
   for (y=0; y<m_res.y; y++) {
     for (z=0; z<m_res.z; z++) {
 
       //printf("cb.yz %i,%i,%i\n", 0, (int)y, (int)z);
 
       vtx = getVertex(0, y, z);
+      assert ( vtx < m_num_verts );
+
       SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
@@ -4128,6 +4131,8 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.yz %i,%i,%i\n", (int)(m_res.x-1), (int)y, (int)z);
 
         vtx = getVertex(m_res.x-1, y, z);
+        assert ( vtx < m_num_verts );
+
         SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
@@ -4141,6 +4146,8 @@ int BeliefPropagation::CullBoundary() {
       //printf("cb.xz %i,%i,%i\n", (int)x, 0, (int)z);
 
       vtx = getVertex(x, 0, z);
+      assert ( vtx < m_num_verts );
+
       SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
@@ -4149,6 +4156,8 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.xz %i,%i,%i\n", (int)x, (int)(m_res.y-1), (int)z);
 
         vtx = getVertex(x, m_res.y-1, z);
+        assert ( vtx < m_num_verts );
+
         SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
@@ -4162,6 +4171,8 @@ int BeliefPropagation::CullBoundary() {
       //printf("cb.xy %i,%i,%i\n", (int)x, (int)y, 0);
 
       vtx = getVertex(x, y, 0);
+      assert ( vtx < m_num_verts );
+
       SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
@@ -4170,6 +4181,8 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.xy %i,%i,%i\n", (int)x, (int)y, (int)(m_res.z-1));
 
         vtx = getVertex(x, y, m_res.z-1);
+        assert ( vtx < m_num_verts );
+
         SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
