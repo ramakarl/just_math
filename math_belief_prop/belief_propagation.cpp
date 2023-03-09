@@ -2306,166 +2306,8 @@ void BeliefPropagation::Restart() {
 
 //----
 
-int _read_line(FILE *fp, std::string &line) {
-  int ch=0, count=0;
-
-  while (!feof(fp)) {
-    ch = fgetc(fp);
-    if (ch == '\n') { break; }
-    if (ch == EOF) { break; }
-    line += (char)ch;
-    count++;
-  }
-  return count;
-}
-
-int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector< float > &weight) {
-  int i, idx;
-  FILE *fp;
-  float w = 1.0;
-
-  std::string line, tok, _s;
-  std::vector<std::string> toks;
-
-  int dir_idx;
-
-  std::string _color;
-
-  fp = fopen(fn.c_str(), "r");
-  if (!fp) { return -1; }
-
-  while (!feof(fp)) {
-    line.clear();
-    _read_line(fp, line);
-
-    if (line.size()==0) { continue; }
-    if (line[0] == '#') { continue; }
-    if (line[0] == ' ') { continue; }
-
-    toks.clear();
-    tok.clear();
-    for (i=0; i<line.size(); i++) {
-      if (line[i]==',') {
-        toks.push_back(tok);
-        tok.clear();
-        continue;
-      }
-      tok += line[i];
-    }
-    toks.push_back(tok);
-
-    //if (toks.size() != 2) { continue; }
-    if (toks.size() < 2) { continue; }
-
-    idx = atoi(toks[0].c_str());
-    if (idx <= name.size()) {
-      for (i=name.size(); i<=idx; i++) {
-        _s.clear();
-        name.push_back(_s);
-        weight.push_back(0.0);
-      }
-    }
-    name[idx] = toks[1];
-
-    w = 1.0;
-    if (toks.size() > 2) { w = atof(toks[2].c_str()); }
-    weight[idx] = w;
-
-    if (toks.size() > 3) { dir_idx  = atoi(toks[3].c_str()); }
-    if (toks.size() > 4) { _color = toks[4]; }
-  }
-
-  fclose(fp);
-
-  w = 0.0;
-  for (i=0; i<weight.size(); i++) { w += weight[i]; }
-  for (i=0; i<weight.size(); i++) { weight[i] /= w; }
-
-  return 0;
-}
-
-
-int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
-  int i;
-  float _weight;
-  FILE *fp;
-  std::string line, tok;
-  std::vector<std::string> toks;
-  std::vector<float> v;
-
-  float _tile_src, _tile_dst;
-
-  fp = fopen(fn.c_str(), "r");
-  if (!fp) { return -1; }
-
-  while (!feof(fp)) {
-    line.clear();
-    _read_line(fp, line);
-
-    if (line.size()==0) { continue; }
-    if (line[0] == '#') { continue; }
-    if (line[0] == ' ') { continue; }
-
-    toks.clear();
-    tok.clear();
-    for (i=0; i<line.size(); i++) {
-      if (line[i]==',') {
-        toks.push_back(tok);
-        tok.clear();
-        continue;
-      }
-      tok += line[i];
-    }
-    toks.push_back(tok);
-
-    if ((toks.size() < 3) || (toks.size() > 4)) { continue; }
-
-    _tile_src = atof(toks[0].c_str());
-    _tile_dst = atof(toks[1].c_str());
-    _weight = 1;
-
-    if ((toks.size() >= 4) &&
-        (toks[3].size() != 0) &&
-        (toks[3][0] != 'u')) {
-      _weight = atof(toks[3].c_str());
-    }
-
-    // direction wild card
-    //
-    if ((toks[2].size()==0) ||
-        (toks[2][0] == '*')) {
-      v.clear();
-      v.push_back(0.0);
-      v.push_back(0.0);
-      v.push_back(0.0);
-      v.push_back(0.0);
-      for (i=0; i<6; i++) {
-        v[0] = _tile_src;
-        v[1] = _tile_dst;
-        v[2] = (float)i;
-        v[3] = _weight ;
-        rule.push_back(v);
-      }
-    }
-
-    // explicit entry
-    //
-    else {
-      v.clear();
-      v.push_back(_tile_src);
-      v.push_back(_tile_dst);
-      v.push_back(atof(toks[2].c_str()));
-      v.push_back(_weight);
-      rule.push_back(v);
-    }
-
-  }
-
-  fclose(fp);
-
-  return 0;
-}
-
+//TAKEOUT
+/*
 // constraint file format:
 //
 // <x>,<y>,<z>,<tile_id>
@@ -2522,6 +2364,7 @@ int _read_constraint_csv(std::string &fn, std::vector< std::vector<int32_t> > &a
 
   return 0;
 }
+*/
 
 //----
 
@@ -2566,6 +2409,8 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
   return 0;
 }
 
+//TAKEOUT
+/*
 int BeliefPropagation::init_F_CSV(std::string &name_fn, std::string &rule_fn) {
   int i, ret;
   int b, maxb=-1, B;
@@ -2613,6 +2458,7 @@ int BeliefPropagation::init_F_CSV(std::string &name_fn, std::string &rule_fn) {
 
   return 0;
 }
+*/
 
 void BeliefPropagation::init_dir_desc() {
   m_dir_desc.push_back("+1:0:0");
@@ -2623,21 +2469,106 @@ void BeliefPropagation::init_dir_desc() {
   m_dir_desc.push_back("0:0:-1");
 }
 
+int BeliefPropagation::init(
+    int Rx, int Ry, int Rz,
+    std::vector< std::string  >           tile_name_list,
+    std::vector< float >                  tile_weight_list,
+    std::vector< std::vector < float > >  tile_rule_list ) {
+  int B,
+      i, ret=0,
+      b, maxb=-1;
 
-//DEBUG
-//
-int BeliefPropagation::init(int R) {
-  std::string name_fn = "examples/stair_name.csv";
-  std::string rule_fn = "examples/stair_rule.csv";
-  return init_CSV(R, name_fn, rule_fn);
+  init_dir_desc();
+
+  m_dir_inv[0] = 1;
+  m_dir_inv[1] = 0;
+  m_dir_inv[2] = 3;
+  m_dir_inv[3] = 2;
+  m_dir_inv[4] = 5;
+  m_dir_inv[5] = 4;
+
+  //---
+
+  m_tile_name.clear();
+  for (i=0; i<tile_name_list.size(); i++) {
+    m_tile_name.push_back( tile_name_list[i] );
+  }
+
+  // use tile_rule_list to determine maximum number of tiles
+  //
+  for (i=0; i<tile_rule_list.size(); i++) {
+    b = (int)tile_rule_list[i][0];
+    if (b>maxb) { maxb = b; }
+    b = (int)tile_rule_list[i][1];
+    if (b>maxb) { maxb = b; }
+  }
+  m_num_values = maxb+1;
+
+  //---
+
+  // F
+  //
+  B = m_num_values;
+  AllocBPMap ( BUF_F, 6, B );
+  memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );
+
+  for (i=0; i<tile_rule_list.size(); i++) {
+    SetValF( BUF_F, tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2], tile_rule_list[i][3] );
+  }
+
+  ConstructGH();
+
+  for (i=0; i<m_num_values; i++) {
+    if (i < tile_weight_list.size()) {
+      SetVal( BUF_G, i, tile_weight_list[i] );
+    }
+  }
+
+  //---
+
+  m_rand.seed ( m_seed++ );
+
+  m_bpres.Set ( Rx, Ry, Rz );
+  m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
+  m_num_values = m_tile_name.size();
+  m_res.Set ( Rx, Ry, Rz );
+
+  ConstructTileIdx();
+  ConstructConstraintBuffers();
+
+  ConstructMU();
+  NormalizeMU ();
+
+  AllocBPVec( BUF_BELIEF, m_num_values );
+
+  AllocViz ( BUF_VIZ, m_num_verts );
+
+  // options
+  //
+  m_run_cuda  = false;
+
+  if (m_use_svd) {
+    // m_num_values x m_num_values is an upper bound
+    // ont he matrix size. The dimensions used will
+    // be m_num_values x d and d x m_num_values for
+    // U and V respectivley.
+    //
+    B = m_num_values;
+    AllocBPMap( BUF_SVD_U, 6, B );
+    memset( m_buf[BUF_SVD_U].getData(), 0, 6*B*B*sizeof(float) );
+
+    AllocBPMap( BUF_SVD_Vt, 6, B );
+    memset( m_buf[BUF_SVD_Vt].getData(), 0, 6*B*B*sizeof(float) );
+
+    AllocBPVec( BUF_SVD_VEC, B );
+
+    init_SVD();
+  }
+
+  return 0;
 }
-int BeliefPropagation::init(int Rx, int Ry, int Rz) {
-  std::string name_fn = "examples/stair_name.csv";
-  std::string rule_fn = "examples/stair_rule.csv";
-  return init_CSV(Rx, Ry, Rz, name_fn, rule_fn);
-}
-//
-//DEBUG
+
+
 
 //----
 
@@ -2729,6 +2660,8 @@ int BeliefPropagation::init_SVD(void)
   return 0;
 }
 
+//TAKEOUT
+/*
 int BeliefPropagation::init_CSV(int R, std::string &name_fn, std::string &rule_fn) {
   return init_CSV(R, R, R, name_fn, rule_fn);
 }
@@ -2796,7 +2729,10 @@ int BeliefPropagation::init_CSV(int Rx, int Ry, int Rz, std::string &name_fn, st
 
   return 0;
 }
+*/
 
+//TAKEOUT
+/*
 bool BeliefPropagation::_init() {
   int i;
   std::string name_fn = "examples/stair_name.csv";
@@ -2841,6 +2777,7 @@ bool BeliefPropagation::_init() {
 
   return true;
 }
+*/
 
 //---
 
