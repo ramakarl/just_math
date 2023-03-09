@@ -87,8 +87,9 @@ public:
   std::string   m_name_fn;
   std::string   m_rule_fn;
   std::string   m_tilemap_fn;
-  std::string   m_constraint_fn;
   std::string   m_tileset_fn;
+  std::string   m_constraint_cmd;
+  
   std::vector< std::string > m_tile_name;
   std::vector< std::vector<float> > m_tile_rule;
   std::vector< int32_t > m_cull_list;
@@ -167,9 +168,9 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         break;
       case 'R':
         m_rule_fn = optarg;
-        break;
-      case 'C':
-        m_constraint_fn = optarg;
+        break;      
+      case 'J':
+        m_constraint_cmd = optarg;
         break;
       case 'M':
         m_tilemap_fn = optarg;
@@ -543,13 +544,12 @@ bool Sample::init()
     }
   #endif
 
-  // Initiate Belief Propagation
-  m_constraint_fn = "";
-  std::string name_path, rule_path;
+  // Initiate Belief Propagation  
+  
+    std::string name_path, rule_path;
   getFileLocation ( m_name_fn, name_path );
   getFileLocation ( m_rule_fn, rule_path );
-  //getFileLocation ( "rgb_constraint.csv", m_constraint_fn );
-
+  
   if (m_D>0) {
     m_X = m_D;
     m_Y = m_D;
@@ -557,54 +557,40 @@ bool Sample::init()
   }
 
   if (m_run_bpc) {
+      
       // init belief prop
       ret = bpc.init_CSV(m_X, m_Y, m_Z, name_path, rule_path );
       if (ret<0) {
         fprintf(stderr, "bpc error loading CSV\n");
         exit(-1);
       }
-      // constrain belief prop
-      std::vector< std::vector< int32_t > > constraint_list;
-      if (!m_constraint_fn.empty()) {
-        _read_constraint_csv ( m_constraint_fn, constraint_list );
-        bpc.filter_constraint( constraint_list );
-      }
+
+      // dsl constraints
+      /* if (m_constraint_cmds.size() > 0) {
+        std::vector< int > dim;
+        dim.push_back(m_X);
+        dim.push_back(m_Y);
+        dim.push_back(m_Z);
+
+        ret = bpc.parse_constraint_dsl ( constraint_op_list, m_constraint_cmmds, dim, bpc.m_tile_name);
+        if (ret < 0) {
+          fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+          exit(-1);
+        }
+
+        ret = bpc.constrain_bp ( bpc, constraint_op_list);
+        if (ret < 0) {
+          fprintf(stderr, "constrain_bp failure\n");
+          exit(-1);
+        }
+      } */
+
       // start belief prop
+      
       ret = bpc.start ();
 
-      // cull list
-      if (m_cull_list.size() > 0) {
+      ret = bpc.RealizePre ();
 
-        int cull_idx;
-        int64_t tile_idx, pos;
-        int32_t tile_id, n, cull_tile_id;
-
-        if (bpc.m_verbose > 0) {
-            printf( "#culling tile ids\n" );
-        }
-        for (cull_idx=0; cull_idx < m_cull_list.size(); cull_idx++) {
-            cull_tile_id = m_cull_list[cull_idx];
-
-            for (pos=0; pos < (int64_t) bpc.m_num_verts; pos++) {
-            n = bpc.getVali( BUF_TILE_IDX_N, pos );
-            for (tile_idx=0; tile_idx<n; tile_idx++) {
-                if (bpc.getVali( BUF_TILE_IDX, pos, tile_idx ) == cull_tile_id) {
-                break;
-                }
-            }
-            if (tile_idx < n) {
-                if (bpc.m_verbose > 1) {
-                printf("#culling tile %i from cell %i (tile_idx:%i)\n", (int)cull_tile_id, (int)pos, (int)tile_idx);
-                }
-                tile_id = bpc.getVali( BUF_TILE_IDX, pos, n-1 );
-                bpc.SetVali( BUF_TILE_IDX, pos, n-1, cull_tile_id );
-                bpc.SetVali( BUF_TILE_IDX, pos, tile_idx, tile_id );
-                n--;
-                bpc.SetVali( BUF_TILE_IDX_N, pos, n );
-            }
-            }
-        }
-      }
    }
 
   if (m_run_wfc) {
@@ -644,47 +630,55 @@ void Sample::display()
 
     if ( m_run_bpc) {
 
-      if ( m_alg_idx == 1) {
-        ret = bpc.single_realize_min_belief_cb(m_it, _cb_f);
-      }
-      else if ( m_alg_idx == 2) {
-        ret = bpc.single_realize_min_entropy_max_belief_cb(m_it, _cb_f);
-      }
-      else if ( m_alg_idx == 3) {
-        ret = bpc.single_realize_min_entropy_min_belief_cb(m_it, _cb_f);
-      }
-      else if ( m_alg_idx == 4) {
-        ret = bpc.single_realize_residue_cb(m_it, _cb_f);
-      } else {        
-        ret = bpc.single_realize_max_belief_cb(m_it, _cb_f);
-      }  
+        int ret = bpc.RealizeStep ();
 
-      if ( ret <= 0) {
-        // BP COMPLETE
-        switch (ret) {
-        case  0: printf ( "BPC DONE.\n" ); {
-            m_t2 = clock();
-            float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
-            printf ( "Elapsed time: %f msec\n", elapsed);
-            m_run=false;
-            } break;
-        case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-        case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-        case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-        };
+        if (ret == 0 ) {
+            // step complete
+            
+            // finish this iteration
+            ret = bpc.RealizePost();
+            
+            
+            if ( ret > 0) {
+                // iteration complete
+                // start next iteration
+                if (bpc.m_verbose >= 1) {
+                    printf ("Iteration complete.\n");
+                }
+                bpc.RealizePre();
+            
+            } else if ( ret==0 ) {
+                
+                // hit completion
+                printf ( "BPC DONE.\n" );
+                m_t2 = clock();
+                float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
+                printf ( "Elapsed time: %f msec\n", elapsed);
+                m_run=false;
 
-        // write json output
-        if (m_tilemap_fn.size() > 0) {
-            if (bpc.m_verbose > 1) {
-                printf("writing tilemap (%s)\n", m_tilemap_fn.c_str());
+                // write json output
+                if (m_tilemap_fn.size() > 0) {
+                    if (bpc.m_verbose >= 1) {
+                        printf("Writing tilemap (%s)\n", m_tilemap_fn.c_str());
+                    }
+                    write_tiled_json( bpc );
+                }
+
+            } else {
+
+                // error condition
+                switch (ret) {                
+                case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
+                case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
+                case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
+                };                
             }
-            write_tiled_json( bpc );
+
         }
-      }
-    } else if ( ret==2 ) {
-        // cell was selected, count it
-        m_it++;
+
+       
     }
+    
 
     if ( m_run_wfc) {
       ret = wfc.wfc_step(m_it);

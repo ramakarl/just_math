@@ -686,13 +686,15 @@ bool MeshX::LoadPly ( const char* fname, float scal )
 		CreateFV ();
 	}
 
+	char* chp;
+
 	Clear ();
 
 	fp = fopen ( fname, "rt" );
 	if ( fp == 0x0 ) { printf (  "Could not find file: %s\n", fname ); }	
 	
 	// Read header	
-	fgets ( buf, 1000, fp );
+	chp = fgets ( buf, 1000, fp );
 	readword ( buf, ' ', bword, 1000 ); word = bword;
 	if ( word.compare("ply" )!=0 ) {
 		printf ( "Not a ply file. %s\n", fname );
@@ -702,7 +704,7 @@ bool MeshX::LoadPly ( const char* fname, float scal )
 
 	printf ( "Reading PLY.\n" ); 
 	while ( feof( fp ) == 0 ) {
-		fgets ( buf, 1000, fp );
+		chp = fgets ( buf, 1000, fp );
 		readword ( buf, ' ', bword, 1000 );
 		word = bword;
 		if ( word.compare("comment" )!=0 ) {
@@ -760,7 +762,7 @@ bool MeshX::LoadPly ( const char* fname, float scal )
 	
 	xref vert;
 	for (int n=0; n < m_Ply[elem]->num; n++) {
-		fgets ( buf, 1000, fp );
+		chp = fgets ( buf, 1000, fp );
 		for (int j=0; j < (int) m_Ply[elem]->prop_list.size(); j++) {
 			readword ( buf, ' ', bword, 1000 );
 			m_PlyData[ j ] = atof ( bword );
@@ -778,7 +780,7 @@ bool MeshX::LoadPly ( const char* fname, float scal )
 		printf (  "Face data not found.\n" );
 	}
 	for (int n=0; n < m_Ply[elem]->num; n++) {
-		fgets ( buf, 1000, fp );
+		chp = fgets ( buf, 1000, fp );
 		m_PlyCnt = 0;
 		for (int j=0; j < (int) m_Ply[elem]->prop_list.size(); j++) {
 			if ( m_Ply[elem]->prop_list[j].type == PLY_LIST ) {
@@ -874,7 +876,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 	}
 	
 	while ( feof( fp ) == 0 ) {
-		fgets ( buf, 16384, fp );
+		chp = fgets ( buf, 4096, fp );
 		strline = buf;
 		word = strSplitLeft ( strline, " " );
 
