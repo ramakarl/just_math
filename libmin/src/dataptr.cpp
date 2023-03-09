@@ -71,21 +71,24 @@ void DataPtr::Clear ()
   mNum = 0; mMax = 0; mSize = 0;
 }
 
+
 int DataPtr::getStride ( uchar dtype )
 {
   int bpp = dtype;
   switch (dtype) {
-  case DT_UCHAR:  bpp = 1; break;
-  case DT_UCHAR3:  bpp = 3; break;
-  case DT_USHORT3: bpp = 6; break;
-  case DT_UCHAR4:  bpp = 4; break;
-  case DT_USHORT: bpp = 2; break;
-  case DT_UINT:  bpp = 4; break;
-  case DT_FLOAT:  bpp = 4; break;
-  case DT_FLOAT4:  bpp = 16; break;
+  case DT_UCHAR:    bpp = 1; break;
+  case DT_UCHAR3:   bpp = 3; break;
+  case DT_USHORT3:  bpp = 6; break;
+  case DT_UCHAR4:   bpp = 4; break;
+  case DT_USHORT:   bpp = 2; break;
+  case DT_UINT:     bpp = 4; break;
+  case DT_UINT64:   bpp = 8; break;
+  case DT_FLOAT:    bpp = 4; break;
+  case DT_FLOAT4:   bpp = 16; break;
   };
   return bpp;
 }
+
 
 void DataPtr::SetUsage ( uchar dt, uchar flags, int rx, int ry, int rz )
 {
