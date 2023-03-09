@@ -53,7 +53,6 @@
 
 #include "belief_propagation.h"
 
-
 // AllocBuf -- new allocation function
 // 
 // supports multi-dimensional data of any type
@@ -4364,6 +4363,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   float _eps = m_eps_zero;
   Vector3DI jp;
+
 
   while (still_culling) {
 
