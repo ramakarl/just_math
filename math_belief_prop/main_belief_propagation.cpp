@@ -49,7 +49,7 @@
 
 extern char *optarg;
 
-opt_t g_opt;
+//opt_t g_opt;
 
 
 
@@ -477,7 +477,7 @@ void show_version(FILE *fp) {
 }
 
 int main(int argc, char **argv) {
-  int i, j, k, idx, ret;
+  int i, j, k, idx, ret=0;
   char ch;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
@@ -715,7 +715,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
+  ret = init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
