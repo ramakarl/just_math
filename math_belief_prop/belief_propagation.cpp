@@ -54,17 +54,6 @@
 #include "belief_propagation.h"
 
 
-//---- belief prop buffers
-// vector alloc (h and g)P
-//
-void BeliefPropagation::AllocBPVec (int id, int cnt) {
-
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
-
 // AllocBuf -- new allocation function
 // 
 // supports multi-dimensional data of any type
@@ -95,100 +84,11 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
   memset( (void *) (m_buf[id].getPtr(0)), 0, sz );
 }
 
+void BeliefPropagation::ZeroBuf ( int id ) {
 
-
-void BeliefPropagation::ZeroBPVec (int id ) {
-  m_buf[id].FillBuffer ( 0 );
+    m_buf[id].FillBuffer ( 0 );
 }
 
-// allocate message matrix mu
-// belief matrix alloc (mu)
-//
-void BeliefPropagation::AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals) {
-  // NOTE: matrix is stored sparesly.
-  // full matrix: mem=D*D*B, mu{D->D}[B] is full vertex-to-vertex messages over values B,
-  // where D=R^3, e.g. D=64^3, B=4, mem=262144^2*4 floats= 1 terabyte
-  //
-  // sparse mtrx: mem=6*D*B, mu{6->D}[B] since only 6x neigbors are non-zero in 3D. explicitly index those six.
-  // final: mem = 6*D*B, e.g. D=64^3, B=4, mem=6*262144*4 floats = 25 megabytes
-  //
-  uint64_t cnt = nbrs * verts * vals;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
-
-// residual bp matrix allocation
-//
-void BeliefPropagation::AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals) {
-  uint64_t cnt = nbrs * verts * vals;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( sizeof(int64_t), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
-
-
-// belief value mapping (f)
-//
-void BeliefPropagation::AllocBPMap (int id, int nbrs, int vals) {
-  uint64_t cnt = vals * vals * nbrs;    // size B*B*6
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-
-  m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
-
-// belief value mapping (f)
-//
-void BeliefPropagation::AllocTileIdx(int id, int nvert, int nval) {
-  uint64_t cnt = nvert * nval ;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( sizeof(int32_t), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(int32_t)*cnt);
-}
-
-// belief value mapping (f)
-//
-void BeliefPropagation::AllocTileIdxN(int id, int nval) {
-  uint64_t cnt = nval ;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-  m_buf[id].Resize( sizeof(int32_t), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(int32_t)*cnt);
-}
-
-void BeliefPropagation::AllocVeci32(int id, int nval) {
-  uint64_t cnt = nval;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-
-  m_buf[id].Resize( sizeof(int32_t), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(int32_t)*cnt);
-}
-
-void BeliefPropagation::AllocVeci32(int id, int nval, int b) {
-  uint64_t cnt = nval*b;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-
-  m_buf[id].Resize( sizeof(int32_t), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(int32_t)*cnt);
-}
-
-/*
-void BeliefPropagation::AllocSVD(int id, int idir, int tile_a, int tile_b) {
-  uint64_t cnt = idir*tile_a*tile_b;
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
-
-  m_buf[id].Resize( sizeof(float), cnt, 0x0, flags );
-
-  memset( (void *)(m_buf[id].getPtr(0)), 0, sizeof(float)*cnt);
-}
-*/
 
 //---
 
@@ -248,62 +148,61 @@ void BeliefPropagation::ConstructStaticBufs ()
     //-- Construct F
     int B;
     B = m_num_values;
-    AllocBPMap ( BUF_F, 6, B );
-    memset( m_buf[BUF_F].getData(), 0, 6*B*B*sizeof(float) );
-
+    AllocBuf ( BUF_F, 'f', B, B, 6 );
+    
     //-- Construct G
-    AllocBPVec ( BUF_G, m_num_values );
+    AllocBuf ( BUF_G, 'f', m_num_values );
     float weight = 1.0 / m_num_values;
     for (int a=0; a < m_num_values; a++ ) {
-        SetVal ( BUF_G, a, weight );
+        SetValF ( BUF_G, a, weight );
     }
 
     //-- Construct H
-    AllocBPVec ( BUF_H, m_num_values );
+    AllocBuf ( BUF_H, 'f', m_num_values );
 
 }
 
 void BeliefPropagation::ConstructDynamicBufs () {
 
   //-- Construct MU
-  AllocBPMtx ( BUF_MU, 6, m_num_verts, m_num_values );
-  AllocBPMtx ( BUF_MU_NXT, 6, m_num_verts, m_num_values );  
+  AllocBuf ( BUF_MU, 'f', 6, m_num_values, m_num_verts );
+  AllocBuf ( BUF_MU, 'f', 6, m_num_values, m_num_verts );  
 
   //-- Construct TILE_IDX
-  AllocVeci32( BUF_TILE_IDX, m_num_verts * m_num_values );
-  AllocVeci32( BUF_TILE_IDX_N, m_num_verts );
+  AllocBuf ( BUF_TILE_IDX,   'i', m_num_values, m_num_verts );
+  AllocBuf ( BUF_TILE_IDX_N, 'i', m_num_verts );
 
   // initialize to all tiles per vertex
   for (int i=0; i<m_num_verts; i++) {
-    SetVali( BUF_TILE_IDX_N, i, m_num_values );
-    for (int j=0; j<m_num_values; j++) {
-      SetVali( BUF_TILE_IDX, i, j, (int32_t)j );
+    SetValI ( BUF_TILE_IDX_N, m_num_values, i );  // i = num_vals
+    for (int b=0; b<m_num_values; b++) {
+      SetValI ( BUF_TILE_IDX, b, b, i );          // <b,i> = b
     }
   }
 
   //-- Construct Residual BP buffers
   //
-  AllocBPMtx ( BUF_RESIDUE_HEAP, 6, m_num_verts, m_num_values );
-  AllocBPMtx_i64 ( BUF_RESIDUE_HEAP_CELL_BP, 6, m_num_verts, m_num_values );
-  AllocBPMtx_i64 ( BUF_RESIDUE_CELL_HEAP, 6, m_num_verts, m_num_values );
+  AllocBuf ( BUF_RESIDUE_HEAP,          'f', 6 * m_num_verts * m_num_values );
+  AllocBuf ( BUF_RESIDUE_HEAP_CELL_BP,  'l', 6 * m_num_verts * m_num_values );
+  AllocBuf ( BUF_RESIDUE_CELL_HEAP,     'l', 6 * m_num_verts * m_num_values );
 
   RandomizeMU ();
 
 }
 
-int BeliefPropagation::ConstructTempBufs ()
+void BeliefPropagation::ConstructTempBufs ()
 {
     //-- Construct belief
-    AllocBPVec( BUF_BELIEF, m_num_values );
+    AllocBuf ( BUF_BELIEF, 'f', m_num_values );
 
     //-- Construct viz
-    AllocViz ( BUF_VIZ, m_num_verts );
+    AllocBuf ( BUF_VIZ, 'f', m_num_verts );
 
     //-- Construct TILE buf
-    Alloc ( BUF_VIZ, m_num_verts );
+    AllocBuf ( BUF_TILES, 'i', m_num_verts );    
 
     //-- Construct C (constraint count) buf
-
+    AllocBuf ( BUF_C, 'i', m_num_verts );
 
 }
 
@@ -311,22 +210,17 @@ void BeliefPropagation::ConstructSVDBufs () {
 
     int B = m_num_values;
     
-    AllocBPMap( BUF_SVD_U, 6, B );
-    memset( m_buf[BUF_SVD_U].getData(), 0, 6*B*B*sizeof(float) );
-
-    AllocBPMap( BUF_SVD_Vt, 6, B );
-    memset( m_buf[BUF_SVD_Vt].getData(), 0, 6*B*B*sizeof(float) );
-
-    AllocBPVec( BUF_SVD_VEC, B );
-
+    AllocBuf ( BUF_SVD_U,   'f', B, B, 6 );
+    AllocBuf ( BUF_SVD_Vt,  'f', B, B, 6 );    
+    AllocBuf ( BUF_SVD_VEC, 'f', B );
 }
 
 
 void BeliefPropagation::ConstructConstraintBufs() {
 
-  AllocVeci32( BUF_VISITED, m_num_verts );
+  AllocBuf ( BUF_VISITED, 'l', m_num_verts );
 
-  AllocVeci32( BUF_NOTE, 2, m_num_verts );
+  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
 
   m_note_n[0] = 0;
   m_note_n[1] = 0;
@@ -356,7 +250,7 @@ void BeliefPropagation::RandomizeMU () {
 
         // randomize MU
         //
-        SetVal( BUF_MU, jnbr, j, a, w );
+        SetValF( BUF_MU, (w), jnbr, a, j );
       }
     }
   }
@@ -374,18 +268,18 @@ void BeliefPropagation::ComputeDiffMUField () {
 
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
-      n_a = getVali( BUF_TILE_IDX_N, j );
+      n_a = getValI( BUF_TILE_IDX_N, j );
 
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, j, a_idx );
-        v0 = getVal( BUF_MU, in, j, a );
-        v1 = getVal( BUF_MU_NXT, in, j, a );
+        a = getValI( BUF_TILE_IDX, a_idx, j );
+        v0 = getValF( BUF_MU, in, a, j );
+        v1 = getValF( BUF_MU_NXT, in, a, j );
 
         d = fabs(v0-v1);
         if (d > max_diff) { max_diff = d; }
       }
     }
-    SetVal ( BUF_VIZ, j, max_diff );
+    SetValF ( BUF_VIZ, max_diff, j );
 
   }
  }
@@ -402,14 +296,15 @@ int BeliefPropagation::getMaxBeliefTile ( uint64_t j ) {
   b = 0;
   maxb = 0;
   maxtv = 0;
-  tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+  tile_idx_n= getValI( BUF_TILE_IDX_N, j );
 
   if ( tile_idx_n > 1 ) {
 
     for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
-      tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
 
-      b = getVal (BUF_BELIEF, tile_val );
+      tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
+
+      b = getValF (BUF_BELIEF, tile_val );
 
       if ( b > maxb) {
         maxb = b;
@@ -435,21 +330,20 @@ void BeliefPropagation::ComputeBeliefField () {
     // walk the tile vals to get max belief
     b = 0;
     maxb = 0;
-    tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+    tile_idx_n= getValI( BUF_TILE_IDX_N, j );
 
     if ( tile_idx_n > 1 ) {
 
       for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
-        tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+        tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
 
-        b = getVal (BUF_BELIEF, tile_val );
+        b = getValF (BUF_BELIEF, tile_val );
         if ( b > maxb) maxb = b;
       }
     }
 
     // set max belief for this vertex
-    SetVal( BUF_VIZ, j, maxb );
-    
+    SetValF( BUF_VIZ, maxb, j );
 
   }
 }
@@ -470,12 +364,12 @@ float BeliefPropagation::MaxDiffMU () {
 
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
-      n_a = getVali( BUF_TILE_IDX_N, j );
+      n_a = getValI ( BUF_TILE_IDX_N, j );
 
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, j, a_idx );
-        v0 = getVal( BUF_MU, in, j, a );
-        v1 = getVal( BUF_MU_NXT, in, j, a );
+        a = getValI ( BUF_TILE_IDX, a_idx, j );
+        v0 = getValF ( BUF_MU, in, j, a );
+        v1 = getValF ( BUF_MU_NXT, in, j, a );
 
         d = fabs(v0-v1);
         if (d > max_diff) { max_diff = d; }
@@ -499,11 +393,11 @@ float BeliefPropagation::MaxDiffMUCellTile (float *max_diff, int64_t *max_cell, 
   for (int j=0; j < m_num_verts; j++) {
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, in);
-      n_a = getVali( BUF_TILE_IDX_N, j );
+      n_a = getValI ( BUF_TILE_IDX_N, j );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, j, a_idx );
-        v0 = getVal( BUF_MU, in, j, a );
-        v1 = getVal( BUF_MU_NXT, in, j, a );
+        a = getValI ( BUF_TILE_IDX, a_idx, j );
+        v0 = getValF ( BUF_MU, in, a, j );
+        v1 = getValF ( BUF_MU_NXT, in, a, j );
 
         d = fabs(v0-v1);
         if (_max_diff < d) {
@@ -525,6 +419,7 @@ float BeliefPropagation::MaxDiffMUCellTile (float *max_diff, int64_t *max_cell, 
 }
 
 void BeliefPropagation::NormalizeMU () { NormalizeMU( BUF_MU ); }
+
 void BeliefPropagation::NormalizeMU (int id) {
   int i=0, n_a=0, a=0;
   float v=0, sum=0;
@@ -537,26 +432,26 @@ void BeliefPropagation::NormalizeMU (int id) {
       sum = 0;
 
       if (i==-1) {
-        n_a = getVali( BUF_TILE_IDX_N, j );
+        n_a = getValI ( BUF_TILE_IDX_N, j );
         for (int a_idx=0; a_idx<n_a; a_idx++) {
-          a = getVali( BUF_TILE_IDX, j, a_idx );
-          SetVal( id, in, j, a, 1.0 );
+          a = getValI ( BUF_TILE_IDX, a_idx, j );
+          SetValF ( id, 1.0, in, a, j );
         }
       }
 
-      n_a = getVali( BUF_TILE_IDX_N, j );
+      n_a = getValI ( BUF_TILE_IDX_N, j );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, j, a_idx );
-        sum += getVal( id, in, j, a );
+        a = getValI ( BUF_TILE_IDX, a_idx, j );
+        sum += getValF( id, in, a, j );
       }
 
       if ( sum > 0 ) {
-        n_a = getVali( BUF_TILE_IDX_N, j );
+        n_a = getValI ( BUF_TILE_IDX_N, j );
         for (int a_idx=0; a_idx<n_a; a_idx++) {
-          a = getVali( BUF_TILE_IDX, j, a_idx );
+          a = getValI ( BUF_TILE_IDX, a_idx, j );
 
-          v = getVal( id, in, j, a );
-          SetVal( id, in, j, a, v / sum);
+          v = getValF( id, in, a, j );
+          SetValF( id, (v / sum), in, a, j );
         }
       }
 
@@ -577,34 +472,34 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
     sum = 0;
 
     if (i==-1) {
-      n_a = getVali( BUF_TILE_IDX_N, cell );
+      n_a = getValI ( BUF_TILE_IDX_N, cell );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, cell, a_idx );
-        SetVal( buf_id, in, cell, a, 1.0 );
+        a = getValI ( BUF_TILE_IDX, a_idx, cell );
+        SetValF( buf_id, 1.0, in, a, cell );
 
-        mu_cur_val = getVal( BUF_MU,      in, cell, a );
-        mu_nxt_val = getVal( BUF_MU_NXT,  in, cell, a );
+        mu_cur_val = getValF( BUF_MU,      in, a, cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  in, a, cell );
         indexHeap_update_mu_pos( in, cell, a, fabs(mu_cur_val - mu_nxt_val) );
 
       }
     }
 
-    n_a = getVali( BUF_TILE_IDX_N, cell );
+    n_a = getValI( BUF_TILE_IDX_N, cell );
     for (int a_idx=0; a_idx<n_a; a_idx++) {
-      a = getVali( BUF_TILE_IDX, cell, a_idx );
-      sum += getVal( buf_id, in, cell, a );
+      a = getValI( BUF_TILE_IDX, a_idx, cell );
+      sum += getValF ( buf_id, in, a, cell );
     }
 
     if ( sum > 0 ) {
-      n_a = getVali( BUF_TILE_IDX_N, cell );
+      n_a = getValI( BUF_TILE_IDX_N, cell );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
-        a = getVali( BUF_TILE_IDX, cell, a_idx );
+        a = getValI( BUF_TILE_IDX, a_idx, cell );
 
-        v = getVal( buf_id, in, cell, a );
-        SetVal( buf_id, in, cell, a, v / sum);
+        v = getValF( buf_id, in, a, cell );
+        SetValF( buf_id, (v / sum), in, a, cell );
 
-        mu_cur_val = getVal( BUF_MU,      in, cell, a );
-        mu_nxt_val = getVal( BUF_MU_NXT,  in, cell, a );
+        mu_cur_val = getValF( BUF_MU,      in, a, cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  in, a, cell );
         indexHeap_update_mu_pos( in, cell, a, fabs(mu_cur_val - mu_nxt_val) );
 
       }
@@ -643,17 +538,17 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
 
     switch (m_viz_opt) {
     case VIZ_MU:
-        f = getVal ( BUF_MU, v );
+        f = getValF ( BUF_VIZ, v );
         s = Vector4DF(f,f,f,f);
         break;
     case VIZ_DMU:
         // dmu written into viz by ComputeDiffMU
-        f = getVal ( BUF_VIZ, v );
+        f = getValF ( BUF_VIZ, v );
         f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
         s = Vector4DF(f,f,f,f);
         break;
     case VIZ_BELIEF:
-        f = getVal ( BUF_VIZ, v );
+        f = getValF ( BUF_VIZ, v );
         s = Vector4DF(f,f,f,f);
         break;
     }
@@ -688,7 +583,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
   rate = m_rate;
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
 
   // 6 neighbors of j in 3D
   //
@@ -701,11 +596,11 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
     //
     if (anch_tile_idx_n <= 1) {
       if (anch_tile_idx_n == 1) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, 0, anch_cell );
+        SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell  );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell );
 
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -715,11 +610,11 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
     if (nei_cell == -1) {
 
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell  );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell );
 
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -731,20 +626,20 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
     // compute message from `nei` to `anch` for each a..
     // we're skipping some tiles, so zero out H
     //
-    for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
+    for (d=0; d<m_num_values; d++) { SetValF (BUF_H, 0, d); }
 
-    nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+    nei_tile_idx_n = getValI ( BUF_TILE_IDX_N, nei_cell );
 
     // pathological condition
     // * neighbor cell has 0 values (error) or only 1
     //
     if (nei_tile_idx_n <= 1) {
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell  );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell );
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell );
 
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -757,14 +652,14 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
 
     for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
-      nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
+      nei_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
       // first compute Hij_t
       // initialize Hij(a) = gi(a)
       //
-      H_ij_a = getVal(BUF_G, nei_tile);
+      H_ij_a = getValF (BUF_G, nei_tile);
 
-      float *currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+      float *currMu = (float*) getPtr (BUF_MU, 0, nei_tile, nei_cell );
 
       for (nei_in_idx=0; nei_in_idx < getNumNeighbors(nei_cell); nei_in_idx++ ) {
         _neinei_cell = getNeighbor(nei_cell, nei_in_idx);
@@ -773,7 +668,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         currMu++;
       }
 
-      SetVal (BUF_H, nei_tile, H_ij_a);
+      SetValF (BUF_H, H_ij_a, nei_tile );
 
     }
 
@@ -781,13 +676,13 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
     // b = rows in f{ij}(a,b), also elements of mu(b)/
     //
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
       u_nxt_b = 0.0;
       nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
 
-      float* currH = getPtr(BUF_H, 0);
-      float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
+      float* currH = (float*) getPtr (BUF_H);
+      float* currF = (float*) getPtr (BUF_F, 0, anch_tile, nei_to_anch_dir_idx);    // <B, B, 6>
 
       for (d=0; d < m_num_values; d++) {
         u_nxt_b += (*currF) * (*currH);
@@ -796,16 +691,16 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         currH++;
       }
 
-      u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
+      u_prev_b = getValF (BUF_MU, anch_in_idx, anch_tile, anch_cell );
 
       du = u_nxt_b - u_prev_b;
 
       if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
 
-      SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
+      SetValF (BUF_MU_NXT, (u_prev_b + du*rate), anch_in_idx, anch_tile, anch_cell );
 
-      mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-      mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+      mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell );
+      mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell );
 
       indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
 
@@ -835,9 +730,9 @@ void BeliefPropagation::WriteBoundaryMU () {
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
         jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 1, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 1, tile, j );
         jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 0, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 0, tile, j );
       }
     }
 
@@ -846,10 +741,10 @@ void BeliefPropagation::WriteBoundaryMU () {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.y = 0;
         j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 3, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 3, tile, j );
         jp.y = m_bpres.y-1;
         j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 2, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 2, tile, j );
       }
     }
 
@@ -859,10 +754,10 @@ void BeliefPropagation::WriteBoundaryMU () {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.z = 0;
         j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 5, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 5, tile, j );
         jp.z = m_bpres.z-1;
         j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( BUF_MU, 4, j, tile, 1.0f );
+        SetValF ( BUF_MU, 1.0f, 4, tile, j );
       }
     }
   }
@@ -890,15 +785,13 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
       for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
         jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 1, j, tile );
-        SetVal( dst_id, 1, j, tile, v );
+        v = getValF ( src_id, 1, tile, j );
+        SetValF ( dst_id, v, 1, tile, j );
 
-        //SetVal ( BUF_MU, 1, j, tile, 1.0f );
         jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 0, j, tile );
-        SetVal( dst_id, 0, j, tile, v );
-        //SetVal ( BUF_MU, 0, j, tile, 1.0f );
+        v = getValF ( src_id, 0, tile, j );
+        SetValF ( dst_id, v, 0, tile, j );        
       }
     }
 
@@ -907,15 +800,13 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 3, j, tile );
-        SetVal( dst_id, 3, j, tile, v );
-        //SetVal ( BUF_MU, 3, j, tile, 1.0f );
+        v = getValF ( src_id, 3, tile, j );
+        SetValF ( dst_id, v, 3, tile, j );        
 
         jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 2, j, tile );
-        SetVal( dst_id, 2, j, tile, v );
-        //SetVal ( BUF_MU, 2, j, tile, 1.0f );
+        v = getValF ( src_id, 2, tile, j );
+        SetValF ( dst_id, v, 2, tile, j );        
       }
     }
 
@@ -925,15 +816,13 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 5, j, tile );
-        SetVal( dst_id, 5, j, tile, v );
-        //SetVal ( BUF_MU, 5, j, tile, 1.0f );
+        v = getValF ( src_id, 5, tile, j );
+        SetValF ( dst_id, v, 5, tile, j );        
 
         jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
 
-        v = getVal( src_id, 4, j, tile );
-        SetVal( dst_id, 4, j, tile, v );
-        //SetVal ( BUF_MU, 4, j, tile, 1.0f );
+        v = getValF ( src_id, 4, tile, j );
+        SetValF ( dst_id, v, 4, tile, j );        
       }
     }
   }
@@ -960,9 +849,9 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
         jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 1, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 1, tile, j );
         jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 0, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 0, tile, j );
       }
     }
 
@@ -970,9 +859,9 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 3, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 3, tile, j );
         jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 2, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 2, tile, j );
       }
     }
 
@@ -981,9 +870,9 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
         jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 5, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 5, tile, j );
         jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetVal ( buf_id, 4, j, tile, 1.0f );
+        SetValF ( buf_id, 1.0f, 4, tile, j );
       }
     }
   }
@@ -1018,7 +907,7 @@ float BeliefPropagation::BeliefProp_svd () {
   //
   for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
     jp = getVertexPos(anch_cell);
 
     if (m_use_checkerboard) {
@@ -1026,9 +915,9 @@ float BeliefPropagation::BeliefProp_svd () {
       if (odd_even_cell==0) {
         for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
           for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-            anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-            mu_val = getVal( BUF_MU, anch_in_idx, anch_cell, anch_tile );
-            SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, mu_val );
+            anch_tile = getValI ( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+            mu_val = getValF( BUF_MU, anch_in_idx, anch_tile, anch_cell );
+            SetValF ( BUF_MU_NXT, (mu_val), anch_in_idx, anch_tile, anch_cell );
           }
         }
         continue;
@@ -1046,15 +935,15 @@ float BeliefPropagation::BeliefProp_svd () {
       //
       if (anch_tile_idx_n <= 1) {
         if (anch_tile_idx_n == 1) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI ( BUF_TILE_IDX, anch_cell );
+          SetValF( BUF_MU_NXT, (1.0), anch_in_idx, anch_tile, anch_cell );
         }
         continue;
       }
       if (nei_cell == -1) {
         for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI ( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          SetValF( BUF_MU_NXT, (1.0), anch_in_idx, anch_tile, anch_cell );
         }
         continue;
       }
@@ -1062,17 +951,17 @@ float BeliefPropagation::BeliefProp_svd () {
       // compute message from `nei` to `anch` for each a..
       // we're skipping some tiles, so zero out H
       //
-      for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
+      for (d=0; d<m_num_values; d++) { SetValF (BUF_H, 0.0, d ); }
 
-      nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+      nei_tile_idx_n = getValI ( BUF_TILE_IDX_N, nei_cell );
 
       // pathological condition
       // * neighbor cell has 0 values (error) or only 1
       //
       if (nei_tile_idx_n <= 1) {
         for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          SetValF( BUF_MU_NXT, (1.0), anch_in_idx, anch_tile, anch_cell );
         }
         continue;
       }
@@ -1085,58 +974,33 @@ float BeliefPropagation::BeliefProp_svd () {
       // process all tiles for current nei_cell
       for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
-        nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
+        nei_tile = getValI( BUF_TILE_IDX, nei_tile_idx, nei_cell );
 
         // first compute Hij_t
         // initialize Hij(a) = gi(a)
         //
-        H_ij_a = getVal(BUF_G, nei_tile);
+        H_ij_a = getValF (BUF_G, nei_tile);
 
         // starting MU for nei_cell and tile
-        float* currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+        float* currMu = (float*) getPtr (BUF_MU, 0, nei_tile, nei_cell);
 
         // inner loop over neighbors of nei_cell
         for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
 
-          // compute: Hij(a) = gi(a) * PROD mu{ki}_a
-
-          #ifdef OPT_MUBOUND
+            // compute: Hij(a) = gi(a) * PROD mu{ki}_a
+          
             // Optimized:
             // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
             // - Use direction instead of cell pos to eliminate anchor cell
-
-            #ifdef OPT_MUPTR
-              // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
-              if (nei_in_idx != nei_in_ignore) {
+            // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
+            if (nei_in_idx != nei_in_ignore) {
                 H_ij_a *= *currMu;
-              }
-              currMu++;
-            #else
-              if (nei_in_idx != nei_in_ignore) {
-                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-              }
-            #endif
-
-          #else
-            // Non-Optimized Bound:
-            // - Original bounds check /w getNeighbor
-            _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
-
-            #ifdef OPT_MUPTR
-              // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
-              if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-                H_ij_a *= *currMu;
-              }
-              currMu++;
-            #else
-              if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
-              }
-            #endif
-          #endif
+            }
+            currMu++;
+           
         }
 
-        SetVal (BUF_H, nei_tile, H_ij_a);
+        SetValF (BUF_H, H_ij_a, nei_tile );
       }
 
 
@@ -1144,7 +1008,7 @@ float BeliefPropagation::BeliefProp_svd () {
       //--- ***************
       //--- ***************
 
-      for (d=0; d < m_num_values; d++) { SetVal( BUF_SVD_VEC, d, 0.0); }
+      for (d=0; d < m_num_values; d++) { SetValF( BUF_SVD_VEC, 0.0, d); }
 
 #ifdef BPC_SVD_NAIVE
       for (r=0; r<m_svd_nsv[anch_in_idx]; r++) {
@@ -1176,24 +1040,24 @@ float BeliefPropagation::BeliefProp_svd () {
         //}
 
         for (c=0; c < m_num_values; c++) {
-          u_nxt_b += getValF( BUF_SVD_Vt, r, c, anch_in_idx ) * getVal( BUF_H, c );
+          u_nxt_b += getValF( BUF_SVD_Vt, r, c, anch_in_idx ) * getValF( BUF_H, c );
         }
 
-        SetVal( BUF_SVD_VEC, r, u_nxt_b );
+        SetValF ( BUF_SVD_VEC, u_nxt_b , r );
       }
 
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
         u_nxt_b = 0.0;
         for (c=0; c < m_svd_nsv[anch_in_idx]; c++) {
-          u_nxt_b += getValF( BUF_SVD_U, anch_tile, c, anch_in_idx ) * getVal( BUF_SVD_VEC, c );
+          u_nxt_b += getValF( BUF_SVD_U, anch_tile, c, anch_in_idx ) * getValF( BUF_SVD_VEC, c );
         }
 
-        u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
+        u_prev_b = getValF (BUF_MU, anch_in_idx,  anch_tile, anch_cell );
         du = u_nxt_b - u_prev_b;
         if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
-        SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
+        SetValF (BUF_MU_NXT, (u_prev_b + du*rate), anch_in_idx, anch_tile, anch_cell );
       }
 #endif
 
@@ -1288,7 +1152,7 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
 
   Vector3DI jp;
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   jp = getVertexPos(anch_cell);
 
   // 6 neighbors of j in 3D
@@ -1302,22 +1166,22 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
     //
     if (anch_tile_idx_n <= 1) {
       if (anch_tile_idx_n == 1) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, anch_cell, 0 );
+        SetValF( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell);
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell);
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
       }
       continue;
     }
     if (nei_cell == -1) {
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        SetValF( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell);
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell);
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
       }
       continue;
@@ -1326,20 +1190,20 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
     // compute message from `nei` to `anch` for each a..
     // we're skipping some tiles, so zero out H
     //
-    for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
+    for (d=0; d<m_num_values; d++) { SetValF(BUF_H, 0.0, d); }
 
-    nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+    nei_tile_idx_n = getValI( BUF_TILE_IDX_N, nei_cell );
 
     // pathological condition
     // * neighbor cell has 0 values (error) or only 1
     //
     if (nei_tile_idx_n <= 1) {
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        SetValF( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell );
 
-        mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-        mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+        mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell);
+        mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell);
         indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
       }
       continue;
@@ -1357,16 +1221,16 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
     //
     for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
-      nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
+      nei_tile = getValI( BUF_TILE_IDX, nei_tile_idx, nei_cell );
 
       // first compute Hij_t
       // initialize Hij(a) = gi(a)
       //
-      H_ij_a = getVal(BUF_G, nei_tile);
+      H_ij_a = getValF(BUF_G, nei_tile);
 
       // starting MU for nei_cell and tile
       //
-      float* currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+      float* currMu = (float*) getPtr (BUF_MU, 0, nei_tile, nei_cell );
 
       // inner loop over neighbors of nei_cell
       //
@@ -1386,7 +1250,7 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
 
       }
 
-      SetVal (BUF_H, nei_tile, H_ij_a);
+      SetValF (BUF_H, (H_ij_a), nei_tile );
     }
 
 
@@ -1394,33 +1258,33 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
     //--- ***************
     //--- ***************
 
-    for (d=0; d < m_num_values; d++) { SetVal( BUF_SVD_VEC, d, 0.0); }
+    for (d=0; d < m_num_values; d++) { SetValF( BUF_SVD_VEC, 0.0, d); }
 
     for (r=0; r < m_svd_nsv[anch_in_idx]; r++) {
       u_nxt_b = 0.0;
 
       for (c=0; c < m_num_values; c++) {
-        u_nxt_b += getValF( BUF_SVD_Vt, r, c, anch_in_idx ) * getVal( BUF_H, c );
+        u_nxt_b += getValF( BUF_SVD_Vt, r, c, anch_in_idx ) * getValF( BUF_H, c );
       }
 
-      SetVal( BUF_SVD_VEC, r, u_nxt_b );
+      SetValF( BUF_SVD_VEC, r, u_nxt_b );
     }
 
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
       u_nxt_b = 0.0;
       for (c=0; c < m_svd_nsv[anch_in_idx]; c++) {
-        u_nxt_b += getValF( BUF_SVD_U, anch_tile, c, anch_in_idx ) * getVal( BUF_SVD_VEC, c );
+        u_nxt_b += getValF( BUF_SVD_U, anch_tile, c, anch_in_idx ) * getValF( BUF_SVD_VEC, c );
       }
 
-      u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
+      u_prev_b = getValF (BUF_MU, anch_in_idx, anch_tile, anch_cell );
       du = u_nxt_b - u_prev_b;
       if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
-      SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
+      SetValF (BUF_MU_NXT, (u_prev_b + du*rate), anch_in_idx, anch_tile, anch_cell );
 
-      mu_cur_val = getVal( BUF_MU,      anch_in_idx, anch_cell, anch_tile );
-      mu_nxt_val = getVal( BUF_MU_NXT,  anch_in_idx, anch_cell, anch_tile );
+      mu_cur_val = getValF( BUF_MU,      anch_in_idx, anch_tile, anch_cell );
+      mu_nxt_val = getValF( BUF_MU_NXT,  anch_in_idx, anch_tile, anch_cell );
       indexHeap_update_mu_pos( anch_in_idx, anch_cell, anch_tile, fabs(mu_cur_val - mu_nxt_val) );
     }
 
@@ -1470,9 +1334,11 @@ float BeliefPropagation::BeliefProp () {
         for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
 
           for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-            anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-            mu_val = getVal( BUF_MU, anch_in_idx, anch_cell, anch_tile );
-            SetVal ( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, mu_val );
+            anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+
+            mu_val = getValF( BUF_MU, anch_in_idx, anch_tile, anch_cell );
+
+            SetValF ( BUF_MU_NXT, (mu_val), anch_in_idx, anch_tile, anch_cell );
           }
         }
         continue;
@@ -1492,15 +1358,15 @@ float BeliefPropagation::BeliefProp () {
       //
       if (anch_tile_idx_n <= 1) {
         if (anch_tile_idx_n == 1) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, 0 );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI( BUF_TILE_IDX, anch_cell );
+          SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell);
         }
         continue;
       }
       if (nei_cell == -1) {
         for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell);
         }
         continue;
       }
@@ -1508,17 +1374,17 @@ float BeliefPropagation::BeliefProp () {
       // compute message from `nei` to `anch` for each a..
       // we're skipping some tiles, so zero out H
       //
-      for (d=0; d<m_num_values; d++) { SetVal(BUF_H, d, 0); }
+      for (d=0; d<m_num_values; d++) { SetValF (BUF_H, 0.0, d); }
 
-      nei_tile_idx_n = getVali( BUF_TILE_IDX_N, nei_cell );
+      nei_tile_idx_n = getValI( BUF_TILE_IDX_N, nei_cell );
 
       // pathological condition
       // * neighbor cell has 0 values (error) or only 1
       //
       if (nei_tile_idx_n <= 1) {
         for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-          anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-          SetVal( BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, 1.0 );
+          anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          SetValF ( BUF_MU_NXT, 1.0, anch_in_idx, anch_tile, anch_cell);
         }
         continue;
       }
@@ -1531,15 +1397,15 @@ float BeliefPropagation::BeliefProp () {
       // process all tiles for current nei_cell
       for (nei_tile_idx=0; nei_tile_idx < nei_tile_idx_n; nei_tile_idx++) {
 
-        nei_tile = getVali( BUF_TILE_IDX, nei_cell, nei_tile_idx );
+        nei_tile = getValI ( BUF_TILE_IDX, nei_tile_idx, nei_cell );
 
         // first compute Hij_t
         // initialize Hij(a) = gi(a)
         //
-        H_ij_a = getVal(BUF_G, nei_tile);
+        H_ij_a = getValF( BUF_G, nei_tile );
 
         // starting MU for nei_cell and tile
-        float* currMu = getPtr(BUF_MU, 0, nei_cell, nei_tile);
+        float* currMu = (float*) getPtr (BUF_MU, 0, nei_tile, nei_cell );
 
         // inner loop over neighbors of nei_cell
         for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
@@ -1559,7 +1425,7 @@ float BeliefPropagation::BeliefProp () {
               currMu++;
             #else
               if (nei_in_idx != nei_in_ignore) {
-                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
+                H_ij_a *= getValF(BUF_MU, nei_in_idx, nei_tile, nei_cell );
               }
             #endif
 
@@ -1576,13 +1442,13 @@ float BeliefPropagation::BeliefProp () {
               currMu++;
             #else
               if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
-                H_ij_a *= getVal(BUF_MU, nei_in_idx, nei_cell, nei_tile);
+                H_ij_a *= getValF ( BUF_MU, nei_in_idx, nei_tile, nei_cell );
               }
             #endif
           #endif
         }
 
-        SetVal (BUF_H, nei_tile, H_ij_a);
+        SetValF (BUF_H, H_ij_a, nei_tile );
       }
 
 
@@ -1590,7 +1456,7 @@ float BeliefPropagation::BeliefProp () {
       // b = rows in f{ij}(a,b), also elements of mu(b)/
       //
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
         u_nxt_b = 0.0;
         nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
@@ -1600,8 +1466,8 @@ float BeliefPropagation::BeliefProp () {
 
         #ifdef OPT_FH
           // Optimized: F and H access using pointers
-          float* currH = getPtr(BUF_H, 0);
-          float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
+          float* currH = (float*) getPtr (BUF_H);
+          float* currF = (float*) getPtr (BUF_F, 0, anch_tile, nei_to_anch_dir_idx);    // <B, B, 6>
 
           for (d=0; d < m_num_values; d++) {
             u_nxt_b += (*currF) * (*currH);
@@ -1614,17 +1480,17 @@ float BeliefPropagation::BeliefProp () {
           for (d=0; d < m_num_values; d++) {
             // in orig code nei_to_arch_dir_idx computed here even though it is ok outside this loop
             nei_to_anch_dir_idx = m_dir_inv[anch_in_idx];
-            u_nxt_b += getValF(BUF_F, anch_tile, nei_to_anch_dir_idx, d) * getVal(BUF_H, d);
+            u_nxt_b += getValF(BUF_F, d, anch_tile, nei_to_anch_dir_idx ) * getVal(BUF_H, d);
           }
         #endif
 
-        u_prev_b = getVal(BUF_MU, anch_in_idx, anch_cell, anch_tile);
+        u_prev_b = getValF (BUF_MU, anch_in_idx, anch_tile, anch_cell );
 
         du = u_nxt_b - u_prev_b;
 
         if (max_diff < fabs(du)) { max_diff = (float)fabs(du); }
 
-        SetVal (BUF_MU_NXT, anch_in_idx, anch_cell, anch_tile, u_prev_b + du*rate );
+        SetValF (BUF_MU_NXT, (u_prev_b + du*rate), anch_in_idx, anch_tile, anch_cell  );
       }
     }
   }
@@ -1635,6 +1501,7 @@ float BeliefPropagation::BeliefProp () {
 // copy BUF_MU_NXT back to BUF_MU
 //
 void BeliefPropagation::UpdateMU () {
+
   float* mu_curr = (float*) m_buf[BUF_MU].getData();
   float* mu_next = (float*) m_buf[BUF_MU_NXT].getData();
 
@@ -1645,6 +1512,7 @@ void BeliefPropagation::UpdateMU () {
 //----
 
 void BeliefPropagation::cellUpdateBelief(int64_t anch_cell) {
+
   int64_t nei_cell=0;
   int32_t anch_tile=0, anch_tile_idx=0, anch_tile_idx_n=0;
   int dir_idx;
@@ -1656,36 +1524,40 @@ void BeliefPropagation::cellUpdateBelief(int64_t anch_cell) {
 
   Vector3DI jp = getVertexPos(anch_cell);
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
+
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-    SetVal( BUF_BELIEF, anch_tile, 1.0 );
+    SetValF( BUF_BELIEF, 1.0, anch_tile );
 
-    _b_i_t_a = getVal( BUF_G, anch_tile );
+    _b_i_t_a = getValF( BUF_G, anch_tile );
 
     for (dir_idx=0; dir_idx < getNumNeighbors(anch_cell); dir_idx++) {
       nei_cell = getNeighbor(anch_cell, dir_idx);
       if (nei_cell < 0) { continue; }
 
-      _b_i_t_a *= getVal( BUF_MU, dir_idx, anch_cell, anch_tile );
+      _b_i_t_a *= getValF ( BUF_MU, dir_idx, anch_tile, anch_cell );
     }
-    SetVal(BUF_BELIEF, anch_tile, _b_i_t_a);
-    sum += getVal( BUF_BELIEF, anch_tile);
+    SetValF (BUF_BELIEF, _b_i_t_a, anch_tile );
+
+    sum += getValF( BUF_BELIEF, anch_tile);
   }
 
   if (sum > _eps) {
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      _b_i_t_a = getVal( BUF_BELIEF, anch_tile ) / sum;
-      SetVal( BUF_BELIEF, anch_tile, _b_i_t_a );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+
+      _b_i_t_a = getValF( BUF_BELIEF, anch_tile ) / sum;
+      SetValF( BUF_BELIEF, _b_i_t_a, anch_tile );
     }
   }
   else {
     _b_i_t_a = 1.0 / (float) anch_tile_idx_n;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      SetVal( BUF_BELIEF, anch_tile, _b_i_t_a );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+
+      SetValF( BUF_BELIEF, _b_i_t_a, anch_tile );
     }
   }
 
@@ -1701,18 +1573,18 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
           anch_tile_idx_n,
           anch_tile ;
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   if (anch_tile_idx_n==0) { return -1; }
   //if (anch_tile_idx_n==1) { continue; }
 
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-    f = getVal( BUF_BELIEF, anch_tile );
+    f = getValF( BUF_BELIEF, anch_tile );
 
     if (m_verbose > 2) {
       printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
-          f, max_p, (int)anch_cell, (int)anch_tile, (int)anch_tile_idx);
+          f, max_p, (int) anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
 
     if ( max_p < f ) {
@@ -1734,14 +1606,14 @@ int BeliefPropagation::_pick_tile_min_belief(int64_t anch_cell, int64_t *max_cel
           anch_tile_idx_n,
           anch_tile ;
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   if (anch_tile_idx_n==0) { return -1; }
   //if (anch_tile_idx_n==1) { continue; }
 
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-    f = getVal( BUF_BELIEF, anch_tile );
+    f = getValF( BUF_BELIEF, anch_tile );
 
     if (m_verbose > 2) {
       printf("##### f: %f, min_p%f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
@@ -1767,7 +1639,7 @@ int BeliefPropagation::_pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int3
           anch_tile_idx_n,
           anch_tile ;
 
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   if (anch_tile_idx_n==0) { return -1; }
   //if (anch_tile_idx_n==1) { continue; }
 
@@ -1775,9 +1647,9 @@ int BeliefPropagation::_pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int3
 
   sum_p = 0.0;
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-    f = getVal( BUF_BELIEF, anch_tile );
+    f = getValF ( BUF_BELIEF, anch_tile );
     sum_p += f;
     if ( (sum_p > p) ||
          (anch_tile_idx == (anch_tile_idx_n-1)) ) {
@@ -1815,15 +1687,15 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
     _entropy_sum = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-      f = getVal( BUF_BELIEF, anch_tile );
+      f = getValF ( BUF_BELIEF, anch_tile );
       if (f > _eps) {
         _entropy_sum += -f*logf(f);
       }
@@ -1834,8 +1706,8 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
     if (m_verbose > 2) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        f = getVal( BUF_BELIEF, anch_tile );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        f = getValF ( BUF_BELIEF, anch_tile );
         printf(" (%i)%f", (int)anch_tile, f);
       }
       printf("\n");
@@ -1941,15 +1813,15 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
     _entropy_sum = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-      f = getVal( BUF_BELIEF, anch_tile );
+      f = getValF( BUF_BELIEF, anch_tile );
       if (f > _eps) {
         _entropy_sum += -f*logf(f);
       }
@@ -1960,8 +1832,8 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
     if (m_verbose > 2) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        f = getVal( BUF_BELIEF, anch_tile );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        f = getValF( BUF_BELIEF, anch_tile );
         printf(" (%i)%f", (int)anch_tile, f);
       }
       printf("\n");
@@ -2067,7 +1939,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
@@ -2075,8 +1947,8 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
     if (m_verbose > 2) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        f = getVal( BUF_BELIEF, anch_tile );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        f = getValF( BUF_BELIEF, anch_tile );
         printf(" (%i)%f", (int)anch_tile, f);
       }
       printf("\n");
@@ -2084,9 +1956,9 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
 
 
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-      f = getVal( BUF_BELIEF, anch_tile );
+      f = getValF( BUF_BELIEF, anch_tile );
 
       if (f > (_max_belief-_eps)) {
 
@@ -2168,7 +2040,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
@@ -2176,8 +2048,8 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
     if (m_verbose > 2) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-        anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-        f = getVal( BUF_BELIEF, anch_tile );
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        f = getValF( BUF_BELIEF, anch_tile );
         printf(" (%i)%f", (int)anch_tile, f);
       }
       printf("\n");
@@ -2185,9 +2057,9 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
 
 
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-      f = getVal( BUF_BELIEF, anch_tile );
+      f = getValF( BUF_BELIEF, anch_tile );
 
       if ( (_min_belief < 0.0) ||
            (f < (_min_belief+_eps)) ) {
@@ -2259,14 +2131,14 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
     g_sum = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      g = getVal( BUF_G, anch_tile );
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+      g = getValF( BUF_G, anch_tile );
       g_sum += g;
     }
 
@@ -2274,8 +2146,8 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 
     _entropy = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      g = getVal( BUF_G, anch_tile ) / g_sum;
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+      g = getValF( BUF_G, anch_tile ) / g_sum;
       if (g > _eps) {
         _entropy += -g * logf(g);
       }
@@ -2310,18 +2182,18 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 
   if (_max_cell<0) { return 0; }
 
-  _max_tile = getVali( BUF_TILE_IDX, _max_cell, 0 );
+  _max_tile = getValI( BUF_TILE_IDX, _max_cell, 0 );
   _max_tile_idx = 0;
 
   // now we choose a particular tile from the tile position
   // (both tile ID and tile index)
   //
   anch_cell = _max_cell;
-  anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   g_sum = 0.0;
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-    anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-    g_sum += getVal( BUF_G, anch_tile);
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+    g_sum += getValF( BUF_G, anch_tile);
   }
 
   if (g_sum > _eps) {
@@ -2330,8 +2202,8 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 
     g_cdf = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
-      g_cdf += getVal( BUF_G, anch_tile ) / g_sum;
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+      g_cdf += getValF( BUF_G, anch_tile ) / g_sum;
 
       if (p < g_cdf) {
         _max_tile     = anch_tile;
@@ -2363,32 +2235,32 @@ float BeliefPropagation::getVertexBelief ( uint64_t j ) {
           tile_val;
 
   for (a=0; a < m_num_values; a++) {
-    SetVal( BUF_BELIEF, a, 0.0 );
+    SetValF( BUF_BELIEF, 0.0, a );
   }
   Vector3DI jp = getVertexPos(j);
 
-  tile_idx_n= getVali( BUF_TILE_IDX_N, j );
+  tile_idx_n= getValI ( BUF_TILE_IDX_N, j );
   for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
-    tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+    tile_val = getValI ( BUF_TILE_IDX, tile_idx, j );
 
     _bi = 1.0;
     for (kn=0; kn<getNumNeighbors(j); kn++) {
       k = getNeighbor(j, jp, kn);
       if (k==-1) { continue; }
 
-      _bi *= getVal(BUF_MU, kn, j, tile_val);
+      _bi *= getValF(BUF_MU, kn, tile_val, j);
     }
-    SetVal(BUF_BELIEF, tile_val, _bi);
+    SetValF(BUF_BELIEF, _bi, tile_val );
 
     sum += _bi;
   }
 
   if (sum > m_eps_zero) {
     for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
-      tile_val = getVali( BUF_TILE_IDX, j, tile_idx );
+      tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
 
-      _bi = getVal( BUF_BELIEF, tile_val ) / sum;
-      SetVal( BUF_BELIEF, tile_val, _bi );
+      _bi = getValF ( BUF_BELIEF, tile_val ) / sum;
+      SetValF( BUF_BELIEF, _bi, tile_val );
     }
   }
 
@@ -2404,7 +2276,7 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
   Vector3DI jp = getVertexPos(j);
 
   for (a=0; a < m_num_values; a++) {
-    SetVal( BUF_BELIEF, a, 1.0 );
+    SetValF( BUF_BELIEF, 1.0, a );
 
     for (kn=0; kn < getNumNeighbors(j); kn++) {
       k = getNeighbor(j, jp, kn);
@@ -2412,16 +2284,16 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
 
         // mu{k,j}(a)
         //
-        _bi = getVal( BUF_BELIEF, a) * getVal(BUF_MU, kn, j, a );
-        SetVal( BUF_BELIEF, a, _bi );
+        _bi = getValF( BUF_BELIEF, a) * getValF(BUF_MU, kn, a, j );
+        SetValF( BUF_BELIEF, _bi, a );
       }
     }
-    sum += getVal( BUF_BELIEF, a );
+    sum += getValF( BUF_BELIEF, a );
   }
   if ( sum > 0 ) {
     for (a=0; a < m_num_values; a++) {
-      _bi = getVal( BUF_BELIEF, a ) / sum;
-      SetVal( BUF_BELIEF, a, _bi );
+      _bi = getValF( BUF_BELIEF, a ) / sum;
+      SetValF( BUF_BELIEF, _bi, a  );
     }
   }
 
@@ -2436,14 +2308,10 @@ int BeliefPropagation::start () {
 
   printf ("Restart. seed=%d\n", m_seed );
 
-  // all tiles enabled
-  //
-  ConstructTileIdx();   
-  ConstructConstraintBuffers();
-
-  // clear mu and mu_nxt
-  //
-  ConstructMU ();       
+  // rebuild dynamic bufs
+  ConstructDynamicBufs ();
+  
+  // randomize mu
   RandomizeMU ();
 
   // cull boundary
@@ -2468,7 +2336,7 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
   int64_t pos;
 
   for (pos=0; pos<m_num_verts; pos++) {
-    SetVali( BUF_TILE_IDX_N, pos, 0 );
+    SetValI( BUF_TILE_IDX_N, 0, pos );
   }
 
   for (i=0; i<constraint_list.size(); i++) {
@@ -2492,11 +2360,11 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
         exit(-1);
     }
 
-    n = getVali( BUF_TILE_IDX_N, pos );
+    n = getValI( BUF_TILE_IDX_N, pos );
 
-    SetVali( BUF_TILE_IDX, pos, n,  tile_id );
+    SetValI( BUF_TILE_IDX, n, tile_id, pos );
     n++;
-    SetVali( BUF_TILE_IDX_N, pos, n );
+    SetValI( BUF_TILE_IDX_N, n, pos );
 
   }
 
@@ -2560,7 +2428,7 @@ int BeliefPropagation::init(
   // populate G - tile weights
   for (i=0; i<m_num_values; i++) {
     if (i < tile_weight_list.size()) {
-      SetVal( BUF_G, i, tile_weight_list[i] );
+      SetValF( BUF_G, tile_weight_list[i], i );
     }
   }
 
@@ -2858,7 +2726,7 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
 
   if (m_verbose > 1) {
     vp = getVertexPos(cell);
-    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    n_idx = getValI ( BUF_TILE_IDX_N, cell );
     printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
         (int)vp.x, (int)vp.y, (int)vp.z,
         (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
@@ -2985,7 +2853,7 @@ int BeliefPropagation::RealizePost(void) {
 
   if (m_verbose > 1) {
     vp = getVertexPos(cell);
-    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    n_idx = getValI ( BUF_TILE_IDX_N, cell );
     printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
         (int)vp.x, (int)vp.y, (int)vp.z,
         (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
@@ -3136,7 +3004,7 @@ int BeliefPropagation::CheckConstraints ( int64_t p )
     Vector3DI pi;
 
     // tile value at p
-    a = getVal( BUF_T, p ); 
+    a = getValI ( BUF_TILES, p ); 
 
     cnt = 0;
     for (int nbr=0; nbr < 6; nbr++) {
@@ -3144,19 +3012,20 @@ int BeliefPropagation::CheckConstraints ( int64_t p )
         // tile value at neighbor of p
         pnbr = getNeighbor(p, nbr);
         if ( pnbr != -1) {
-            b = getVal( BUF_T, pnbr);
+            b = getValI( BUF_TILES, pnbr);
         } else {
             b = 0;  
         } 
         v = getValF ( BUF_F, a, b, nbr );   // rule for b->a            
-        f = getFace ( p, nbr );
+        
+        //f = getFace ( p, nbr );
         
         // constraint = 0 weight (disallowed)
         if (v==0) {            
             cnt++;
-            SetVal( BUF_C, f, 1 );
+            SetValI ( BUF_C, cnt, f );
         } else {
-            SetVal( BUF_C, f, 0 );
+            SetValI ( BUF_C, 0, f );
         }
     }
 
@@ -3219,7 +3088,7 @@ int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, voi
 
   if (m_verbose > 1) {
     vp = getVertexPos(cell);
-    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    n_idx = getValI ( BUF_TILE_IDX_N, cell );
     printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
         (int)vp.x, (int)vp.y, (int)vp.z,
         (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
@@ -3610,11 +3479,11 @@ void BeliefPropagation::gp_state_print() {
 
     cellUpdateBelief(anch_cell);
 
-    anch_tile_idx_n = getVali( BUF_TILE_IDX_N, anch_cell );
+    anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+      anch_tile = getValI ( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-      b = getVal( BUF_BELIEF, anch_tile );
+      b = getValF( BUF_BELIEF, anch_tile );
       if (anch_tile_idx==0) { max_belief = b; }
       if (b>max_belief)     { max_belief = b; }
     }
@@ -3733,8 +3602,8 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
 
   // update BUF_MU with new value
   //
-  mu_new = getVal( BUF_MU_NXT, idir, cell, tile );
-  SetVal( BUF_MU, idir, cell, tile, mu_new );
+  mu_new = getValF ( BUF_MU_NXT, idir, tile, cell );
+  SetValF( BUF_MU, mu_new, idir, tile, cell );
 
   // the single update to cell:tile requires a
   // renormalization, which can alter all values
@@ -3776,10 +3645,10 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
 void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
   int32_t tile_idx, idx, n, tile_val, tv;
 
-  n = getVali( BUF_TILE_IDX_N, pos );
+  n = getValI( BUF_TILE_IDX_N, pos );
   for (idx=0; idx<n; idx++) {
 
-    tile_val = getVali( BUF_TILE_IDX, pos, idx );
+    tile_val = getValI( BUF_TILE_IDX, idx, pos );
 
     for (tile_idx=0; tile_idx<tile_id.size(); tile_idx++) {
       if (tile_id[tile_idx] == tile_val) { break; }
@@ -3787,11 +3656,11 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
     if (tile_idx < tile_id.size()) { continue; }
 
     n--;
-    tv = getVali( BUF_TILE_IDX, pos, n );
-    SetVali( BUF_TILE_IDX, pos, n, tile_val );
-    SetVali( BUF_TILE_IDX, pos, idx, tv);
+    tv = getValI( BUF_TILE_IDX, n, pos );
+    SetValI( BUF_TILE_IDX, tile_val, n, pos );
+    SetValI( BUF_TILE_IDX, tv, idx, pos);
 
-    SetVali( BUF_TILE_IDX_N, pos, n );
+    SetValI( BUF_TILE_IDX_N, n, pos  );
 
     idx--;
 
@@ -3804,10 +3673,10 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
 void BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id) {
   int32_t tile_idx, idx, n, tile_val, tv;
 
-  n = getVali( BUF_TILE_IDX_N, pos );
+  n = getValI( BUF_TILE_IDX_N, pos );
   for (idx=0; idx<n; idx++) {
 
-    tile_val = getVali( BUF_TILE_IDX, pos, idx );
+    tile_val = getValI( BUF_TILE_IDX, idx, pos );
 
     for (tile_idx=0; tile_idx<tile_id.size(); tile_idx++) {
       if (tile_id[tile_idx] == tile_val) { break; }
@@ -3815,14 +3684,16 @@ void BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_i
     if (tile_idx==tile_id.size()) { continue; }
 
     n--;
-    tv = getVali( BUF_TILE_IDX, pos, n );
-    SetVali( BUF_TILE_IDX, pos, n, tile_val );
-    SetVali( BUF_TILE_IDX, pos, idx, tv);
+    tv = getValI( BUF_TILE_IDX, n, pos );
+    SetValI( BUF_TILE_IDX, tile_val, n, pos );
+    SetValI( BUF_TILE_IDX, tv, idx, pos);
 
-    SetVali( BUF_TILE_IDX_N, pos, n );
+    SetValI( BUF_TILE_IDX_N, n, pos  );
 
     idx--;
   }
+
+   
 
 }
 
@@ -3861,7 +3732,7 @@ void BeliefPropagation::debugPrintC() {
     n = m_note_n[m];
     for (i=0; i<n; i++) {
       if ((i%fold)==0) { printf("\n"); }
-      printf(" %i", (int) getValNote( BUF_NOTE, m, i));
+      printf(" %i", (int) getValL ( BUF_NOTE, i, m));
     }
     printf("\n");
   }
@@ -3870,7 +3741,7 @@ void BeliefPropagation::debugPrintC() {
   printf("VISITED[%i]\n", (int)m_num_verts);
   for (i=0; i<n; i++) {
     if ((i>0) && ((i%fold)==0)) { printf("\n"); }
-    printf(" %i", (int)getVali( BUF_VISITED, i ));
+    printf(" %i", (int)getValL ( BUF_VISITED, i ));
   }
   printf("\n");
 
@@ -3949,7 +3820,7 @@ void BeliefPropagation::debugPrint() {
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
     if ((i%m)==0) { printf("\n"); }
-    v = getVal( BUF_G, i );
+    v = getValF( BUF_G, i );
     printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
   }
   printf("\n\n");
@@ -3991,13 +3862,13 @@ void BeliefPropagation::debugPrint() {
   for (u=0; u<m_num_verts; u++) {
     p = getVertexPos(u);
 
-    a_idx_n = getVali( BUF_TILE_IDX_N, u );
+    a_idx_n = getValI( BUF_TILE_IDX_N, u );
 
     cellUpdateBelief(u);
 
     printf("[%i,%i,%i](%i):\n", (int)p.x, (int)p.y, (int)p.z, (int)u);
     for (a_idx=0; a_idx<a_idx_n; a_idx++) {
-      a = getVali( BUF_TILE_IDX, (int)u, (int)a_idx );
+      a = getValI( BUF_TILE_IDX, (int)a_idx, (int)u );
 
       __a = tileName2ID( m_tile_name[a] );
 
@@ -4005,7 +3876,7 @@ void BeliefPropagation::debugPrint() {
       //printf("  %s(%i,%i): ", m_tile_name[a].c_str(), a, __a);
 
       for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
-        v = getVal( BUF_MU, jnbr, u, a );
+        v = getValF ( BUF_MU, jnbr, a, u );
         _vf = (float)v;
         printf(" [%s]", (char *)_dp_desc[jnbr].c_str());
         printf("(%i)", (int)jnbr);
@@ -4013,7 +3884,7 @@ void BeliefPropagation::debugPrint() {
         //printf(" [%s](%i):%f", (char *)_dp_desc[jnbr].c_str(), (int)jnbr, _vf);
       }
 
-      printf(" {b:%f}", getVal( BUF_BELIEF, a ));
+      printf(" {b:%f}", getValF( BUF_BELIEF, a ));
 
       printf("\n");
     }
@@ -4079,7 +3950,7 @@ void BeliefPropagation::debugPrintMU() {
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
     if ((i%m)==0) { printf("\n"); }
-    v = getVal( BUF_G, i );
+    v = getValF( BUF_G, i );
     printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
   }
   printf("\n\n");
@@ -4110,20 +3981,20 @@ void BeliefPropagation::debugPrintMU() {
   for (u=0; u<m_num_verts; u++) {
     p = getVertexPos(u);
 
-    a_idx_n = getVali( BUF_TILE_IDX_N, u );
+    a_idx_n = getValI( BUF_TILE_IDX_N, u );
 
     cellUpdateBelief(u);
 
     printf("[%i,%i,%i](%i):\n", (int)p.x, (int)p.y, (int)p.z, (int)u);
     for (a_idx=0; a_idx<a_idx_n; a_idx++) {
-      a = getVali( BUF_TILE_IDX, (int)u, (int)a_idx );
+      a = getValI( BUF_TILE_IDX, (int)a_idx, (int)u );
 
       __a = tileName2ID( m_tile_name[a] );
 
       printf("  %s(%2i): mu_cur: ", m_tile_name[a].c_str(), a);
 
       for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
-        v = getVal( BUF_MU, jnbr, u, a );
+        v = getValF( BUF_MU, jnbr, a, u );
         _vf = (float)v;
         printf(" [%s]", (char *)_dp_desc[jnbr].c_str());
         printf("(%i)", (int)jnbr);
@@ -4134,7 +4005,7 @@ void BeliefPropagation::debugPrintMU() {
       printf("  %s(%2i): mu_nxt: ", m_tile_name[a].c_str(), a);
 
       for (jnbr=0; jnbr<getNumNeighbors(u); jnbr++) {
-        v = getVal( BUF_MU_NXT, jnbr, u, a );
+        v = getValF( BUF_MU_NXT, jnbr, a, u );
         _vf = (float)v;
         printf(" [%s]", (char *)_dp_desc[jnbr].c_str());
         printf("(%i)", (int)jnbr);
@@ -4185,14 +4056,14 @@ void BeliefPropagation::debugPrintMU() {
 int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
   int32_t n, tile_val, tv;
 
-  n = getVali( BUF_TILE_IDX_N, pos );
+  n = getValI( BUF_TILE_IDX_N, pos );
   if (tile_idx >= n) { return -1; }
 
-  tile_val = getVali( BUF_TILE_IDX, pos, tile_idx );
-  tv = getVali( BUF_TILE_IDX, pos, 0 );
-  SetVali( BUF_TILE_IDX, pos, 0, tile_val );
-  SetVali( BUF_TILE_IDX, pos, tile_idx, tv );
-  SetVali( BUF_TILE_IDX_N, pos, 1 );
+  tile_val = getValI( BUF_TILE_IDX, tile_idx, pos );
+  tv = getValI( BUF_TILE_IDX, 0, pos );
+  SetValI( BUF_TILE_IDX, tile_val, 0, pos);
+  SetValI( BUF_TILE_IDX, tv, tile_idx, pos);
+  SetValI( BUF_TILE_IDX_N, 1, pos );
 
   if (m_stat_enabled) {
     m_stat_num_collapsed += n-1;
@@ -4204,31 +4075,31 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
 int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
   int32_t idx, n, tile_val, tv;
 
-  n = getVali( BUF_TILE_IDX_N, pos );
+  n = getValI( BUF_TILE_IDX_N, pos );
   if (tile_idx >= n) { return -1; }
   if (n<=1) { return -1; }
 
   if (m_verbose > 2) {
     printf("tileIdxRemove before:");
     for (idx=0; idx<n; idx++) {
-      printf(" (%i)idx:%i", (int)getVali(BUF_TILE_IDX, pos, idx), (int)idx);
+      printf(" (%i)idx:%i", (int) getValI (BUF_TILE_IDX, idx, pos), (int)idx);
     }
     printf("\n");
   }
 
   n--;
 
-  tile_val = getVali( BUF_TILE_IDX, pos, tile_idx );
-  tv = getVali( BUF_TILE_IDX, pos, n );
-  SetVali( BUF_TILE_IDX, pos, n, tile_val );
-  SetVali( BUF_TILE_IDX, pos, tile_idx, tv );
-  SetVali( BUF_TILE_IDX_N, pos, n );
+  tile_val = getValI( BUF_TILE_IDX, tile_idx, pos );
+  tv = getValI( BUF_TILE_IDX, 0, pos );
+  SetValI( BUF_TILE_IDX, tile_val, 0, pos);
+  SetValI( BUF_TILE_IDX, tv, tile_idx, pos);
+  SetValI( BUF_TILE_IDX_N, 1, pos );
 
   if (m_verbose > 2) {
     printf("tileIdxRemove after:");
-    n = getVali( BUF_TILE_IDX_N, pos );
+    n = getValI( BUF_TILE_IDX_N, pos );
     for (idx=0; idx<n; idx++) {
-      printf(" (%i)idx:%i", (int)getVali(BUF_TILE_IDX, pos, idx), (int)idx);
+      printf(" (%i)idx:%i", (int)getValI(BUF_TILE_IDX, idx, pos), (int)idx);
     }
     printf("\n");
   }
@@ -4248,7 +4119,7 @@ int BeliefPropagation::CullBoundary() {
       //printf("cb.yz %i,%i,%i\n", 0, (int)y, (int)z);
 
       vtx = getVertex(0, y, z);
-      SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
       if ((m_res.x-1) != 0) {
@@ -4256,7 +4127,7 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.yz %i,%i,%i\n", (int)(m_res.x-1), (int)y, (int)z);
 
         vtx = getVertex(m_res.x-1, y, z);
-        SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
 
@@ -4269,7 +4140,7 @@ int BeliefPropagation::CullBoundary() {
       //printf("cb.xz %i,%i,%i\n", (int)x, 0, (int)z);
 
       vtx = getVertex(x, 0, z);
-      SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
       if ((m_res.y-1) != 0) {
@@ -4277,7 +4148,7 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.xz %i,%i,%i\n", (int)x, (int)(m_res.y-1), (int)z);
 
         vtx = getVertex(x, m_res.y-1, z);
-        SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
 
@@ -4290,7 +4161,7 @@ int BeliefPropagation::CullBoundary() {
       //printf("cb.xy %i,%i,%i\n", (int)x, (int)y, 0);
 
       vtx = getVertex(x, y, 0);
-      SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
       m_note_n[m_grid_note_idx]++;
 
       if ((m_res.z-1) != 0) {
@@ -4298,7 +4169,7 @@ int BeliefPropagation::CullBoundary() {
         //printf("cb.xy %i,%i,%i\n", (int)x, (int)y, (int)(m_res.z-1));
 
         vtx = getVertex(x, y, m_res.z-1);
-        SetValNote( BUF_NOTE, m_grid_note_idx, m_note_n[m_grid_note_idx], vtx );
+        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
         m_note_n[m_grid_note_idx]++;
       }
 
@@ -4309,7 +4180,6 @@ int BeliefPropagation::CullBoundary() {
 
   return ret;
 }
-
 
 // To speed up the 'collapse' propagation, two
 // auxiliary data structures are stored, one a copy
@@ -4334,20 +4204,20 @@ void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_idx) {
   for (i=0; i<getNumNeighbors(vtx); i++) {
     nei_vtx  = getNeighbor(vtx, jp, i);
     if (nei_vtx<0) { continue; }
-    if (getVali( BUF_VISITED, nei_vtx ) != 0) { continue; }
+    if (getValL ( BUF_VISITED, nei_vtx ) != 0) { continue; }
 
-    SetValNote( BUF_NOTE, note_idx, m_note_n[note_idx], nei_vtx );
-    SetVali( BUF_VISITED, nei_vtx , 1 );
+    SetValL ( BUF_NOTE, nei_vtx, m_note_n[note_idx], note_idx );
+    SetValL ( BUF_VISITED, 1, nei_vtx );
     m_note_n[note_idx]++;
   }
 
 }
 
 int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_idx) {
-  if (getVali( BUF_VISITED, vtx ) != 0) { return 0; }
+  if (getValL( BUF_VISITED, vtx ) != 0) { return 0; }
 
-  SetValNote( BUF_NOTE, note_idx, m_note_n[note_idx], vtx );
-  SetVali( BUF_VISITED, vtx, 1 );
+  SetValL ( BUF_NOTE,    vtx, m_note_n[note_idx], note_idx );
+  SetValL ( BUF_VISITED, 1, vtx  );
   m_note_n[note_idx]++;
 
   return 1;
@@ -4356,15 +4226,15 @@ int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_idx) {
 int BeliefPropagation::getTilesAtVertex ( int64_t vtx ) {
 
   int a = 0;
-  int n_a = getVali( BUF_TILE_IDX_N, vtx );
+  int n_a = getValI ( BUF_TILE_IDX_N, vtx );
 
-  ZeroBPVec ( BUF_BELIEF );   // clear belief vec
+  ZeroBuf ( BUF_BELIEF );
 
   float p = 1.0 / n_a;
 
   for (int a_idx=0; a_idx<n_a; a_idx++) {
-    a = getVali( BUF_TILE_IDX, vtx, a_idx );
-    SetVal ( BUF_BELIEF, a, p );
+    a = getValI ( BUF_TILE_IDX, a_idx, vtx );
+    SetValF ( BUF_BELIEF, p, a );
   }
 
   return n_a;
@@ -4387,8 +4257,8 @@ void BeliefPropagation::unfillAccessed(int32_t note_idx){
   int64_t i, vtx;
 
   for (i=0; i < (int64_t) m_note_n[note_idx]; i++) {
-    vtx = getValNote( BUF_NOTE, note_idx, i );
-    SetVali( BUF_VISITED, vtx, 0 );
+    vtx = getValL ( BUF_NOTE, i, note_idx );
+    SetValL( BUF_VISITED, 0, vtx );
   }
 }
 
@@ -4396,7 +4266,7 @@ int BeliefPropagation::sanityAccessed() {
   int64_t i;
 
   for (i=0; i < m_num_verts; i++) {
-    if (getVali( BUF_VISITED, i)!=0) { return -1; }
+    if (getValL ( BUF_VISITED, i)!=0) { return -1; }
   }
   return 0;
 }
@@ -4405,17 +4275,17 @@ int BeliefPropagation::sanityAccessed() {
 int BeliefPropagation::removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx) {
   int anch_tile_n, anch_tile, tval;
 
-  anch_tile = getVali( BUF_TILE_IDX, anch_cell, anch_tile_idx );
+  anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
-  anch_tile_n = getVali( BUF_TILE_IDX_N, anch_cell );
+  anch_tile_n = getValI( BUF_TILE_IDX_N, anch_cell );
   anch_tile_n--;
   if (anch_tile_n==0) { return -1; }
 
-  tval = getVali( BUF_TILE_IDX, anch_cell, anch_tile_n );
-  SetVali( BUF_TILE_IDX, anch_cell, anch_tile_n, anch_tile);
-  SetVali( BUF_TILE_IDX, anch_cell, anch_tile_idx, tval);
+  tval = getValI ( BUF_TILE_IDX, anch_tile_n, anch_cell );
+  SetValI( BUF_TILE_IDX, (anch_tile), anch_tile_n, anch_cell );
+  SetValI( BUF_TILE_IDX, (tval), anch_tile_idx, anch_cell );
 
-  SetVali( BUF_TILE_IDX_N, anch_cell, anch_tile_n );
+  SetValI( BUF_TILE_IDX_N, (anch_tile_n ), anch_cell );
 
   if (m_stat_enabled) {
     m_stat_num_culled += 1;
@@ -4494,10 +4364,10 @@ int BeliefPropagation::cellConstraintPropagate() {
   while (still_culling) {
 
     for (note_idx=0; note_idx < (int64_t) m_note_n[m_grid_note_idx]; note_idx++) {
-      anch_cell = getValNote( BUF_NOTE, m_grid_note_idx, note_idx );
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_grid_note_idx );
       jp = getVertexPos(anch_cell);
 
-      anch_n_tile = getVali( BUF_TILE_IDX_N, anch_cell );
+      anch_n_tile = getValI ( BUF_TILE_IDX_N, anch_cell );
       for (anch_b_idx=0; anch_b_idx < anch_n_tile; anch_b_idx++) {
 
         // Test if anchor tile has connection that falls out of bounds.
@@ -4505,7 +4375,7 @@ int BeliefPropagation::cellConstraintPropagate() {
         // neighbors to BUF_NOTE for later processing.
         //
         tile_valid = 1;
-        anch_b_val = getVali( BUF_TILE_IDX, anch_cell, anch_b_idx );
+        anch_b_val = getValI ( BUF_TILE_IDX, anch_b_idx, anch_cell);
 
         for (i=0; i<getNumNeighbors(anch_cell); i++) {
           nei_cell = getNeighbor(anch_cell, jp, i);
@@ -4558,9 +4428,9 @@ int BeliefPropagation::cellConstraintPropagate() {
 
           anch_has_valid_conn = 0;
 
-          nei_n_tile = getVali( BUF_TILE_IDX_N, nei_cell );
+          nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
           for (nei_a_idx=0; nei_a_idx < nei_n_tile; nei_a_idx++) {
-            nei_a_val = getVali( BUF_TILE_IDX, nei_cell, nei_a_idx );
+            nei_a_val = getValI ( BUF_TILE_IDX, nei_a_idx, nei_cell );
 
             if (getValF( BUF_F, anch_b_val, nei_a_val, i ) > _eps) {
               anch_has_valid_conn = 1;
