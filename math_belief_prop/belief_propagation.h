@@ -180,16 +180,20 @@ public:
   };
 
   //------------------------ high level API
+  
+  int       start();
+  
   int       RealizePre();
   int       RealizeRun();
   int       RealizeStep();
   int       RealizePost();
   int       Realize();
-
+ 
   void      SetVis (int viz_opt);
 
-
   //------------------------ belief propagation, mid-level API
+
+  
 
   int   init( int, int, int,
               std::vector< std::string  >           tile_name_list,
@@ -197,8 +201,6 @@ public:
               std::vector< std::vector < float > >  rule_list );
 
   int   init_SVD(void);
-
-  int   start();
 
   int   realize();
 
@@ -324,8 +326,7 @@ public:
 
 
 
-  //------------------------ memory management  
-  void     Restart();
+  //------------------------ memory management    
   void     ConstructF ();
   void     ConstructGH ();
   void     ConstructMU ();
