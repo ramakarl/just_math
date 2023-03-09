@@ -93,7 +93,7 @@
 
 		// Multi-dimensional Get/Set
 		char*			getPtr(uint64_t x, uint64_t y, uint64_t z) {
-									return mCpu + (z*mUseRY + y)*mUseRX + x; }
+									return mCpu + ((z*mUseRY + y)*mUseRX + x) * mStride; }
 
 		// Helper functions		
 		void			SetElemInt(uint64_t n, int val)	{ * (int*) (mCpu+n*mStride) = val; }
