@@ -343,30 +343,18 @@ public:
 
 
 
-  //------------------------ memory management
+  //------------------------ memory management    
+  
+  void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+  void          ZeroBuf (int id);
 
-  void     AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
-  void     ZeroBuf (int id);
-
-  /* void     ZeroBPVec (int id);
-  void     AllocBPVec (int id, int cnt);                  // vector alloc
-  void     AllocBPMtx (int id, int nbrs, uint64_t verts, uint64_t vals);  // matrix alloc
-  void     AllocBPMtx_i64 (int32_t id, int32_t nbrs, uint64_t verts, uint32_t vals);
-  void     AllocBPMap (int id, int nbrs, int vals);
-  void     AllocViz (int id, uint64_t cnt );
-  void     AllocTileIdx (int, int, int);
-  void     AllocTileIdxN(int, int );
-  void     AllocVeci32(int, int);
-  void     AllocVeci32(int, int, int);
-  void     AllocSVD(int, int, int, int); */
-
-  int64_t  getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
-  int64_t  getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
-  Vector3DI  getVertexPos(int64_t j);
-  int64_t  getVertex(int x, int y, int z);
-  int      getTilesAtVertex ( int64_t vtx );
-  int      getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
-
+  int64_t       getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
+  int64_t       getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
+  Vector3DI     getVertexPos(int64_t j);
+  int64_t       getVertex(int x, int y, int z);
+  int           getTilesAtVertex ( int64_t vtx );
+  int           getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
+  
   //----------------------- new accessor functions
 
   inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
