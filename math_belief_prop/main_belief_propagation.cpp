@@ -1553,13 +1553,6 @@ int main(int argc, char **argv) {
       exit(-1);
     }
 
-    /*
-    if (bpc.m_verbose > 1) {
-      printf("*************** after constraint dsl:\n");
-      bpc.debugPrint();
-    }
-    */
-
   }
   else if (constraint_fn) {
     if (bpc.m_verbose > 0) {
@@ -1599,53 +1592,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  /*
-  if (debug_print) {
-
-    //DEBUG!!!!
-    //testing out residual belief propagation wwork
-    //
-
-    int64_t idx, n, _cell;
-    int32_t _tile, _idir;
-    float _a, _b;
-
-    n = bpc.m_num_values * bpc.m_num_verts*6;
-    for (idx=0; idx<n; idx++) {
-      bpc.getMuPos( idx, &_idir, &_cell, &_tile );
-
-      _a = bpc.m_rand.randF();
-      _b = bpc.m_rand.randF();
-
-      printf(" heap_idx:%i -> (idir:%i, cell:%i, tile:%i) mu_cur:%f, mu_nxt:%f\n",
-          (int)idx, (int)_idir, (int)_cell, (int)_tile, _a, _b);
-      bpc.SetVal( BUF_MU,     _idir, _cell, _tile, _a );
-      bpc.SetVal( BUF_MU_NXT, _idir, _cell, _tile, _b );
-    }
-
-    printf("---\n");
-
-    printf("about to init:\n");
-    bpc.indexHeap_init();
-
-    printf("---\n");
-
-    printf("heap:\n");
-    bpc.indexHeap_debug_print();
-
-    printf("---\n");
-
-    ret = bpc.indexHeap_consistency();
-    printf("indexHeap_consistency got: %i\n", (int)ret);
-    exit(0);
-    //
-    //DEBUG!!!
-
-    bpc.debugPrint();
-    exit(0);
-  }
-  */
-
   if (test_num >= 0) {
     run_test(test_num);
     exit(0);
@@ -1659,7 +1605,6 @@ int main(int argc, char **argv) {
   //
   if (raycast) {
 
-    //_cb_f = bp_cb;
     _cb_f = bp_cb_v1;
 
     vres.x = X;
@@ -1702,24 +1647,30 @@ int main(int argc, char **argv) {
 
   }
 
-  else if (g_opt.alg_idx == 5) {
-    ret = bpc.Realize();
-    printf("bpc.Realize got: %i\n", ret);
+  else {
 
-    if (bpc.m_verbose > 0) {
-      printf("# bp realize got: %i\n", ret);
-
-      printf("####################### DEBUG PRINT\n" );
-      bpc.debugPrint();
+    if (g_opt.alg_idx == 0) {
+      bpc.m_alg_cell_opt = ALG_CELL_ANY;
+      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.m_alg_run_opt  = ALG_RUN_VANILLA;
     }
 
+    else if (g_opt.alg_idx == 2) {
+      bpc.m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.m_alg_run_opt  = ALG_RUN_VANILLA;
+    }
 
-  }
-  else {
+    else if (g_opt.alg_idx == 4) {
+      bpc.m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.m_alg_run_opt  = ALG_RUN_RESIDUAL;
+    }
 
     if (bpc.m_verbose > 0) {
       printf ( "bpc realize.\n" );
     }
+
     ret = bpc.start();
     if (ret < 0) {
       printf("ERROR: bpc.start() failed (%i)\n", ret);
@@ -1737,6 +1688,18 @@ int main(int argc, char **argv) {
     //for (int64_t it=0; it < bpc.m_num_verts; it++) {
     for (it=0; it < n_it; it++) {
 
+      ret = bpc.RealizePre();
+      if (ret < 0) { break; }
+
+      ret = 1;
+      while (ret>0) {
+        ret = bpc.RealizeStep();
+      }
+
+      ret = bpc.RealizePost();
+      if (ret <= 0) { break; }
+
+      /*
       //ret = bpc.single_realize_cb(it, NULL);
       //ret = bpc.single_realize_cb(it, bp_cb);
 
@@ -1758,6 +1721,7 @@ int main(int argc, char **argv) {
       }
 
       if (ret<=0) { break; }
+      */
 
       if ( raycast )  {
 
