@@ -2308,7 +2308,7 @@ int BeliefPropagation::start () {
 
   printf ("Restart. seed=%d\n", m_seed );
 
-  ConstructConstraintBuffers();
+  ConstructConstraintBufs();
 
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
