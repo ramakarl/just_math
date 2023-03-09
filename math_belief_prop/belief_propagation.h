@@ -276,7 +276,6 @@ public:
   void  ConstructStaticBufs ();
   void  ConstructDynamicBufs ();
   void  ConstructTempBufs ();
-  void  ConstructConstraintBufs();
   void  ConstructSVDBufs ();
 
   float BeliefProp();
