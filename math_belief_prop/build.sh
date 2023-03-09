@@ -25,6 +25,8 @@ g++ -g -I../libmin/include/ \
   -lm \
   -o bpc.debug
 
+exit
+
 g++ -O3 -I../libmin/include/ \
   -D__linux__ \
   -DLIBHELP_STATIC \

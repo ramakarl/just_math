@@ -60,12 +60,34 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.4.4"
+#define BELIEF_PROPAGATION_VERSION "0.5.0"
 
-#define RUN_OPT_PTRS
-#define RUN_OPT_MUPTR
-#define RUN_OPT_FH
-#define RUN_OPT_MUBOUND
+#define OPT_PTRS
+#define OPT_MUPTR
+#define OPT_FH
+#define OPT_MUBOUND
+
+#define MU_NOCOPY 0
+#define MU_COPY 1
+
+
+#define VIZ_NONE        0
+#define VIZ_MU          1
+#define VIZ_DMU         2
+#define VIZ_BELIEF      3
+#define VIZ_CONSTRAINT  4
+#define VIZ_TILECOUNT   5
+#define VIZ_ENTROPY     6
+#define VIZ_CHANGE      7
+#define VIZ_RESPICK     8
+
+#define ALG_CELL_ANY            32
+#define ALG_CELL_MIN_ENTROPY    33
+
+#define ALG_TILE_MAX_BELIEF     34
+
+#define ALG_RUN_VANILLA         35
+#define ALG_RUN_RESIDUAL        36
 
 
 #define BUF_VOL         0     // volume: n^3
@@ -149,6 +171,12 @@ public:
     m_eps_converge_beg = m_eps_converge;
     m_eps_converge_end = m_eps_converge;
 
+    m_viz_opt = VIZ_NONE;
+
+    m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    m_alg_run_opt = ALG_RUN_VANILLA;
+
   };
 
   bool _init();
@@ -209,7 +237,7 @@ public:
   inline void    SetVal(int id, int a, float val)       {*(float*) m_buf[id].getPtr(a) = val;}
 
 
-#ifdef RUN_OPT_PTRS
+#ifdef OPT_PTRS
   // Optimized: Closest values in memory are most used in inner loops
   // MU matrix
   // n=nbr (0-6), j=vertex (D), a=tile (B)
@@ -310,6 +338,23 @@ public:
   int   _pick_tile_min_belief(int64_t anch_cell, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
   int   _pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
+  //----
+
+  int32_t     m_run_opt;
+
+  int32_t     m_viz_opt;
+  int32_t     m_alg_cell_opt;
+  int32_t     m_alg_tile_opt;
+  int32_t     m_alg_run_opt;
+
+  int64_t     m_run_iter;
+  int         RealizePre();
+  int         RealizeRun();
+  int         RealizeStep();
+  int         RealizePost();
+  int         Realize();
+
+  //----
 
   int    realize();
   int    wfc();

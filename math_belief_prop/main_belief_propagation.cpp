@@ -1701,6 +1701,20 @@ int main(int argc, char **argv) {
     }
 
   }
+
+  else if (g_opt.alg_idx == 5) {
+    ret = bpc.Realize();
+    printf("bpc.Realize got: %i\n", ret);
+
+    if (bpc.m_verbose > 0) {
+      printf("# bp realize got: %i\n", ret);
+
+      printf("####################### DEBUG PRINT\n" );
+      bpc.debugPrint();
+    }
+
+
+  }
   else {
 
     if (bpc.m_verbose > 0) {

@@ -939,12 +939,12 @@ float BeliefPropagation::BeliefProp_svd () {
 
           // compute: Hij(a) = gi(a) * PROD mu{ki}_a
 
-          #ifdef RUN_OPT_MUBOUND
+          #ifdef OPT_MUBOUND
             // Optimized:
             // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
             // - Use direction instead of cell pos to eliminate anchor cell
 
-            #ifdef RUN_OPT_MUPTR
+            #ifdef OPT_MUPTR
               // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
               if (nei_in_idx != nei_in_ignore) {
                 H_ij_a *= *currMu;
@@ -961,7 +961,7 @@ float BeliefPropagation::BeliefProp_svd () {
             // - Original bounds check /w getNeighbor
             _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
 
-            #ifdef RUN_OPT_MUPTR
+            #ifdef OPT_MUPTR
               // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
               if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
                 H_ij_a *= *currMu;
@@ -1049,7 +1049,7 @@ float BeliefPropagation::BeliefProp_svd () {
         // a = cols in f{ij}(a,b), also elements of h(a)
         //
 
-        #ifdef RUN_OPT_FH
+        #ifdef OPT_FH
           // Optimized: F and H access using pointers
           float* currH = getPtr(BUF_H, 0);
           float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
@@ -1388,12 +1388,12 @@ float BeliefPropagation::BeliefProp () {
 
           // compute: Hij(a) = gi(a) * PROD mu{ki}_a
 
-          #ifdef RUN_OPT_MUBOUND
+          #ifdef OPT_MUBOUND
             // Optimized:
             // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
             // - Use direction instead of cell pos to eliminate anchor cell
 
-            #ifdef RUN_OPT_MUPTR
+            #ifdef OPT_MUPTR
               // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
               if (nei_in_idx != nei_in_ignore) {
                 H_ij_a *= *currMu;
@@ -1410,7 +1410,7 @@ float BeliefPropagation::BeliefProp () {
             // - Original bounds check /w getNeighbor
             _neinei_cell = getNeighbor(nei_cell, jp, nei_in_idx);
 
-            #ifdef RUN_OPT_MUPTR
+            #ifdef OPT_MUPTR
               // - Optimized MUPTR: reorganized MU with 'nbr' as linear mem variable.
               if ((_neinei_cell != -1) && (_neinei_cell != anch_cell)) {
                 H_ij_a *= *currMu;
@@ -1440,7 +1440,7 @@ float BeliefPropagation::BeliefProp () {
         // a = cols in f{ij}(a,b), also elements of h(a)
         //
 
-        #ifdef RUN_OPT_FH
+        #ifdef OPT_FH
           // Optimized: F and H access using pointers
           float* currH = getPtr(BUF_H, 0);
           float* currF = getPtrF(BUF_F, 0, anch_tile, nei_to_anch_dir_idx);
@@ -3037,6 +3037,251 @@ int BeliefPropagation::single_realize_residue_cb (int64_t it, void (*cb)(void *)
   return 1;
 }
 
+//-------
+//-------
+//-------
+
+int BeliefPropagation::RealizePre(void) {
+  int ret;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1, n_idx=-1;
+  float belief=-1.0, d = -1.0;
+
+  float _eps = m_eps_converge;
+
+  float f_it = (float)m_run_iter;
+  float f_it_n = (float)m_num_verts;
+
+  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+
+
+  if (m_alg_run_opt == ALG_RUN_VANILLA) {
+
+    // after we've propagated constraints, BUF_MU
+    // needs to be renormalized
+    //
+    NormalizeMU();
+
+    if (m_verbose > 1) {
+      printf("# RealizePre %f (%i/%i) {%f:%f}\n",
+          (float)_eps, (int)m_run_iter, (int)m_num_verts,
+          (float)m_eps_converge_beg, (float)m_eps_converge_end);
+    }
+
+    m_step_iter = 0;
+
+  }
+
+  else if (m_alg_run_opt == ALG_RUN_RESIDUAL) {
+
+    // after we've propagated constraints, BUF_MU
+    // needs to be renormalized
+    //
+    WriteBoundaryMUbuf(BUF_MU);
+    WriteBoundaryMUbuf(BUF_MU_NXT);
+
+    NormalizeMU(BUF_MU);
+    NormalizeMU(BUF_MU_NXT);
+
+    // first do a whole sweep, updating MU_NXT and keeping
+    // the values there. An initial pass has to be done (step(1))
+    // to make sure boundary conditions are populated and transferred
+    // over correcly.
+    //
+    // populate the indexHeap: priority queue with maximum
+    // difference of MU and MU_NXT as heap key in additon
+    // to keeping the "mu index" (position in MU buffer)
+    //
+    // From this point forward, updates to BUF_MU or BUF_MU_NXT
+    // will need a corresponding bookeeping call to indexXHeap
+    // to keep track of the maximum difference between
+    // the two buffers and corresponding cell index information.
+    //
+    d = step(1);
+    d = step(0);
+    indexHeap_init();
+
+  }
+
+  return 0;
+}
+
+int BeliefPropagation::RealizePost(void) {
+  int ret=0;
+  int64_t cell=-1;
+  int32_t tile=-1, tile_idx=-1, n_idx=-1;
+  float belief=-1.0, d = -1.0;
+
+  Vector3DI vp;
+
+  if (m_stat_enabled) { UpdateRunTimeStat(m_step_iter); }
+
+  // choose the cell and propagate choice
+  //
+
+  switch (m_alg_cell_opt) {
+    case ALG_CELL_ANY:
+      ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+      break;
+    case ALG_CELL_MIN_ENTROPY:
+      ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
+      break;
+    default:
+      return -1;
+      break;
+  }
+  if (ret < 0) { return -1; }
+
+  if (m_verbose > 1) {
+    vp = getVertexPos(cell);
+    n_idx = getVali( BUF_TILE_IDX_N, cell );
+    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
+        (int)vp.x, (int)vp.y, (int)vp.z,
+        (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
+  }
+
+  // (success) end condition, all cell positions have exactly
+  // one tile in them.
+  //
+  if (ret==0) { return 0; }
+
+  ret = tileIdxCollapse( cell, tile_idx );
+  if (ret < 0) { return -2; }
+
+  m_note_n[ m_grid_note_idx ] = 0;
+  m_note_n[ 1-m_grid_note_idx ] = 0;
+
+  cellFillAccessed(cell, m_grid_note_idx);
+  unfillAccessed(m_grid_note_idx);
+
+  ret = cellConstraintPropagate();
+  if (ret < 0) { return -3; }
+
+  // non-error but still processing
+  //
+  return 1;
+}
+
+int BeliefPropagation::RealizeRun(void) {
+  int ret = 1;
+  float d = -1.0;
+
+  int64_t step_iter=0,
+          max_step_iter = m_max_iteration;
+
+  float _eps = m_eps_converge;
+
+  float f_it = (float)m_run_iter;
+  float f_it_n = (float)m_num_verts;
+
+  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+
+  // iterate bp until converged
+  //
+  for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+    d = step(1);
+    if (fabs(d) < _eps) {
+      ret = 0;
+      break;
+    }
+  }
+
+  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
+
+  return ret;
+}
+
+int BeliefPropagation::RealizeStep(void) {
+  int ret = 1;
+  float d;
+
+  float f_it = (float)m_run_iter;
+  float f_it_n = (float)m_num_verts;
+  float _eps;
+
+  int64_t mu_idx, cell;
+  float f_residue;
+  int32_t idir, tile;
+
+
+  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+
+
+  //---
+
+  if (m_alg_run_opt == ALG_RUN_VANILLA) {
+
+    d = step(MU_COPY);
+    if (fabs(d) < _eps) { ret = 0; }
+
+    m_step_iter++;
+    if (m_step_iter >= m_max_iteration) { ret=-1; }
+
+  }
+
+  //---
+
+  else if (m_alg_run_opt == ALG_RUN_RESIDUAL) {
+
+    mu_idx = indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
+
+    if (f_residue < _eps) {
+      ret = 0;
+    }
+    else {
+      if (m_verbose > 2) {
+        printf("  [it:%i,step:%i] updating mu[%i,%i,%i](%i) residue:%f\n",
+            (int)m_run_iter, (int)m_step_iter,
+            (int)idir, (int)cell, (int)tile, (int)mu_idx, (float)f_residue);
+      }
+
+      step_residue( idir, cell, tile );
+    }
+
+  }
+
+  //---
+
+  else { return -1; }
+
+  return ret;
+}
+
+// Example of a full realization, running until completion
+//
+int BeliefPropagation::Realize(void) {
+  int ret=-1;
+  int64_t n_it, it, step_it, max_step_it;
+
+  m_run_iter = 0;
+
+  ret = start();
+  if (ret<0) { return ret; }
+
+  n_it = m_num_verts * m_num_values;
+  for (m_run_iter=0; m_run_iter < n_it; m_run_iter++) {
+
+    ret = RealizePre();
+    if (ret < 0) { break; }
+
+    ret = 1;
+    while (ret>0) {
+      ret = RealizeStep();
+    }
+
+    ret = RealizePost();
+    if (ret <= 0) { break; }
+
+  }
+
+  return ret;
+}
+
+//-------
+//-------
+//-------
+
+
 int BeliefPropagation::single_realize_min_entropy_max_belief_cb (int64_t it, void (*cb)(void *)) {
   int ret;
   int64_t cell=-1;
@@ -3536,13 +3781,13 @@ float BeliefPropagation::step(int update_mu) {
 
   // initial boundary condiitions
   //
-    #ifdef RUN_OPT_MUBOUND
-        WriteBoundaryMU();
-        WriteBoundaryMUbuf(BUF_MU_NXT);
+  #ifdef OPT_MUBOUND
+      WriteBoundaryMU();
+      WriteBoundaryMUbuf(BUF_MU_NXT);
 
-        //EXPERIMENTS
-        NormalizeMU( BUF_MU );
-    #endif
+      //EXPERIMENTS
+      NormalizeMU( BUF_MU );
+  #endif
 
 
   // run main bp, store in BUF_MU_NXT
