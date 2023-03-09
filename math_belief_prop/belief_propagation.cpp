@@ -2421,8 +2421,8 @@ int BeliefPropagation::init(
   ConstructStaticBufs ();
 
   // populate F - tile rules
-  for (int i=0; i < tile_rule_list.size(); i++) {
-    SetValF( BUF_F, tile_rule_list[i][3], tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2] );
+  for (int i=0; i < tile_rule_list.size(); i++) {    
+    SetValF( BUF_F, (tile_rule_list[i][3]), tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2] );
   }
   // populate G - tile weights
   for (i=0; i<m_num_values; i++) {
@@ -4209,8 +4209,8 @@ int BeliefPropagation::CullBoundary() {
 // if any tiles should be removed.
 //
 void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_plane ) {
-  int64_t i, nei_vtx;
 
+  int64_t i, nei_vtx;
 
   Vector3DI jp = getVertexPos(vtx);
 
@@ -4228,6 +4228,7 @@ void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_plane ) {
 }
 
 int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_plane) {
+
   if (getValL( BUF_VISITED, vtx ) != 0) { return 0; }
 
   int32_t new_vert_idx = m_note_n [ note_plane ];
@@ -4386,6 +4387,7 @@ int BeliefPropagation::cellConstraintPropagate() {
       jp = getVertexPos(anch_cell);
 
       anch_n_tile = getValI ( BUF_TILE_IDX_N, anch_cell );
+
       for (anch_b_idx=0; anch_b_idx < anch_n_tile; anch_b_idx++) {
 
         // Test if anchor tile has connection that falls out of bounds.
