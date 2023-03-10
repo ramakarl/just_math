@@ -305,7 +305,7 @@ public:
   //
   int   CullBoundary();
   int   cellConstraintPropagate();
-  void  cellFillAccessed(uint64_t vtx, int32_t note_idx);
+  void  cellFillVisited(uint64_t vtx, int32_t note_idx);
   int   cellFillSingle(uint64_t vtx, int32_t note_idx);
 
   int   tileIdxCollapse(uint64_t pos, int32_t tile_idx);
@@ -386,6 +386,7 @@ public:
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
+  void  debugInspect (Vector3DI pos, int tile);
 
   // run time statistics and other information
   //
@@ -440,7 +441,7 @@ public:
 
   uint64_t m_note_n[2];
 
-  int64_t m_grid_note_idx;
+  int64_t  m_note_plane;
 
   float m_rate;
 
