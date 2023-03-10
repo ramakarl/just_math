@@ -361,6 +361,8 @@ void Sample::Restart ( bool init )
 
     // make sure were running
     m_run = true;
+
+    m_elapsed = 0;
    
 }
 
