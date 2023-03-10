@@ -3935,7 +3935,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             }
 
             removeTileIdx(anch_cell, anch_b_idx);
-            cellFillAccessed(anch_cell, 1 - m_note_plane );
+            cellFillVisited(anch_cell, 1 - m_note_plane );
 
             anch_b_idx--;
             anch_n_tile--;
@@ -3992,7 +3992,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             }
 
             removeTileIdx(anch_cell, anch_b_idx);
-            cellFillAccessed(anch_cell, 1 - m_note_plane );
+            cellFillVisited (anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
 
