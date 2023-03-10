@@ -386,6 +386,7 @@ public:
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
+  void  debugInspect (Vector3DI pos, int tile);
 
   // run time statistics and other information
   //
@@ -440,7 +441,7 @@ public:
 
   uint64_t m_note_n[2];
 
-  int64_t m_grid_note_idx;
+  int64_t  m_note_plane;
 
   float m_rate;
 

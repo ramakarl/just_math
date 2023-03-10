@@ -175,11 +175,23 @@ void BeliefPropagation::ConstructDynamicBufs () {
 
   // initialize to all tiles per vertex
   for (int i=0; i<m_num_verts; i++) {
-    SetValI ( BUF_TILE_IDX_N, m_num_values, i );  // i = num_vals
+    if (i==11)
+        bool stop=true;
+    SetValI ( BUF_TILE_IDX_N, (m_num_values), i );  // i = num_vals
+
     for (int b=0; b<m_num_values; b++) {
       SetValI ( BUF_TILE_IDX, b, b, i );          // <b,i> = b
     }
   }
+
+  //-- Construct visited
+  AllocBuf ( BUF_VISITED, 'l', m_num_verts );
+    
+  //-- Construct note
+  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
+  m_note_n[0] = 0;
+  m_note_n[1] = 0;
+  m_note_plane = 0;
 
   //-- Construct Residual BP buffers
   //
@@ -193,16 +205,6 @@ void BeliefPropagation::ConstructDynamicBufs () {
 
 void BeliefPropagation::ConstructTempBufs ()
 {
-    //-- Construct visited
-    AllocBuf ( BUF_VISITED, 'l', m_num_verts );
-    
-    //-- Construct note
-    AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
-
-    m_note_n[0] = 0;
-    m_note_n[1] = 0;
-    m_grid_note_idx = 0;
-
     //-- Construct belief
     AllocBuf ( BUF_BELIEF, 'f', m_num_values );
 
@@ -322,6 +324,7 @@ void BeliefPropagation::ComputeBeliefField () {
   int tile_idx_n, tile_idx, tile_val;
 
   float b, maxb;
+  int maxt;
 
   for (int j=0; j < m_num_verts; j++) {
 
@@ -331,21 +334,34 @@ void BeliefPropagation::ComputeBeliefField () {
     // walk the tile vals to get max belief
     b = 0;
     maxb = 0;
+    maxt = 0;
+
     tile_idx_n= getValI( BUF_TILE_IDX_N, j );
 
-    if ( tile_idx_n > 1 ) {
+    if ( tile_idx_n == 1 ) {
 
-      for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
-        tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
+        // only one tile
+        maxb = 1.0;
+        maxt = getValI( BUF_TILE_IDX, 0, j ); 
+    
+    } else {
 
-        b = getValF (BUF_BELIEF, tile_val );
-        if ( b > maxb) maxb = b;
-      }
+        // search for max belief tile
+        for (tile_idx=0; tile_idx < tile_idx_n; tile_idx++) {
+            tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
+
+            b = getValF (BUF_BELIEF, tile_val );
+            if ( b > maxb) {
+                maxb = b;
+                maxt = tile_val;
+            }
+        }
+
     }
 
     // set max belief for this vertex
     SetValF( BUF_VIZ, maxb, j );
-
+    SetValI( BUF_TILES, maxt , j );
   }
 }
 
@@ -369,8 +385,8 @@ float BeliefPropagation::MaxDiffMU () {
 
       for (int a_idx=0; a_idx<n_a; a_idx++) {
         a = getValI ( BUF_TILE_IDX, a_idx, j );
-        v0 = getValF ( BUF_MU, in, j, a );
-        v1 = getValF ( BUF_MU_NXT, in, j, a );
+        v0 = getValF ( BUF_MU, in, a, j );
+        v1 = getValF ( BUF_MU_NXT, in, a, j );
 
         d = fabs(v0-v1);
         if (d > max_diff) { max_diff = d; }
@@ -428,17 +444,22 @@ void BeliefPropagation::NormalizeMU (int id) {
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
-    for (int in=0; in < getNumNeighbors(j); in++) {
-      i = getNeighbor(j, jp, in);
-      sum = 0;
 
+    for (int in=0; in < getNumNeighbors(j); in++) {
+
+      i = getNeighbor(j, jp, in); 
+     
+      // write 1 at boundaries
       if (i==-1) {
         n_a = getValI ( BUF_TILE_IDX_N, j );
         for (int a_idx=0; a_idx<n_a; a_idx++) {
           a = getValI ( BUF_TILE_IDX, a_idx, j );
           SetValF ( id, 1.0, in, a, j );
         }
-      }
+      } 
+
+      // sum all MU values 
+      sum = 0;
 
       n_a = getValI ( BUF_TILE_IDX_N, j );
       for (int a_idx=0; a_idx<n_a; a_idx++) {
@@ -446,6 +467,7 @@ void BeliefPropagation::NormalizeMU (int id) {
         sum += getValF( id, in, a, j );
       }
 
+      // normalize each MU
       if ( sum > 0 ) {
         n_a = getValI ( BUF_TILE_IDX_N, j );
         for (int a_idx=0; a_idx<n_a; a_idx++) {
@@ -2301,17 +2323,22 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
 }
 
 int BeliefPropagation::start () {  
+
   int ret=0;
 
   m_rand.seed ( m_seed );
+  
+  int v = m_rand.randI();
+  printf ("Restart. seed = %d, first = %d\n", m_seed, v );
+  
   m_seed++;
-
-  printf ("Restart. seed=%d\n", m_seed );
 
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
   
   RandomizeMU ();
+
+  debugInspect (Vector3DI(1,1,0), 0 );
 
   // cull boundary
   //
@@ -2320,6 +2347,8 @@ int BeliefPropagation::start () {
   // requires tileidx filled (above)
   //
   NormalizeMU ();       
+
+  debugInspect (Vector3DI(1,1,0), 0 );
 
   // caller should remove constrained tiles
   // right after this func
@@ -2603,11 +2632,11 @@ int BeliefPropagation::wfc_step(int64_t it) {
   ret = tileIdxCollapse( cell, tile_idx );
   if (ret < 0) { return -2; }
 
-  m_note_n[ m_grid_note_idx ] = 0;
-  m_note_n[ 1-m_grid_note_idx ] = 0;
+  m_note_n[ m_note_plane ] = 0;
+  m_note_n[ 1 - m_note_plane ] = 0;
 
-  cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  cellFillAccessed(cell, m_note_plane );
+  unfillAccessed( m_note_plane );
   //ret = cellConstraintPropagate(cell);
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2727,11 +2756,11 @@ int BeliefPropagation::RealizePost(void) {
   ret = tileIdxCollapse( cell, tile_idx );
   if (ret < 0) { return -2; }
 
-  m_note_n[ m_grid_note_idx ] = 0;
-  m_note_n[ 1-m_grid_note_idx ] = 0;
+  m_note_n[ m_note_plane ] = 0;
+  m_note_n[ 1 - m_note_plane  ] = 0;
 
-  cellFillAccessed(cell, m_grid_note_idx);
-  unfillAccessed(m_grid_note_idx);
+  cellFillAccessed(cell, m_note_plane );
+  unfillAccessed( m_note_plane  );
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2856,38 +2885,58 @@ int BeliefPropagation::Realize(void) {
   return ret;
 }
 
-int BeliefPropagation::CheckConstraints ( int64_t p )
+int BeliefPropagation::CheckConstraints () {
+
+    // compute and store the max belief tile for each vertex
+    ComputeBeliefField ();
+
+    // compute the unresolved constraints at each vertex
+    int cnt = 0;
+    
+    for (int64_t vtx = 0; vtx < m_num_verts; vtx++) {
+
+        cnt += CheckConstraints ( vtx );
+
+    }
+
+    return cnt;
+}
+
+
+
+int BeliefPropagation::CheckConstraints ( int64_t vtx )
 {
     int a, b, c, cnt;
-    float v;
+    float rule;
     int64_t pnbr, f;
     Vector3DI pi;
 
+    
     // tile value at p
-    a = getValI ( BUF_TILES, p ); 
+    a = getValI ( BUF_TILES, vtx ); 
 
     cnt = 0;
     for (int nbr=0; nbr < 6; nbr++) {
 
         // tile value at neighbor of p
-        pnbr = getNeighbor(p, nbr);
+        pnbr = getNeighbor(vtx, nbr);
         if ( pnbr != -1) {
             b = getValI( BUF_TILES, pnbr);
+
+             // check rule for b->a
+            rule = getValF ( BUF_F, a, b, nbr );
+                
+            // rule: weight 0 = disallowed
+            if (rule==0) 
+                cnt++;
+
         } else {
-            b = 0;  
-        } 
-        v = getValF ( BUF_F, a, b, nbr );   // rule for b->a            
-        
-        //f = getFace ( p, nbr );
-        
-        // constraint = 0 weight (disallowed)
-        if (v==0) {            
-            cnt++;
-            SetValI ( BUF_C, cnt, f );
-        } else {
-            SetValI ( BUF_C, 0, f );
+            // note: this ignores any boundary constraints
         }
+       
     }
+    
+    SetValI ( BUF_C, cnt, vtx );
 
     return cnt;
 }
@@ -3119,12 +3168,43 @@ void BeliefPropagation::UpdateRunTimeStat(int64_t num_step) {
 }
 
 
+void BeliefPropagation::debugInspect (Vector3DI pos, int tile)
+{
+    int64_t vtx = getVertex(pos.x, pos.y, pos.z);
+    int n, i, b;
+    int sz = 8;
+
+    printf ( "---------- Inspect: %d,%d,%d -> vtx: %d\n", pos.x, pos.y, pos.z, vtx );
+
+    int valmax = fmin( sz, m_num_values );
+
+    // inspect 
+    //printf ("BUF_G:  "); for (i=0; i < valmax; i++) { printf ("%f ", getValI(BUF_G,i)); }
+    printf ("BUF_F:  %d->{..} "); 
+    for (n=0; n < 6; n++) {
+        printf ("%d: ", n );
+        for (b=0; b < valmax; b++) { printf ("%f ", getValF(BUF_F, tile, b, n)); }
+        printf ("\n");
+    }
+    printf ("BUF_MU: %d->6nbr (%d):\n", vtx, tile ); 
+    for (n=0; n < 6; n++) {
+        printf ("%d: ", n );
+        for (i=0; i < sz; i++) { printf ("%f ", getValF(BUF_MU, n, tile, vtx+i )); }
+        printf ("\n" );
+    }
+    printf ("BUF_TILE_IDX_N: %d.. ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_TILE_IDX_N, vtx+i )); }
+    printf ("\nBUF_TILE_IDX: @%d= ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_TILE_IDX, i, vtx+i )); }
+    printf ("\nBUF_NOTE: %d.. ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_NOTE, vtx+i )); }
+    printf ("\n\n");
+
+}
+
 // print out state of BUF_NOTE, BUF_VISITED 
 //
 void BeliefPropagation::debugPrintC() {
   int i, n, fold = 20, m;
 
-  printf("NOTE[%i][%i]", (int)m_grid_note_idx, (int)m_note_n[m_grid_note_idx]);
+  printf("NOTE[%i][%i]", (int) m_note_plane , (int)m_note_n[ m_note_plane  ]);
   for (m=0; m<2; m++) {
     n = m_note_n[m];
     for (i=0; i<n; i++) {
@@ -3509,9 +3589,9 @@ int BeliefPropagation::CullBoundary() {
   int ret=0;
   int64_t x, y, z, vtx;
   Vector3DI vp;
+  int64_t new_vtx_idx;
 
-  long long int* ptr = (long long int*) m_buf[10].mCpu;
-
+  // set initial notes
 
   for (y=0; y<m_res.y; y++) {
     for (z=0; z<m_res.z; z++) {
@@ -3521,8 +3601,9 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(0, y, z);
       assert ( vtx < m_num_verts );
 
-      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-      m_note_n[m_grid_note_idx]++;
+      new_vtx_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      m_note_n[ m_note_plane ]++;
 
       if ((m_res.x-1) != 0) {
 
@@ -3530,9 +3611,10 @@ int BeliefPropagation::CullBoundary() {
 
         vtx = getVertex(m_res.x-1, y, z);
         assert ( vtx < m_num_verts );
-
-        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-        m_note_n[m_grid_note_idx]++;
+        
+        new_vtx_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        m_note_n[ m_note_plane ]++;
       }
 
     }
@@ -3546,8 +3628,9 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(x, 0, z);
       assert ( vtx < m_num_verts );
 
-      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-      m_note_n[m_grid_note_idx]++;
+      new_vtx_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      m_note_n[ m_note_plane ]++;
 
       if ((m_res.y-1) != 0) {
 
@@ -3556,8 +3639,9 @@ int BeliefPropagation::CullBoundary() {
         vtx = getVertex(x, m_res.y-1, z);
         assert ( vtx < m_num_verts );
 
-        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-        m_note_n[m_grid_note_idx]++;
+        new_vtx_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        m_note_n[ m_note_plane ]++;
       }
 
     }
@@ -3571,8 +3655,9 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(x, y, 0);
       assert ( vtx < m_num_verts );
 
-      SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-      m_note_n[m_grid_note_idx]++;
+      new_vtx_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      m_note_n[ m_note_plane ]++;
 
       if ((m_res.z-1) != 0) {
 
@@ -3581,8 +3666,9 @@ int BeliefPropagation::CullBoundary() {
         vtx = getVertex(x, y, m_res.z-1);
         assert ( vtx < m_num_verts );
 
-        SetValL ( BUF_NOTE, (vtx), m_note_n[m_grid_note_idx], m_grid_note_idx );
-        m_note_n[m_grid_note_idx]++;
+        new_vtx_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        m_note_n[ m_note_plane ]++;
       }
 
     }
@@ -3687,18 +3773,21 @@ int BeliefPropagation::sanityAccessed() {
 }
 
 
-int BeliefPropagation::removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx) {
-  int anch_tile_n, anch_tile, tval;
+int BeliefPropagation::removeTileIdx (int64_t anch_cell, int32_t anch_tile_idx) {
+  int anch_tile_n, anch_tile, last_tile;
 
+  // get tile to be removed
   anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
 
+  // decrement number of tiles
   anch_tile_n = getValI( BUF_TILE_IDX_N, anch_cell );
   anch_tile_n--;
   if (anch_tile_n==0) { return -1; }
 
-  tval = getValI ( BUF_TILE_IDX, anch_tile_n, anch_cell );
+  // swap removed tile with last tile
+  last_tile = getValI ( BUF_TILE_IDX, anch_tile_n, anch_cell );
   SetValI( BUF_TILE_IDX, (anch_tile), anch_tile_n, anch_cell );
-  SetValI( BUF_TILE_IDX, (tval), anch_tile_idx, anch_cell );
+  SetValI( BUF_TILE_IDX, (last_tile), anch_tile_idx, anch_cell );
 
   SetValI( BUF_TILE_IDX_N, (anch_tile_n ), anch_cell );
 
@@ -3779,9 +3868,9 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   while (still_culling) {
 
-    for (note_idx=0; note_idx < (int64_t) m_note_n[ m_grid_note_idx ]; note_idx++) {
+    for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
 
-      anch_cell = getValL ( BUF_NOTE, note_idx, m_grid_note_idx );
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );
 
       jp = getVertexPos(anch_cell);
 
@@ -3824,7 +3913,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             }
 
             removeTileIdx(anch_cell, anch_b_idx);
-            cellFillAccessed(anch_cell, 1-m_grid_note_idx);
+            cellFillAccessed(anch_cell, 1 - m_note_plane );
 
             anch_b_idx--;
             anch_n_tile--;
@@ -3881,7 +3970,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             }
 
             removeTileIdx(anch_cell, anch_b_idx);
-            cellFillAccessed(anch_cell, 1-m_grid_note_idx);
+            cellFillAccessed(anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
 
@@ -3894,12 +3983,12 @@ int BeliefPropagation::cellConstraintPropagate() {
       }
     }
 
-    unfillAccessed(1-m_grid_note_idx);
+    unfillAccessed(1 - m_note_plane );
 
-    if (m_note_n[m_grid_note_idx] == 0) { still_culling = 0; }
+    if (m_note_n[ m_note_plane ] == 0) { still_culling = 0; }
 
-    m_note_n[m_grid_note_idx] = 0;
-    m_grid_note_idx = 1-m_grid_note_idx;
+    m_note_n[ m_note_plane ] = 0;
+    m_note_plane  = 1 - m_note_plane ;
   }
 
   return 0;
