@@ -122,6 +122,7 @@ public:
   bool      m_save;
   float     m_frame;
   int       m_peak_iter;
+  float     m_elapsed;
 
   clock_t   m_t1, m_t2;
 };
@@ -360,6 +361,8 @@ void Sample::Restart ( bool init )
 
     // make sure were running
     m_run = true;
+
+    m_elapsed = 0;
    
 }
 
@@ -431,7 +434,7 @@ bool Sample::init()
 
       // start belief prop
       //
-      Restart ( true );  // true = first init
+      Restart ( false ); 
 
 
       bpc.SetVis ( VIZ_DMU );
@@ -445,8 +448,7 @@ bool Sample::init()
         fprintf(stderr, "wfc error loading CSV\n");
         exit(-1);
       }
-      // start wfc
-      m_t1 = clock();
+      // start wfc      
       ret = wfc.start ();
   }
 
@@ -475,13 +477,18 @@ void Sample::display()
 
     if ( m_run_bpc) {
 
+        m_t1 = clock();
+
         int ret = bpc.RealizeStep ();
+
+        m_t2 = clock();                
+        m_elapsed += ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
 
         if (ret == 0 || ret == -2) {
             // step complete
 
             if (ret==-2) {
-                printf ( "Warning: Hit max iter.\n" );
+                //printf ( "Warning: Hit max iter.\n" );
             }   
             
             // finish this iteration
@@ -498,10 +505,8 @@ void Sample::display()
             } else if ( ret==0 ) {
                 
                 // hit completion
-                printf ( "BPC DONE.\n" );
-                m_t2 = clock();
-                float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
-                printf ( "Elapsed time: %f msec\n", elapsed);
+                printf ( "BPC DONE.\n" );                
+                printf ( "Elapsed time: %f msec\n", m_elapsed);
 
                 int cnt = bpc.CheckConstraints ();
                 printf ( "Constraints: %d\n", cnt );

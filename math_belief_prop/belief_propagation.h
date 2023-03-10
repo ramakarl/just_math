@@ -346,7 +346,8 @@ public:
   inline void   SetValL(int id, int64_t val, int x, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}
   inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
-  inline int    getNumNeighbors(int j)        {return 6;}
+  inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}  
+
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
 
