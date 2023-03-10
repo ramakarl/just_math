@@ -279,7 +279,6 @@ public:
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
-  //void  WriteBoundaryMU ();
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
   float MaxDiffMU();

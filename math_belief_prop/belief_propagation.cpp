@@ -745,62 +745,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
   return max_diff;
 }
 
-/*
-void BeliefPropagation::WriteBoundaryMU () {
-  Vector3DI jp;
-  int64_t j;
-
-  // 0=x+
-  // 1=x-
-  // 2=y+
-  // 3=y-
-  // 4=z+
-  // 5=z-
-
-  // Set MU values on all boundary planes
-  // to 1.0 in the direction of out-of-bounds
-
-  for (int tile=0; tile < m_num_values; tile++) {
-
-    // X plane
-    for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
-      for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
-        jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 1, tile, j );
-        jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 0, tile, j );
-      }
-    }
-
-    // Y plane
-    for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
-      for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.y = 0;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 3, tile, j );
-        jp.y = m_bpres.y-1;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 2, tile, j );
-      }
-    }
-
-
-    // Z plane
-    for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
-      for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.z = 0;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 5, tile, j );
-        jp.z = m_bpres.z-1;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 4, tile, j );
-      }
-    }
-  }
-}
-*/
-
-
 void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
   Vector3DI jp;
   int64_t j;
@@ -3015,7 +2959,6 @@ float BeliefPropagation::step (int update_mu) {
   // initial boundary condiitions
   //
   #ifdef OPT_MUBOUND
-      //WriteBoundaryMU();
       WriteBoundaryMUbuf(BUF_MU);
       WriteBoundaryMUbuf(BUF_MU_NXT);
 
