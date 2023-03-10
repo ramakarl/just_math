@@ -189,9 +189,9 @@ public:
   };
 
   //------------------------ high level API
-  
+
   int       start();
-  
+
   int       RealizePre();
   int       RealizeRun();
   int       RealizeStep();
@@ -200,12 +200,12 @@ public:
 
   int       CheckConstraints ( int64_t p );
   int       CheckConstraints ();
- 
+
   void      SetVis (int viz_opt);
 
   //------------------------ belief propagation, mid-level API
 
-  
+
 
   int   init( int, int, int,
               std::vector< std::string  >           tile_name_list,
@@ -217,14 +217,14 @@ public:
   int   filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
 
   void  gp_state_print();
- 
+
   int   _pick_tile(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   _pick_tile_max_belief(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   _pick_tile_min_belief(int64_t anch_cell, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
   int   _pick_tile_pdf(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
 
   void  init_dir_desc();
-  float  step(int update_mu);  
+  float  step(int update_mu);
   float  step_residue(int32_t idir, int64_t cell, int32_t tile);
 
 
@@ -250,14 +250,14 @@ public:
 
   void    indexHeap_debug_print(void);
 
-  
+
   //----------------------- belief propagation (low-level)
-  
+
   void  ConstructStaticBufs ();
   void  ConstructDynamicBufs ();
   void  ConstructTempBufs ();
   void  ConstructSVDBufs ();
-    
+
   float BeliefProp();
   float BeliefProp_svd ();
 
@@ -283,7 +283,7 @@ public:
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
   float MaxDiffMU();
-  float MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);  
+  float MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);
 
   void  RandomizeMU ();
 
@@ -313,7 +313,7 @@ public:
 
   // note_idx is the 'plane' of BUF_NOTE to unwind
   //
-  void  unfillAccessed(int32_t note_idx);
+  void  unfillVisited(int32_t note_idx);
   int   removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int   sanityAccessed();
 
@@ -335,22 +335,22 @@ public:
   int           getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
   
   //----------------------- new accessor functions
-    
+
   inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
 
-  inline int32_t getValI(int id, int x=0, int y=0, int z=0)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}  
-  inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}  
-  inline float   getValF(int id, int x=0, int y=0, int z=0)            {return *(float*) m_buf[id].getPtr (x, y, z);}  
-    
-  inline void   SetValI(int id, int32_t val, int x=0, int y=0, int z=0)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
-  inline void   SetValL(int id, int64_t val, int x=0, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}  
-  inline void   SetValF(int id, float val,   int x=0, int y=0, int z=0)       {*(float*)   m_buf[id].getPtr(x, y, z) = val;}  
+  inline int32_t getValI(int id, int x=0, int y=0, int z=0)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}
+  inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}
+  inline float   getValF(int id, int x=0, int y=0, int z=0)            {return *(float*) m_buf[id].getPtr (x, y, z);}
+
+  inline void   SetValI(int id, int32_t val, int x, int y=0, int z=0)     {*(int32_t*) m_buf[id].getPtr(x, y, z) = val;}
+  inline void   SetValL(int id, int64_t val, int x, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}
+  inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
   inline int    getNumNeighbors(int j)        {return 6;}
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
-  
-    
+
+
   //----------------------- LEGACY accessor functions
 
   //  belief prop residue access functions (int64_t)
@@ -376,8 +376,8 @@ public:
   int   wfc();
   int   wfc_start();
   int   wfc_step(int64_t it);
-   
-  
+
+
   //-------------------------- debugging functions
 
   // helper arrays and functions for ease of testing and simple use
@@ -404,7 +404,7 @@ public:
   //------------------------- member variables
 
   // primary data stored in buffers
-  DataPtr   m_buf[128];     
+  DataPtr   m_buf[128];
 
   // problem size
   int64_t   m_num_verts;    // Xi = 0..X (graph domain)
@@ -426,7 +426,7 @@ public:
   int32_t     m_alg_run_opt;
 
   int64_t     m_run_iter;
-  
+
 
   // SVD number of non singular values in each direction
   //
@@ -445,7 +445,7 @@ public:
 
   float m_rate;
 
-  
+
 
   int m_verbose;
 
@@ -456,7 +456,7 @@ public:
 
   float m_eps_zero;
 
-  
+
   int64_t   m_step_cb;
   float     m_state_info_d;
   int64_t   m_state_info_iter;

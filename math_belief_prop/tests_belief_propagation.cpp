@@ -728,8 +728,9 @@ int test_cull0() {
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
-  bp.cellFillAccessed(0, bp.m_note_plane );
-  bp.unfillAccessed(bp.m_note_plane );
+
+  bp.cellFillAccessed(0, bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   ret = bp.cellConstraintPropagate();
 
@@ -760,8 +761,9 @@ int test_cull1() {
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
   bp.cellFillAccessed(0, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   ret = bp.cellConstraintPropagate();
 
@@ -792,20 +794,23 @@ int test_cull2() {
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
   bp.cellFillAccessed(0, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
   bp.cellFillAccessed(4, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
   bp.cellFillAccessed(8, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   ret = bp.cellConstraintPropagate();
 
@@ -836,38 +841,44 @@ int test_cull3() {
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r003") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
   bp.cellFillAccessed(0, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r002") );
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
   bp.cellFillAccessed(0, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+  
   bp.cellFillAccessed(4, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   bp.filterKeep( bp.getVertex(1,1,1), keep_list);
+
   bp.cellFillAccessed(4, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r000") );
   bp.filterKeep( bp.getVertex(0,2,1), keep_list);
+
   bp.cellFillAccessed(8, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(2,2,1), keep_list);
+
   bp.cellFillAccessed(8, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   ret = bp.cellConstraintPropagate();
 
@@ -903,34 +914,38 @@ int test_cull4() {
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   keep_list.push_back( bp.tileName2ID((char *)"^012") );
   bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
   bp.cellFillAccessed(0, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   keep_list.push_back( bp.tileName2ID((char *)"r002") );
   keep_list.push_back( bp.tileName2ID((char *)"^011") );
   bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
   bp.cellFillAccessed(1, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   keep_list.push_back( bp.tileName2ID((char *)"^013") );
   keep_list.push_back( bp.tileName2ID((char *)"r000") );
   bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
   bp.cellFillAccessed(2, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
 
   keep_list.clear();
   keep_list.push_back( bp.tileName2ID((char *)".000") );
   keep_list.push_back( bp.tileName2ID((char *)"^010") );
   keep_list.push_back( bp.tileName2ID((char *)"r001") );
   bp.filterKeep( bp.getVertex(1,1,0), keep_list);
-  bp.cellFillAccessed(3, bp.m_note_plane);
-  bp.unfillAccessed(bp.m_note_plane);
 
-  ret = bp.cellConstraintPropagate();
+  bp.cellFillAccessed(3, bp.m_note_plane);
+  bp.unfillVisited(bp.m_note_plane);
+
+ret = bp.cellConstraintPropagate();
 
   printf("ret: %i\n", ret );
   bp.debugPrint();
@@ -1134,11 +1149,22 @@ int test_step0(void) {
   ret = bp.start();
   if (ret<0) { return ret; }
 
+
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
-    // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
-    if (ret<=0) { break; }
+    ret = bp.RealizePre();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizeRun();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizePost();
+    if (ret < 0) { break; }
+
+     //ret = bp.single_realize_max_belief_cb(max_iter, NULL);
+    //if (ret<=0) { break; }
   }
+
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
   bp.debugPrint();
@@ -1177,6 +1203,10 @@ int test_step1() {
 
   bp.m_verbose = 3;
 
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
 
   //--
 
@@ -1228,15 +1258,21 @@ int test_step1() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
-
-  ret = bp.start();
-  if (ret<0) { return ret; }
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
+
+    ret = bp.RealizePre();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizeRun();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizePost();
+    if (ret <= 0) { break; }
+
     // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
-    if (ret<=0) { break; }
+    //if (ret<=0) { break; }
   }
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
@@ -1272,6 +1308,12 @@ int test_step2() {
 
   bp.m_verbose = 3;
 
+  //---
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
+
 
   //--
 
@@ -1323,15 +1365,22 @@ int test_step2() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
-
-  ret = bp.start();
-  if (ret<0) { return ret; }
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
+
+    ret = bp.RealizePre();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizeRun();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizePost();
+    if (ret <= 0) { break; }
+
+
     // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
-    if (ret<=0) { break; }
+    //if (ret<=0) { break; }
   }
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
@@ -1367,6 +1416,12 @@ int test_step3() {
 
   bp.m_verbose = 3;
 
+  //--
+
+  bp.m_seed = 0;
+
+  ret = bp.start();
+  if (ret<0) { return ret; }
 
   //--
 
@@ -1418,15 +1473,21 @@ int test_step3() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
-
-  ret = bp.start();
-  if (ret<0) { return ret; }
 
   n_it = bp.m_num_verts * bp.m_num_values;
   for (it=0; it<n_it; it++) {
+
+    ret = bp.RealizePre();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizeRun();
+    if (ret < 0) { break; }
+
+    ret = bp.RealizePost();
+    if (ret <= 0) { break; }
+
     // ret = bp.single_realize_max_belief_cb(max_iter, NULL);
-    if (ret<=0) { break; }
+    //if (ret<=0) { break; }
   }
 
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);

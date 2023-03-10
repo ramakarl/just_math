@@ -526,7 +526,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
             pos = bp.getVertex(x,y,z);
             bp.filterDiscard(pos, v);
 
-            //bp.cellFillAccessed(pos, bp.m_grid_note_idx);
+            bp.cellFillAccessed(pos, bp.m_grid_note_idx);
           }
         }
       }
@@ -548,7 +548,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
             pos = bp.getVertex(x,y,z);
             bp.filterKeep(pos, v);
 
-            //bp.cellFillAccessed(pos, bp.m_grid_note_idx);
+            bp.cellFillAccessed(pos, bp.m_grid_note_idx);
           }
         }
       }
@@ -565,8 +565,9 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 
   }
 
-  //ret = bp.cellConstraintPropagate();
-  //if (ret == 0) { bp.NormalizeMU(); }
+  bp.unfillVisited(bp.m_grid_note_idx);
+  ret = bp.cellConstraintPropagate();
+  if (ret == 0) { bp.NormalizeMU(); }
 
   return ret;
 }

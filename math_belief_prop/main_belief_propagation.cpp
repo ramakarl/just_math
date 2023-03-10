@@ -860,20 +860,14 @@ int main(int argc, char **argv) {
       ret = bpc.RealizePre();
       if (ret < 0) { break; }
 
-      printf("cp.0: ret: %i\n", ret);
-
       ret = 1;
       while (ret>0) {
         ret = bpc.RealizeStep();
       }
       if (ret<0) { break; }
 
-      printf("cp.1: ret: %i\n", ret);
-
       ret = bpc.RealizePost();
       if (ret <= 0) { break; }
-
-      printf("cp.2: ret: %i\n", ret);
 
       if ( raycast )  {
 

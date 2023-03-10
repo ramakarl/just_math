@@ -54,12 +54,12 @@
 #include "belief_propagation.h"
 
 // AllocBuf -- new allocation function
-// 
+//
 // supports multi-dimensional data of any type
 // total elements = cntx * cnty * cntz
 // cntx will be sequential in memory
-// 
-void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy, uint64_t resz ) 
+//
+void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy, uint64_t resz )
 {
   char buf_dt;
   uint64_t type_sz = 0;
@@ -72,13 +72,13 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
   default:
       printf ("ERROR: Type not available.\n" );
       exit(-4);
-  };  
+  };
   int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
- 
+
   // resize buffer
   uint64_t total_cnt = resx * resy * resz;
   m_buf[id].Resize( type_sz, total_cnt, 0x0, flags );
-  
+
   // set usage by dimension
   m_buf[id].SetUsage ( buf_dt, flags, resx, resy, resz );
 
@@ -150,7 +150,7 @@ void BeliefPropagation::ConstructStaticBufs ()
     int B;
     B = m_num_values;
     AllocBuf ( BUF_F, 'f', B, B, 6 );
-    
+
     //-- Construct G
     AllocBuf ( BUF_G, 'f', m_num_values );
     float weight = 1.0 / m_num_values;
@@ -167,7 +167,7 @@ void BeliefPropagation::ConstructDynamicBufs () {
 
   //-- Construct MU
   AllocBuf ( BUF_MU,     'f', 6, m_num_values, m_num_verts );
-  AllocBuf ( BUF_MU_NXT, 'f', 6, m_num_values, m_num_verts );  
+  AllocBuf ( BUF_MU_NXT, 'f', 6, m_num_values, m_num_verts );
 
   //-- Construct TILE_IDX
   AllocBuf ( BUF_TILE_IDX,   'i', m_num_values, m_num_verts );
@@ -212,7 +212,7 @@ void BeliefPropagation::ConstructTempBufs ()
     AllocBuf ( BUF_VIZ, 'f', m_num_verts );
 
     //-- Construct TILE buf
-    AllocBuf ( BUF_TILES, 'i', m_num_verts );    
+    AllocBuf ( BUF_TILES, 'i', m_num_verts );
 
     //-- Construct C (constraint count) buf
     AllocBuf ( BUF_C, 'i', m_num_verts );
@@ -222,14 +222,11 @@ void BeliefPropagation::ConstructTempBufs ()
 void BeliefPropagation::ConstructSVDBufs () {
 
     int B = m_num_values;
-    
+
     AllocBuf ( BUF_SVD_U,   'f', B, B, 6 );
-    AllocBuf ( BUF_SVD_Vt,  'f', B, B, 6 );    
+    AllocBuf ( BUF_SVD_Vt,  'f', B, B, 6 );
     AllocBuf ( BUF_SVD_VEC, 'f', B );
 }
-
-
-
 
 
 void BeliefPropagation::RandomizeMU () {
@@ -814,7 +811,7 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
         jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 0, tile, j );
-        SetValF ( dst_id, v, 0, tile, j );        
+        SetValF ( dst_id, v, 0, tile, j );
       }
     }
 
@@ -824,12 +821,12 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
         jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 3, tile, j );
-        SetValF ( dst_id, v, 3, tile, j );        
+        SetValF ( dst_id, v, 3, tile, j );
 
         jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 2, tile, j );
-        SetValF ( dst_id, v, 2, tile, j );        
+        SetValF ( dst_id, v, 2, tile, j );
       }
     }
 
@@ -840,12 +837,12 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
         jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 5, tile, j );
-        SetValF ( dst_id, v, 5, tile, j );        
+        SetValF ( dst_id, v, 5, tile, j );
 
         jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 4, tile, j );
-        SetValF ( dst_id, v, 4, tile, j );        
+        SetValF ( dst_id, v, 4, tile, j );
       }
     }
   }
@@ -1010,7 +1007,7 @@ float BeliefPropagation::BeliefProp_svd () {
         for (nei_in_idx=0; nei_in_idx < numbrs; nei_in_idx++ ) {
 
             // compute: Hij(a) = gi(a) * PROD mu{ki}_a
-          
+
             // Optimized:
             // - Eliminated boundary check using WriteBoundaryMU. getNeighbor was only used to check if _neinei_cell=-1
             // - Use direction instead of cell pos to eliminate anchor cell
@@ -1019,7 +1016,7 @@ float BeliefPropagation::BeliefProp_svd () {
                 H_ij_a *= *currMu;
             }
             currMu++;
-           
+
         }
 
         SetValF (BUF_H, H_ij_a, nei_tile );
@@ -2322,6 +2319,7 @@ float BeliefPropagation::_getVertexBelief ( uint64_t j ) {
   return sum;
 }
 
+
 int BeliefPropagation::start () {  
 
   int ret=0;
@@ -2335,7 +2333,7 @@ int BeliefPropagation::start () {
 
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
-  
+
   RandomizeMU ();
 
   debugInspect (Vector3DI(1,1,0), 0 );
@@ -2346,7 +2344,7 @@ int BeliefPropagation::start () {
 
   // requires tileidx filled (above)
   //
-  NormalizeMU ();       
+  NormalizeMU ();
 
   debugInspect (Vector3DI(1,1,0), 0 );
 
@@ -2450,7 +2448,7 @@ int BeliefPropagation::init(
   ConstructStaticBufs ();
 
   // populate F - tile rules
-  for (int i=0; i < tile_rule_list.size(); i++) {    
+  for (int i=0; i < tile_rule_list.size(); i++) {
     SetValF( BUF_F, (tile_rule_list[i][3]), tile_rule_list[i][0], tile_rule_list[i][1], tile_rule_list[i][2] );
   }
   // populate G - tile weights
@@ -2467,8 +2465,8 @@ int BeliefPropagation::init(
   m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
   m_num_values = m_tile_name.size();
   m_res.Set ( Rx, Ry, Rz );
-  
-  //-- Construct temp buffers 
+
+  //-- Construct temp buffers
   //
   ConstructTempBufs ();
 
@@ -2476,7 +2474,12 @@ int BeliefPropagation::init(
   // MU, MU_NXT, TILE_IDX
   //
 
-  start();
+  //start();
+
+  // rebuild dynamic bufs
+  //
+  ConstructDynamicBufs ();
+  RandomizeMU ();
 
   // options
   //
@@ -2488,7 +2491,7 @@ int BeliefPropagation::init(
     // be m_num_values x d and d x m_num_values for
     // U and V respectivley.
     //
-    ConstructSVDBufs ();    
+    ConstructSVDBufs ();
 
     init_SVD();
   }
@@ -2635,8 +2638,9 @@ int BeliefPropagation::wfc_step(int64_t it) {
   m_note_n[ m_note_plane ] = 0;
   m_note_n[ 1 - m_note_plane ] = 0;
 
-  cellFillAccessed(cell, m_note_plane );
-  unfillAccessed( m_note_plane );
+  cellFillVisited(cell, m_note_plane );
+  unfillVisited( m_note_plane );
+
   //ret = cellConstraintPropagate(cell);
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2645,12 +2649,16 @@ int BeliefPropagation::wfc_step(int64_t it) {
 }
 
 
+
 //-------
 //-------
 //-------
 
+//  0 - success
+// -1 - error
+//
 int BeliefPropagation::RealizePre(void) {
-  int ret;
+
   int64_t cell=-1;
   int32_t tile=-1, tile_idx=-1, n_idx=-1;
   float belief=-1.0, d = -1.0;
@@ -2714,6 +2722,10 @@ int BeliefPropagation::RealizePre(void) {
   return 0;
 }
 
+//  0 - success and finish
+//  1 - continuation
+// -1 - error
+//
 int BeliefPropagation::RealizePost(void) {
   int ret=0;
   int64_t cell=-1;
@@ -2759,8 +2771,8 @@ int BeliefPropagation::RealizePost(void) {
   m_note_n[ m_note_plane ] = 0;
   m_note_n[ 1 - m_note_plane  ] = 0;
 
-  cellFillAccessed(cell, m_note_plane );
-  unfillAccessed( m_note_plane  );
+  cellFillVisited(cell, m_note_plane );
+  unfillVisited( m_note_plane  );
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2770,6 +2782,9 @@ int BeliefPropagation::RealizePost(void) {
   return 1;
 }
 
+// 0 - converged
+// 1 - max iter reached
+//
 int BeliefPropagation::RealizeRun(void) {
   int ret = 1;
   float d = -1.0;
@@ -2787,7 +2802,7 @@ int BeliefPropagation::RealizeRun(void) {
   // iterate bp until converged
   //
   for (step_iter=0; step_iter<max_step_iter; step_iter++) {
-    d = step(1);
+    d = step(MU_COPY);
     if (fabs(d) < _eps) {
       ret = 0;
       break;
@@ -2799,6 +2814,9 @@ int BeliefPropagation::RealizeRun(void) {
   return ret;
 }
 
+// 0 - aconverged
+// 1 - not converged yet
+//
 int BeliefPropagation::RealizeStep(void) {
   int ret = 1;
   float d;
@@ -2931,16 +2949,15 @@ int BeliefPropagation::CheckConstraints ( int64_t vtx )
                 cnt++;
 
         } else {
-            // note: this ignores any boundary constraints
+            b = 0;
         }
-       
+      
     }
     
     SetValI ( BUF_C, cnt, vtx );
 
     return cnt;
 }
-
 
 void BeliefPropagation::gp_state_print() {
   int64_t anch_cell,
@@ -3089,7 +3106,11 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
 // the rest
 //
 void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
-  int32_t tile_idx, idx, n, tile_val, tv;
+  int32_t tile_idx,
+          idx,
+          n,
+          tile_val,
+          tv;
 
   n = getValI( BUF_TILE_IDX_N, pos );
   for (idx=0; idx<n; idx++) {
@@ -3103,13 +3124,12 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
 
     n--;
     tv = getValI( BUF_TILE_IDX, n, pos );
-    SetValI( BUF_TILE_IDX, tile_val, n, pos );
-    SetValI( BUF_TILE_IDX, tv, idx, pos);
+    SetValI( BUF_TILE_IDX, tile_val,  n,    pos );
+    SetValI( BUF_TILE_IDX, tv,        idx,  pos );
 
     SetValI( BUF_TILE_IDX_N, n, pos  );
 
     idx--;
-
   }
 
 }
@@ -3139,7 +3159,7 @@ void BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_i
     idx--;
   }
 
-   
+
 
 }
 
@@ -3167,6 +3187,8 @@ void BeliefPropagation::UpdateRunTimeStat(int64_t num_step) {
   }
 }
 
+
+// print out state of BUF_NOTE, BUF_VISITED
 
 void BeliefPropagation::debugInspect (Vector3DI pos, int tile)
 {
@@ -3693,7 +3715,7 @@ int BeliefPropagation::CullBoundary() {
 // positions) that need to be inspected to determine
 // if any tiles should be removed.
 //
-void BeliefPropagation::cellFillAccessed(uint64_t vtx, int32_t note_plane ) {
+void BeliefPropagation::cellFillVisited(uint64_t vtx, int32_t note_plane ) {
 
   int64_t i, nei_vtx;
 
@@ -3754,7 +3776,7 @@ int BeliefPropagation::getTilesAtVertex ( int64_t vtx ) {
 
 // unwind/remove all 'filled' cells
 //
-void BeliefPropagation::unfillAccessed(int32_t note_idx){
+void BeliefPropagation::unfillVisited(int32_t note_idx){
   int64_t i, vtx;
 
   for (i=0; i < (int64_t) m_note_n[note_idx]; i++) {
@@ -3983,7 +4005,7 @@ int BeliefPropagation::cellConstraintPropagate() {
       }
     }
 
-    unfillAccessed(1 - m_note_plane );
+    unfillVisited (1 - m_note_plane );
 
     if (m_note_n[ m_note_plane ] == 0) { still_culling = 0; }
 

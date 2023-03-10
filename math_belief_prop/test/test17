@@ -12,23 +12,24 @@ import math
 verbosity = 0
 
 expect_sequence_idx = 0
+
 expect_sequence = [
   [3, 25],
-  [7,22],
   [5,23],
+  [4, 2],
   [-1,-1]
 ]
 
 expect_realize = {
-  "[0,0,0](0):" : "r003(10)",
-  "[1,0,0](1):" : "|001( 2)",
-  "[2,0,0](2):" : "r002( 9)",
-  "[0,1,0](3):" : "T003(25)",
-  "[1,1,0](4):" : "T002(24)",
-  "[2,1,0](5):" : "T001(23)",
-  "[0,2,0](6):" : "r000( 7)",
-  "[1,2,0](7):" : "T000(22)",
-  "[2,2,0](8):" : "r001( 8)"
+  "[0,0,0](0):":"r003(10)",
+  "[1,0,0](1):":"|001( 2)",
+  "[2,0,0](2):":"r002( 9)",
+  "[0,1,0](3):":"T003(25)",
+  "[1,1,0](4):":"|001( 2)",
+  "[2,1,0](5):":"T001(23)",
+  "[0,2,0](6):":"r000( 7)",
+  "[1,2,0](7):":"|001( 2)",
+  "[2,2,0](8):":"r001( 8)"
 }
 
 cur_cell = ""
@@ -38,12 +39,13 @@ for _line in sys.stdin:
   line = _line.strip()
   if len(line)==0: continue
 
-  m = re.search( 'chooseMaxBelief: .* cell:(-?\d+), tile:(-?\d+), tile_idx:(-?\d+), max_belief:([^,]*), count:(\d+)', line )
+  m = re.search( 'chose cell:\[\d+,\d+,\d+\]\((\d+)\), tile:(\d+), belief:(-?\d+\.\d+) \(tile_idx:(\d+) / \d+\)', line )
 
   if m:
 
     cell=m.group(1)
     tile=m.group(2)
+
     #print("found:", cell, tile)
 
     if expect_sequence_idx < len(expect_sequence):
@@ -70,6 +72,8 @@ for _line in sys.stdin:
 
   if m:
     cur_tile = m.group(1)
+
+    #print(cur_cell, cur_tile)
 
     if not cur_tile in expect_realize[cur_cell]:
       if cur_cell in expect_realize:
