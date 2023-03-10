@@ -261,6 +261,8 @@ void BeliefPropagation::ComputeDiffMUField () {
   float v0, v1, d, max_diff;
   Vector3DI jp;
 
+  //int vtx = 528;
+
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
 
@@ -279,6 +281,9 @@ void BeliefPropagation::ComputeDiffMUField () {
         if (d > max_diff) { max_diff = d; }
       }
     }
+
+    //if (j==vtx) printf ( "%0.9f\n", max_diff );
+
     SetValF ( BUF_VIZ, max_diff, j );
 
   }
@@ -563,7 +568,10 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
         break;
     case VIZ_DMU:
         // dmu written into viz by ComputeDiffMU
+
         f = getValF ( BUF_VIZ, v );
+        if ( f < m_eps_converge ) f =  0;
+
         f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
         s = Vector4DF(f,f,f,f);
         break;
@@ -1334,8 +1342,6 @@ float BeliefPropagation::BeliefProp () {
   float mu_val;
   int   odd_even_cell = -1;
 
-
-
   rate = m_rate;
 
   Vector3DI jp;
@@ -1363,7 +1369,6 @@ float BeliefPropagation::BeliefProp () {
         continue;
       }
     }
-
 
 
     // 6 neighbors of j in 3D
