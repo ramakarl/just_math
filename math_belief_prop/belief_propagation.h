@@ -214,29 +214,9 @@ public:
 
   int   init_SVD(void);
 
-  int   realize();
-
   int   filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
 
   void  gp_state_print();
-
-  // legacy
-  int   single_realize (int64_t it);
-  int   single_realize_cb (int64_t it, void (*cb)(void *));
-  //int   single_realize_lest_belief_cb (int64_t it, void (*cb)(void *));
-
-  // core methods
-  int   RAMA_single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
-
-  int   single_realize_max_belief_cb(int64_t it, void (*cb)(void *));
-  int   single_realize_min_entropy_max_belief_cb(int64_t it, void (*cb)(void *));
-
-  // min belief algorithm
-  int   single_realize_min_belief_cb(int64_t it, void (*cb)(void *));
-
-  // experimental
-  int   single_realize_min_entropy_min_belief_cb(int64_t it, void (*cb)(void *));
-  int   single_realize_residue_cb(int64_t it, void (*cb)(void *));
 
   int   _pick_tile(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   _pick_tile_max_belief(int64_t anch_cell, int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);

@@ -24,18 +24,16 @@ for line in sys.stdin:
     state = "fin"
     continue
 
-
   if state == "count":
     v = re.sub( '[^\(]*\(([^\)]*)\).*', '\\1', line)
     tile_map[v] = 1
     count += 1
 
-
 expect_only_tile = [' 1', ' 2', ' 3', ' 4' , ' 5', ' 6']
 
 if count != len(expect_only_tile):
   c = str(len(expect_only_tile))
-  sys.stderr.write("ERROR: expected " + c + " number of tiles but got " + c + "\n")
+  sys.stderr.write("ERROR: expected " + str(count) + " number of tiles but got " + c + "\n")
   sys.exit(-1)
 
 
