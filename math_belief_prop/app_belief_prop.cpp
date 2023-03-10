@@ -503,6 +503,9 @@ void Sample::display()
                 float elapsed = ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
                 printf ( "Elapsed time: %f msec\n", elapsed);
 
+                int cnt = bpc.CheckConstraints ();
+                printf ( "Constraints: %d\n", cnt );
+
                 // write json output
                 g_opt.tileset_stride_x = m_tileset_stride_x;
                 g_opt.tileset_stride_y = m_tileset_stride_y;
