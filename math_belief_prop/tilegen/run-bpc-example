@@ -52,6 +52,8 @@
 
 bpc_bin="../bpc"
 
+mkdir -p log
+
 ######
 ######
 
@@ -186,7 +188,7 @@ $bpc_bin \
 name_fn="./example_tile_collection/oskar-pipe_name.csv"
 rule_fn="./example_tile_collection/oskar-pipe_rule.csv"
 objloc_fn="./example_tile_collection/oskar-pipe_objloc.csv"
-stl_fn="./example_tile_collection/oskar-pipe_r_D8.stl"
+stl_fn="./example_tile_collection/oskar-pipe_D8.stl"
 
 echo "running 'oskar-pipe' 3D tile collection (residual bp), producing '$stl_fn'"
 
@@ -196,13 +198,13 @@ $bpc_bin \
   -L $objloc_fn \
   -M $stl_fn \
   -D 8 \
-  -G 4 \
+  -G 2 \
   -I 100000000 \
   -e 0.0001 \
   -w 0.9 \
   -S 123 \
-  -J 'd[][1:][] 1' \
-  -V 2 | tee log/oskar-pipe_r_D8.log
+  -J 'd[][1:][] 0:2' \
+  -V 2 | tee log/oskar-pipe_D8.log
 
 
 

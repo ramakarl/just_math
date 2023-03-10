@@ -27,3 +27,7 @@ These images were exported form the [Tiled](https://www.mapeditor.org/) program.
 |---|
 | ![stair](example_tile_collection/stair_X24Y12Z6.png) |
 
+| Oskar Pipe |
+|---|
+| ![oskar pipe](example_tile_collection/oskar-pipe_D8.png) |
+
