@@ -279,7 +279,6 @@ public:
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
-  void  WriteBoundaryMU ();
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
   float MaxDiffMU();
@@ -346,7 +345,8 @@ public:
   inline void   SetValL(int id, int64_t val, int x, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}
   inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
-  inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}  
+  //inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}
+  inline int    getNumNeighbors(int j)        {return 6;}
 
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}

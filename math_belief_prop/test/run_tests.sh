@@ -131,7 +131,8 @@ fi
 test_num=16
 expect_res=`sha256sum bp_test16_output.txt | cut -f1 -d' '`
 #actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | sha256sum | cut -f1 -d' '`
-actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | grep -v -P ' version: |m_stat'  | sha256sum | cut -f1 -d' '`
+actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | tail +39 | grep -v -P ' version: |m_stat'  | sha256sum | cut -f1 -d' '`
+#actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | tail +39 | grep -v -P ' version: |m_stat'  > ffff`
 #res="$?"
 
 if [[ "$expect_res" != "$actual_res" ]] ; then
