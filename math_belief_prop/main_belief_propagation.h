@@ -55,8 +55,8 @@ int test_realize1();
 int test_realize2(int x, int y, int z);
 int test_wfc0(int x, int y, int z);
 
-int test_step0();
-int test_step1();
+//int test_step0();
+//int test_step1();
 
 int run_test(BeliefPropagation &bp, int test_num);
 

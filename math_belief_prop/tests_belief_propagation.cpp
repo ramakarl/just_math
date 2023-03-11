@@ -1171,7 +1171,7 @@ int test_realize2(int x, int y, int z) {
 }
 
 
-int test_step0(void) {
+int test_step0(BeliefPropagation &_bp) {
 
   int ret;
   float maxdiff, _eps = (1.0/(1024.0));
@@ -1179,7 +1179,7 @@ int test_step0(void) {
 
   BeliefPropagation bp;
 
-  ret = bp_init_CSV ( bp, 4, 4, 4, bp.op.name_fn, bp.op.rule_fn );
+  ret = bp_init_CSV ( bp, 4, 4, 4, _bp.op.name_fn, _bp.op.rule_fn );
 
   if (ret<0) { return ret; }
 
@@ -1211,7 +1211,7 @@ int test_step0(void) {
 
 // test run until converged
 //
-int test_step1() {
+int test_step1(BeliefPropagation &_bp) {
   int ret;
   int64_t it, n_it;
   int x, y, z;
@@ -1234,7 +1234,7 @@ int test_step1() {
 
   BeliefPropagation bp;
 
-  ret = bp_init_CSV ( bp, x, y, z, bp.op.name_fn, bp.op.rule_fn);
+  ret = bp_init_CSV ( bp, x, y, z, _bp.op.name_fn, _bp.op.rule_fn);
 
   if (ret<0) { return ret; }
 
@@ -1324,7 +1324,7 @@ int test_step1() {
 // test run until converged
 // with SVD optimization turned on
 //
-int test_step2() {
+int test_step2(BeliefPropagation &_bp) {
   int ret;
   int64_t it, n_it;
   int x, y, z;
@@ -1340,7 +1340,7 @@ int test_step2() {
 
   bp.op.use_svd = 1;
 
-  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn);
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn);
 
   if (ret<0) { return ret; }
 
@@ -1432,7 +1432,7 @@ int test_step2() {
 
 // test checkerboard on simple example
 //
-int test_step3() {
+int test_step3(BeliefPropagation &_bp) {
   int ret;
   int64_t it, n_it;
   int x, y, z;
@@ -1449,7 +1449,7 @@ int test_step3() {
   bp.op.use_svd = 0;
   bp.op.use_checkerboard = 1;
 
-  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   bp.op.eps_converge = 1.0/1024.0;
@@ -1541,7 +1541,7 @@ int test_step3() {
 // test checkerboard on simple example
 // with svd
 //
-int test_step4() {
+int test_step4(BeliefPropagation &_bp) {
   int ret;
   int64_t it, n_it;
   int x, y, z;
@@ -1558,7 +1558,7 @@ int test_step4() {
   bp.op.use_svd = 1;
   bp.op.use_checkerboard = 1;
 
-  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   bp.op.eps_converge = 1.0/1024.0;
@@ -2306,7 +2306,7 @@ int test_residual6() {
 
 // test residual bp run until converged
 //
-int test_residual7() {
+int test_residual7(BeliefPropagation &_bp) {
   int ret;
   int64_t it, n_it;
 
@@ -2325,7 +2325,7 @@ int test_residual7() {
 
   bp.op.use_svd = 0;
 
-  ret = bp_init_CSV( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn );
+  ret = bp_init_CSV( bp, 3, 3, 1, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   bp.op.eps_converge = 1.0/1024.0;
@@ -2575,23 +2575,23 @@ int run_test(BeliefPropagation &bp, int test_num) {
       break;
 
     case 16:
-      test_step0();
+      test_step0(bp);
       break;
 
     case 17:
-      test_step1();
+      test_step1(bp);
       break;
 
     case 18:
-      test_step2();
+      test_step2(bp);
       break;
 
     case 19:
-      test_step3();
+      test_step3(bp);
       break;
 
     case 20:
-      test_step4();
+      test_step4(bp);
       break;
 
     case 21:
@@ -2616,7 +2616,7 @@ int run_test(BeliefPropagation &bp, int test_num) {
       test_residual6();
       break;
     case 28:
-      test_residual7();
+      test_residual7(bp);
       break;
     case 29:
       test_residual8();

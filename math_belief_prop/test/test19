@@ -82,6 +82,10 @@ for _line in sys.stdin:
         sys.exit(-1)
     continue
 
+if expect_sequence_idx != len(expect_sequence):
+  print("ERROR: only processed", expect_sequence_idx, "of", len(expect_sequence), "sequences")
+  sys.exit(-1)
+
 
 if verbosity > 0:
   print("ok")
