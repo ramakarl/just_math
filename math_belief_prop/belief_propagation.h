@@ -423,8 +423,12 @@ public:
 
   //----------------------- options & stat accessors
   
+  void          ResetStats ();
+
   std::string   getStatMessage ();
   std::string   getStatCSV (int mode=0);
+  
+  
 
   bp_opt_t*     get_opt()              { return &op; }
   bp_stat_t*    get_stat()             { return &st; }

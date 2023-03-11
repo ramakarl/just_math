@@ -2364,11 +2364,8 @@ int BeliefPropagation::start () {
   
   op.seed++;
 
-  // reset stats
-  op.cur_iter = 0;
-  st.elapsed_time = 0;
-  st.iter_resolved = 0;
-  st.total_resolved = 0; 
+  // reset stats (must do first)
+  ResetStats ();  
 
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
@@ -2381,7 +2378,7 @@ int BeliefPropagation::start () {
   //
   ret = CullBoundary();
 
-  // requires tileidx filled (above)
+  // requires tileidx filled (in DynamicBufs)
   //
   NormalizeMU ();
 
@@ -2389,6 +2386,14 @@ int BeliefPropagation::start () {
   // right after this func
   //
   return ret;
+}
+
+void BeliefPropagation::ResetStats ()
+{
+    op.cur_iter = 0;
+    st.elapsed_time = 0;
+    st.iter_resolved = 0;
+    st.total_resolved = 0; 
 }
 
 
