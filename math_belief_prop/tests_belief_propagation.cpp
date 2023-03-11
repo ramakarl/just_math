@@ -38,9 +38,6 @@
 #include "main_belief_propagation.h"
 #include "bp_helper.h"
 
-extern opt_t g_opt;
-
-
 
 //------------------------------------//
 //  _            _   _                //
@@ -54,13 +51,14 @@ extern opt_t g_opt;
 // custom size (basic test)
 //
 int test0() {
+
   int ret;
 
-  BeliefPropagation bp;
-  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  BeliefPropagation bp;  
+
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);
   if (ret<0) { return ret; }
 
-  //bp.init(4,3,1);
   bp.debugPrint();
   return 0;
 }
@@ -83,8 +81,9 @@ int test1() {
   discard_list.push_back(44);
 
   BeliefPropagation bp;
-  //bp.init(4,3,1);
-  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  
   if (ret<0) { return ret; }
 
   bp.filterDiscard(6, discard_list);
@@ -106,8 +105,9 @@ int test2() {
   keep_list.push_back(6);
 
   BeliefPropagation bp;
-  //bp.init(4,3,1);
-  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -119,9 +119,11 @@ int test2() {
 int test3() {
   int ret;
   std::vector<int32_t> keep_list;
+
   BeliefPropagation bp;
-  //bp.init(4,3,1);
-  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
+
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -211,9 +213,11 @@ int test4_() {
 
   float maxdiff;
   std::vector<int32_t> keep_list;
+
   BeliefPropagation bp;
-  //bp.init(4,3,1);
-  ret = init_CSV( bp, 4,3,1, g_opt.fn_name, g_opt.fn_rule);
+
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -337,12 +341,14 @@ int test4() {
 
   float maxdiff;
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
-  bp.m_rate = 1.0;
+  bp.op.step_rate = 1.0;
 
   //--
 
@@ -520,12 +526,14 @@ int test5() {
   int iter, max_iter=100;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
+  bp.op.eps_converge = 1.0/1024.0;
 
 
   //--
@@ -619,9 +627,12 @@ int test5_1() {
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+
+  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -717,9 +728,11 @@ int test_cull0() {
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(2,2,1);
-  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1,  bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -750,9 +763,11 @@ int test_cull1() {
   int iter=0, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 4, 3, 1,  bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -783,9 +798,11 @@ int test_cull2() {
   int iter=0, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -830,9 +847,12 @@ int test_cull3() {
   int iter=0, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,2);
-  ret = init_CSV( bp, 3,3,2, g_opt.fn_name, g_opt.fn_rule);
+  
+
+  ret = bp_init_CSV ( bp, 3, 3, 2, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -901,9 +921,11 @@ int test_cull4() {
   int iter=0, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(2,2,1);
-  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 2, 2, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -969,9 +991,11 @@ int test6() {
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -1058,11 +1082,10 @@ int test_realize0() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_seed = 18;
+  bp.op.seed = 18;
 
-  //bp.init(2,2,1);
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 2,2,1, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV ( bp, 2, 2, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -1084,13 +1107,14 @@ int test_realize1() {
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
 
-  bp.m_seed = 18;
+  bp.op.seed = 18;
 
-  //bp.init(3,3,1);
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, 3,3,1, g_opt.fn_name, g_opt.fn_rule);
+
+  ret = bp_init_CSV ( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
 
@@ -1112,10 +1136,12 @@ int test_realize2(int x, int y, int z) {
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
+ 
 
-  //bp.init(x,y,z);
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV ( bp, x, y, z, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
   // ret = bp.realize();
@@ -1128,34 +1154,28 @@ int test_realize2(int x, int y, int z) {
 
 
 int test_step0(void) {
-  int ret;
-  int iter, max_iter=1024;
+    
+  int ret;  
   float maxdiff, _eps = (1.0/(1024.0));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
 
-  int x,y,z;
-  int64_t n_it, it;
+  ret = bp_init_CSV ( bp, 4, 4, 4, bp.op.name_fn, bp.op.rule_fn );  
 
-  x = 4;
-  y = 4;
-  z = 4;
-
-  bp.m_seed = 0;
-
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
   if (ret<0) { return ret; }
 
   ret = bp.start();
   if (ret<0) { return ret; }
 
+  int n_it = bp.m_num_verts * bp.m_num_values;
 
-  n_it = bp.m_num_verts * bp.m_num_values;
-  for (it=0; it<n_it; it++) {
+  for (int it=0; it<n_it; it++) {
+
     ret = bp.RealizePre();
     if (ret < 0) { break; }
 
-    ret = bp.RealizeRun();
+    ret = bp.RealizeIter();
     if (ret < 0) { break; }
 
     ret = bp.RealizePost();
@@ -1165,8 +1185,7 @@ int test_step0(void) {
     //if (ret<=0) { break; }
   }
 
-
-  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  printf("(%i,%i,%i) got: %i\n", bp.op.X, bp.op.Y, bp.op.Z, ret);
   bp.debugPrint();
 
   return ret;
@@ -1194,16 +1213,18 @@ int test_step1() {
   int iter, max_iter=100;
   float maxdiff, _eps = (1.0/(1024*1024));
   std::vector<int32_t> keep_list;
+  
   BeliefPropagation bp;
-  //bp.init(3,3,1);
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  
+  ret = bp_init_CSV ( bp, x, y, z, bp.op.name_fn, bp.op.rule_fn);  
+
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
+  bp.op.eps_converge = 1.0/1024.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -1265,7 +1286,7 @@ int test_step1() {
     ret = bp.RealizePre();
     if (ret < 0) { break; }
 
-    ret = bp.RealizeRun();
+    ret = bp.RealizeIter();
     if (ret < 0) { break; }
 
     ret = bp.RealizePost();
@@ -1299,17 +1320,18 @@ int test_step2() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 1;
+  bp.op.use_svd = 1;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn);
+
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
+  bp.op.eps_converge = 1.0/1024.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
   //---
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -1372,7 +1394,7 @@ int test_step2() {
     ret = bp.RealizePre();
     if (ret < 0) { break; }
 
-    ret = bp.RealizeRun();
+    ret = bp.RealizeIter();
     if (ret < 0) { break; }
 
     ret = bp.RealizePost();
@@ -1406,19 +1428,19 @@ int test_step3() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 0;
-  bp.m_use_checkerboard = 1;
+  bp.op.use_svd = 0;
+  bp.op.use_checkerboard = 1;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
+  bp.op.eps_converge = 1.0/1024.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
   //--
 
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -1480,7 +1502,7 @@ int test_step3() {
     ret = bp.RealizePre();
     if (ret < 0) { break; }
 
-    ret = bp.RealizeRun();
+    ret = bp.RealizeIter();
     if (ret < 0) { break; }
 
     ret = bp.RealizePost();
@@ -1515,15 +1537,15 @@ int test_step4() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 1;
-  bp.m_use_checkerboard = 1;
+  bp.op.use_svd = 1;
+  bp.op.use_checkerboard = 1;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
+  bp.op.eps_converge = 1.0/1024.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
 
   //--
@@ -1576,7 +1598,7 @@ int test_step4() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -1608,13 +1630,9 @@ int test_residual0() {
   int32_t _tile, _idir;
   float _a, _b;
 
-  x = 3;
-  y = 3;
-  z = 1;
-
   BeliefPropagation bp;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1656,13 +1674,9 @@ int test_residual1() {
 
   int _buf;
 
-  x = 3;
-  y = 3;
-  z = 1;
-
   BeliefPropagation bp;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1679,7 +1693,7 @@ int test_residual1() {
 
   bp.indexHeap_init();
 
-  n = bp.m_index_heap_size;
+  n = bp.op.index_heap_size;
 
   n_it = n*10;
   for (it=0; it<n_it; it++) {
@@ -1715,13 +1729,9 @@ int test_residual2() {
 
   int _buf;
 
-  x = 3;
-  y = 3;
-  z = 1;
-
   BeliefPropagation bp;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn  );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1738,7 +1748,7 @@ int test_residual2() {
 
   bp.indexHeap_init();
 
-  n = bp.m_index_heap_size;
+  n = bp.op.index_heap_size;
 
   n_it = n*10;
   for (it=0; it<n_it; it++) {
@@ -1788,13 +1798,9 @@ int test_residual3() {
 
   int _buf;
 
-  x = 3;
-  y = 2;
-  z = 1;
-
   BeliefPropagation bp;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 2, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1811,7 +1817,7 @@ int test_residual3() {
 
   bp.indexHeap_init();
 
-  n = bp.m_index_heap_size;
+  n = bp.op.index_heap_size;
 
   n_it = n*n*10;
   for (it=0; it<n_it; it++) {
@@ -1878,13 +1884,9 @@ int test_residual4() {
 
   int _buf;
 
-  x = 3;
-  y = 2;
-  z = 1;
-
   BeliefPropagation bp;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 2, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1901,7 +1903,7 @@ int test_residual4() {
 
   bp.indexHeap_init();
 
-  n = bp.m_index_heap_size;
+  n = bp.op.index_heap_size;
 
   n_it = n*n*10;
   for (it=0; it<n_it; it++) {
@@ -1974,15 +1976,11 @@ int test_residual5() {
   float _eps;
   int mu_pos_found=0;
 
-  x = 3;
-  y = 2;
-  z = 1;
-
   BeliefPropagation bp;
 
-  _eps = bp.m_eps_zero;
+  _eps = bp.op.eps_zero;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 2, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   n = bp.m_num_values * bp.m_num_verts * 6;
@@ -1999,7 +1997,7 @@ int test_residual5() {
 
   bp.indexHeap_init();
 
-  n = bp.m_index_heap_size;
+  n = bp.op.index_heap_size;
 
   n_it = n*n*10;
   for (it=0; it<n_it; it++) {
@@ -2152,15 +2150,15 @@ int test_residual6() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 0;
+  bp.op.use_svd = 0;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
-  bp.m_rate = 1.0;
+  bp.op.eps_converge = 1.0/1024.0;
+  bp.op.step_rate = 1.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
 
   //--
@@ -2213,7 +2211,7 @@ int test_residual6() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -2255,7 +2253,7 @@ int test_residual6() {
   for (iter=1; iter<max_iter; iter++) {
 
     mu_idx = bp.indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
-    if (f_residue < bp.m_eps_converge) { break; }
+    if (f_residue < bp.op.eps_converge) { break; }
 
     if (_verbose > 0) {
       printf("\n");
@@ -2293,12 +2291,7 @@ int test_residual6() {
 int test_residual7() {
   int ret;
   int64_t it, n_it;
-  int x, y, z;
-
-  x = 3;
-  y = 3;
-  z = 1;
-
+  
   // expect:
   //
   // 0,1,0: 2/5 |000, 3/5 T003
@@ -2312,16 +2305,15 @@ int test_residual7() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 0;
+  bp.op.use_svd = 0;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
-  bp.m_rate = 1.0;
+  bp.op.eps_converge = 1.0/1024.0;
+  bp.op.step_rate = 1.0;
 
-  bp.m_verbose = 3;
-
+  bp.op.verbose = 3;
 
   //--
 
@@ -2373,7 +2365,7 @@ int test_residual7() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -2384,7 +2376,7 @@ int test_residual7() {
     if (ret<=0) { break; }
   }
 
-  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  printf("(%i,%i,%i) got: %i\n", bp.op.X, bp.op.Y, bp.op.Z, ret);
   bp.debugPrint();
 
   return ret;
@@ -2395,11 +2387,6 @@ int test_residual7() {
 int test_residual8() {
   int ret;
   int64_t it, n_it;
-  int x, y, z;
-
-  x = 3;
-  y = 3;
-  z = 1;
 
   // expect:
   //
@@ -2414,15 +2401,15 @@ int test_residual8() {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-  bp.m_use_svd = 1;
+  bp.op.use_svd = 1;
 
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, 3,3,1, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.m_eps_converge = 1.0/1024.0;
-  bp.m_rate = 1.0;
+  bp.op.eps_converge = 1.0/1024.0;
+  bp.op.step_rate = 1.0;
 
-  bp.m_verbose = 3;
+  bp.op.verbose = 3;
 
 
   //--
@@ -2475,7 +2462,7 @@ int test_residual8() {
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
   //---
-  bp.m_seed = 0;
+  bp.op.seed = 0;
 
   ret = bp.start();
   if (ret<0) { return ret; }
@@ -2486,7 +2473,7 @@ int test_residual8() {
     if (ret<=0) { break; }
   }
 
-  printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
+  printf("(%i,%i,%i) got: %i\n", bp.op.X, bp.op.Y, bp.op.Z, ret);
   bp.debugPrint();
 
   return ret;
@@ -2503,7 +2490,7 @@ int test_wfc0(int x, int y, int z) {
   BeliefPropagation bp;
 
   //bp.init(x,y,z);
-  ret = init_CSV( bp, x,y,z, g_opt.fn_name, g_opt.fn_rule);
+  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   ret = bp.wfc();

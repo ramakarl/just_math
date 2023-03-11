@@ -70,7 +70,6 @@
 #define MU_NOCOPY 0
 #define MU_COPY 1
 
-
 #define VIZ_NONE        0
 #define VIZ_MU          1
 #define VIZ_DMU         2
@@ -137,63 +136,136 @@
 #define BUF_RESIDUE_HEAP_CELL_BP  20    //                                                                               // <6*B*num_vert, 1, 1>
 #define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
 
+
+// Belief propagation - options
+
+typedef struct _bp_opt_t {
+
+  float     alpha;
+
+  int       X, Y, Z, D;
+  
+  std::string name_fn;
+  std::string rule_fn;
+
+  std::string tileset_fn,
+              tilemap_fn,
+              tileobj_fn,
+              outstl_fn;
+
+  int32_t   tileset_stride_x,
+            tileset_stride_y;
+  int32_t   tileset_margin,
+            tileset_spacing;
+  int32_t   tileset_width,
+            tileset_height;
+  int       tiled_reverse_y;
+
+  std::string  constraint_cmd;
+
+  std::vector< int32_t > cull_list;
+
+  int       seed;
+
+  float     step_rate;
+
+  float     eps_converge, 
+            eps_converge_beg,
+            eps_converge_end,
+            eps_zero;
+
+  int64_t   step_cb;
+  float     state_info_d;
+  int64_t   state_info_iter;
+
+  int64_t   index_heap_size;
+
+  int32_t   cur_run;
+  int32_t   max_run;
+
+  int32_t   cur_iter;
+  int32_t   max_iter;
+  
+  int32_t   cur_step;
+  int32_t   max_step;
+  
+  int32_t   alg_idx;            // ALG_RUN_VANILLA or ALG_RUN_RESIDUE
+  int32_t   alg_cell_opt;       // ALG_CELL_ANY, ALG_CELL_MIN_ENTROPY
+  int32_t   alg_tile_opt;       // ALG_TILE_MAX_BELIEF
+  int32_t   alg_run_opt;
+
+  int32_t   viz_opt;            // VIS_NONE, VIS_MU, VIS_BELIEF, etc..
+  
+  bool      use_cuda;
+  int       use_svd;
+  int       use_checkerboard;
+
+  int       verbose;
+
+} bp_opt_t;
+
+// Belief propagation - constraint ops
+
+typedef struct constraint_op_type {
+  char op;
+  std::vector< int > dim_range;
+  std::vector< int > tile_range;
+} constraint_op_t;
+
+
+// Belief propagation - statistics
+
+typedef struct _bp_stat_t {
+
+    char    enabled;
+    int     post;
+
+    int     upper_step;
+    double  avg_step,
+            second_moment_step;
+
+    float   eps_curr;
+
+    float   max_dmu,
+            ave_mu, 
+            ave_dmu;
+
+    int64_t num_culled,
+            num_collapsed,
+            num_chosen;
+
+    int     iter_resolved,
+            total_resolved;
+
+    float   elapsed_time;
+
+    int64_t constraints;
+
+} bp_stat_t;
+
+
+
+// Belief propagation 
+
 class BeliefPropagation {
 public:
   BeliefPropagation() {
-    m_seed = 17;
-    m_verbose = 0;
-    m_eps_converge = (1.0/(1024.0));
-    //m_eps_converge = (1.0/(1024.0*1024.0));
-    //m_eps_zero = (1.0/(1024.0*1024.0));
-    m_eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
-    m_max_iteration = 1024;
 
-    //m_step_cb = 10;
-    m_step_cb = 1;
-    m_state_info_d = -1;
-    m_state_info_iter = 0;
+    op.verbose = 0;
 
-    m_rate = 0.98;
-
-    m_use_svd = 0;
-    m_use_checkerboard = 0;
-
-    m_index_heap_size = 0;
-
-    m_stat_enabled = 1;
-    m_stat_avg_iter = 0.0;
-
-    // unused...
-    m_stat_second_moment_iter = 0.0;
-
-    m_stat_cur_iter = 0;
-    m_stat_max_iter = 0;
-    m_stat_num_culled = 0;
-    m_stat_num_collapsed = 0;
-
-    // unused...
-    m_stat_num_chosen = 0;
-
-    m_eps_converge_beg = m_eps_converge;
-    m_eps_converge_end = m_eps_converge;
-
-    m_viz_opt = VIZ_NONE;
-
-    m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-    m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    m_alg_run_opt = ALG_RUN_VANILLA;
-
-    m_run_iter = 0;
-    m_step_iter = 0;
+    default_opts();
 
   };
 
   //------------------------ high level API
 
-  int       start();
+  int       default_opts ();
 
-  int       RealizePre();
-  int       RealizeRun();
+  int       start();
+  int       finish();
+
+  int       RealizePre();  
+  int       RealizeIter();
   int       RealizeStep();
   int       RealizePost();
   int       Realize();
@@ -204,8 +276,6 @@ public:
   void      SetVis (int viz_opt);
 
   //------------------------ belief propagation, mid-level API
-
-
 
   int   init( int, int, int,
               std::vector< std::string  >           tile_name_list,
@@ -351,6 +421,19 @@ public:
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
 
+  //----------------------- options & stat accessors
+  
+  std::string   getStatMessage ();
+  std::string   getStatCSV (int mode=0);
+
+  bp_opt_t*     get_opt()              { return &op; }
+  bp_stat_t*    get_stat()             { return &st; }
+
+  int           getStep()              { return op.cur_step; }
+  int           getVerbose()           { return op.verbose; }
+  float         getLinearEps ();
+  float         getElapsedTime()       { return st.elapsed_time; }
+  void          setConverge ( bp_opt_t* op, float c );
 
   //----------------------- LEGACY accessor functions
 
@@ -391,84 +474,38 @@ public:
 
   // run time statistics and other information
   //
-  void    UpdateRunTimeStat(int64_t num_step);
-  int32_t m_stat_enabled;
-  double  m_stat_avg_iter,
-          m_stat_second_moment_iter;
-  int64_t m_stat_cur_iter,
-          m_stat_max_iter,
-          m_stat_num_culled,
-          m_stat_num_collapsed,
-          m_stat_num_chosen;
-
-
+  // void    UpdateRunTimeStat(int64_t num_step);
+  
+  
   //------------------------- member variables
 
   // primary data stored in buffers
-  DataPtr   m_buf[128];
+  DataPtr       m_buf[128];
 
   // problem size
-  int64_t   m_num_verts;    // Xi = 0..X (graph domain)
-  int64_t   m_num_values;   //  B = 0..Bm-1 (value domain)
-  Vector3DI m_bpres;        // 3D spatial belief prop res
+  int64_t       m_num_verts;    // Xi = 0..X (graph domain)
+  int64_t       m_num_values;   //  B = 0..Bm-1 (value domain)
+  Vector3DI     m_bpres;        // 3D spatial belief prop res
 
-  Vector3DI m_res;          // volume res
+  Vector3DI     m_res;          // volume res
 
   std::vector< std::string > m_tile_name;
   std::vector< std::string > m_dir_desc;
-  int m_dir_inv[6];
+  int           m_dir_inv[6];
 
-  // algorithm state
-  int32_t     m_run_opt;
+  uint64_t      m_note_n[2];
+  int64_t       m_note_plane;
 
-  int32_t     m_viz_opt;
-  int32_t     m_alg_cell_opt;
-  int32_t     m_alg_tile_opt;
-  int32_t     m_alg_run_opt;
+  int64_t       m_svd_nsv[6];
 
-  int64_t     m_run_iter;
+  Mersenne      m_rand;
 
+  // parameters/options
+  bp_opt_t      op;
 
-  // SVD number of non singular values in each direction
-  //
-  int       m_use_svd;
-  int64_t   m_svd_nsv[6];
-  int       m_use_checkerboard;
-
-  bool      m_run_cuda=0;
-  int       m_seed;
-  Mersenne  m_rand;
-
-
-  uint64_t m_note_n[2];
-
-  int64_t  m_note_plane;
-
-  float m_rate;
-
-
-
-  int m_verbose;
-
-  float m_eps_converge;
-
-  float m_eps_converge_beg,
-        m_eps_converge_end;
-
-  float m_eps_zero;
-
-
-  int64_t   m_step_cb;
-  float     m_state_info_d;
-  int64_t   m_state_info_iter;
-
-  int64_t   m_step_iter;
-  int64_t   m_max_iteration;
-
-  int64_t   m_index_heap_size;
-
-
-
+  // statistics
+  bp_stat_t     st;
+  
 };
 
 

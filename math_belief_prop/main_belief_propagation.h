@@ -34,32 +34,6 @@
 #ifndef MAIN_BELIEF_PROPAGATION_HPP
 #define MAIN_BELIEF_PROPAGATION_HPP
 
-typedef struct _opt_t {
-  float alpha;
-  int alg_idx;
-  std::string fn_name;
-  std::string fn_rule;
-
-  std::string tileset_fn,
-              tilemap_fn,
-              tileobj_fn,
-              outstl_fn;
-  int32_t tileset_stride_x,
-          tileset_stride_y;
-  int32_t tileset_margin,
-          tileset_spacing;
-  int32_t tileset_width,
-          tileset_height;
-
-  int tiled_reverse_y;
-
-} opt_t;
-
-extern opt_t g_opt;
-
-
-
-
 // tests..
 //
 int test0();

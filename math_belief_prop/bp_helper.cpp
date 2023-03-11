@@ -35,8 +35,175 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
-// global g_opt for bp helper
-opt_t g_opt;
+int bp_restart ( BeliefPropagation& bpc )
+{
+    int ret;
+
+    // dynamic restart
+    // (not needed if this is first init)
+    //
+    ret = bpc.start ();
+
+    bp_opt_t* op = bpc.get_opt();
+
+    // apply dsl constraints
+    if (op->constraint_cmd.size() > 0) {
+
+        std::vector< int > dim;
+        dim.push_back( op->X );
+        dim.push_back( op->Y );
+        dim.push_back( op->Z );
+        std::vector< constraint_op_t > constraint_op_list;
+
+        ret = parse_constraint_dsl ( constraint_op_list, op->constraint_cmd, dim, bpc.m_tile_name);
+        if (ret < 0) {
+            fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+            exit(-1);
+        }
+
+        ret = constrain_bp ( bpc, constraint_op_list);
+        if (ret < 0) {
+            fprintf(stderr, "constrain_bp failure\n");
+            exit(-1);
+        }
+    } 
+    
+    ret = bpc.RealizePre ();
+
+    return ret;
+}
+
+// *NOTE*: Multirun can be used in place to bp_init.
+// Assumes the caller has already populated cmd args.
+//
+int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
+{
+    int ret, runret;
+    std::string csv;
+
+    // start report file:
+    // overwrite first
+    FILE* fp = fopen ( outfile.c_str(), "w" );   
+    if ( fp==0 ) {
+        printf ( "ERROR: Cannot open %s for output.\n", outfile.c_str() );
+        exit(-7);
+    }
+    fprintf ( fp, "reset\n" );
+    fclose (fp);
+
+    // append
+    fp = fopen ( outfile.c_str(), "w" ); 
+
+    // write header
+    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+
+
+    // platform-specific, find name & rule files
+    #ifdef _WIN32
+        std::string name_path, rule_path;
+        getFileLocation ( bpc.op.name_fn, name_path );
+        getFileLocation ( bpc.op.rule_fn, rule_path );
+    #endif
+    
+    // initialize BP
+    ret = bp_init_CSV ( bpc, bpc.op.X, bpc.op.Y, bpc.op.Z, name_path, rule_path );
+    if (ret<0) {
+        fprintf(stderr, "bpc error loading CSV\n");
+        exit(-1);
+    }
+
+    // start multiple runs
+    bpc.op.max_run = num_runs;
+
+    for (int run=0; run < num_runs; run++) {
+
+        bpc.op.cur_run = run;
+
+        // restart 
+        bp_restart ( bpc );
+
+        // run iterations & steps
+        runret = 1;
+        while ( runret == 1 ) {
+            
+            ret = bpc.RealizeStep ();
+
+            if (ret == 0 || ret == -2) {             
+                // finish this iteration
+                ret = bpc.RealizePost();
+                                
+                if ( ret > 0) {
+                    // iteration complete (all steps), start new iteration
+                    bpc.RealizePre();                    
+                    runret = 1;
+                    
+                    // append csv iteration
+                    fprintf ( fp, "%s\n", bpc.getStatCSV().c_str() );  fflush ( fp );
+
+                } else if (ret == 0) {
+                    // this run DONE!
+                    runret = 0;                    
+
+                    // append csv run done                    
+                    fprintf ( fp, "%s\n", bpc.getStatCSV( 1 ).c_str() );  fflush ( fp );
+                    fprintf ( fp, "%s\n", bpc.getStatCSV( 2 ).c_str() );  fflush ( fp );
+
+                    // write json output                    
+                    write_tiled_json( bpc );  
+                }                
+
+            } else {
+                // error condition
+                switch (ret) {                
+                case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
+                case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
+                case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
+                };         
+                // ignore error. can set runret=ret if you want to stop on error
+                runret = 1;
+            }
+        }       
+
+    } 
+
+    fclose ( fp );
+
+    return 0;
+}
+
+int bp_init_CSV( BeliefPropagation &bp, int rx, int ry, int rz, std::string name_path, std::string rule_path ) {
+
+  int ret;
+
+  std::vector< std::string >            name_list;
+  std::vector< float >                  weight_list;
+  std::vector< std::vector< float > >   rule_list;
+
+  bp.op.X = rx;
+  bp.op.Y = ry;
+  bp.op.Z = rz;
+
+  // we dont use name_fn/rule_fn from opt because name_path/rule_path 
+  // passed in are platform-specific resolved absolute paths
+    
+  ret = _read_name_csv( name_path, name_list, weight_list );
+  if (ret<0) {
+    fprintf(stderr, "error loading name CSV\n");
+    return -1;
+  }
+
+  ret =_read_rule_csv( rule_path, rule_list );
+  if (ret<0) {
+    fprintf(stderr, "error loading rule CSV\n");
+    return -1;
+  }
+
+  ret = bp.init( bp.op.X, bp.op.Y, bp.op.Z, name_list, weight_list, rule_list );
+
+  return ret;
+}
+
+//------------------------------- secondary helpers
 
 int _read_line(FILE *fp, std::string &line) {
   int ch=0, count=0;
@@ -198,32 +365,7 @@ int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
   return 0;
 }
 
-int init_CSV(
-    BeliefPropagation &bp,
-    int X, int Y, int Z,
-    std::string &name_fn, std::string &rule_fn) {
-  int ret;
 
-  std::vector< std::string > name_list;
-  std::vector< float > weight_list;
-  std::vector< std::vector< float > > rule_list;
-
-  ret = _read_name_csv( name_fn, name_list, weight_list );
-  if (ret<0) {
-    fprintf(stderr, "error loading name CSV\n");
-    return -1;
-  }
-
-  ret =_read_rule_csv( rule_fn, rule_list );
-  if (ret<0) {
-    fprintf(stderr, "error loading rule CSV\n");
-    return -1;
-  }
-
-  ret = bp.init( X,Y,Z, name_list, weight_list, rule_list );
-
-  return ret;
-}
 
 //---
 
@@ -564,7 +706,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
     }
 
   }
-
+ 
   bp.unfillVisited (bp.m_note_plane);
   ret = bp.cellConstraintPropagate();
   if (ret == 0) { bp.NormalizeMU(); }
@@ -584,7 +726,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 //void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);
 void stl_print(FILE *, std::vector< float > &, float, float, float);
 
-int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< float > > tri_lib) {
+int write_bp_stl (BeliefPropagation& bp, std::vector< std::vector< float > > tri_lib) {
   FILE *fp=stdout;
 
   int i, j, k, n;
@@ -600,8 +742,8 @@ int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< fl
   int64_t pos;
   int32_t tile_id;
 
-
-  fp = fopen(opt.outstl_fn.c_str(), "w");
+  
+  fp = fopen( bp.op.outstl_fn.c_str(), "w");
   if (!fp) { return -1; }
 
   for (ix=0; ix<bp.m_res.x; ix++) {
@@ -632,38 +774,45 @@ int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< fl
   return 0;
 }
 
-int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
+int write_tiled_json ( BeliefPropagation & bpc) {
   FILE *fp;
   int i, j, n, tileset_size;
   int64_t vtx;
 
   int sy, ey_inc;
 
+  // set filename
+  char fname[1024];
+  sprintf (fname, "%s%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
+
+  // get BP options
+  bp_opt_t* op = bpc.get_opt();
+
   int tilecount = (int)bpc.m_tile_name.size();
   tilecount--;
 
   //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
-  opt.tileset_width = ceil( sqrt( (double)tilecount ) );
-  opt.tileset_height = opt.tileset_width;
+  op->tileset_width = ceil( sqrt( (double) tilecount ) );
+  op->tileset_height = op->tileset_width;
 
-  opt.tileset_width *= opt.tileset_stride_x;
-  opt.tileset_height *= opt.tileset_stride_y;
+  op->tileset_width *= op->tileset_stride_x;
+  op->tileset_height *= op->tileset_stride_y;
 
-  if (bpc.m_verbose >= 1) {
-    printf("Writing tilemap (%s)\n", opt.tilemap_fn.c_str());
-  }
-
-  fp = fopen( opt.tilemap_fn.c_str(), "w");
-  if (!fp) { 
-      printf("ERROR: Failed to write (%s)\n", opt.tilemap_fn.c_str());
-      return -1; 
   
-  }
+  // open file for write
+  fp = fopen( fname, "w");
 
+  if (!fp) { 
+      printf("ERROR: Failed to write (%s)\n", fname );
+      return -1; 
+  } else {
+      if (op->verbose >= 2) printf("Writing tilemap (%s)\n", fname );
+  }
+  
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
-  fprintf(fp, "  \"height\": %i,\n", (int)bpc.m_res.y);
-  fprintf(fp, "  \"width\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "  \"height\": %i,\n", (int) bpc.m_res.y);
+  fprintf(fp, "  \"width\": %i,\n", (int) bpc.m_res.x);
   fprintf(fp, "  \"layers\": [{\n");
 
   fprintf(fp, "    \"data\": [");
@@ -674,10 +823,10 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   int tile;
 
-  if (opt.tiled_reverse_y) {
+  if (op->tiled_reverse_y) {
 
-    for (i=(int)(bpc.m_res.y-1); i>=0; i--) {
-      for (j=0; j<(int)bpc.m_res.x; j++) {
+    for (i=(int) (bpc.m_res.y-1); i>=0; i--) {
+      for (j=0; j<(int) bpc.m_res.x; j++) {
 
         vtx = bpc.getVertex(j, i, 0);
 
@@ -693,16 +842,17 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
 
   }
   else {
-    for (i=0; i<(int)(bpc.m_res.y); i++) {
-      for (j=0; j<(int)bpc.m_res.x; j++) {
+    for (i=0; i<(int) (bpc.m_res.y); i++) {
+      for (j=0; j<(int) bpc.m_res.x; j++) {
          vtx = bpc.getVertex(j, i, 0);
 
          //tile = bpc.getMaxBeliefTile ( vtx );
           tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
 
          fprintf(fp, " %i", tile );
-        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        else                                { fprintf(fp, "%s", ","); }
+
+         if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+         else                                { fprintf(fp, "%s", ","); }
       }
       fprintf(fp, "\n  ");
     }
@@ -736,22 +886,22 @@ int write_tiled_json(opt_t &opt, BeliefPropagation &bpc) {
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
   fprintf(fp, "  \"properties\": [ ],\n");
   fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
-  fprintf(fp, "  \"tileheight\": %i,\n", (int)opt.tileset_stride_y);
-  fprintf(fp, "  \"tilewidth\": %i,\n", (int)opt.tileset_stride_x);
+  fprintf(fp, "  \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+  fprintf(fp, "  \"tilewidth\": %i,\n", (int) op->tileset_stride_x);
   fprintf(fp, "  \"tilesets\": [{\n");
 
   fprintf(fp, "    \"firstgid\": %i,\n", 1);
-  fprintf(fp, "    \"columns\": %i,\n", (int)bpc.m_res.x);
+  fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
   fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
-  fprintf(fp, "    \"image\": \"%s\",\n", opt.tileset_fn.c_str());
-  fprintf(fp, "    \"imageheight\": %i,\n", (int)opt.tileset_height);
-  fprintf(fp, "    \"imagewidth\": %i,\n", (int)opt.tileset_width);
-  fprintf(fp, "    \"margin\": %i,\n", (int)opt.tileset_margin);
-  fprintf(fp, "    \"spacing\": %i,\n", (int)opt.tileset_spacing);
+  fprintf(fp, "    \"image\": \"%s\",\n", op->tileset_fn.c_str());
+  fprintf(fp, "    \"imageheight\": %i,\n", (int) op->tileset_height);
+  fprintf(fp, "    \"imagewidth\": %i,\n", (int) op->tileset_width);
+  fprintf(fp, "    \"margin\": %i,\n", (int) op->tileset_margin);
+  fprintf(fp, "    \"spacing\": %i,\n", (int) op->tileset_spacing);
   //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
   fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
-  fprintf(fp, "    \"tileheight\": %i,\n", (int)opt.tileset_stride_y);
-  fprintf(fp, "    \"tilewidth\": %i\n", (int)opt.tileset_stride_x);
+  fprintf(fp, "    \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+  fprintf(fp, "    \"tilewidth\": %i\n", (int) op->tileset_stride_x);
 
   fprintf(fp, "  }],\n");
   fprintf(fp, "  \"version\": %i\n", 1);
@@ -991,4 +1141,6 @@ int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris) 
 
   return 0;
 }
+
+
 

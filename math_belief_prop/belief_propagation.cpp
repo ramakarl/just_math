@@ -47,11 +47,65 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #include <vector>
 #include <string>
 
 #include "belief_propagation.h"
+
+
+
+void BeliefPropagation::setConverge ( bp_opt_t* oparg, float c )
+{
+    oparg->eps_converge = c;
+    
+    oparg->eps_converge_beg = c;
+    oparg->eps_converge_end = c;
+}
+
+int BeliefPropagation::default_opts ()
+{
+    op.seed = 17;
+
+    st.enabled = 1;
+
+    op.eps_converge = (1.0/(1024.0));
+
+    setConverge ( &op, op.eps_converge );
+    
+    op.eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
+
+     // iterations 
+    op.cur_iter = 0;
+    op.max_iter = 0;     // <- will be set to # vertices
+
+    // steps 
+    op.cur_step = 0;
+    op.max_step = 1024;    
+
+    //m_step_cb = 10;
+    op.step_cb = 1;
+    op.state_info_d = -1;
+    op.state_info_iter = 0;
+
+    op.step_rate = 0.98;
+
+    op.use_svd = 0;
+    op.use_checkerboard = 0;
+
+    op.index_heap_size = 0;
+
+    op.viz_opt = VIZ_DMU;
+
+    op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt = ALG_RUN_VANILLA;
+
+
+    return 0;
+}
+
 
 // AllocBuf -- new allocation function
 //
@@ -73,7 +127,7 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
       printf ("ERROR: Type not available.\n" );
       exit(-4);
   };
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
+  int flags = op.use_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
 
   // resize buffer
   uint64_t total_cnt = resx * resy * resz;
@@ -233,7 +287,6 @@ void BeliefPropagation::RandomizeMU () {
   int i;
   Vector3DI jp;
 
-  float w;
   float *mu = (float*) m_buf[BUF_MU].getData();
   uint64_t cnt = 6 * m_num_verts * m_num_values;
   memset ( mu, 0, cnt * sizeof(float) );
@@ -285,8 +338,8 @@ void BeliefPropagation::ComputeDiffMUField () {
     //if (j==vtx) printf ( "%0.9f\n", max_diff );
 
     SetValF ( BUF_VIZ, max_diff, j );
-
   }
+
  }
 
 int BeliefPropagation::getMaxBeliefTile ( uint64_t j ) {
@@ -367,7 +420,8 @@ void BeliefPropagation::ComputeBeliefField () {
     }
 
     // set max belief for this vertex
-    SetValF( BUF_VIZ, maxb, j );
+    if (op.viz_opt==VIZ_BELIEF) SetValF( BUF_VIZ, maxb, j );
+
     SetValI( BUF_TILES, maxt , j );
   }
 }
@@ -380,6 +434,10 @@ float BeliefPropagation::MaxDiffMU () {
   Vector3DI jp;
 
   float max_overall = 0;
+
+  int mu_cnt = 0;
+  st.ave_mu = 0;
+  st.ave_dmu = 0;
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
@@ -397,12 +455,20 @@ float BeliefPropagation::MaxDiffMU () {
 
         d = fabs(v0-v1);
         if (d > max_diff) { max_diff = d; }
+
+        if (st.enabled) {
+            st.ave_mu += v1;
+            st.ave_dmu += d;
+            mu_cnt++;
+        }
       }
     }
     if ( max_diff > max_overall ) {max_overall = max_diff;}
     //printf ( "max overall: %f\n", max_overall );
+  }  
 
-  }
+  st.ave_mu /= mu_cnt;
+  st.ave_dmu /= mu_cnt;
 
   return max_overall;
 }
@@ -540,7 +606,8 @@ void BeliefPropagation::NormalizeMU_cell_residue (int buf_id, int64_t cell) {
 }
 
 void BeliefPropagation::SetVis (int vopt) {
-    m_viz_opt = vopt;
+    
+    op.viz_opt = vopt;
 
     std::string msg;
     switch ( vopt ) {
@@ -562,11 +629,13 @@ void BeliefPropagation::SetVis (int vopt) {
 Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     float f;
     Vector4DF s;
+    
+    float vexp = 0.3; 
+    float vscale = 0.1;
 
-    float vscale = 2.0f;
-    float vexp = 0.2f;
-
-    switch (m_viz_opt) {
+    float vmax = op.eps_converge * 10.0;    
+    
+    switch (op.viz_opt) {
     case VIZ_MU:
         f = getValF ( BUF_VIZ, v );
         s = Vector4DF(f,f,f,f);
@@ -575,9 +644,9 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
         // dmu written into viz by ComputeDiffMU
 
         f = getValF ( BUF_VIZ, v );
-        if ( f < m_eps_converge ) f =  0;
+        //if ( f < op.eps_converge ) f = 0;
 
-        f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
+        f = std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));
         s = Vector4DF(f,f,f,f);
         break;
     case VIZ_BELIEF:
@@ -616,7 +685,7 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
         mu_nxt_val=0;
 
 
-  rate = m_rate;
+  rate = op.step_rate;
 
   anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
 
@@ -933,7 +1002,7 @@ float BeliefPropagation::BeliefProp_svd () {
 
   int   odd_even_cell = -1;
 
-  rate = m_rate;
+  rate = op.step_rate;
 
   Vector3DI jp;
 
@@ -944,7 +1013,7 @@ float BeliefPropagation::BeliefProp_svd () {
     anch_tile_idx_n = getValI ( BUF_TILE_IDX_N, anch_cell );
     jp = getVertexPos(anch_cell);
 
-    if (m_use_checkerboard) {
+    if (op.use_checkerboard) {
       odd_even_cell = (jp.x + jp.y + jp.z)%2;
       if (odd_even_cell==0) {
         for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
@@ -1160,8 +1229,8 @@ float BeliefPropagation::BeliefProp_svd () {
 //
 //
 float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
-  int64_t nei_cell=0;
-  int a_idx;
+
+  int64_t nei_cell=0;  
   int d, r, c;
 
   int anch_tile_idx, anch_tile_idx_n;
@@ -1182,7 +1251,7 @@ float BeliefPropagation::BeliefProp_cell_residue_svd (int64_t anch_cell) {
 
   int   odd_even_cell = -1;
 
-  rate = m_rate;
+  rate = op.step_rate;
 
   Vector3DI jp;
 
@@ -1349,7 +1418,7 @@ float BeliefPropagation::BeliefProp () {
   float mu_val;
   int   odd_even_cell = -1;
 
-  rate = m_rate;
+  rate = op.step_rate;
 
   Vector3DI jp;
 
@@ -1360,7 +1429,7 @@ float BeliefPropagation::BeliefProp () {
     anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
     jp = getVertexPos(anch_cell);
 
-    if (m_use_checkerboard) {
+    if (op.use_checkerboard) {
       odd_even_cell = (jp.x + jp.y + jp.z)%2;
       if (odd_even_cell==0) {
         for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
@@ -1548,7 +1617,7 @@ void BeliefPropagation::cellUpdateBelief(int64_t anch_cell) {
   int32_t anch_tile=0, anch_tile_idx=0, anch_tile_idx_n=0;
   int dir_idx;
   float sum=0.0,
-        _eps = m_eps_zero;
+        _eps = op.eps_zero;
   float _b_i_t_a = 0.0;
 
   sum = 0.0;
@@ -1613,7 +1682,7 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
 
     f = getValF( BUF_BELIEF, anch_tile );
 
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
           f, max_p, (int) anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
@@ -1646,7 +1715,7 @@ int BeliefPropagation::_pick_tile_min_belief(int64_t anch_cell, int64_t *max_cel
 
     f = getValF( BUF_BELIEF, anch_tile );
 
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("##### f: %f, min_p%f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
           f, min_p, (int)anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
@@ -1710,7 +1779,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
   int32_t _max_tile = -1,
           _max_tile_idx = -1;
 
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
 
   float _min_entropy = -1.0,
         _entropy_sum = 0.0;
@@ -1734,7 +1803,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
     }
 
     //DEBUG
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
         anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
@@ -1754,7 +1823,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
       count=1;
 
       //DEBUG
-      if (m_verbose > 2) {
+      if (op.verbose > 2) {
         printf("  ## (i.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
             (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
       }
@@ -1766,7 +1835,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
     //
     if ( _entropy_sum < (_min_entropy + _eps) ) {
 
-      if (m_verbose > 2) {
+      if (op.verbose > 2) {
         printf("  !! picking cell %i (entropy_sum %f < _min_entropy %f + %f)\n", (int)anch_cell,
             _entropy_sum, _min_entropy, _eps);
       }
@@ -1781,7 +1850,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
         count=1;
 
         //DEBUG
-        if (m_verbose > 2) {
+        if (op.verbose > 2) {
           printf("  ## (a.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
         }
@@ -1797,7 +1866,7 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
         if ( p < (1.0/(float)count) ) {
           _pick_tile_max_belief( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
 
-          if (m_verbose > 2) {
+          if (op.verbose > 2) {
             //DEBUG
             printf("  ## (b.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
@@ -1834,7 +1903,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
   int32_t _min_tile = -1,
           _min_tile_idx = -1;
 
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
 
   float _min_entropy = -1.0,
         _entropy_sum = 0.0;
@@ -1860,7 +1929,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
     }
 
     //DEBUG
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
         anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
@@ -1880,7 +1949,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
       count=1;
 
       //DEBUG
-      if (m_verbose > 2) {
+      if (op.verbose > 2) {
         vp = getVertexPos(_min_cell);
         printf("  ## (i.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
             (int)vp.x, (int)vp.y, (int)vp.z,
@@ -1894,7 +1963,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
     //
     if ( _entropy_sum < (_min_entropy + _eps) ) {
 
-      if (m_verbose > 2) {
+      if (op.verbose > 2) {
         printf("  !! picking cell %i (entropy_sum %f < _min_entropy %f + %f)\n", (int)anch_cell,
             _entropy_sum, _min_entropy, _eps);
       }
@@ -1909,7 +1978,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
         count=1;
 
         //DEBUG
-        if (m_verbose > 2) {
+        if (op.verbose > 2) {
           printf("  ## (a.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)vp.x, (int)vp.y, (int)vp.z,
               (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
@@ -1926,7 +1995,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
         if ( p < (1.0/(float)count) ) {
           _pick_tile_min_belief( anch_cell, &_min_cell, &_min_tile, &_min_tile_idx, &_min_belief );
 
-          if (m_verbose > 2) {
+          if (op.verbose > 2) {
             //DEBUG
             printf("  ## (b.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)vp.x, (int)vp.y, (int)vp.z,
@@ -1946,7 +2015,7 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
   if (min_tile_idx) { *min_tile_idx = _min_tile_idx; }
   if (min_belief)   { *min_belief   = _min_belief; }
 
-  if (m_verbose > 2) {
+  if (op.verbose > 2) {
     printf("?? count:%i\n", (int)count);
   }
 
@@ -1965,7 +2034,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
           _max_tile_idx = -1;
 
   //float _eps = (1.0/(1024.0*1024.0));
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
 
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
@@ -1975,7 +2044,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
     if (anch_tile_idx_n==1) { continue; }
 
     //DEBUG
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
         anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
@@ -2000,7 +2069,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
           _max_belief = f;
           count=1;
 
-          if (m_verbose > 2) {
+          if (op.verbose > 2) {
             //DEBUG
             printf("  ## (a.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
@@ -2021,7 +2090,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
             _max_tile_idx = anch_tile_idx;
             _max_belief = f;
 
-            if (m_verbose > 2) {
+            if (op.verbose > 2) {
               //DEBUG
               printf("  ## (b.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
@@ -2042,7 +2111,7 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
 
   }
 
-  if (m_verbose > 1) {
+  if (op.verbose > 1) {
     printf("## chooseMaxBelief: choosing cell:%i, tile:%i, tile_idx:%i, max_belief:%f, count:%i\n",
         (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
   }
@@ -2066,7 +2135,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
           _min_tile_idx = -1;
 
   //float _eps = (1.0/(1024.0*1024.0));
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
 
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
     cellUpdateBelief(anch_cell);
@@ -2076,7 +2145,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
     if (anch_tile_idx_n==1) { continue; }
 
     //DEBUG
-    if (m_verbose > 2) {
+    if (op.verbose > 2) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
         anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
@@ -2103,7 +2172,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
           _min_belief = f;
           count=1;
 
-          if (m_verbose > 2) {
+          if (op.verbose > 2) {
             //DEBUG
             printf("  ## (a.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
@@ -2123,7 +2192,7 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
             _min_tile_idx = anch_tile_idx;
             _min_belief = f;
 
-            if (m_verbose > 2) {
+            if (op.verbose > 2) {
               //DEBUG
               printf("  ## (b.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
@@ -2158,7 +2227,7 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
           _max_tile_idx = -1;
 
   //float _eps = (1.0/(1024.0*1024.0));
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
 
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
 
@@ -2286,7 +2355,7 @@ float BeliefPropagation::getVertexBelief ( uint64_t j ) {
     sum += _bi;
   }
 
-  if (sum > m_eps_zero) {
+  if (sum > op.eps_zero) {
     for (tile_idx=0; tile_idx<tile_idx_n; tile_idx++) {
       tile_val = getValI( BUF_TILE_IDX, tile_idx, j );
 
@@ -2336,19 +2405,25 @@ int BeliefPropagation::start () {
 
   int ret=0;
 
-  m_rand.seed ( m_seed );
+  m_rand.seed ( op.seed );
   
   int v = m_rand.randI();
-  printf ("Restart. seed = %d, first = %d\n", m_seed, v );
+  printf ("Restart. seed = %d, first = %d\n", op.seed, v );
   
-  m_seed++;
+  op.seed++;
+
+  // reset stats
+  op.cur_iter = 0;
+  st.elapsed_time = 0;
+  st.iter_resolved = 0;
+  st.total_resolved = 0; 
 
   // rebuild dynamic bufs
   ConstructDynamicBufs ();
 
   RandomizeMU ();
 
-  debugInspect (Vector3DI(1,1,0), 0 );
+  // debugInspect (Vector3DI(1,1,0), 0 );
 
   // cull boundary
   //
@@ -2358,13 +2433,12 @@ int BeliefPropagation::start () {
   //
   NormalizeMU ();
 
-  debugInspect (Vector3DI(1,1,0), 0 );
-
   // caller should remove constrained tiles
   // right after this func
   //
   return ret;
 }
+
 
 //----
 
@@ -2423,8 +2497,8 @@ int BeliefPropagation::init(
     std::vector< std::string  >           tile_name_list,
     std::vector< float >                  tile_weight_list,
     std::vector< std::vector < float > >  tile_rule_list ) {
-  int B,
-      i, ret=0,
+  
+  int i, ret=0,
       b, maxb=-1;
 
   init_dir_desc();
@@ -2495,9 +2569,9 @@ int BeliefPropagation::init(
 
   // options
   //
-  m_run_cuda  = false;
+  op.use_cuda  = false;
 
-  if (m_use_svd) {
+  if (op.use_svd) {
     // m_num_values x m_num_values is an upper bound
     // ont he matrix size. The dimensions used will
     // be m_num_values x d and d x m_num_values for
@@ -2507,6 +2581,10 @@ int BeliefPropagation::init(
 
     init_SVD();
   }
+  
+  // set max iterations
+  op.cur_iter = 0;
+  op.max_iter = m_num_verts;
 
   return 0;
 }
@@ -2639,7 +2717,7 @@ int BeliefPropagation::wfc_step(int64_t it) {
   if (ret < 0) { return -1; }
   if (ret==0) { return 0; }
 
-  if (m_verbose > 1) {
+  if (op.verbose > 1) {
     printf("wfc[%i]: cell:%i, tile:%i, tile_idx:%i, entropy:%f (ret:%i)\n",
       (int)it, (int)cell, (int)tile, (int)tile_idx, (float)entropy, (int)ret);
   }
@@ -2654,16 +2732,14 @@ int BeliefPropagation::wfc_step(int64_t it) {
   unfillVisited( m_note_plane );
 
   //ret = cellConstraintPropagate(cell);
+  int resolved;
+
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
 
   return 1;
 }
 
-
-
-//-------
-//-------
 //-------
 
 //  0 - success
@@ -2675,30 +2751,27 @@ int BeliefPropagation::RealizePre(void) {
   int32_t tile=-1, tile_idx=-1, n_idx=-1;
   float belief=-1.0, d = -1.0;
 
-  float _eps = m_eps_converge;
+  // reset steps
+  op.cur_step = 0;  
 
-  float f_it = (float)m_run_iter;
-  float f_it_n = (float)m_num_verts;
+  float _eps = getLinearEps();
 
-  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
-
-
-  if (m_alg_run_opt == ALG_RUN_VANILLA) {
+  if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
     // after we've propagated constraints, BUF_MU
     // needs to be renormalized
     //
     NormalizeMU();
 
-    if (m_verbose > 1) {
+    if (op.verbose > 1) {
       printf("# RealizePre %f (%i/%i) {%f:%f}\n",
-          (float)_eps, (int)m_run_iter, (int)m_num_verts,
-          (float)m_eps_converge_beg, (float)m_eps_converge_end);
+          (float) _eps, (int) op.cur_iter, (int) op.max_iter,
+          (float) op.eps_converge_beg, (float) op.eps_converge_end);
     }
 
   }
 
-  else if (m_alg_run_opt == ALG_RUN_RESIDUAL) {
+  else if (op.alg_run_opt == ALG_RUN_RESIDUAL) {
 
     // after we've propagated constraints, BUF_MU
     // needs to be renormalized
@@ -2729,8 +2802,6 @@ int BeliefPropagation::RealizePre(void) {
 
   }
 
-  m_step_iter = 0;
-
   return 0;
 }
 
@@ -2739,19 +2810,19 @@ int BeliefPropagation::RealizePre(void) {
 // -1 - error
 //
 int BeliefPropagation::RealizePost(void) {
-  int ret=0;
+
+  int resolved = 0;
+  int post_ret=0;
+  int ret;
   int64_t cell=-1;
   int32_t tile=-1, tile_idx=-1, n_idx=-1;
   float belief=-1.0, d = -1.0;
 
   Vector3DI vp;
 
-  if (m_stat_enabled) { UpdateRunTimeStat(m_step_iter); }
-
   // choose the cell and propagate choice
   //
-
-  switch (m_alg_cell_opt) {
+  switch (op.alg_cell_opt) {
     case ALG_CELL_ANY:
       ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
       break;
@@ -2762,66 +2833,150 @@ int BeliefPropagation::RealizePost(void) {
       return -1;
       break;
   }
-  if (ret < 0) { return -1; }
+  
+  // result of choose..
+  if ( ret >= 1 ) {
 
-  if (m_verbose > 1) {
-    vp = getVertexPos(cell);
-    n_idx = getValI ( BUF_TILE_IDX_N, cell );
-    printf("chose cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
-        (int)vp.x, (int)vp.y, (int)vp.z,
-        (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
+      // 1 = continue condition. 
+      // display chosen cell
+      if (op.verbose > 1) {
+        vp = getVertexPos(cell);
+        n_idx = getValI ( BUF_TILE_IDX_N, cell );
+        printf("chosen cell:[%i,%i,%i](%i), tile:%i, belief:%f (tile_idx:%i / %i)\n",
+            (int)vp.x, (int)vp.y, (int)vp.z,
+            (int)cell, (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
+      }
+      // assume continue
+      post_ret = 1;
+
+      // reset iter resolved and advance total
+      st.iter_resolved = 1;
+      st.total_resolved++;
+
+      // collapse
+      ret = tileIdxCollapse( cell, tile_idx );
+      if (ret >=0 ) { 
+            m_note_n[ m_note_plane ] = 0;
+            m_note_n[ 1 - m_note_plane  ] = 0;
+
+            cellFillVisited ( cell, m_note_plane );
+            unfillVisited( m_note_plane  );
+
+            // propagate constraints to remove neighbor tiles,
+            // and count number resolved (only 1 tile val remain)
+            ret = cellConstraintPropagate();
+
+            if (ret < 0) { 
+                // constraint prop failed
+                post_ret = -3; 
+            }   
+
+      } else {
+            // collapse failed
+            post_ret = -2;
+      }      
+
+  } else if ( ret == 0 ) {
+      // 0 = success condition.
+      post_ret = 0;
+
+  } else if (ret < 0) {
+      // -1 = failure of MaxBelief 
+      post_ret = -1;
+
+  }
+  
+  // iteration or overall complete
+  if (post_ret >= 0) {
+    
+    // check constraints
+    st.constraints = CheckConstraints ();
+    st.eps_curr = getLinearEps();
+    st.post = post_ret;
+
+    // print iter stats
+    printf ("%s", getStatMessage().c_str() );
+
+    op.cur_iter++;
   }
 
-  // (success) end condition, all cell positions have exactly
-  // one tile in them.
-  //
-  if (ret==0) { return 0; }
-
-  ret = tileIdxCollapse( cell, tile_idx );
-  if (ret < 0) { return -2; }
-
-  m_note_n[ m_note_plane ] = 0;
-  m_note_n[ 1 - m_note_plane  ] = 0;
-
-  cellFillVisited(cell, m_note_plane );
-  unfillVisited( m_note_plane  );
-
-  ret = cellConstraintPropagate();
-  if (ret < 0) { return -3; }
-
-  // non-error but still processing
-  //
-  return 1;
+  // return state
+  return post_ret;
 }
+
+std::string BeliefPropagation::getStatMessage ()
+{
+    char msg[1024];
+
+    // iter returns
+    //  -1 = complete, success
+    //  -2 = complete, fail
+    // >=0 = current iteration
+    //
+    int iter = (st.post==0) ? ((st.constraints==0) ? -1 : -2) : op.cur_iter;
+
+    sprintf ( msg, "RUN: %d/%d, ITER: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f \n", 
+                   op.cur_run, op.max_run, iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+                   st.ave_mu, st.ave_dmu );
+
+    return std::string(msg);
+}
+
+std::string BeliefPropagation::getStatCSV (int mode)
+{
+   char msg[1024];
+   int iter = op.cur_iter;
+   
+   if (mode>=1) { 
+       st.constraints = 0; 
+       st.iter_resolved = 0;
+       st.total_resolved = op.max_iter;
+   } 
+   if (mode==2) iter = 0;
+
+
+   sprintf ( msg, "%d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f", 
+                   op.cur_run, iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+                   st.ave_mu, st.ave_dmu );
+
+    return std::string(msg);
+}
+
+
+float BeliefPropagation::getLinearEps () {
+
+    // linear decreasing epsilon
+    float _eps = op.eps_converge;
+
+    _eps = op.eps_converge_beg + ((op.eps_converge_end - op.eps_converge_beg) * float(op.cur_iter) / float(op.max_iter) );
+
+    return _eps;
+}
+
 
 // 0 - converged
 // 1 - max iter reached
 //
-int BeliefPropagation::RealizeRun(void) {
+int BeliefPropagation::RealizeIter (void) {
   int ret = 1;
   float d = -1.0;
 
-  int64_t step_iter=0,
-          max_step_iter = m_max_iteration;
-
-  float _eps = m_eps_converge;
-
-  float f_it = (float)m_run_iter;
-  float f_it_n = (float)m_num_verts;
-
-  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+  float _eps = getLinearEps();
 
   // iterate bp until converged
   //
-  for (step_iter=0; step_iter<max_step_iter; step_iter++) {
+  for (op.cur_step=0; op.cur_step < op.max_step; op.cur_step++) {
+
     d = step(MU_COPY);
+
     if (fabs(d) < _eps) {
       ret = 0;
       break;
     }
   }
-
-  if (m_stat_enabled) { UpdateRunTimeStat(step_iter); }
+  //if (st.enabled) { UpdateRunTimeStat ( op.cur_step ); } 
 
   return ret;
 }
@@ -2830,36 +2985,34 @@ int BeliefPropagation::RealizeRun(void) {
 // 1 - not converged yet
 //
 int BeliefPropagation::RealizeStep(void) {
-  int ret = 1;
-  float d;
 
-  float f_it = (float)m_run_iter;
-  float f_it_n = (float)m_num_verts;
-  float _eps;
+  float d;   
 
   int64_t mu_idx, cell;
   float f_residue;
   int32_t idir, tile;
 
+  // start timing
+  clock_t m_t1 = clock();  
 
-  _eps = m_eps_converge_beg + ((m_eps_converge_end - m_eps_converge_beg)*f_it/f_it_n);
+  // get linear decreasing eps
+  float _eps = getLinearEps();
 
+  // assume continue
+  int ret = 1; 
 
   //---
-
-  if (m_alg_run_opt == ALG_RUN_VANILLA) {
+  if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
     d = step(MU_COPY);
-    if (fabs(d) < _eps) { ret = 0; }
 
-    m_step_iter++;
-    if (m_step_iter >= m_max_iteration) { ret=-2; }
+    if (fabs(d) < _eps) { ret = 0; }
 
   }
 
   //---
 
-  else if (m_alg_run_opt == ALG_RUN_RESIDUAL) {
+  else if (op.alg_run_opt == ALG_RUN_RESIDUAL) {
 
     mu_idx = indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
 
@@ -2867,20 +3020,34 @@ int BeliefPropagation::RealizeStep(void) {
       ret = 0;
     }
     else {
-      if (m_verbose > 2) {
+      if (op.verbose > 2) {
         printf("  [it:%i,step:%i] updating mu[%i,%i,%i](%i) residue:%f\n",
-            (int)m_run_iter, (int)m_step_iter,
-            (int)idir, (int)cell, (int)tile, (int)mu_idx, (float)f_residue);
+            (int) op.cur_iter, (int) op.cur_step,
+            (int) idir, (int)cell, (int)tile, (int)mu_idx, (float)f_residue);
       }
 
       step_residue( idir, cell, tile );
     }
 
   }
+  //--- unknown algorithm
 
-  //---
+  else { 
 
-  else { return -1; }
+    ret = -1; 
+  }
+  
+  // complete timing
+  clock_t m_t2 = clock();                
+  st.elapsed_time += ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
+
+  if ( ret==1 ) {    
+    if (op.cur_step >= op.max_step ) { 
+        ret=-2; 
+    } else {
+        op.cur_step++;
+    }
+  }
 
   return ret;
 }
@@ -2888,16 +3055,15 @@ int BeliefPropagation::RealizeStep(void) {
 // Example of a full realization, running until completion
 //
 int BeliefPropagation::Realize(void) {
-  int ret=-1;
-  int64_t n_it, it, step_it, max_step_it;
 
-  m_run_iter = 0;
+  int ret=-1;  
 
   ret = start();
   if (ret<0) { return ret; }
 
-  n_it = m_num_verts * m_num_values;
-  for (m_run_iter=0; m_run_iter < n_it; m_run_iter++) {
+  op.max_iter = m_num_verts;
+
+  for (op.cur_iter = 0; op.cur_iter < op.max_iter; op.cur_iter++) {
 
     ret = RealizePre();
     if (ret < 0) { break; }
@@ -3017,7 +3183,7 @@ float BeliefPropagation::step (int update_mu) {
 
   // run main bp, store in BUF_MU_NXT
   //
-  if (m_use_svd)  {
+  if (op.use_svd)  {
 
       BeliefProp_svd();
 
@@ -3032,10 +3198,10 @@ float BeliefPropagation::step (int update_mu) {
 
 
   // visualize before updateMU
-  if ( m_viz_opt == VIZ_DMU )
+  if ( op.viz_opt == VIZ_DMU )
     ComputeDiffMUField ();
 
-  if ( m_viz_opt == VIZ_BELIEF )
+  if ( op.viz_opt == VIZ_BELIEF )
     ComputeBeliefField ();
 
 
@@ -3043,6 +3209,8 @@ float BeliefPropagation::step (int update_mu) {
   // BUF_MU_NXT and BUF_MU
   //
   max_diff = MaxDiffMU();
+
+  st.max_dmu = max_diff;
 
   if (update_mu) {
 
@@ -3096,7 +3264,7 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
     nei_cell = getNeighbor( cell, dir_idx );
     if (nei_cell < 0) { continue; }
 
-    if (m_use_svd)  { BeliefProp_cell_residue_svd(nei_cell); }
+    if (op.use_svd)  { BeliefProp_cell_residue_svd(nei_cell); }
     else            { BeliefProp_cell_residue(nei_cell); }
 
     NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
@@ -3123,8 +3291,11 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
           n,
           tile_val,
           tv;
-
+  
   n = getValI( BUF_TILE_IDX_N, pos );
+
+  int nstart = n;
+
   for (idx=0; idx<n; idx++) {
 
     tile_val = getValI( BUF_TILE_IDX, idx, pos );
@@ -3144,6 +3315,11 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
     idx--;
   }
 
+  if (n==1 && n != nstart) {
+    st.iter_resolved++;
+    st.total_resolved++;
+  }
+
 }
 
 // Discard tile entreis at cell positoin `pos`
@@ -3151,7 +3327,10 @@ void BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) 
 void BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id) {
   int32_t tile_idx, idx, n, tile_val, tv;
 
+  
   n = getValI( BUF_TILE_IDX_N, pos );
+  int nstart = n;
+
   for (idx=0; idx<n; idx++) {
 
     tile_val = getValI( BUF_TILE_IDX, idx, pos );
@@ -3171,6 +3350,10 @@ void BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_i
     idx--;
   }
 
+  if (n==1 && n != nstart) {
+    st.iter_resolved++;
+    st.total_resolved++;
+  }
 
 
 }
@@ -3190,14 +3373,17 @@ int32_t BeliefPropagation::tileName2ID (char *cs) {
   return tileName2ID(tile_name);
 }
 
-void BeliefPropagation::UpdateRunTimeStat(int64_t num_step) {
-  m_stat_cur_iter++;
-  m_stat_avg_iter =
-    ((((double)(m_stat_cur_iter-1))*m_stat_avg_iter) + ((double)num_step)) / ((double)m_stat_cur_iter);
-  if (num_step > m_stat_max_iter) {
-    m_stat_max_iter = num_step;
+/* void BeliefPropagation::UpdateRunTimeStat(int64_t num_step) {
+  
+  op.cur_step++;
+
+  st.avg_step =
+    ((((double)( op.cur_step-1)) * st.avg_step) + ((double) op.cur_step)) / ((double) op.cur_step);
+
+  if (op.cur_step > st.upper_step) {
+    st.upper_step = op.cur_step;
   }
-}
+} */
 
 
 // print out state of BUF_NOTE, BUF_VISITED
@@ -3296,7 +3482,7 @@ void BeliefPropagation::debugPrint() {
 
   int print_rule = 0;
 
-  _eps = m_eps_zero;
+  _eps = op.eps_zero;
 
   std::vector< std::string > _dp_desc;
 
@@ -3308,28 +3494,28 @@ void BeliefPropagation::debugPrint() {
   _dp_desc.push_back("0:0:-1");
 
   printf("bp version: %s\n", BELIEF_PROPAGATION_VERSION);
-  printf("m_verbose: %i\n", m_verbose);
+  printf("op.verbose: %i\n", op.verbose);
 
-  printf("m_res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
-  printf("m_bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
-  printf("m_num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
-  printf("m_run_cuda: %i, m_use_svd: %i, m_use_checkerboard: %i\n",
-      (int)m_run_cuda, (int)m_use_svd, (int)m_use_checkerboard);
-  printf("m_eps_converge: %f, m_eps_zero: %f, m_rate: %f, m_max_iteration: %i, seed: %i\n",
-      (float)m_eps_converge, (float)m_eps_zero,
-      (float)m_rate, (int)m_max_iteration,
-      (int)m_seed);
-  printf("m_stat_enabled: %i\n", (int)m_stat_enabled);
-  if (m_stat_enabled) {
-    float f_ele = (float)(m_num_values * m_num_verts);
-    printf("m_stat_max_iter: %i, m_stat_avg_iter: %f\n", (int)m_stat_max_iter, (float)m_stat_avg_iter);
-    printf("m_stat_num_culled: %i (density %f), m_stat_num_collapsed: %i (density %f)\n",
-        (int)m_stat_num_culled, (float)m_stat_num_culled / f_ele,
-        (int)m_stat_num_collapsed, (float)m_stat_num_collapsed / f_ele);
+  printf("res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
+  printf("bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
+  printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
+  printf("run_cuda: %i, op.use_svd: %i, op.use_checkerboard: %i\n",
+      (int) op.use_cuda, (int) op.use_svd, (int) op.use_checkerboard);
+  printf("eps_converge: %f, eps_zero: %f, rate: %f, max_step: %i, seed: %i\n",
+      (float) op.eps_converge, (float) op.eps_zero,
+      (float) op.step_rate, (int) op.max_step, 
+      (int) op.seed);
+  printf("stat_enabled: %i\n", (int) st.enabled);
+  if (st.enabled) {
+    float f_ele = (float) (m_num_values * m_num_verts);
+    printf("stats: max_step: %i, avg_step: %f\n", (int) op.max_step, (float) st.avg_step);
+    printf("stats: num_culled: %i (density %f), num_collapsed: %i (density %f)\n",
+        (int) st.num_culled, (float) st.num_culled / f_ele,
+        (int) st.num_collapsed, (float) st.num_collapsed / f_ele);
   }
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
-  for (i=0; i<m_tile_name.size(); i++) {
+  for (i=0; i < m_tile_name.size(); i++) {
     if ((i%m)==0) { printf("\n"); }
     v = getValF( BUF_G, i );
     printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
@@ -3434,7 +3620,7 @@ void BeliefPropagation::debugPrintMU() {
 
   int print_rule = 0;
 
-  _eps = m_eps_zero;
+  _eps = op.eps_zero;
 
   std::vector< std::string > _dp_desc;
 
@@ -3446,17 +3632,17 @@ void BeliefPropagation::debugPrintMU() {
   _dp_desc.push_back("0:0:-1");
 
   printf("bp version: %s\n", BELIEF_PROPAGATION_VERSION);
-  printf("m_verbose: %i\n", m_verbose);
+  printf("op.verbose: %i\n", op.verbose);
 
   printf("m_res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
   printf("m_bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
   printf("m_num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
-  printf("m_run_cuda: %i, m_use_svd: %i, m_use_checkerboard: %i\n",
-      (int)m_run_cuda, (int)m_use_svd, (int)m_use_checkerboard);
-  printf("m_eps_converge: %f, m_eps_zero: %f, m_rate: %f, m_max_iteration: %i, seed: %i\n",
-      (float)m_eps_converge, (float)m_eps_zero,
-      (float)m_rate, (int)m_max_iteration,
-      (int)m_seed);
+  printf("op.use_cuda: %i, op.use_svd: %i, op.use_checkerboard: %i\n",
+      (int)op.use_cuda, (int)op.use_svd, (int)op.use_checkerboard);
+  printf("m_eps_converge: %f, op.eps_zero: %f, m_rate: %f, m_max_iteration: %i, seed: %i\n",
+      (float) op.eps_converge, (float)op.eps_zero,
+      (float) op.step_rate, (int) op.max_step,
+      (int)op.seed);
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i<m_tile_name.size(); i++) {
@@ -3576,8 +3762,8 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
   SetValI( BUF_TILE_IDX, tv, tile_idx, pos);
   SetValI( BUF_TILE_IDX_N, 1, pos );
 
-  if (m_stat_enabled) {
-    m_stat_num_collapsed += n-1;
+  if (st.enabled) {
+    st.num_collapsed += n-1;
   }
 
   return 0;
@@ -3590,7 +3776,7 @@ int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
   if (tile_idx >= n) { return -1; }
   if (n<=1) { return -1; }
 
-  if (m_verbose > 2) {
+  if (op.verbose > 2) {
     printf("tileIdxRemove before:");
     for (idx=0; idx<n; idx++) {
       printf(" (%i)idx:%i", (int) getValI (BUF_TILE_IDX, idx, pos), (int)idx);
@@ -3606,7 +3792,7 @@ int BeliefPropagation::tileIdxRemove(uint64_t pos, int32_t tile_idx) {
   SetValI( BUF_TILE_IDX, tv, tile_idx, pos);
   SetValI( BUF_TILE_IDX_N, 1, pos );
 
-  if (m_verbose > 2) {
+  if (op.verbose > 2) {
     printf("tileIdxRemove after:");
     n = getValI( BUF_TILE_IDX_N, pos );
     for (idx=0; idx<n; idx++) {
@@ -3707,6 +3893,8 @@ int BeliefPropagation::CullBoundary() {
 
     }
   }
+  // propagate constraints
+  // and cull boundary tile values
 
   ret = cellConstraintPropagate();
 
@@ -3825,8 +4013,8 @@ int BeliefPropagation::removeTileIdx (int64_t anch_cell, int32_t anch_tile_idx) 
 
   SetValI( BUF_TILE_IDX_N, (anch_tile_n ), anch_cell );
 
-  if (m_stat_enabled) {
-    m_stat_num_culled += 1;
+  if (st.enabled) {
+    st.num_culled += 1;
   }
 
   return 0;
@@ -3896,9 +4084,10 @@ int BeliefPropagation::cellConstraintPropagate() {
   int boundary_tile = 0, tile_valid = 0;
   int gn_idx = 0;
 
-  float _eps = m_eps_zero;
+  float _eps = op.eps_zero;
   Vector3DI jp;
 
+  int resolved = 0;
 
   while (still_culling) {
 
@@ -3925,10 +4114,10 @@ int BeliefPropagation::cellConstraintPropagate() {
           if ((nei_cell<0) &&
               (getValF( BUF_F, anch_b_val, boundary_tile, i ) < _eps)) {
 
-            if (anch_n_tile==1) {
+            if (anch_n_tile==1) {                
 
-              if (m_verbose > 0) {
-                printf("# BeliefPropagation::cellConstraintPropagate: ERROR, cell %i slated to rmove last remaining tile (tile %s(%i) conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
+              if (op.verbose > 0) {
+                printf("# BeliefPropagation::cellConstraintPropagate: ERROR, cell %i slated to remove last remaining tile (tile %s(%i) conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
                     (int)anch_cell,
                     m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                     m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
@@ -3940,14 +4129,19 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
-            if (m_verbose > 2) {
+            if (op.verbose > 2) {
                printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
                   (int)anch_b_val, (int)anch_cell,
                   (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
             }
 
-            removeTileIdx(anch_cell, anch_b_idx);
-            cellFillVisited(anch_cell, 1 - m_note_plane );
+            removeTileIdx (anch_cell, anch_b_idx);
+
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
+                resolved++;
+            }
+
+            cellFillVisited (anch_cell, 1 - m_note_plane );
 
             anch_b_idx--;
             anch_n_tile--;
@@ -3983,7 +4177,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
 
-              if (m_verbose > 0) {
+              if (op.verbose > 0) {
                 printf("# BeliefPropagation::cellConstraintPropagate: ERROR, cell %i slated to rmove last remaining tile (tile %s(%i) conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
                     (int)anch_cell,
                     m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
@@ -3997,13 +4191,18 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
-            if (m_verbose > 1) {
+            if (op.verbose > 1) {
               printf("# removing tile %i from cell %i (invalid conn dir:%i(%s), tile:%i)\n",
                   (int)anch_b_val, (int)anch_cell,
                   (int)i, (char *)m_dir_desc[i].c_str(), (int)nei_a_val);
             }
 
             removeTileIdx(anch_cell, anch_b_idx);
+
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
+                resolved++;
+            }
+
             cellFillVisited (anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
@@ -4024,6 +4223,10 @@ int BeliefPropagation::cellConstraintPropagate() {
     m_note_n[ m_note_plane ] = 0;
     m_note_plane  = 1 - m_note_plane ;
   }
+
+  // count resolved
+  st.iter_resolved += resolved;
+  st.total_resolved += resolved;
 
   return 0;
 }

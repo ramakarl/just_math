@@ -40,8 +40,6 @@
 #include "geom_helper.h"
 #include "string_helper.h"
 
-#include <time.h>
-
 #include "belief_propagation.h"
 #include "bp_helper.h"
 
@@ -76,26 +74,15 @@ public:
   virtual void mousewheel(int delta);
   virtual void shutdown();
 
-  // Belief Propagation
-  void      Restart ( bool init );
+  // Belief Propagation funcs
+  void      Restart ();
 
-  BeliefPropagation bpc;
-  BeliefPropagation wfc;
 
-  bool m_run_bpc, m_run_wfc;
-  int m_X, m_Y, m_Z, m_D, m_alg_idx;
-
-  int64_t m_it;
-  std::string   m_name_fn;
-  std::string   m_rule_fn;
-  std::string   m_tilemap_fn;
-  std::string   m_tileset_fn;
-  std::string   m_constraint_cmd;
+  // Belief Propagation objects
   
-  std::vector< std::string > m_tile_name;
-  std::vector< std::vector<float> > m_tile_rule;
-  std::vector< int32_t > m_cull_list;
+  BeliefPropagation bpc;
 
+  
   // Volume rendering
   void      Visualize ( BeliefPropagation& src, int vol_id );  
 
@@ -113,18 +100,12 @@ public:
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
 
-  int       m_tileset_width, m_tileset_height;
-  int       m_tileset_stride_x, m_tileset_stride_y;
-
+  // UI
   int       mouse_down;
-  bool      m_run;
-  bool      m_run_cuda;
+  bool      m_run;  
   bool      m_save;
-  float     m_frame;
-  int       m_peak_iter;
-  float     m_elapsed;
+  float     m_frame;  
 
-  clock_t   m_t1, m_t2;
 };
 Sample obj;
 
@@ -138,83 +119,89 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
     char dash = arg.at(0);
     char ch = arg.at(1);    
 
+    // get opt structure to load
+    bp_opt_t* op = bpc.get_opt();
+
     if ( dash=='-' ) {
     switch (ch) {
       case 'd':
        // debug_print = 1;
         break;
       case 'V':
-        bpc.m_verbose = strToI(optarg);
+        op->verbose = strToI(optarg);
         break;
       case 'e':
         valf = strToF(optarg);
         if (valf > 0.0) {
-          bpc.m_eps_converge = valf;
+          bpc.setConverge ( op, valf );
         }
         break;
       case 'z':
         valf = strToF(optarg);
         if (valf > 0.0) {
-          bpc.m_eps_zero = valf;
+          op->eps_zero = valf;
         }
         break;
       case 'I':
         vali  = strToI(optarg);
         if (vali > 0) {
-          bpc.m_max_iteration = (int64_t) vali;
+          op->max_step = (int64_t) vali;
         }
         break;
       case 'N':
-        m_name_fn = optarg;
+        op->name_fn = optarg;
         break;
       case 'R':
-        m_rule_fn = optarg;
+        op->rule_fn = optarg;
         break;      
       case 'J':
-        m_constraint_cmd = optarg;
+        op->constraint_cmd = optarg;
         break;
       case 'M':
-        m_tilemap_fn = optarg;
+        op->tilemap_fn = optarg;
         break;
       case 'Q':
-        m_tileset_fn = optarg;
+        op->tileset_fn = optarg;
         break;
       case 's':
-        m_tileset_stride_x = strToI(optarg);
-        m_tileset_stride_y = m_tileset_stride_x;
+        op->tileset_stride_x = strToI(optarg);
+        op->tileset_stride_y = op->tileset_stride_x;
         break;
       case 'G':
-        m_alg_idx = strToI(optarg);
+        op->alg_idx = strToI(optarg);
         break;
       case 'S':
         seed = strToI(optarg);
-        bpc.m_seed = seed;
+        op->seed = seed;
+        break;
+      case 'r':
+        op->max_run = strToI(optarg);
         break;
       case 'c':
-        m_cull_list.push_back( strToI(optarg) );
+        op->cull_list.push_back( strToI(optarg) );
         break;
       case 'T':
         test_num = strToI(optarg);
         break;
 
       case 'D':
-        m_D = strToI(optarg);
-        m_X = m_Y = m_Z = m_D;
+        op->D = strToI(optarg);
+        op->X = op->Y = op->Z = op->D;
         break;
       case 'X':
-        m_X = strToI(optarg);
+        op->X = strToI(optarg);
         break;
       case 'Y':
-        m_Y = strToI(optarg);
+        op->Y = strToI(optarg);
         break;
       case 'Z':
-        m_Z = strToI(optarg);
+        op->Z = strToI(optarg);
         break;
 
       case 'w': {
-        float step_factor = strToF(optarg);
-        if (step_factor > 0.0) {
-          bpc.m_rate = step_factor;
+        float r = strToF(optarg);
+        if (r > 0.0) {
+          op->step_rate = r;
         }
         }break;
     }
@@ -225,7 +212,7 @@ void Sample::AllocVolume (int id, Vector3DI res, int chan)    // volume alloc
 {
   uint64_t cnt = res.x*res.y*res.z;
   uint64_t sz = cnt * chan * sizeof(float);
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
+  int flags = DT_CPU;
   m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
   memset( (void *) (m_vol[id].getPtr(0)), 0, sz );
 }
@@ -325,45 +312,13 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   #endif
 }
 
-void Sample::Restart ( bool init )
+void Sample::Restart ()
 {
-    int ret;
+    // restart BP state
+    bp_restart ( bpc ); 
 
-    // dynamic restart
-    // (not needed if this is first init)
-    //
-    if (!init) 
-       bpc.start ();
-
-    // apply dsl constraints
-    if (m_constraint_cmd.size() > 0) {
-
-        std::vector< int > dim;
-        dim.push_back(m_X);
-        dim.push_back(m_Y);
-        dim.push_back(m_Z);
-        std::vector< constraint_op_t > constraint_op_list;
-
-        ret = parse_constraint_dsl ( constraint_op_list, m_constraint_cmd, dim, bpc.m_tile_name);
-        if (ret < 0) {
-            fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
-            exit(-1);
-        }
-
-        ret = constrain_bp ( bpc, constraint_op_list);
-        if (ret < 0) {
-            fprintf(stderr, "constrain_bp failure\n");
-            exit(-1);
-        }
-    } 
-    
-    ret = bpc.RealizePre ();
-
-    // make sure were running
+    // make sure we're running
     m_run = true;
-
-    m_elapsed = 0;
-   
 }
 
 
@@ -374,20 +329,18 @@ bool Sample::init()
   addSearchPath(ASSET_PATH);
 
   m_viz = VIZ_DMU;
-  m_run_bpc = true;
-  m_run_wfc = false;
-  m_D = 0;
-  m_alg_idx = 0;
+
+  _bp_opt_t* op = bpc.get_opt();
 
   // Render volume
-  m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
+  // match resolution of BP settings
+  m_vres.Set ( op->X, op->Y, op->Z );
   AllocVolume ( BUF_VOL, m_vres, 4 );
 
-  // App Options
+  // UI Options
   //
   m_frame     = 0;
   m_run       = false;  // must start out false until all other init is done
-  m_run_cuda  = false;  // run cuda pathway
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
@@ -409,51 +362,33 @@ bool Sample::init()
     }
   #endif
 
-  // Initiate Belief Propagation  
+  //-- Multirun testing
   
-    std::string name_path, rule_path;
-  getFileLocation ( m_name_fn, name_path );
-  getFileLocation ( m_rule_fn, rule_path );
+  bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
+
+  exit(-5);
+
   
-  if (m_D>0) {
-    m_X = m_D;
-    m_Y = m_D;
-    m_Z = m_D;
+  // Initiate Belief Propagation   
+  
+  // find name & rule files
+  std::string name_path, rule_path;
+  getFileLocation ( op->name_fn, name_path );
+  getFileLocation ( op->rule_fn, rule_path );
+  
+  // initialize belief prop (using helper func)
+  ret = bp_init_CSV ( bpc, op->X, op->Y, op->Z, name_path, rule_path );
+  if (ret<0) {
+     fprintf(stderr, "bpc error loading CSV\n");
+     exit(-1);
   }
 
+  // start belief prop
+  //
+  bp_restart ( bpc ); 
 
 
-  if (m_run_bpc) {
-      
-      // init belief prop
-      ret = init_CSV ( bpc, m_X, m_Y, m_Z, name_path, rule_path );
-      if (ret<0) {
-        fprintf(stderr, "bpc error loading CSV\n");
-        exit(-1);
-      }
-
-      // start belief prop
-      //
-      Restart ( false ); 
-
-
-      bpc.SetVis ( VIZ_DMU );
-
-   }
-
-  if (m_run_wfc) {
-      // init wfc
-      ret = init_CSV( bpc, m_X, m_Y, m_Z, m_name_fn, m_rule_fn );
-      if (ret<0) {
-        fprintf(stderr, "wfc error loading CSV\n");
-        exit(-1);
-      }
-      // start wfc      
-      ret = wfc.start ();
-  }
-
-  m_it = 0;
-
+  // start running
   m_run = true;
 
   return true;
@@ -475,78 +410,48 @@ void Sample::display()
   //
   if (m_run) {
 
-    if ( m_run_bpc) {
 
-        m_t1 = clock();
+    int ret = bpc.RealizeStep ();
 
-        int ret = bpc.RealizeStep ();
+    if (ret == 0 || ret == -2) {
+        // step complete
 
-        m_t2 = clock();                
-        m_elapsed += ((double) m_t2-m_t1) / CLOCKS_PER_SEC * 1000;
-
-        if (ret == 0 || ret == -2) {
-            // step complete
-
-            if (ret==-2) {
-                //printf ( "Warning: Hit max iter.\n" );
-            }   
+        if (ret==-2) {
+            //printf ( "Warning: Hit max iter.\n" );
+        }   
             
-            // finish this iteration
-            ret = bpc.RealizePost();
+        // finish this iteration
+        ret = bpc.RealizePost();
             
-            if ( ret > 0) {
-                // iteration complete
-                // start next iteration
-                if (bpc.m_verbose >= 1) {
-                    printf ("Iteration complete.\n");
-                }
-                bpc.RealizePre();
+        if ( ret > 0) {
+
+            // iteration complete (all steps)
+            // start new iteration
+            bpc.RealizePre();
             
-            } else if ( ret==0 ) {
+        } else if ( ret==0 ) {
                 
-                // hit completion
-                printf ( "BPC DONE.\n" );                
-                printf ( "Elapsed time: %f msec\n", m_elapsed);
+            // write json output            
+            write_tiled_json( bpc );  
 
-                int cnt = bpc.CheckConstraints ();
-                printf ( "Constraints: %d\n", cnt );
+            // hit completion
+            printf ( "BPC DONE.\n" );
 
-                // write json output
-                g_opt.tileset_stride_x = m_tileset_stride_x;
-                g_opt.tileset_stride_y = m_tileset_stride_y;
-                g_opt.tileset_fn = m_tileset_fn;
-                g_opt.tilemap_fn = m_tilemap_fn; 
-                write_tiled_json( g_opt, bpc );      
+            // stop
+            m_run = false;
 
-                // stop
-                m_run = false;
+        } else {
 
-            } else {
+            // error condition
+            switch (ret) {                
+            case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
+            case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
+            case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
+            };                
+        }
 
-                // error condition
-                switch (ret) {                
-                case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-                case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-                case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-                };                
-            }
-
-        } 
-    }
+    } 
     
-
-    if ( m_run_wfc) {
-      ret = wfc.wfc_step(m_it);
-      if ( ret <= 0) {
-        switch (ret) {
-        case  0: printf ( "WFC DONE.\n" );  break;
-        case -1: printf ( "wfc chooseMaxBelief error.\n" ); break;
-        case -2: printf ( "wfc tileIdxCollapse error.\n" ); break;
-        case -3: printf ( "wfc cellConstraintPropagate error.\n" ); break;
-        };
-      }
-    }
-
     fflush(stdout);
   }
 
@@ -557,15 +462,10 @@ void Sample::display()
   // Raycast
   ClearImg (m_img);
 
-  if ( m_run_wfc ) {
-      
-      Visualize ( wfc, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, wfc_off+Vector3DF(0,0,0), wfc_off+Vector3DF(m_vres) );      // raycast volume
-  }
-
-  if ( m_run_bpc && bpc.m_step_iter % 5 == 0) { 
+  if ( bpc.getStep() % 5 == 0) { 
 
       Visualize ( bpc, BUF_VOL );
+
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
   }
 
@@ -661,19 +561,14 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       
   case 'w':  
 
-      g_opt.tileset_stride_x = m_tileset_stride_x;
-      g_opt.tileset_stride_y = m_tileset_stride_y;
-      g_opt.tileset_fn = m_tileset_fn;
-      g_opt.tilemap_fn = m_tilemap_fn;
-
-      write_tiled_json( g_opt, bpc ); 
+      write_tiled_json( bpc ); 
 
       break;
 
   case ' ':  m_run = !m_run;  break;
   
   case 'g':  
-      Restart ( false );    // false = dynamic init
+      Restart ();    // false = dynamic init
       break;
 
   case ',':  

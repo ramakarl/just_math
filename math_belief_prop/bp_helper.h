@@ -42,11 +42,15 @@
 #include "string_helper.h"
 
 
-typedef struct constraint_op_type {
-  char op;
-  std::vector< int > dim_range;
-  std::vector< int > tile_range;
-} constraint_op_t;
+//---------------------- primary helpers
+
+int bp_init_CSV( BeliefPropagation &bp, int rx, int ry, int rz, std::string name_path, std::string rule_path );
+
+int bp_restart ( BeliefPropagation& bp );
+
+int bp_multirun ( BeliefPropagation& bp, int runs, std::string outfile );
+
+//---------------------- secondary helpers
 
 int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);
 int parse_bracket_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);
@@ -55,12 +59,6 @@ int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s
 int _read_line(FILE *fp, std::string &line);
 int _read_name_csv(std::string &fn, std::vector<std::string> &name, std::vector<float> &weight);
 int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule);
-
-int init_CSV(
-    BeliefPropagation &bp,
-    int X, int Y, int Z,
-    std::string &name_fn,
-    std::string &rule_fn);
 
 int _parse_constraint_dsl (std::vector< constraint_op_t > &op_list, std::string &s, std::vector< int > dim, std::vector< std::string > name);
 
@@ -71,15 +69,14 @@ int parse_constraint_dsl(std::vector< constraint_op_t > &op_list, std::string &s
 void debug_constraint_op_list(std::vector< constraint_op_t > &op_list);
 int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list);
 void stl_print(FILE *, std::vector< float > &, float, float, float);
-int write_bp_stl(opt_t &opt, BeliefPropagation &bp, std::vector< std::vector< float > > tri_lib);
-int write_tiled_json(opt_t &opt, BeliefPropagation &bpc);
+int write_bp_stl( BeliefPropagation &bpc, std::vector< std::vector< float > > tri_lib);
+int write_tiled_json ( BeliefPropagation &bpc);
 int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::vector< float > > tri);
 int load_obj2tri(std::string inputfile, std::vector< float > &tri);
 //void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);
 void stl_print(FILE *fp, std::vector< float > &tri, float dx, float dy, float dz);
 int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris);
 
-extern opt_t g_opt;
 
 #endif
 
