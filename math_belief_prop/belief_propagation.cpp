@@ -784,7 +784,7 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
         v = getValF ( src_id, 3, tile, j );
         SetValF ( dst_id, v, 3, tile, j );
 
-        jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = m_bpres.y-1; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 2, tile, j );
         SetValF ( dst_id, v, 2, tile, j );

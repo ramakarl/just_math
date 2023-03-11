@@ -27,7 +27,7 @@
 # are used to populate the appropriate JSON values in the tiled
 # file.
 #
-# The `-c 0` option culls the 0 tile.
+# The -J 'd 0` option culls the 0 tile.
 # The 0 (or 'null') tile is special in the 2D tileset contexts
 # of this sort and represent a tile that is not to be displayed
 # and on the border. Though it might not be an error to include
@@ -73,7 +73,7 @@ $bpc_bin \
   -s $stride \
   -X 24 -Y 24 -Z 1 \
   -G 2 \
-  -c 0 \
+  -J 'd 0' \
   -I 100000 \
   -S 1234 \
   -V 2 | tee log/smb.log
@@ -98,7 +98,7 @@ $bpc_bin \
   -s $stride \
   -X 32 -Y 32 -Z 1 \
   -G 2 \
-  -c 0 \
+  -J 'd 0' \
   -I 100000 \
   -S 1234 \
   -V 2 | tee log/pm.log
@@ -124,11 +124,36 @@ $bpc_bin \
   -s $stride  \
   -X 42 -Y 42 -Z 1 \
   -G 2 \
-  -c 0 \
+  -J 'd 0' \
   -I 100000 \
   -S 124 \
   -e 0.000001 \
   -V 2 | tee log/amarelo.log
+
+# this apparently works!
+#
+
+name_fn="./example_tile_collection/amarelo_tilename.csv"
+rule_fn="./example_tile_collection/amarelo_tilerule.csv"
+tiled_fn="./example_tile_collection/amarelo_tiled_1.json"
+tileset_fn="./amarelo_tileset.png"
+stride=8
+
+echo "running 'amarelo' tile collection, producing '$tileset_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -s $stride  \
+  -X 84 -Y 32 -Z 1 \
+  -G 2 \
+  -J 'd 0' \
+  -I 10 \
+  -S 127 \
+  -e 0.01 \
+  -V 1 | tee log/amarelo.1.log
 
 
 ######
@@ -207,6 +232,9 @@ $bpc_bin \
   -V 2 | tee log/oskar-pipe_D8.log
 
 
+
+######
+######
 
 
 
