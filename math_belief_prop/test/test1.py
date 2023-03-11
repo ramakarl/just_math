@@ -7,6 +7,7 @@ verbosity = 0
 state = "init"
 
 tile_map = {}
+tile_map_count = 0
 
 for line in sys.stdin:
   line = line.strip()
@@ -22,7 +23,12 @@ for line in sys.stdin:
   if state == "count":
     v = re.sub( '[^\(]*\(([^\)]*)\).*', '\\1', line)
     tile_map[v] = 1
+    tile_map_count+=1
 
+
+if (tile_map_count == 0):
+  sys.stderr.write("ERROR: empty tilemap\n")
+  sys.exit(-1)
 
 expect_missing_tile = ['35', '36', '37', '38', '39', '40', '41', '42', '43', '44']
 

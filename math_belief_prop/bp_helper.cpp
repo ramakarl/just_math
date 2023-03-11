@@ -95,7 +95,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
     fp = fopen ( outfile.c_str(), "w" ); 
 
     // write header
-    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv\%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
 
     // platform-specific, find name & rule files
@@ -669,7 +669,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
         for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
-            bp.filterDiscard(pos, v);
+            ret = bp.filterDiscard(pos, v);
+            if (ret < 0) { return ret; }
 
             bp.cellFillVisited (pos, bp.m_note_plane);
           }
@@ -691,7 +692,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
         for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
-            bp.filterKeep(pos, v);
+            ret = bp.filterKeep(pos, v);
+            if (ret < 0) { return ret; }
 
             bp.cellFillVisited (pos, bp.m_note_plane);
           }

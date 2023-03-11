@@ -16,8 +16,8 @@ rule_fn="./stair_rule.csv"
 
 test_num=0
 test_str="4,3,1"
-res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | \
-  grep -P '^m_res: ' | grep -o "$test_str"`
+res=`$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | \
+  grep -P '^res: ' | grep -o "$test_str"`
 
 if [[ "$res" != "$test_str" ]] ; then
   echo "TEST $test_num FAILED: expected '$test_str' got '$res'"
@@ -32,7 +32,7 @@ fi
 #
 
 test_num=1
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test1.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test1.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -47,7 +47,7 @@ fi
 #
 
 test_num=2
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test2.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test2.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -64,7 +64,7 @@ fi
 #
 
 test_num=4
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test4.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test4.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -81,7 +81,7 @@ fi
 #
 
 test_num=5
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test5.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test5.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then

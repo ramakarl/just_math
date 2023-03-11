@@ -54,13 +54,13 @@
 
 // custom size (basic test)
 //
-int test0() {
+int test0(BeliefPropagation &_bp) {
 
   int ret;
 
   BeliefPropagation bp;  
 
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);
   if (ret<0) { return ret; }
 
   bp.debugPrint();
@@ -69,7 +69,7 @@ int test0() {
 
 // test filterDiscard
 //
-int test1() {
+int test1(BeliefPropagation &_bp) {
   int ret;
   std::vector<int32_t> discard_list;
 
@@ -86,7 +86,7 @@ int test1() {
 
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
   
   if (ret<0) { return ret; }
 
@@ -97,7 +97,7 @@ int test1() {
 
 // test filterKeep
 //
-int test2() {
+int test2(BeliefPropagation &_bp) {
   int ret;
   std::vector<int32_t> keep_list;
 
@@ -110,7 +110,7 @@ int test2() {
 
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -120,13 +120,13 @@ int test2() {
   return 0;
 }
 
-int test3() {
+int test3(BeliefPropagation &_bp) {
   int ret;
   std::vector<int32_t> keep_list;
 
   BeliefPropagation bp;
 
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -212,7 +212,7 @@ int test3() {
   return 0;
 }
 
-int test4_() {
+int test4_(BeliefPropagation &_bp) {
   int ret;
 
   float maxdiff;
@@ -220,7 +220,7 @@ int test4_() {
 
   BeliefPropagation bp;
 
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -332,7 +332,7 @@ int test4_() {
   return 0;
 }
 
-int test4() {
+int test4(BeliefPropagation &_bp) {
   int ret;
 
   // expect:
@@ -348,7 +348,7 @@ int test4() {
   
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 4, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -510,7 +510,7 @@ int test4() {
 
 // test run until converged
 //
-int test5() {
+int test5(BeliefPropagation &_bp) {
   int ret;
 
   // expect:
@@ -527,11 +527,18 @@ int test5() {
   
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
-
+  ret = bp_init_CSV ( bp, 3, 3, 1, _bp.op.name_fn, _bp.op.rule_fn);  
   if (ret<0) { return ret; }
 
   bp.op.eps_converge = 1.0/1024.0;
+
+  bp.start();
+
+  // for some reason, this small size has problems
+  // if the rate isn't set to maximum (from default
+  // .98)
+  //
+  bp.op.step_rate = 1.0;
 
 
   //--
@@ -583,9 +590,15 @@ int test5() {
   keep_list.push_back( bp.tileName2ID((char *)"r002") );
   bp.filterKeep( bp.getVertex(2,0,0), keep_list);
 
+
   //---
 
+  bp.RealizePre();
   for (iter=0; iter<max_iter; iter++) {
+    ret = bp.RealizeStep();
+    if (ret==0) { break; }
+
+    /*
     bp.NormalizeMU();
 
     printf("---\nBEFORE:\n");
@@ -600,9 +613,11 @@ int test5() {
     bp.UpdateMU();
 
     if (fabs(maxdiff) < _eps) { break; }
+    */
   }
+  bp.NormalizeMU(BUF_MU_NXT);
 
-  printf("count: %i\n", iter);
+  printf("AFTER: %i\n", iter);
   bp.debugPrint();
 
   return 0;
@@ -628,10 +643,10 @@ int test5_1() {
   BeliefPropagation bp;
   
 
-  ret = bp_init_CSV ( bp, 4, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
-
+  ret = bp_init_CSV ( bp, 3, 3, 1, bp.op.name_fn, bp.op.rule_fn);  
   if (ret<0) { return ret; }
 
+  bp.start();
 
   //--
 
@@ -684,10 +699,15 @@ int test5_1() {
 
   //---
 
-  bp.NormalizeMU();
+  //bp.NormalizeMU();
+
+
+  bp.RealizePre();
   for (iter=0; iter<max_iter; iter++) {
 
-    maxdiff = bp.step(1);
+    ret = bp.RealizeStep();
+    if (ret == 0) { break; }
+    //maxdiff = bp.step(1);
 
     /*
     bp.NormalizeMU();
@@ -701,8 +721,9 @@ int test5_1() {
     bp.UpdateMU();
     */
 
-    if (fabs(maxdiff) < _eps) { break; }
+    //if (fabs(maxdiff) < _eps) { break; }
   }
+  //bp.RealizePost();
 
   printf("count: %i\n", iter);
   bp.debugPrint();
@@ -728,7 +749,7 @@ int test_cull0() {
   
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1,  bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 2, 2, 1,  bp.op.name_fn, bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -763,7 +784,7 @@ int test_cull1() {
   
   BeliefPropagation bp;
   
-  ret = bp_init_CSV ( bp, 4, 3, 1,  bp.op.name_fn, bp.op.rule_fn);  
+  ret = bp_init_CSV ( bp, 3, 3, 1,  bp.op.name_fn, bp.op.rule_fn);  
 
   if (ret<0) { return ret; }
 
@@ -2498,25 +2519,26 @@ int test_wfc0(int x, int y, int z) {
   return 0;
 }
 
-int run_test(int test_num) {
+int run_test(BeliefPropagation &bp, int test_num) {
+
   switch(test_num) {
     case 0:
-      test0();
+      test0(bp);
       break;
     case 1:
-      test1();
+      test1(bp);
       break;
     case 2:
-      test2();
+      test2(bp);
       break;
     case 3:
-      test3();
+      test3(bp);
       break;
     case 4:
-      test4();
+      test4(bp);
       break;
     case 5:
-      test5();
+      test5(bp);
       break;
     case 6:
       test6();

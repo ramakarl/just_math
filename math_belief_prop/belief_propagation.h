@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.5.0"
+#define BELIEF_PROPAGATION_VERSION "0.6.0"
 
 #define OPT_PTRS
 #define OPT_MUPTR
@@ -200,6 +200,26 @@ typedef struct _bp_opt_t {
   int       use_svd;
   int       use_checkerboard;
 
+  // As a general rule of thumb, the verbosity is:
+  //
+  // 0  - NONE
+  //        no output (default),
+  //        unless error (which should go to stderr?)
+  //
+  // 1  - SUMMARY
+  //        output summary information or other output
+  //        at the end of a completed run
+  //
+  // 2  - RUN
+  //        output summary information at end
+  //        of each step
+  //
+  // 3  - STEP
+  //        output information intra-step
+  //
+  // 4  - DEBUG
+  //        catchall for debug/anything printing
+  //     
   int       verbose;
 
 } bp_opt_t;
@@ -360,8 +380,8 @@ public:
   void  NormalizeMU (int id);
   void  NormalizeMU_cell_residue (int buf_id, int64_t cell);
 
-  void  filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
-  void  filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
+  int filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
+  int filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
   int32_t tileName2ID (std::string &tile_name);
   int32_t tileName2ID (char *);
 

@@ -49,9 +49,6 @@
 
 extern char *optarg;
 
-//opt_t g_opt;
-
-
 
 //--------------------------------------//
 //  _____     _                         //
@@ -179,6 +176,7 @@ void raycast_cpu ( Vector3DI vres, Camera3D* cam, int id, uchar* img, int xres, 
 //
 void visualize_belief ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vres );
 
+/*
 BeliefPropagation *g_bpc;
 void bp_cb( void * dat ) {
   char imgfile[512];
@@ -224,6 +222,7 @@ void bp_cb_V2(void *dat) {
 
 void bp_cb_v1(void *dat) {
 }
+*/
 
 /*
 void bp_cb_v1(void *dat) {
@@ -522,18 +521,14 @@ int main(int argc, char **argv) {
 
   BeliefPropagation bpc;
 
-  eps_range.push_back( bpc.m_eps_converge );
-  eps_range.push_back( bpc.m_eps_converge );
+  eps_range.push_back( bpc.op.eps_converge );
+  eps_range.push_back( bpc.op.eps_converge );
 
   int arg=1;
 
-  void (*_cb_f)(void *) = NULL;
-
-  g_bpc = &bpc;
-
-  g_opt.tiled_reverse_y = 0;
-  g_opt.alpha = 0.5;
-  g_opt.alg_idx = 0;
+  bpc.op.tiled_reverse_y = 0;
+  bpc.op.alpha = 0.5;
+  bpc.op.alg_idx = 0;
   while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
     switch (ch) {
       case 'h':
@@ -550,7 +545,7 @@ int main(int argc, char **argv) {
       //  break;
 
       case 'V':
-        bpc.m_verbose = atoi(optarg);
+        bpc.op.verbose = atoi(optarg);
         break;
       case 'r':
         raycast = 1;
@@ -563,17 +558,17 @@ int main(int argc, char **argv) {
         break;
 
       case 'A':
-        g_opt.alpha = atof(optarg);
+        bpc.op.alpha = atof(optarg);
         break;
       case 'G':
-        g_opt.alg_idx = atoi(optarg);
+        bpc.op.alg_idx = atoi(optarg);
         break;
 
       case 'e':
         /*
         eps_converge = atof(optarg);
         if (eps_converge > 0.0) {
-          bpc.m_eps_converge = eps_converge;
+          bpc.op.eps_converge = eps_converge;
         }
         */
 
@@ -585,38 +580,38 @@ int main(int argc, char **argv) {
           show_usage(stderr);
           exit(-1);
         }
-        bpc.m_eps_converge_beg = eps_range[0];
-        bpc.m_eps_converge_end = eps_range[1];
+        bpc.op.eps_converge_beg = eps_range[0];
+        bpc.op.eps_converge_end = eps_range[1];
 
         break;
       case 'z':
         eps_zero = atof(optarg);
         if (eps_zero > 0.0) {
-          bpc.m_eps_zero = eps_zero;
+          bpc.op.eps_zero = eps_zero;
         }
         break;
       case 'I':
         max_iter = atoi(optarg);
         if (max_iter > 0) {
-          bpc.m_max_iteration = (int64_t)max_iter;
+          bpc.op.max_iter = (int64_t)max_iter;
         }
         break;
       case 'w':
         step_factor = atof(optarg);
         if (step_factor > 0.0) {
-          bpc.m_rate = step_factor;
+          bpc.op.step_rate = step_factor;
         }
         break;
 
       case 'N':
         name_fn = strdup(optarg);
 
-        g_opt.fn_name = name_fn;
+        bpc.op.name_fn = name_fn;
         break;
       case 'R':
         rule_fn = strdup(optarg);
 
-        g_opt.fn_rule = rule_fn;
+        bpc.op.rule_fn = rule_fn;
         break;
       case 'C':
         constraint_fn = strdup(optarg);
@@ -624,7 +619,7 @@ int main(int argc, char **argv) {
 
       case 'S':
         seed = atoi(optarg);
-        bpc.m_seed = seed;
+        bpc.op.seed = seed;
         break;
 
       case 'T':
@@ -653,27 +648,27 @@ int main(int argc, char **argv) {
         break;
 
       case 'E':
-        bpc.m_use_svd = 1;
+        bpc.op.use_svd = 1;
         break;
       case 'B':
-        bpc.m_use_checkerboard = 1;
+        bpc.op.use_checkerboard = 1;
         break;
 
       case 'L':
-        g_opt.tileobj_fn = optarg;
+        bpc.op.tileobj_fn = optarg;
         break;
       case 'Q':
-        g_opt.tileset_fn = optarg;
+        bpc.op.tileset_fn = optarg;
         break;
       case 'M':
-        g_opt.tilemap_fn = optarg;
+        bpc.op.tilemap_fn = optarg;
         break;
       case 's':
-        g_opt.tileset_stride_x = atoi(optarg);
-        g_opt.tileset_stride_y = g_opt.tileset_stride_x;
+        bpc.op.tileset_stride_x = atoi(optarg);
+        bpc.op.tileset_stride_y = bpc.op.tileset_stride_x;
         break;
       case 'u':
-        g_opt.tiled_reverse_y = 1;
+        bpc.op.tiled_reverse_y = 1;
         break;
 
       default:
@@ -704,16 +699,16 @@ int main(int argc, char **argv) {
   name_fn_str = name_fn;
   rule_fn_str = rule_fn;
 
-  if (g_opt.tileobj_fn.size() > 0) {
-    ret=load_obj_stl_lib( g_opt.tileobj_fn, tri_shape_lib );
+  if (bpc.op.tileobj_fn.size() > 0) {
+    ret=load_obj_stl_lib( bpc.op.tileobj_fn, tri_shape_lib );
     if (ret<0) {
-      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", g_opt.tileobj_fn.c_str());
+      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", bpc.op.tileobj_fn.c_str());
       exit(-1);
     }
   }
 
 
-  if (bpc.m_verbose > 0) {
+  if (bpc.op.verbose > 0) {
     printf ( "bpc init csv. (%s, %s)\n",
         name_fn_str.c_str(),
         rule_fn_str.c_str() );
@@ -742,32 +737,26 @@ int main(int argc, char **argv) {
   }
 
   if (test_num >= 0) {
-    run_test(test_num);
+    run_test(bpc, test_num);
     exit(0);
-  }
-
-  if (bpc.m_verbose > 1) {
-    _cb_f = bp_cb_V2;
   }
 
   // prepare raycast [optional]
   //
   if (raycast) {
 
-    _cb_f = bp_cb_v1;
-
     vres.x = X;
     vres.y = Y;
     vres.z = Z;
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf ( "preparing raycast.\n" );
     }
     alloc_img (iresx, iresy);
     alloc_volume (VIZ_VOL, vres, 4);
     cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
     }
 
@@ -793,12 +782,12 @@ int main(int argc, char **argv) {
     }
 
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf ( "wfc realize.\n" );
     }
     ret = bpc.wfc();
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf("# wfc got: %i\n", ret);
       bpc.debugPrint();
     }
@@ -807,25 +796,25 @@ int main(int argc, char **argv) {
 
   else {
 
-    if (g_opt.alg_idx == 0) {
-      bpc.m_alg_cell_opt = ALG_CELL_ANY;
-      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.m_alg_run_opt  = ALG_RUN_VANILLA;
+    if (bpc.op.alg_idx == 0) {
+      bpc.op.alg_cell_opt = ALG_CELL_ANY;
+      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
     }
 
-    else if (g_opt.alg_idx == 2) {
-      bpc.m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.m_alg_run_opt  = ALG_RUN_VANILLA;
+    else if (bpc.op.alg_idx == 2) {
+      bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
     }
 
-    else if (g_opt.alg_idx == 4) {
-      bpc.m_alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-      bpc.m_alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.m_alg_run_opt  = ALG_RUN_RESIDUAL;
+    else if (bpc.op.alg_idx == 4) {
+      bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+      bpc.op.alg_run_opt  = ALG_RUN_RESIDUAL;
     }
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf ( "bpc realize.\n" );
     }
 
@@ -833,7 +822,7 @@ int main(int argc, char **argv) {
     if (ret < 0) {
       printf("ERROR: bpc.start() failed (%i)\n", ret);
 
-      if (bpc.m_verbose > 0) {
+      if (bpc.op.verbose > 0) {
         printf("####################### DEBUG PRINT\n" );
         bpc.debugPrint();
       }
@@ -854,7 +843,6 @@ int main(int argc, char **argv) {
 
     n_it = bpc.m_num_verts * bpc.m_num_values;
 
-    //for (int64_t it=0; it < bpc.m_num_verts; it++) {
     for (it=0; it < n_it; it++) {
 
       ret = bpc.RealizePre();
@@ -878,13 +866,13 @@ int main(int argc, char **argv) {
         raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
         snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
 
-        if (bpc.m_verbose > 0) { printf ( "  output: %s\n", imgfile ); }
+        if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
         save_png ( imgfile, m_img, iresx, iresy, 3 );
       }
 
     }
 
-    if (bpc.m_verbose > 0) {
+    if (bpc.op.verbose > 0) {
       printf("# bp realize got: %i\n", ret);
 
       printf("####################### DEBUG PRINT\n" );
@@ -893,18 +881,18 @@ int main(int argc, char **argv) {
 
   }
 
-  if (g_opt.tilemap_fn.size() > 0) {
+  if (bpc.op.tilemap_fn.size() > 0) {
 
-    if (bpc.m_verbose > 1) {
-      printf("writing tilemap (%s)\n", g_opt.tilemap_fn.c_str());
+    if (bpc.op.verbose > 1) {
+      printf("writing tilemap (%s)\n", bpc.op.tilemap_fn.c_str());
     }
 
-    if (g_opt.tileobj_fn.size() > 0) {
-      g_opt.outstl_fn = g_opt.tilemap_fn;
-      write_bp_stl(g_opt, bpc, tri_shape_lib);
+    if (bpc.op.tileobj_fn.size() > 0) {
+      bpc.op.outstl_fn = bpc.op.tilemap_fn;
+      write_bp_stl( bpc, tri_shape_lib );
     }
     else {
-      write_tiled_json(g_opt, bpc);
+      write_tiled_json( bpc );
     }
   }
 
