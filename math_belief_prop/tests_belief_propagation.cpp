@@ -30,6 +30,10 @@
 // OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+// todo:
+//  - writeboundary should be tested, init BUF_MU/BUF_MU_NXT with 0 values, write boundary, confirm they're what you think they are
+//  - RealizeStep and RealizeRun should be tested
+
 #include <algorithm>
 #include "mersenne.h"
 #include "dataptr.h"
@@ -406,8 +410,7 @@ int test4() {
   printf("---\nBEFORE:\n");
   bp.debugPrint();
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -422,8 +425,7 @@ int test4() {
 
 
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -439,8 +441,7 @@ int test4() {
 
   //---
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -455,8 +456,7 @@ int test4() {
 
   //---
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -471,8 +471,7 @@ int test4() {
 
   //---
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -487,8 +486,7 @@ int test4() {
 
   //---
 
-  bp.WriteBoundaryMU();
-  //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.BeliefProp();
   bp.NormalizeMU(BUF_MU_NXT);
   bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -593,8 +591,7 @@ int test5() {
     printf("---\nBEFORE:\n");
     bp.debugPrint();
 
-    bp.WriteBoundaryMU();
-    //bp.WriteBoundaryMUbuf(BUF_MU_NXT);
+    bp.WriteBoundaryMUbuf(BUF_MU);
     bp.BeliefProp();
     bp.NormalizeMU(BUF_MU_NXT);
     bp.TransferBoundaryMU( BUF_MU, BUF_MU_NXT );
@@ -2229,7 +2226,7 @@ int test_residual6() {
   // after we've propagated constraints, BUF_MU
   // needs to be renormalized
   //
-  bp.WriteBoundaryMU();
+  bp.WriteBoundaryMUbuf(BUF_MU);
   bp.WriteBoundaryMUbuf(BUF_MU_NXT);
   bp.NormalizeMU();
   bp.NormalizeMU(BUF_MU_NXT);

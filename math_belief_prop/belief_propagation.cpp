@@ -814,60 +814,6 @@ float BeliefPropagation::BeliefProp_cell_residue (int64_t anch_cell) {
   return max_diff;
 }
 
-void BeliefPropagation::WriteBoundaryMU () {
-  Vector3DI jp;
-  int64_t j;
-
-  // 0=x+
-  // 1=x-
-  // 2=y+
-  // 3=y-
-  // 4=z+
-  // 5=z-
-
-  // Set MU values on all boundary planes
-  // to 1.0 in the direction of out-of-bounds
-
-  for (int tile=0; tile < m_num_values; tile++) {
-
-    // X plane
-    for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
-      for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
-        jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 1, tile, j );
-        jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 0, tile, j );
-      }
-    }
-
-    // Y plane
-    for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
-      for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.y = 0;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 3, tile, j );
-        jp.y = m_bpres.y-1;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 2, tile, j );
-      }
-    }
-
-
-    // Z plane
-    for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
-      for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.z = 0;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 5, tile, j );
-        jp.z = m_bpres.z-1;
-        j = getVertex(jp.x, jp.y, jp.z);
-        SetValF ( BUF_MU, 1.0f, 4, tile, j );
-      }
-    }
-  }
-}
-
-
 void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
   Vector3DI jp;
   int64_t j;
@@ -907,7 +853,7 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
         v = getValF ( src_id, 3, tile, j );
         SetValF ( dst_id, v, 3, tile, j );
 
-        jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = m_bpres.y-1; j = getVertex(jp.x, jp.y, jp.z);
 
         v = getValF ( src_id, 2, tile, j );
         SetValF ( dst_id, v, 2, tile, j );
@@ -932,7 +878,7 @@ void BeliefPropagation::TransferBoundaryMU (int src_id, int dst_id) {
   }
 }
 
-void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
+void BeliefPropagation::WriteBoundaryMUbuf(int buf_id=BUF_MU) {
   Vector3DI jp;
   int64_t j;
 
@@ -951,9 +897,11 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     // X plane
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
-        jp.x = 0; j = getVertex(jp.x, jp.y, jp.z);
+        jp.x = 0;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 1, tile, j );
-        jp.x = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.x = m_bpres.x-1;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 0, tile, j );
       }
     }
@@ -961,9 +909,11 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     // Y plane
     for (jp.z=0; jp.z < m_bpres.z; jp.z++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.y = 0; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = 0;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 3, tile, j );
-        jp.y = m_bpres.x-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.y = m_bpres.y-1;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 2, tile, j );
       }
     }
@@ -972,9 +922,11 @@ void BeliefPropagation::WriteBoundaryMUbuf(int buf_id) {
     // Z plane
     for (jp.y=0; jp.y < m_bpres.y; jp.y++) {
       for (jp.x=0; jp.x < m_bpres.x; jp.x++) {
-        jp.z = 0; j = getVertex(jp.x, jp.y, jp.z);
+        jp.z = 0;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 5, tile, j );
-        jp.z = m_bpres.z-1; j = getVertex(jp.x, jp.y, jp.z);
+        jp.z = m_bpres.z-1;
+        j = getVertex(jp.x, jp.y, jp.z);
         SetValF ( buf_id, 1.0f, 4, tile, j );
       }
     }
@@ -3173,10 +3125,9 @@ float BeliefPropagation::step (int update_mu) {
   // initial boundary condiitions
   //
   #ifdef OPT_MUBOUND
-      WriteBoundaryMU();
+      WriteBoundaryMUbuf(BUF_MU);
       WriteBoundaryMUbuf(BUF_MU_NXT);
 
-      //EXPERIMENTS
       NormalizeMU( BUF_MU );
   #endif
 
@@ -3394,27 +3345,27 @@ void BeliefPropagation::debugInspect (Vector3DI pos, int tile)
     int n, i, b;
     int sz = 8;
 
-    printf ( "---------- Inspect: %d,%d,%d -> vtx: %d\n", pos.x, pos.y, pos.z, vtx );
+    printf ( "---------- Inspect: %d,%d,%d -> vtx: %d\n", (int)pos.x, (int)pos.y, (int)pos.z, (int)vtx );
 
     int valmax = fmin( sz, m_num_values );
 
     // inspect 
     //printf ("BUF_G:  "); for (i=0; i < valmax; i++) { printf ("%f ", getValI(BUF_G,i)); }
-    printf ("BUF_F:  %d->{..} "); 
+    printf ("BUF_F:  %d->{..} ", (int)BUF_F); 
     for (n=0; n < 6; n++) {
-        printf ("%d: ", n );
-        for (b=0; b < valmax; b++) { printf ("%f ", getValF(BUF_F, tile, b, n)); }
+        printf ("%d: ", (int)n );
+        for (b=0; b < valmax; b++) { printf ("%f ", (float)getValF(BUF_F, tile, b, n)); }
         printf ("\n");
     }
-    printf ("BUF_MU: %d->6nbr (%d):\n", vtx, tile ); 
+    printf ("BUF_MU: %d->6nbr (%d):\n", (int)vtx, (int)tile ); 
     for (n=0; n < 6; n++) {
-        printf ("%d: ", n );
-        for (i=0; i < sz; i++) { printf ("%f ", getValF(BUF_MU, n, tile, vtx+i )); }
+        printf ("%d: ",(int) n );
+        for (i=0; i < sz; i++) { printf ("%f ", (float)getValF(BUF_MU, n, tile, vtx+i )); }
         printf ("\n" );
     }
-    printf ("BUF_TILE_IDX_N: %d.. ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_TILE_IDX_N, vtx+i )); }
-    printf ("\nBUF_TILE_IDX: @%d= ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_TILE_IDX, i, vtx+i )); }
-    printf ("\nBUF_NOTE: %d.. ", vtx ); for (i=0; i < sz; i++) { printf ("%d ", getValI(BUF_NOTE, vtx+i )); }
+    printf ("BUF_TILE_IDX_N: %d.. ", (int)vtx ); for (i=0; i < sz; i++) { printf ("%d ", (int)getValI(BUF_TILE_IDX_N, vtx+i )); }
+    printf ("\nBUF_TILE_IDX: @%d= ", (int)vtx ); for (i=0; i < sz; i++) { printf ("%d ", (int)getValI(BUF_TILE_IDX, i, vtx+i )); }
+    printf ("\nBUF_NOTE: %d.. ", (int)vtx ); for (i=0; i < sz; i++) { printf ("%d ", (int)getValI(BUF_NOTE, vtx+i )); }
     printf ("\n\n");
 
 }

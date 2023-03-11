@@ -864,7 +864,7 @@ int main(int argc, char **argv) {
       while (ret>0) {
         ret = bpc.RealizeStep();
       }
-      if (ret<0) { break; }
+      //if (ret<0) { break; }
 
       ret = bpc.RealizePost();
       if (ret <= 0) { break; }
