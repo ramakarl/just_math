@@ -144,7 +144,7 @@ typedef struct _bp_opt_t {
   float     alpha;
 
   int       X, Y, Z, D;
-  
+
   std::string name_fn;
   std::string rule_fn;
 
@@ -169,7 +169,7 @@ typedef struct _bp_opt_t {
 
   float     step_rate;
 
-  float     eps_converge, 
+  float     eps_converge,
             eps_converge_beg,
             eps_converge_end,
             eps_zero;
@@ -185,17 +185,17 @@ typedef struct _bp_opt_t {
 
   int32_t   cur_iter;
   int32_t   max_iter;
-  
+
   int32_t   cur_step;
   int32_t   max_step;
-  
+
   int32_t   alg_idx;            // ALG_RUN_VANILLA or ALG_RUN_RESIDUE
   int32_t   alg_cell_opt;       // ALG_CELL_ANY, ALG_CELL_MIN_ENTROPY
   int32_t   alg_tile_opt;       // ALG_TILE_MAX_BELIEF
   int32_t   alg_run_opt;
 
   int32_t   viz_opt;            // VIS_NONE, VIS_MU, VIS_BELIEF, etc..
-  
+
   bool      use_cuda;
   int       use_svd;
   int       use_checkerboard;
@@ -219,7 +219,7 @@ typedef struct _bp_opt_t {
   //
   // 4  - DEBUG
   //        catchall for debug/anything printing
-  //     
+  //
   int       verbose;
 
 } bp_opt_t;
@@ -247,7 +247,7 @@ typedef struct _bp_stat_t {
     float   eps_curr;
 
     float   max_dmu,
-            ave_mu, 
+            ave_mu,
             ave_dmu;
 
     int64_t num_culled,
@@ -265,7 +265,7 @@ typedef struct _bp_stat_t {
 
 
 
-// Belief propagation 
+// Belief propagation
 
 class BeliefPropagation {
 public:
@@ -284,7 +284,7 @@ public:
   int       start();
   int       finish();
 
-  int       RealizePre();  
+  int       RealizePre();
   int       RealizeIter();
   int       RealizeStep();
   int       RealizePost();
@@ -411,8 +411,8 @@ public:
 
 
 
-  //------------------------ memory management    
-  
+  //------------------------ memory management
+
   void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
   void          ZeroBuf (int id);
 
@@ -422,7 +422,7 @@ public:
   int64_t       getVertex(int x, int y, int z);
   int           getTilesAtVertex ( int64_t vtx );
   int           getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
-  
+
   //----------------------- new accessor functions
 
   inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
@@ -442,13 +442,13 @@ public:
   inline int    getNumVerts()            {return m_num_verts;}
 
   //----------------------- options & stat accessors
-  
+
   void          ResetStats ();
 
   std::string   getStatMessage ();
   std::string   getStatCSV (int mode=0);
-  
-  
+
+
 
   bp_opt_t*     get_opt()              { return &op; }
   bp_stat_t*    get_stat()             { return &st; }
@@ -499,8 +499,8 @@ public:
   // run time statistics and other information
   //
   // void    UpdateRunTimeStat(int64_t num_step);
-  
-  
+
+
   //------------------------- member variables
 
   // primary data stored in buffers
@@ -529,7 +529,7 @@ public:
 
   // statistics
   bp_stat_t     st;
-  
+
 };
 
 
