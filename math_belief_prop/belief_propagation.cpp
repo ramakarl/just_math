@@ -2872,8 +2872,14 @@ std::string BeliefPropagation::getStatMessage ()
     //
     int iter = (st.post==0) ? ((st.constraints==0) ? -1 : -2) : op.cur_iter;
 
-    sprintf ( msg, "RUN: %d/%d, ITER: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f \n", 
-                   op.cur_run, op.max_run, iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+    sprintf ( msg, "RUN: %d/%d, ITER: %d, %4.1fmsec, "
+                   "constr:%d, resolved: %d/%d/%d (%4.1f%%), "
+                   "steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, "
+                   "av.dmu %1.8f \n", 
+                   op.cur_run, op.max_run, iter, st.elapsed_time,
+                   (int)st.constraints,
+                   st.iter_resolved, st.total_resolved, op.max_iter,
+                   100.0*float(st.total_resolved)/op.max_iter, 
                    op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
                    st.ave_mu, st.ave_dmu );
 

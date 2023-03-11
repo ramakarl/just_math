@@ -720,7 +720,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
-  ret = init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
+  ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);

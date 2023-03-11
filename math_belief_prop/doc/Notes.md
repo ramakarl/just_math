@@ -109,7 +109,7 @@ time ../bpc \
 References
 ---
 
-* [pacman mazegen](https://shaunlebron.github.io/pacman-mazegen/) ([gh](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))
+* [pacman mazegen](https://shaunlebron.github.io/pacman-mazegen/) ([gh](https://github.com/shaunlebron/pacman-mazegen))
 * [Texture Synthesis by A. Opara]( by https://youtu.be/fMbK7PYQux4) ([gh](https://github.com/EmbarkStudios/texture-synthesis))
 * [Boris the Brave](boristhebrave.com)
   - [Tessera](https://www.boristhebrave.com/permanent/21/08/Tessera_A_Practical_System_for_WFC.pdf)

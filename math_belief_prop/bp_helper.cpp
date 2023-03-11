@@ -95,14 +95,17 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
     fp = fopen ( outfile.c_str(), "w" ); 
 
     // write header
-    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv\%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
 
     // platform-specific, find name & rule files
+    std::string name_path, rule_path;
     #ifdef _WIN32
-        std::string name_path, rule_path;
-        getFileLocation ( bpc.op.name_fn, name_path );
-        getFileLocation ( bpc.op.rule_fn, rule_path );
+      getFileLocation ( bpc.op.name_fn, name_path );
+      getFileLocation ( bpc.op.rule_fn, rule_path );
+    #else
+      name_path = bpc.op.name_fn;
+      rule_path = bpc.op.rule_fn;
     #endif
     
     // initialize BP
