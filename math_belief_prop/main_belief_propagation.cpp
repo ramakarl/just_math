@@ -593,7 +593,8 @@ int main(int argc, char **argv) {
       case 'I':
         max_iter = atoi(optarg);
         if (max_iter > 0) {
-          bpc.op.max_iter = (int64_t)max_iter;
+          //bpc.op.max_iter = (int64_t)max_iter;
+          bpc.op.max_step = (int64_t)max_iter;
         }
         break;
       case 'w':

@@ -91,7 +91,8 @@ int BeliefPropagation::default_opts () {
 
   setConverge ( &op, op.eps_converge );
 
-  op.eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
+  //op.eps_zero = (1.0/(1024.0*1024.0*1024.0*1024.0));
+  op.eps_zero = (1.0/(1024.0*1024.0));
 
   op.cur_run = 0;
   op.max_run = 0;
@@ -2241,24 +2242,39 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
   return count;
 }
 
-int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_entropy) {
+int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_entropy) {
+
   int64_t anch_cell=0;
   int32_t anch_tile_idx, anch_tile_idx_n, anch_tile;
   int count=0;
 
-  float _max_entropy= -1.0, p, g, _entropy, g_sum, g_cdf;
-  int64_t _max_cell = -1;
-  int32_t _max_tile = -1,
-          _max_tile_idx = -1;
+  float p, g, _entropy, g_sum, g_cdf;
 
-  //float _eps = (1.0/(1024.0*1024.0));
+  float _min_entropy= -1.0;
+  int64_t _min_cell = -1;
+  int32_t _min_tile = -1,
+          _min_tile_idx = -1;
   float _eps = op.eps_zero;
 
   for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
 
+
     anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
+
+    //DEBUG
+    //printf("chooseMinEntropy: anch_cell:%i (tile_idx_n %i)\n",
+    //    (int)anch_cell,(int)anch_tile_idx_n);
+
     if (anch_tile_idx_n==0) { return -1; }
-    if (anch_tile_idx_n==1) { continue; }
+    if (anch_tile_idx_n==1) {
+
+      //DEBUG
+      //printf("chooseMinEntropy: skip anch_cell:%i (tile_idx_n %i)\n",
+      //    (int)anch_cell,(int)anch_tile_idx_n);
+
+
+      continue;
+    }
 
     g_sum = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2267,7 +2283,14 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
       g_sum += g;
     }
 
-    if (g_sum < _eps) { continue; }
+    if (g_sum < _eps) {
+
+      //DEBUG
+      //printf("chooseMinEntropy: skipping anch_chell:%i (%f < %f)\n",
+      //    (int)anch_cell, (float)g_sum, (float)_eps);
+
+      continue;
+    }
 
     _entropy = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2278,26 +2301,62 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
       }
     }
 
-    if (_entropy > (_max_entropy - _eps)) {
+    //DEBUG
+    //printf("chooseMinEntropy: (cell:%i) cur entropy: %f (g_sum:%f) (_eps:%0.12f)\n",
+    //    (int)anch_cell, (float)_entropy, (float)g_sum, _eps);
 
-      if (_entropy > _max_entropy) {
-        _max_entropy  = _entropy;
-        _max_cell     = anch_cell;
-        //_max_tile     = anch_tile;
-        //_max_tile_idx = anch_tile_idx;
+
+    // initialize min entropy
+    //
+    if (count==0) {
+
+      //DEBUG
+      //printf("chooseMinEntropy: (cell:%i) init _min_entropy = %f\n",
+      //    (int)anch_cell, (float)_entropy);
+
+      _min_cell     = anch_cell;
+      _min_entropy = _entropy;
+      count=1;
+      continue;
+    }
+
+    if (_entropy < (_min_entropy + _eps)) {
+
+      //DEBUG
+      //printf("chooseMinEntropy: cp.0\n");
+
+
+      if (_entropy < _min_entropy) {
+
+        //DEBUG
+        //printf("chooseMinEntropy: cell:%i min_entropy:%f (was %f)\n",
+        //    (int)anch_cell, _entropy, _min_entropy);
+
+        _min_entropy  = _entropy;
+        _min_cell     = anch_cell;
         count=1;
       }
 
       // randomize 'equal' choices
       //
       else {
+
         count++;
         p = m_rand.randF();
+
+        //DEBUG
+        //printf("chooseMinEntropy: cp.1 count now %i, p %f, (1/count=%f)\n",
+        //    (int)count, (float)p, (float)(1.0/(float)count));
+
+
         if ( p < (1.0/(float)count) ) {
-          _max_entropy  = _entropy;
-          _max_cell     = anch_cell;
-          //_max_tile     = anch_tile;
-          //_max_tile_idx = anch_tile_idx;
+
+          //DEBUG
+          //printf("chooseMinEntropy: cell:%i min_entropy:%f (was %f) (choosing alternate min with same entropy)\n",
+          //    (int)anch_cell, _entropy, _min_entropy);
+
+          _min_entropy  = _entropy;
+          _min_cell     = anch_cell;
         }
       }
 
@@ -2305,15 +2364,21 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
 
   }
 
-  if (_max_cell<0) { return 0; }
+  if (_min_cell<0) {
 
-  _max_tile = getValI( BUF_TILE_IDX, _max_cell, 0 );
-  _max_tile_idx = 0;
+    //DEBUG
+    //printf("chooseMinEntropy: _min_cell < 0 (%i), done\n", (int)_min_cell);
+
+    return 0;
+  }
+
+  _min_tile = getValI( BUF_TILE_IDX, _min_cell, 0 );
+  _min_tile_idx = 0;
 
   // now we choose a particular tile from the tile position
   // (both tile ID and tile index)
   //
-  anch_cell = _max_cell;
+  anch_cell = _min_cell;
   anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   g_sum = 0.0;
   for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2331,18 +2396,41 @@ int BeliefPropagation::chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, in
       g_cdf += getValF( BUF_G, anch_tile ) / g_sum;
 
       if (p < g_cdf) {
-        _max_tile     = anch_tile;
-        _max_tile_idx = anch_tile_idx;
+        _min_tile     = anch_tile;
+        _min_tile_idx = anch_tile_idx;
+
+        //DEBUG
+        //printf("wfc: chooseMinEntropy: choosing cell:%i tile:%i tile_idx:%i entropy:%f\n",
+        //    (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_entropy);
+
         break;
       }
     }
 
   }
 
-  if (max_cell)     { *max_cell     = _max_cell; }
-  if (max_tile)     { *max_tile     = _max_tile; }
-  if (max_tile_idx) { *max_tile_idx = _max_tile_idx; }
-  if (max_entropy)  { *max_entropy  = _max_entropy; }
+  // ? just pick the first one?
+  //
+  else {
+
+
+    _min_tile = getValI( BUF_TILE_IDX, 0, anch_cell );
+    _min_tile_idx = 0;
+
+    //DEBUG
+    //printf("wfc: chooseMinEntropy: ????? choosing cell:%i tile:%i tile_idx:%i entropy:%f\n",
+    //   (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_entropy);
+
+
+  }
+
+  if (min_cell)     { *min_cell     = _min_cell; }
+  if (min_tile)     { *min_tile     = _min_tile; }
+  if (min_tile_idx) { *min_tile_idx = _min_tile_idx; }
+  if (min_entropy)  { *min_entropy  = _min_entropy; }
+
+  //DEBUG
+  //printf("wfc: count: %i\n", count);
 
   return count;
 }
@@ -2711,6 +2799,7 @@ int BeliefPropagation::init_SVD(void) {
 int BeliefPropagation::wfc() {
 
   int ret = 1;
+  int64_t it;
 
   ret = wfc_start();
   if (ret < 0) {
@@ -2718,9 +2807,18 @@ int BeliefPropagation::wfc() {
     return ret;
   }
 
+  //DEBUG
+  //printf("wfc: wfc_start got %i\n", (int)ret);
 
-  for (int64_t it = 0; it < m_num_verts; it++) {
+
+  for (it = 0; it < m_num_verts; it++) {
+
+    //DEBUG
+    //printf("wfc: it[%i/%i]\n", (int)it, (int)m_num_verts);
+
     ret = wfc_step ( it );
+
+    //printf("wfc: it[%i/%i] wfc_step got %i\n", (int)it, (int)m_num_verts, (int)ret);
 
     if ( ret==0 ) { break; }
 
@@ -2733,11 +2831,19 @@ int BeliefPropagation::wfc() {
       break;
     }
   }
+
+  //printf("wfc: done (%i)\n", (int)ret);
+
   return ret;
 }
 
 int BeliefPropagation::wfc_start() {
   int ret=0;
+
+  //DEBUG
+  //printf("wfc_start: seed %i\n", (int)op.seed);
+
+  m_rand.seed ( op.seed );
 
   ret = CullBoundary();
   return ret;
@@ -2752,7 +2858,7 @@ int BeliefPropagation::wfc_step(int64_t it) {
 
   int64_t step_iter=0;
 
-  ret = chooseMaxEntropy( &cell, &tile, &tile_idx, &entropy);
+  ret = chooseMinEntropy( &cell, &tile, &tile_idx, &entropy);
   if (ret < 0) { return -1; }
   if (ret==0) { return 0; }
 
@@ -2771,7 +2877,7 @@ int BeliefPropagation::wfc_step(int64_t it) {
   unfillVisited( m_note_plane );
 
   //ret = cellConstraintPropagate(cell);
-  int resolved;
+  //int resolved;
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -2975,7 +3081,8 @@ std::string BeliefPropagation::getStatMessage () {
      (int)st.constraints,
      st.iter_resolved, st.total_resolved, op.max_iter,
      100.0*float(st.total_resolved)/op.max_iter,
-     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+     op.cur_step, op.max_step,
+     st.max_dmu, st.eps_curr,
      st.ave_mu, st.ave_dmu );
 
   return std::string(msg);
