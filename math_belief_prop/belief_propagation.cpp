@@ -131,6 +131,14 @@ int BeliefPropagation::default_opts () {
 
   op.use_cuda = false;
 
+  op.tileset_stride_x = 0;
+  op.tileset_stride_y = 0;
+  op.tileset_margin = 0;
+  op.tileset_spacing = 0;
+  op.tileset_width = 0;
+  op.tileset_height = 0;
+  op.tiled_reverse_y = 0;
+
   return 0;
 }
 
