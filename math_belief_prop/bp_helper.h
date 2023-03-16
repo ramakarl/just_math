@@ -50,6 +50,8 @@ int bp_restart ( BeliefPropagation& bp );
 
 int bp_multirun ( BeliefPropagation& bp, int runs, std::string outfile );
 
+int bp_experiments ( BeliefPropagation& bpc, std::string outfile );
+
 //---------------------- secondary helpers
 
 int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);

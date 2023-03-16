@@ -114,7 +114,6 @@
 #define BUF_SVD_Vt      15    //                                                                                        // <B*, B,  6>
 #define BUF_SVD_VEC     16    //                                                                                        // <B*, 1,  1>
 
-
 // auxiliary buffers for residual belief propagaion
 //
 // BUF_RESIDUE_HEAP         : heap of absolute differences of mu and mu_nxt (float)
@@ -135,6 +134,9 @@
 #define BUF_RESIDUE_HEAP          19    //                                                                               // <6*B*num_vert, 1, 1>
 #define BUF_RESIDUE_HEAP_CELL_BP  20    //                                                                               // <6*B*num_vert, 1, 1>
 #define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
+
+
+#define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
 
 // Belief propagation - options
@@ -235,7 +237,7 @@ typedef struct constraint_op_type {
 
 // Belief propagation - statistics
 
-typedef struct _bp_stat_t {
+typedef struct _bp_stat_type {
 
     char    enabled;
     int     post;
@@ -263,6 +265,23 @@ typedef struct _bp_stat_t {
 
 } bp_stat_t;
 
+// Belief propagation - experiements
+
+typedef struct _bp_expr_type {
+
+    int         num_expr;
+    int         num_run;
+
+    Vector3DI   grid_min, grid_max;
+    
+    int         maxstep_min, maxstep_max;
+
+    float       steprate_min, steprate_max;
+
+    float       eps_min, eps_max;
+
+} bp_expr_t;
+
 
 
 // Belief propagation
@@ -276,10 +295,17 @@ public:
     default_opts();
 
   };
-
+  
   //------------------------ high level API
 
   int       default_opts ();
+
+  void      reset ();
+
+  int       init( int, int, int,
+              std::vector< std::string  >           tile_name_list,
+              std::vector< float >                  tile_weight_list,
+              std::vector< std::vector < float > >  rule_list );
 
   int       start();
   int       finish();
@@ -297,11 +323,6 @@ public:
 
   //------------------------ belief propagation, mid-level API
 
-  int   init( int, int, int,
-              std::vector< std::string  >           tile_name_list,
-              std::vector< float >                  tile_weight_list,
-              std::vector< std::vector < float > >  rule_list );
-
   int   init_SVD(void);
 
   int   filter_constraint(std::vector< std::vector< int32_t > > &constraint_list);
@@ -316,7 +337,6 @@ public:
   void  init_dir_desc();
   float  step(int update_mu);
   float  step_residue(int32_t idir, int64_t cell, int32_t tile);
-
 
   //---------------------------------------- residual belief propagation
   //
@@ -446,9 +466,8 @@ public:
   void          ResetStats ();
 
   std::string   getStatMessage ();
+  
   std::string   getStatCSV (int mode=0);
-
-
 
   bp_opt_t*     get_opt()              { return &op; }
   bp_stat_t*    get_stat()             { return &st; }
@@ -504,7 +523,7 @@ public:
   //------------------------- member variables
 
   // primary data stored in buffers
-  DataPtr       m_buf[128];
+  DataPtr       m_buf[ BUF_MAX ];
 
   // problem size
   int64_t       m_num_verts;    // Xi = 0..X (graph domain)
@@ -530,6 +549,9 @@ public:
   // statistics
   bp_stat_t     st;
 
+  // experiments
+  bp_expr_t     expr;
+  
 };
 
 

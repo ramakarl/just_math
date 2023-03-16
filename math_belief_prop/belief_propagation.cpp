@@ -2519,17 +2519,16 @@ int BeliefPropagation::start () {
   int ret=0;
 
   m_rand.seed ( op.seed );
-
-  int v = m_rand.randI();
+  
+  int v = m_rand.randI();  // first random # (used as spot check)
 
   if (op.verbose > 0) {
-    printf ("Restart. seed = %d, first = %d\n", op.seed, v );
+    printf ("  started. grid %d,%d,%d, seed = %d\n", op.X, op.Y, op.Z, op.seed );
   }
-
+  
   op.seed++;
 
   // reset stats (must do first)
-  //
   ResetStats ();
 
   // rebuild dynamic bufs
@@ -2556,11 +2555,11 @@ int BeliefPropagation::start () {
 
 void BeliefPropagation::ResetStats () {
 
-  op.cur_iter = 0;
-  st.elapsed_time = 0;
-  st.iter_resolved = 0;
-  st.total_resolved = 0;
-
+    op.cur_iter = 0;
+    st.elapsed_time = 0;
+    st.iter_resolved = 0;
+    st.total_resolved = 0; 
+    st.post = 1;
 }
 
 
@@ -2605,6 +2604,23 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
   }
 
   return 0;
+}
+
+
+void BeliefPropagation::reset () {
+
+    // reset clears all memory buffers 
+    // allowing a full rebuild of bp from init.
+
+    // erase all buffers
+    for (int n=0; n < BUF_MAX; n++)
+        m_buf[ n ].Clear ();
+ 
+    // reset stats
+    ResetStats();
+
+    // do not erase ops as they 
+    // may be needed for re-init
 }
 
 void BeliefPropagation::init_dir_desc() {
@@ -3063,55 +3079,27 @@ int BeliefPropagation::RealizePost(void) {
 }
 
 std::string BeliefPropagation::getStatMessage () {
+
   char msg[1024] = {0};
 
-  // iter returns
-  //  -1 = complete, success
-  //  -2 = complete, fail
-  // >=0 = current iteration
-  //
-  int iter = ((st.post==0) ? ((st.constraints==0) ? -1 : -2) : op.cur_iter);
-
-  snprintf ( msg, 1024,
-     "RUN: %d/%d, ITER: %d, %4.1fmsec, "
-     "constr:%d, resolved: %d/%d/%d (%4.1f%%), "
-     "steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, "
-     "av.dmu %1.8f \n",
-     op.cur_run, op.max_run, iter, st.elapsed_time,
-     (int)st.constraints,
-     st.iter_resolved, st.total_resolved, op.max_iter,
-     100.0*float(st.total_resolved)/op.max_iter,
-     op.cur_step, op.max_step,
-     st.max_dmu, st.eps_curr,
-     st.ave_mu, st.ave_dmu );
-
-  return std::string(msg);
+  snprintf ( msg, 1024, "%s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f \n", 
+                   (st.post==1) ? "RUN" : (st.constraints==0) ? "SUCCESS" : "FAIL", op.cur_run, op.max_run, op.cur_iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+                   st.ave_mu, st.ave_dmu );
 }
 
-std::string BeliefPropagation::getStatCSV (int mode) {
-  char msg[1024];
-  int iter = op.cur_iter;
+std::string BeliefPropagation::getStatCSV (int mode)
+{
+   char msg[1024] = {0};   
+   int status;
+   status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;   
 
-  if (mode>=1) {
-    st.constraints = 0;
-    st.iter_resolved = 0;
-    st.total_resolved = op.max_iter;
-  }
-  if (mode==2) { iter = 0; }
+   snprintf ( msg, 1024, "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f", 
+                   op.cur_run, status, op.cur_iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+                   st.ave_mu, st.ave_dmu );
 
-
-  snprintf ( msg, 1024,
-     "%d, %d, %4.1f, "
-     "%d, %d, %d, "
-     "%d, %4.1f%%, %d, "
-     "%d, %f, %f, %f, %f",
-     op.cur_run, iter, st.elapsed_time,
-     (int)st.constraints, st.iter_resolved, st.total_resolved,
-     op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
-     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
-     st.ave_mu, st.ave_dmu );
-
-  return std::string(msg);
+    return std::string(msg);
 }
 
 

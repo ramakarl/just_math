@@ -174,6 +174,143 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
     return 0;
 }
 
+// Experiments
+// - experiments consist of multiple runs over a change in state variables
+// - the state variables are stored in bpc.expr struct
+// - set the desired min/max state variables prior to calling this func
+//
+int bp_experiments ( BeliefPropagation& bpc, std::string outfile )
+{
+    int ret, runret;
+    std::string csv;
+
+    // start report file:
+    // overwrite first
+    FILE* fp = fopen ( outfile.c_str(), "w" );   
+    if ( fp==0 ) {
+        printf ( "ERROR: Cannot open %s for output.\n", outfile.c_str() );
+        exit(-7);
+    }
+    fprintf ( fp, "reset\n" );
+    fclose (fp);
+
+    // append
+    fp = fopen ( outfile.c_str(), "w" ); 
+
+    // write header
+    fprintf ( fp, "gridx, gridy, gridz, tiles, max_step, eps, step_rate, # runs, success, %%, fail_constr, total time, ave time(ms), start seed\n" );
+
+    // platform-specific, find name & rule files
+    #ifdef _WIN32
+        std::string name_path, rule_path;
+        getFileLocation ( bpc.op.name_fn, name_path );
+        getFileLocation ( bpc.op.rule_fn, rule_path );
+    #endif
+
+    int num_experiments = bpc.expr.num_expr;
+    int num_runs = bpc.expr.num_run;
+    
+    Vector3DF dgrid = Vector3DF(bpc.expr.grid_max - bpc.expr.grid_min) / num_experiments;
+    float dmstep = float(bpc.expr.maxstep_max - bpc.expr.maxstep_min) / num_experiments;
+    float dsteprate = float(bpc.expr.steprate_max - bpc.expr.steprate_min) / num_experiments;
+    float deps = float(bpc.expr.eps_max - bpc.expr.eps_min) / num_experiments;    
+
+    Vector3DF grid = bpc.expr.grid_min;
+    float maxstep = bpc.expr.maxstep_min;
+    float steprate = bpc.expr.steprate_min;
+    float eps = bpc.expr.eps_min;
+    
+    for (int e=0; e < num_experiments; e++) {
+
+        // reset bp
+        bpc.reset ();
+        
+        // setup BP options
+        bpc.op.X = grid.x;
+        bpc.op.Y = grid.y;
+        bpc.op.Z = grid.z;
+        bpc.op.max_step = int(maxstep);
+        bpc.op.eps_converge = eps;
+        bpc.op.step_rate = steprate;
+
+        // initialize BP       
+        ret = bp_init_CSV ( bpc, bpc.op.X, bpc.op.Y, bpc.op.Z, name_path, rule_path );
+        if (ret<0) {
+            fprintf(stderr, "bpc error loading CSV\n");
+            exit(-1);
+        }        
+
+        // start multiple runs        
+        bpc.op.max_run = num_runs;
+
+        int success=0;
+        float fail_constr=0;
+        float total_time=0;
+
+        for (int run=0; run < bpc.op.max_run; run++) {
+
+            bpc.op.cur_run = run;
+
+            // restart 
+            bp_restart ( bpc );
+
+            // run iterations & steps
+            runret = 1;
+            while ( runret >= 1 ) {            
+                ret = bpc.RealizeStep ();
+                if (ret == 0 || ret == -2) {             
+                    // finish this iteration
+                    ret = bpc.RealizePost();                                
+                    if ( ret > 0) {
+                        // iteration complete (all steps), start new iteration
+                        bpc.RealizePre();                    
+                        runret = 1;
+                    } else if (ret == 0) {
+                        // done!
+                        runret = 0;                                            
+                    } 
+                } else {                    
+                    // error, ignore and continue (1). can set runret=ret if you want to stop on error. -1=maxbelief err, -2=tileidx err, -3=cellConstrProp err
+                    runret = 1;
+                }
+            }       
+            // run completion            
+            if (bpc.st.constraints==0) {
+                success++;
+            } else {
+                fail_constr += bpc.st.constraints;
+            }
+            total_time += bpc.st.elapsed_time;
+
+        } 
+        // experiment completion
+
+        float ave_time = total_time / bpc.op.max_run;     
+        fail_constr /= bpc.op.max_run;
+
+        printf ( "GRID: %d,%d,%d, tiles:%d, maxstep: %d, eps:%f, srate:%f, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f, avetime: %f, sseed: %d\n", 
+                        bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,
+                        bpc.op.max_run, success, 100*float(success)/bpc.op.max_run, fail_constr, total_time, ave_time, bpc.op.seed );
+        
+        fprintf ( fp, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n", 
+                        bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,
+                        bpc.op.max_run, success, float(success)/bpc.op.max_run, fail_constr, total_time, ave_time, bpc.op.seed );
+
+        // proper flush
+        fclose ( fp );
+        fp = fopen ( outfile.c_str(), "a" ); 
+
+        // next experiment
+        grid += dgrid;
+        maxstep += dmstep;
+        steprate += dsteprate;
+        eps += deps;
+    }
+    fclose ( fp );
+
+    return 0;
+}
+
 int bp_init_CSV( BeliefPropagation &bp, int rx, int ry, int rz, std::string name_path, std::string rule_path ) {
 
   int ret;
@@ -649,7 +786,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
 
   std::vector<int32_t> v;
 
-  debug_constraint_op_list(op_list);
+  // debug_constraint_op_list(op_list);
 
   bp.m_note_n[0] = 0;
   bp.m_note_n[1] = 0;
