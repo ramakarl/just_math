@@ -2990,7 +2990,8 @@ int BeliefPropagation::RealizePost(void) {
     if (op.verbose > 2) {
       vp = getVertexPos(cell);
       n_idx = getValI ( BUF_TILE_IDX_N, cell );
-      printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i, belief:%f (tile_idx:%i / %i) [rp]\n",
+      printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rp]\n",
+          (int)op.cur_iter,
           (int)cell,
           (int)vp.x, (int)vp.y, (int)vp.z,
           (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
@@ -3439,7 +3440,7 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
     nei_cell = getNeighbor( cell, dir_idx );
     if (nei_cell < 0) { continue; }
 
-    if (op.use_svd)  { BeliefProp_cell_residue_svd(nei_cell); }
+    if (op.use_svd) { BeliefProp_cell_residue_svd(nei_cell); }
     else            { BeliefProp_cell_residue(nei_cell); }
 
     NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
@@ -3499,10 +3500,12 @@ int BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
     if (op.verbose > 2) {
       Vector3DI vp;
       vp = getVertexPos(pos);
-      printf("RESOLVE cell:%i;[%i,%i,%i] tile:%i [fk]\n",
+
+      tile_val = getValI( BUF_TILE_IDX, 0, pos );
+      printf("RESOLVE it:-1 cell:%i;[%i,%i,%i] tile:%i [fk]\n",
           (int)pos,
           (int)vp.x, (int)vp.y, (int)vp.z,
-          (int)tile_id[0]);
+          (int)tile_val);
     }
 
   }
@@ -3551,10 +3554,12 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
     if (op.verbose > 2) {
       Vector3DI vp;
       vp = getVertexPos(pos);
-      printf("RESOLVE cell:%i;[%i,%i,%i] tile:%i [fd]\n",
+
+      tile_val = getValI( BUF_TILE_IDX, 0, pos );
+      printf("RESOLVE it:-1 cell:%i;[%i,%i,%i] tile:%i [fd]\n",
           (int)pos,
           (int)vp.x, (int)vp.y, (int)vp.z,
-          (int)tile_id[0]);
+          (int)tile_val);
     }
 
   }
@@ -4358,7 +4363,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               resolved++;
 
               if (op.verbose > 2) {
-                printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i [cp.0]\n",
+                printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
+                    (int)op.cur_iter,
                     (int)anch_cell,
                     (int)jp.x, (int)jp.y, (int)jp.z,
                     (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
@@ -4432,7 +4438,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               resolved++;
 
               if (op.verbose > 2) {
-                printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i [cp.1]\n",
+                printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.1]\n",
+                    (int)op.cur_iter,
                     (int)anch_cell,
                     (int)jp.x, (int)jp.y, (int)jp.z,
                     (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );

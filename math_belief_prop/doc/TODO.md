@@ -1,6 +1,13 @@
 TODO
 ===
 
+###### 2023-03-12
+
+* stat additions
+  - average occupancy (number of tiles per cell) at each step
+    possibly with variance
+* ~heat map overlay of grids picked~ (done-ish)
+
 ###### 2023-03-06
 
 * img2tile improvements:
