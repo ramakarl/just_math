@@ -39,12 +39,14 @@ expect_b = 0.4
 expect_c = 0.2
 _eps = (1.0/1024.0)
 
+line_processed=0
+
 for line in sys.stdin:
   line = line.strip()
-  if line == "AFTER:":
+  #if line == "AFTER:":
+  if re.search( '^AFTER:', line):
     state = "output"
     continue
-
 
   if state == "init": continue;
   if len(line)==0: continue
@@ -53,6 +55,8 @@ for line in sys.stdin:
     continue
 
   #print(state, cell_str, line[0:4], line)
+
+  line_processed += 1
 
   if ((cell_str == "[0,1,0](3):") and
       (line[0:4] == "T003")):
@@ -100,23 +104,20 @@ for line in sys.stdin:
     val = float(line.split(":")[13].split(" ")[0])
     if (abs(val - expect_a) > _eps):
       print("FAIL: line:", line, "... expected", expect_a, ", got", val)
+      sys.exit(-1)
 
   if ((cell_str == "[1,2,0](7):") and
       (line[0:4] == "|001")):
     val = float(line.split(":")[13].split(" ")[0])
     if (abs(val - expect_b) > _eps):
       print("FAIL: line:", line, "... expected", expect_b, ", got", val)
+      sys.exit(-1)
 
-
-
+if line_processed == 0:
+  print("FAIL: no lines processed")
+  sys.exit(-1)
 
 if verbosity > 0:
   print("ok")
 sys.exit(0)
 
-
-
-
-  
-
-  

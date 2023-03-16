@@ -36,13 +36,13 @@
 
 // tests..
 //
-int test0();
-int test1();
-int test2();
-int test3();
-int test4_();
-int test4();
-int test5();
+int test0(BeliefPropagation &_bp);
+int test1(BeliefPropagation &_bp);
+int test2(BeliefPropagation &_bp);
+int test3(BeliefPropagation &_bp);
+int test4_(BeliefPropagation &_bp);
+int test4(BeliefPropagation &_bp);
+int test5(BeliefPropagation &_bp);
 int test5_1();
 int test_cull0();
 int test_cull1();
@@ -55,10 +55,10 @@ int test_realize1();
 int test_realize2(int x, int y, int z);
 int test_wfc0(int x, int y, int z);
 
-int test_step0();
-int test_step1();
+//int test_step0();
+//int test_step1();
 
-int run_test(int test_num);
+int run_test(BeliefPropagation &bp, int test_num);
 
 #endif
 

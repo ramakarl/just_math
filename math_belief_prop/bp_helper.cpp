@@ -66,8 +66,8 @@ int bp_restart ( BeliefPropagation& bpc )
             fprintf(stderr, "constrain_bp failure\n");
             exit(-1);
         }
-    } 
-    
+    }
+
     ret = bpc.RealizePre ();
 
     return ret;
@@ -83,7 +83,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
 
     // start report file:
     // overwrite first
-    FILE* fp = fopen ( outfile.c_str(), "w" );   
+    FILE* fp = fopen ( outfile.c_str(), "w" );
     if ( fp==0 ) {
         printf ( "ERROR: Cannot open %s for output.\n", outfile.c_str() );
         exit(-7);
@@ -92,19 +92,22 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
     fclose (fp);
 
     // append
-    fp = fopen ( outfile.c_str(), "w" ); 
+    fp = fopen ( outfile.c_str(), "w" );
 
     // write header
-    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+    fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
 
     // platform-specific, find name & rule files
+    std::string name_path, rule_path;
     #ifdef _WIN32
-        std::string name_path, rule_path;
-        getFileLocation ( bpc.op.name_fn, name_path );
-        getFileLocation ( bpc.op.rule_fn, rule_path );
+      getFileLocation ( bpc.op.name_fn, name_path );
+      getFileLocation ( bpc.op.rule_fn, rule_path );
+    #else
+      name_path = bpc.op.name_fn;
+      rule_path = bpc.op.rule_fn;
     #endif
-    
+
     // initialize BP
     ret = bp_init_CSV ( bpc, bpc.op.X, bpc.op.Y, bpc.op.Z, name_path, rule_path );
     if (ret<0) {
@@ -119,52 +122,52 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
 
         bpc.op.cur_run = run;
 
-        // restart 
+        // restart
         bp_restart ( bpc );
 
         // run iterations & steps
         runret = 1;
         while ( runret == 1 ) {
-            
+
             ret = bpc.RealizeStep ();
 
-            if (ret == 0 || ret == -2) {             
+            if (ret == 0 || ret == -2) {
                 // finish this iteration
                 ret = bpc.RealizePost();
-                                
+
                 if ( ret > 0) {
                     // iteration complete (all steps), start new iteration
-                    bpc.RealizePre();                    
+                    bpc.RealizePre();
                     runret = 1;
-                    
+
                     // append csv iteration
                     fprintf ( fp, "%s\n", bpc.getStatCSV().c_str() );  fflush ( fp );
 
                 } else if (ret == 0) {
                     // this run DONE!
-                    runret = 0;                    
+                    runret = 0;
 
-                    // append csv run done                    
+                    // append csv run done
                     fprintf ( fp, "%s\n", bpc.getStatCSV( 1 ).c_str() );  fflush ( fp );
                     fprintf ( fp, "%s\n", bpc.getStatCSV( 2 ).c_str() );  fflush ( fp );
 
-                    // write json output                    
-                    write_tiled_json( bpc );  
-                }                
+                    // write json output
+                    write_tiled_json( bpc );
+                }
 
             } else {
                 // error condition
-                switch (ret) {                
+                switch (ret) {
                 case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
                 case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
                 case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-                };         
+                };
                 // ignore error. can set runret=ret if you want to stop on error
                 runret = 1;
             }
-        }       
+        }
 
-    } 
+    }
 
     fclose ( fp );
 
@@ -320,9 +323,9 @@ int bp_init_CSV( BeliefPropagation &bp, int rx, int ry, int rz, std::string name
   bp.op.Y = ry;
   bp.op.Z = rz;
 
-  // we dont use name_fn/rule_fn from opt because name_path/rule_path 
+  // we dont use name_fn/rule_fn from opt because name_path/rule_path
   // passed in are platform-specific resolved absolute paths
-    
+
   ret = _read_name_csv( name_path, name_list, weight_list );
   if (ret<0) {
     fprintf(stderr, "error loading name CSV\n");
@@ -803,7 +806,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
         for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
-            bp.filterDiscard(pos, v);
+            ret = bp.filterDiscard(pos, v);
+            if (ret < 0) { return ret; }
 
             bp.cellFillVisited (pos, bp.m_note_plane);
           }
@@ -825,7 +829,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
         for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
           for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
             pos = bp.getVertex(x,y,z);
-            bp.filterKeep(pos, v);
+            ret = bp.filterKeep(pos, v);
+            if (ret < 0) { return ret; }
 
             bp.cellFillVisited (pos, bp.m_note_plane);
           }
@@ -843,7 +848,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
     }
 
   }
- 
+
   bp.unfillVisited (bp.m_note_plane);
   ret = bp.cellConstraintPropagate();
   if (ret == 0) { bp.NormalizeMU(); }
@@ -879,7 +884,7 @@ int write_bp_stl (BeliefPropagation& bp, std::vector< std::vector< float > > tri
   int64_t pos;
   int32_t tile_id;
 
-  
+
   fp = fopen( bp.op.outstl_fn.c_str(), "w");
   if (!fp) { return -1; }
 
@@ -935,17 +940,17 @@ int write_tiled_json ( BeliefPropagation & bpc) {
   op->tileset_width *= op->tileset_stride_x;
   op->tileset_height *= op->tileset_stride_y;
 
-  
+
   // open file for write
   fp = fopen( fname, "w");
 
-  if (!fp) { 
+  if (!fp) {
       printf("ERROR: Failed to write (%s)\n", fname );
-      return -1; 
+      return -1;
   } else {
       if (op->verbose >= 2) printf("Writing tilemap (%s)\n", fname );
   }
-  
+
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
   fprintf(fp, "  \"height\": %i,\n", (int) bpc.m_res.y);

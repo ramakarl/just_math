@@ -16,8 +16,8 @@ rule_fn="./stair_rule.csv"
 
 test_num=0
 test_str="4,3,1"
-res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | \
-  grep -P '^m_res: ' | grep -o "$test_str"`
+res=`$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | \
+  grep -P '^res: ' | grep -o "$test_str"`
 
 if [[ "$res" != "$test_str" ]] ; then
   echo "TEST $test_num FAILED: expected '$test_str' got '$res'"
@@ -32,7 +32,7 @@ fi
 #
 
 test_num=1
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test1.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test1.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -47,7 +47,7 @@ fi
 #
 
 test_num=2
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test2.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test2.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -64,7 +64,7 @@ fi
 #
 
 test_num=4
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test4.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test4.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -81,7 +81,7 @@ fi
 #
 
 test_num=5
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num | ./test5.py
+$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | ./test5.py
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -130,10 +130,7 @@ fi
 
 test_num=16
 expect_res=`sha256sum bp_test16_output.txt | cut -f1 -d' '`
-#actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | sha256sum | cut -f1 -d' '`
-actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | tail +39 | grep -v -P ' version: |m_stat'  | sha256sum | cut -f1 -d' '`
-#actual_res=`$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | tail +39 | grep -v -P ' version: |m_stat'  > ffff`
-#res="$?"
+actual_res=`$bin -N $name_fn -R $rule_fn -D 1  -T $test_num | grep -v -P ' version: |^stat'  | sha256sum | cut -f1 -d' '`
 
 if [[ "$expect_res" != "$actual_res" ]] ; then
   echo "TEST $test_num FAILED: expected sha256sum '$expect_res', got '$actual_res'"
@@ -145,7 +142,7 @@ fi
 ### test basic convergence
 
 test_num=17
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | ./test17
+$bin -N $name_fn -R $rule_fn -D 1 -T $test_num | ./test17
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -158,7 +155,7 @@ fi
 ### test svd
 
 test_num=18
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | ./test18
+$bin -N $name_fn -R $rule_fn -D 1 -T $test_num | ./test18
 res="$?"
 
 if [[ "$res" != 0 ]] ; then
@@ -171,7 +168,7 @@ fi
 ### test svd
 
 test_num=19
-$bin -N $name_fn -R $rule_fn -X 4 -Y 3 -Z 2 -T $test_num -S 0 -V 1 | ./test19
+$bin -N $name_fn -R $rule_fn -D 1 -T $test_num | ./test19
 res="$?"
 
 if [[ "$res" != 0 ]] ; then

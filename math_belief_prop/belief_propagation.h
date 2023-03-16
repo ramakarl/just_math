@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.5.0"
+#define BELIEF_PROPAGATION_VERSION "0.6.0"
 
 #define OPT_PTRS
 #define OPT_MUPTR
@@ -146,7 +146,7 @@ typedef struct _bp_opt_t {
   float     alpha;
 
   int       X, Y, Z, D;
-  
+
   std::string name_fn;
   std::string rule_fn;
 
@@ -171,7 +171,7 @@ typedef struct _bp_opt_t {
 
   float     step_rate;
 
-  float     eps_converge, 
+  float     eps_converge,
             eps_converge_beg,
             eps_converge_end,
             eps_zero;
@@ -187,21 +187,41 @@ typedef struct _bp_opt_t {
 
   int32_t   cur_iter;
   int32_t   max_iter;
-  
+
   int32_t   cur_step;
   int32_t   max_step;
-  
+
   int32_t   alg_idx;            // ALG_RUN_VANILLA or ALG_RUN_RESIDUE
   int32_t   alg_cell_opt;       // ALG_CELL_ANY, ALG_CELL_MIN_ENTROPY
   int32_t   alg_tile_opt;       // ALG_TILE_MAX_BELIEF
   int32_t   alg_run_opt;
 
   int32_t   viz_opt;            // VIS_NONE, VIS_MU, VIS_BELIEF, etc..
-  
+
   bool      use_cuda;
   int       use_svd;
   int       use_checkerboard;
 
+  // As a general rule of thumb, the verbosity is:
+  //
+  // 0  - NONE
+  //        no output (default),
+  //        unless error (which should go to stderr?)
+  //
+  // 1  - SUMMARY
+  //        output summary information or other output
+  //        at the end of a completed run
+  //
+  // 2  - RUN
+  //        output summary information at end
+  //        of each step
+  //
+  // 3  - STEP
+  //        output information intra-step
+  //
+  // 4  - DEBUG
+  //        catchall for debug/anything printing
+  //
   int       verbose;
 
 } bp_opt_t;
@@ -229,7 +249,7 @@ typedef struct _bp_stat_type {
     float   eps_curr;
 
     float   max_dmu,
-            ave_mu, 
+            ave_mu,
             ave_dmu;
 
     int64_t num_culled,
@@ -264,7 +284,7 @@ typedef struct _bp_expr_type {
 
 
 
-// Belief propagation 
+// Belief propagation
 
 class BeliefPropagation {
 public:
@@ -290,7 +310,7 @@ public:
   int       start();
   int       finish();
 
-  int       RealizePre();  
+  int       RealizePre();
   int       RealizeIter();
   int       RealizeStep();
   int       RealizePost();
@@ -365,7 +385,7 @@ public:
   int   chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
-  int   chooseMaxEntropy(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
+  int   chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
@@ -380,8 +400,8 @@ public:
   void  NormalizeMU (int id);
   void  NormalizeMU_cell_residue (int buf_id, int64_t cell);
 
-  void  filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
-  void  filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
+  int filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
+  int filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
   int32_t tileName2ID (std::string &tile_name);
   int32_t tileName2ID (char *);
 
@@ -411,8 +431,8 @@ public:
 
 
 
-  //------------------------ memory management    
-  
+  //------------------------ memory management
+
   void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
   void          ZeroBuf (int id);
 
@@ -422,7 +442,7 @@ public:
   int64_t       getVertex(int x, int y, int z);
   int           getTilesAtVertex ( int64_t vtx );
   int           getOppositeDir(int nbr)  { return m_dir_inv[nbr]; }
-  
+
   //----------------------- new accessor functions
 
   inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
@@ -442,12 +462,12 @@ public:
   inline int    getNumVerts()            {return m_num_verts;}
 
   //----------------------- options & stat accessors
-  
+
   void          ResetStats ();
 
   std::string   getStatMessage ();
-  std::string   getStatCSV (int mode=0);  
   
+  std::string   getStatCSV (int mode=0);
 
   bp_opt_t*     get_opt()              { return &op; }
   bp_stat_t*    get_stat()             { return &st; }
@@ -498,8 +518,8 @@ public:
   // run time statistics and other information
   //
   // void    UpdateRunTimeStat(int64_t num_step);
-  
-  
+
+
   //------------------------- member variables
 
   // primary data stored in buffers
