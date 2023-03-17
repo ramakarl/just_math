@@ -1240,7 +1240,7 @@ int test_step1(BeliefPropagation &_bp) {
 
   bp.op.eps_converge = 1.0/1024.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
   bp.op.seed = 0;
 
@@ -1346,7 +1346,7 @@ int test_step2(BeliefPropagation &_bp) {
 
   bp.op.eps_converge = 1.0/1024.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
   //---
   bp.op.seed = 0;
@@ -1454,7 +1454,7 @@ int test_step3(BeliefPropagation &_bp) {
 
   bp.op.eps_converge = 1.0/1024.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
   //--
 
@@ -1563,7 +1563,7 @@ int test_step4(BeliefPropagation &_bp) {
 
   bp.op.eps_converge = 1.0/1024.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
 
   //--
@@ -2176,7 +2176,7 @@ int test_residual6() {
   bp.op.eps_converge = 1.0/1024.0;
   bp.op.step_rate = 1.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
 
   //--
@@ -2331,7 +2331,7 @@ int test_residual7(BeliefPropagation &_bp) {
   bp.op.eps_converge = 1.0/1024.0;
   bp.op.step_rate = 1.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
   //--
 
@@ -2427,7 +2427,7 @@ int test_residual8() {
   bp.op.eps_converge = 1.0/1024.0;
   bp.op.step_rate = 1.0;
 
-  bp.op.verbose = 3;
+  bp.op.verbose = VB_INTRASTEP;
 
 
   //--

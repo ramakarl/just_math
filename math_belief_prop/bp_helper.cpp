@@ -288,9 +288,11 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile )
         float ave_time = total_time / bpc.op.max_run;     
         fail_constr /= bpc.op.max_run;
 
-        printf ( "GRID: %d,%d,%d, tiles:%d, maxstep: %d, eps:%f, srate:%f, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f, avetime: %f, sseed: %d\n", 
+        if ( bpc.op.verbose >= VB_EXPERIMENT ) {
+           printf ( "GRID: %d,%d,%d, tiles:%d, maxstep: %d, eps:%f, srate:%f, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f, avetime: %f, sseed: %d\n", 
                         bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,
                         bpc.op.max_run, success, 100*float(success)/bpc.op.max_run, fail_constr, total_time, ave_time, bpc.op.seed );
+        }
         
         fprintf ( fp, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n", 
                         bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,

@@ -123,6 +123,11 @@ That is, RBP and others might converge, incorrectly, for many more graphs than f
 As a quick spot check, the results for the Ising glass model Knoll et all were using look to give about a 50% worst
 MSE for RBP, NIBP and WDBP, even though the convergence rate was both higher and quicker.
 
+Discussion
+---
+
+* noticing quadratic or cubic run time
+
 
 Glossary
 ---
