@@ -124,7 +124,7 @@ int BeliefPropagation::default_opts () {
 
   op.index_heap_size = 0;
 
-  op.viz_opt = VIZ_DMU;
+  op.viz_opt = VIZ_NONE;
 
   op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
   op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
