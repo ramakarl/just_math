@@ -362,14 +362,15 @@ bool Sample::init()
     }
   #endif
 
-  bpc.expr.num_expr = 20;
-  bpc.expr.num_run = 40;
-  bpc.expr.grid_min.Set (6, 6, 1);
-  bpc.expr.grid_max.Set (26, 26, 1);
+  //-- Experiments
+  bpc.expr.num_expr = 10;
+  bpc.expr.num_run = 8;
+  bpc.expr.grid_min.Set (12, 12, 1);
+  bpc.expr.grid_max.Set (12, 12, 1);
   bpc.expr.maxstep_min = 10;
   bpc.expr.maxstep_max = 10;
-  bpc.expr.steprate_min = 0.98;
-  bpc.expr.steprate_max = 0.98;
+  bpc.expr.steprate_min = 0.90;
+  bpc.expr.steprate_max = 1.00;
   bpc.expr.eps_min = .001;
   bpc.expr.eps_max = .001;
 
@@ -377,7 +378,6 @@ bool Sample::init()
 
   //-- Multirun testing  
   bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
-
   exit(-5);
 
   

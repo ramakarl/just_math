@@ -62,6 +62,14 @@
 
 #define BELIEF_PROPAGATION_VERSION "0.6.0"
 
+#define VB_NONE         0
+#define VB_ERROR        0
+#define VB_EXPERIMENT   1
+#define VB_RUN          2
+#define VB_STEP         3
+#define VB_INTRASTEP    4
+#define VB_DEBUG        5
+
 #define OPT_PTRS
 #define OPT_MUPTR
 #define OPT_FH
@@ -290,7 +298,7 @@ class BeliefPropagation {
 public:
   BeliefPropagation() {
 
-    op.verbose = 0;
+    op.verbose = VB_NONE;
 
     default_opts();
 
@@ -455,8 +463,8 @@ public:
   inline void   SetValL(int id, int64_t val, int x, int y=0, int z=0)     {*(int64_t*) m_buf[id].getPtr(x, y, z) = val;}
   inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
-  //inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}
-  inline int    getNumNeighbors(int j)        {return 6;}
+  inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}
+  // inline int    getNumNeighbors(int j)        {return 6;}
 
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
