@@ -201,10 +201,13 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile )
     fprintf ( fp, "gridx, gridy, gridz, tiles, max_step, eps, step_rate, # runs, success, %%, fail_constr, total time, ave time(ms), start seed\n" );
 
     // platform-specific, find name & rule files
+    std::string name_path, rule_path;
     #ifdef _WIN32
-        std::string name_path, rule_path;
-        getFileLocation ( bpc.op.name_fn, name_path );
-        getFileLocation ( bpc.op.rule_fn, rule_path );
+      getFileLocation ( bpc.op.name_fn, name_path );
+      getFileLocation ( bpc.op.rule_fn, rule_path );
+    #else
+      name_path = bpc.op.name_fn;
+      rule_path = bpc.op.rule_fn;
     #endif
 
     int num_experiments = bpc.expr.num_expr;
@@ -290,13 +293,21 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile )
 
         if ( bpc.op.verbose >= VB_EXPERIMENT ) {
            printf ( "GRID: %d,%d,%d, tiles:%d, maxstep: %d, eps:%f, srate:%f, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f, avetime: %f, sseed: %d\n", 
-                        bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,
-                        bpc.op.max_run, success, 100*float(success)/bpc.op.max_run, fail_constr, total_time, ave_time, bpc.op.seed );
+                        (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z,
+                        (int)bpc.m_num_values, (int)bpc.op.max_step,
+                        (float)bpc.op.eps_converge, (float)bpc.op.step_rate,
+                        (int)bpc.op.max_run, success,
+                        100*float(success)/bpc.op.max_run,
+                        fail_constr,
+                        total_time, ave_time, bpc.op.seed );
         }
         
         fprintf ( fp, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n", 
-                        bpc.op.X, bpc.op.Y, bpc.op.Z, bpc.m_num_values, bpc.op.max_step, bpc.op.eps_converge, bpc.op.step_rate,
-                        bpc.op.max_run, success, float(success)/bpc.op.max_run, fail_constr, total_time, ave_time, bpc.op.seed );
+                        (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z,
+                        (int)bpc.m_num_values, (int)bpc.op.max_step,
+                        bpc.op.eps_converge, bpc.op.step_rate,
+                        bpc.op.max_run, success, float(success)/bpc.op.max_run,
+                        fail_constr, total_time, ave_time, bpc.op.seed );
 
         // proper flush
         fclose ( fp );
