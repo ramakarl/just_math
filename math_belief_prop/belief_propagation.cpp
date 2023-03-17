@@ -3099,7 +3099,7 @@ std::string BeliefPropagation::getStatMessage () {
   snprintf ( msg, 1024, 
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f, b:%f, n:%f, bp:%f, v:%f, md:%f, u:%f\n",
               ((st.post==1) ? "RUN" :
-                ((st.constraints==0) ? "SUCCESS" : "FAIL")),
+                ((st.constraints==0) ? "RUN_SUCCESS" : "RUN_FAIL")),
               op.cur_run, op.max_run, op.cur_iter,
               st.elapsed_time, (int)st.constraints, 
               st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
@@ -3110,33 +3110,33 @@ std::string BeliefPropagation::getStatMessage () {
   return msg;
 }
 
-std::string BeliefPropagation::getStatCSV (int mode)
-{
-   char msg[1024] = {0};
-   int status;
-   status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;
+std::string BeliefPropagation::getStatCSV (int mode) {
 
-   snprintf ( msg, 1024, 
-                   "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",  
-                   op.cur_run, status, op.cur_iter, st.elapsed_time,
-                   (int)st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
-                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
-                   st.ave_mu, st.ave_dmu,
-                   st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
+  char msg[1024] = {0};
+  int status;
+  status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;
 
-    return msg;
+  snprintf ( msg, 1024, 
+      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",  
+      op.cur_run, status, op.cur_iter, st.elapsed_time,
+      (int)st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+      op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+      st.ave_mu, st.ave_dmu,
+      st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
+
+  return msg;
 }
 
 
 float BeliefPropagation::getLinearEps () {
 
-    // linear interpolation epsilon
-    //
-    float _eps = op.eps_converge;
+  // linear interpolation epsilon
+  //
+  float _eps = op.eps_converge;
 
-    _eps = op.eps_converge_beg + ((op.eps_converge_end - op.eps_converge_beg) * float(op.cur_iter) / float(op.max_iter) );
+  _eps = op.eps_converge_beg + ((op.eps_converge_end - op.eps_converge_beg) * float(op.cur_iter) / float(op.max_iter) );
 
-    return _eps;
+  return _eps;
 }
 
 
@@ -3190,10 +3190,8 @@ int BeliefPropagation::RealizeStep(void) {
   //---
 
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
-
     d = step(MU_COPY);
     if (fabs(d) < _eps) { ret = 0; }
-
   }
 
   //---
@@ -3202,9 +3200,7 @@ int BeliefPropagation::RealizeStep(void) {
 
     mu_idx = indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
 
-    if (f_residue < _eps) {
-      ret = 0;
-    }
+    if (f_residue < _eps) { ret = 0; }
     else {
       if (op.verbose >= VB_INTRASTEP ) {
         printf("  [it:%i,step:%i] updating mu[%i,%i,%i](%i) residue:%f\n",
@@ -3219,9 +3215,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   //--- unknown algorithm
 
-  else {
-    ret = -1;
-  }
+  else { ret = -1; }
 
   // complete timing
   //
@@ -3229,11 +3223,8 @@ int BeliefPropagation::RealizeStep(void) {
   st.elapsed_time += ((((double) m_t2-m_t1) / CLOCKS_PER_SEC) * 1000);
 
   if ( ret==1 ) {
-    if (op.cur_step >= op.max_step ) {
-        ret=-2;
-    } else {
-        op.cur_step++;
-    }
+    if (op.cur_step >= op.max_step )  { ret = -2; }
+    else                              { op.cur_step++; }
   }
 
   return ret;
@@ -3367,25 +3358,24 @@ float BeliefPropagation::step (int update_mu) {
   // initial boundary condiitions
   //
   #ifdef OPT_MUBOUND
-      if (st.instr) t1 = clock();
-      WriteBoundaryMUbuf(BUF_MU);      
-      WriteBoundaryMUbuf(BUF_MU_NXT);
-      if (st.instr) {st.time_boundary += clock()-t1;}
+    if (st.instr) t1 = clock();
+    WriteBoundaryMUbuf(BUF_MU);      
+    WriteBoundaryMUbuf(BUF_MU_NXT);
+    if (st.instr) {st.time_boundary += clock()-t1;}
 
-      if (st.instr) t1 = clock();
-      NormalizeMU( BUF_MU );
-      if (st.instr) {st.time_normalize += clock()-t1;}
+    if (st.instr) t1 = clock();
+    NormalizeMU( BUF_MU );
+    if (st.instr) {st.time_normalize += clock()-t1;}
   #endif
 
 
   // run main bp, store in BUF_MU_NXT
   //
   if (st.instr) t1 = clock();
-  if (op.use_svd) { 
-      BeliefProp_svd(); 
-  } else {
-      BeliefProp(); 
-  }
+
+  if (op.use_svd) { BeliefProp_svd(); }
+  else            { BeliefProp(); }
+
   if (st.instr) {st.time_bp += clock()-t1;}
 
   // renormalize BUF_MU_NXT
