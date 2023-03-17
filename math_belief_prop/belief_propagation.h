@@ -271,6 +271,14 @@ typedef struct _bp_stat_type {
 
     int64_t constraints;
 
+    bool    instr;
+    float   time_boundary,
+            time_normalize,
+            time_bp,
+            time_viz,
+            time_maxdiff,
+            time_updatemu;
+
 } bp_stat_t;
 
 // Belief propagation - experiements
