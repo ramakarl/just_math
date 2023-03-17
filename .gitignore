@@ -1,15 +1,4 @@
 math_belief_prop/Eigen/*
-<<<<<<< HEAD
-<<<<<<< HEAD
-
-=======
-math_displace_mesh/model_dragon*
->>>>>>> upstream/main
+math_displace_mesh/assets/model_dragon*
 *.so
 .*
-<<<<<<< HEAD
-=======
-math_displace_mesh/model_dragon*
->>>>>>> upstream/main
-=======
->>>>>>> upstream/main

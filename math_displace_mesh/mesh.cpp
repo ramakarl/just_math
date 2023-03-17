@@ -855,6 +855,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 	std::vector<Vector3DF>		vlist;
 
 	FILE* fp;
+	char* chp;
 	char buf[4096];
 	Vector3DF vec;
 	Vector3DF norm, fnorm;

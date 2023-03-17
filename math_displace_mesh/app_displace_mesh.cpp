@@ -84,6 +84,11 @@ public:
 	virtual void mousewheel(int delta);
 	virtual void shutdown();
 
+	bool		intersect_ray_patch (Vector3DF rpos, Vector3DF rdir, Vector3DF q00, Vector3DF q10, Vector3DF q11, Vector3DF q01, float& tmin, float& tmax, int e, int& emin, int& emax );
+	bool		intersect_tri_inout ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& tmin, float& tmax, int e, int& emin, int& emax );
+	bool		intersect_ray_prism ( Vector3DF rpos, Vector3DF rdir, Vector3DF vb0, Vector3DF vb1, Vector3DF vb2, Vector3DF ve0, Vector3DF ve1, Vector3DF ve2, 
+										float& tmin, float& tmax, int& emin, int& emax);
+
 	void		ConstructPrisms ( float d );
 	bool		FindPrismHitCandidates ( Vector3DF rpos, Vector3DF rdir, std::vector<hitinfo_t>& candidates );
 	bool		IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float tmin, float tmax, int edge, int edgemax, float dt, float& t, Vector3DF& bc );
@@ -195,8 +200,7 @@ bool Sample::init()
 
 	getFileLocation ( "color_white.png", fpath );
 	//getFileLocation ( "stones_color.png", fpath );
-	//getFileLocation ( "rocks01_color.png", fpath );
-	//getFileLocation ( "rocks01_displace.png", fpath );
+	//getFileLocation ( "rocks01_color.png", fpath );	
 	//getFileLocation ( "rocks02_color.png", fpath );
 	//getFileLocation ( "rocks07_color.png", fpath );
 	//getFileLocation ( "gravel02_color.png", fpath );
@@ -209,6 +213,7 @@ bool Sample::init()
 
 	// load mesh
 	getFileLocation ( "model_dragon_head.obj", fpath );
+	//getFileLocation ( "surface.obj", fpath );
 	//getFileLocation ( "asteroid.obj", fpath );
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh = new MeshX;
@@ -390,7 +395,83 @@ void ComputePrismBounds ( Vector3DF vb0, Vector3DF vb1, Vector3DF vb2, Vector3DF
 
 #define fsgn(x)		(x<0 ? -1 : 1)
 
-bool intersect_tri_inout ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& tmin, float& tmax, int e, int& emin, int& emax )
+// ray/bilinear patch intersect
+// - the coordinates q should be specified in clockwise order
+// 
+bool Sample::intersect_ray_patch (Vector3DF rpos, Vector3DF rdir, Vector3DF q00, Vector3DF q10, Vector3DF q11, Vector3DF q01, float& tmin, float& tmax, int e, int& emin, int& emax ) 
+{
+	float t1, v1, t2, v2;
+	Vector3DF pa, pb, n;
+	Vector3DF e10 = q10 - q00;
+	Vector3DF e11 = q11 - q10;
+	Vector3DF e00 = q01 - q00;
+	Vector3DF qn = e10.Cross ( (q01-q11) );   // normal of the diagonals
+	q00 -= rpos;
+	q10 -= rpos;
+	float a = q00.Cross ( rdir ).Dot ( e00 );
+	float c = qn.Dot ( rdir );
+	float b = q10.Cross ( rdir ).Dot ( e11 );
+	b -= a + c;
+	float det = b*b - 4*a*c;
+	if (det < 0 ) return false;
+	det = sqrt(det);
+	float u1, u2;
+	float u=0, v=0;
+	float t = 1e10;
+	if ( c==0 ) {				// trapezid. only one root
+		u1 = -a/b; 
+		u2 = -1;
+	} else {
+		u1 = (-b - det*fsgn(b) )/2;
+		u2 = a/u1;
+		u1 /= c;
+	}
+	if (0 <= u1 && u1 <=1 ) {
+		pa = q00 + (q10-q00)*u1;
+		pb = e00 + (e11-e00)*u1;
+		n = rdir.Cross ( pb );
+		det = n.Dot ( n );
+		n = n.Cross ( pa );
+		t1 = n.Dot ( pb );
+		v1 = n.Dot ( rdir );
+		if ( t1 > 0 && 0 <= v1 && v1 <= det ) {
+			t = t1/det; u = u1; v = v1/det;
+		}
+	}
+	if ( 0 <= u2 && u2 <= 1 ) {
+		pa = q00 + (q10-q00)*u2;
+		pb = e00 + (e11-e00)*u2;
+		n = rdir.Cross ( pb );
+		det = n.Dot ( n );
+		n = n.Cross ( pa );
+		t2 = n.Dot ( pb ) / det;
+		v2 = n.Dot ( rdir );
+		if ( 0 <= v2 && v2 <= det && t > t2 && t2 > 0 ) {
+			t = t2; u = u2; v = v2/det;
+		}
+	}
+	if (t==1e10) return false;
+
+	// surface normal
+	pb = e00 + (e11-e00) * u;
+	pa = e10 + ((q11-q01)-e10) * v;	
+	n = pa.Cross ( pb );
+	c = n.Dot ( rdir * -1 );
+
+	if ( c >=0 && t > tmax ) {tmax = t; emax = e; return false;}	// backfacing
+	if ( c < 0 && t < tmin ) {tmin = t; emin = e; return true;}     // facing the ray	
+	
+	// compute shading normal given normals at each vertex (vn)
+	// pa = vn[0] + (vn[1]-vn[0])*u;
+	// pb = vn[3] + (vn[2]-vn[3])*u;
+	// n = pa + (pb-pa)* v;
+	// ..OR..
+	// n = vn[2]*u*v + vn[1]*(1-u)*v + vn[3]*u*(1-v) + vn[0]*(1-u)*(1-v);  // (slower)
+
+	return false;
+}
+
+bool Sample::intersect_tri_inout ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& tmin, float& tmax, int e, int& emin, int& emax )
 {
 	Vector3DF e0 = v1 - v0;
     Vector3DF e1 = v0 - v2;
@@ -410,19 +491,24 @@ bool intersect_tri_inout ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3
 }
 
 
-bool intersectRayPrism ( Vector3DF rpos, Vector3DF rdir, Vector3DF vb0, Vector3DF vb1, Vector3DF vb2, Vector3DF ve0, Vector3DF ve1, Vector3DF ve2, 
-                         float& tmin, float& tmax, int& emin, int& emax)
+bool Sample::intersect_ray_prism ( Vector3DF rpos, Vector3DF rdir, Vector3DF vb0, Vector3DF vb1, Vector3DF vb2, Vector3DF ve0, Vector3DF ve1, Vector3DF ve2, 
+										float& tmin, float& tmax, int& emin, int& emax)
 {
 	tmin = 1e10; tmax = 0;
 	emin = -1; emax = -1;	
     intersect_tri_inout ( rpos, rdir, ve0, ve1, ve2, tmin, tmax, 0, emin, emax );
 	intersect_tri_inout ( rpos, rdir, vb0, vb2, vb1, tmin, tmax, 1, emin, emax );
-	intersect_tri_inout ( rpos, rdir, vb0, ve1, ve0, tmin, tmax, 3, emin, emax );
+	
+	intersect_ray_patch ( rpos, rdir, vb0, ve0, ve1, vb1, tmin, tmax, 3, emin, emax );
+	intersect_ray_patch ( rpos, rdir, vb1, ve1, ve2, vb2, tmin, tmax, 4, emin, emax );
+	intersect_ray_patch ( rpos, rdir, vb2, ve2, ve0, vb0, tmin, tmax, 5, emin, emax );
+
+	/*intersect_tri_inout ( rpos, rdir, vb0, ve1, ve0, tmin, tmax, 3, emin, emax );
 	intersect_tri_inout ( rpos, rdir, vb0, vb1, ve1, tmin, tmax, 3, emin, emax );
 	intersect_tri_inout ( rpos, rdir, vb1, ve2, ve1, tmin, tmax, 4, emin, emax );
 	intersect_tri_inout ( rpos, rdir, vb1, vb2, ve2, tmin, tmax, 4, emin, emax );
 	intersect_tri_inout ( rpos, rdir, vb2, ve0, ve2, tmin, tmax, 5, emin, emax );
-	intersect_tri_inout ( rpos, rdir, vb2, vb0, ve0, tmin, tmax, 5, emin, emax );
+	intersect_tri_inout ( rpos, rdir, vb2, vb0, ve0, tmin, tmax, 5, emin, emax );*/
 
 	if (tmax>0) {
 		if (tmin==1e10) {
@@ -447,7 +533,8 @@ void Sample::ConstructPrisms ( float depth )
 	AttrV3* f;
 
 	float d = m_displace_depth;
-	float dmin = -m_displace_depth * 0.25;
+
+	float dmin = -m_displace_depth * 0.2;
 
 	for (f = (AttrV3*) m_mesh->GetStart(BFACEV3); f <= (AttrV3*) m_mesh->GetEnd(BFACEV3); f++ ) {
 
@@ -509,7 +596,7 @@ bool Sample::FindPrismHitCandidates ( Vector3DF rpos, Vector3DF rdir, std::vecto
 			
 			// intersect with triangular prism
 			float alpha, beta;
-			if ( intersectRayPrism ( rpos, rdir, s->vb0, s->vb1, s->vb2, s->ve0, s->ve1, s->ve2, tmin, tmax, emin, emax) ) {
+			if ( intersect_ray_prism ( rpos, rdir, s->vb0, s->vb1, s->vb2, s->ve0, s->ve1, s->ve2, tmin, tmax, emin, emax) ) {
 				// add to potential hit list
 				face = f-(AttrV3*) m_mesh->GetStart(BFACEV3);
 				candidates.push_back ( hitinfo_t( face, tmin, tmax, emin, emax ) );
@@ -718,7 +805,7 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 	// get previous sample - above surface		
 	uv = vuv0 * bcl.x + vuv1 * bcl.y + vuv2 * bcl.z;
 	p = vb0*bcl.x + vb1*bcl.y + vb2*bcl.z;					
-	float rayhgt0 = ( (hit-rdir*dt) - p).Length();
+	float rayhgt0 = ( ( hit - rdir*dt ) - p).Length();
 	float bmphgt0 = m_displace_depth * m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
 	// interpolate between previous and current sample
 	float u = (rayhgt0-bmphgt0) / ((rayhgt0-bmphgt0)+(bmphgt-rayhgt));
@@ -876,9 +963,9 @@ void Sample::RaytraceDisplacementMesh ( Image* img )
 	Vector3DF best_bc;
 	std::vector<hitinfo_t> candidates;
 
-
-
-	// advance y (from center outward)
+	// To make this interactive on the CPU we raytrace one scanline at a time.
+	// Adjust the resolution using the ',' and '.' keys.
+	// Advance y-line (from center outward)
 	if ( m_yline <= img->GetHeight()/2 ) m_yline--;
 	if ( m_yline >= img->GetHeight()/2 +1 ) m_yline++;
 	if ( m_yline <= 0 ) m_yline = img->GetHeight()/2 + 1;
