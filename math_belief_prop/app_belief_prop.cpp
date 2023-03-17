@@ -363,6 +363,7 @@ bool Sample::init()
   #endif
 
   //-- Experiments
+  
   bpc.expr.num_expr = 20;
   bpc.expr.num_run = 1;
   bpc.expr.grid_min.Set (6, 6, 6);
@@ -374,10 +375,14 @@ bool Sample::init()
   bpc.expr.eps_min = .001;
   bpc.expr.eps_max = .001;
 
-  bp_experiments ( bpc, "expr.csv" ); 
+  bpc.st.instr = 1;
+
+  bp_experiments ( bpc, "expr.csv" );  
 
   //-- Multirun testing  
+  
   bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
+
   exit(-5);
 
   

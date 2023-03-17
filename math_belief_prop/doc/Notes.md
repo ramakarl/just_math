@@ -127,6 +127,29 @@ Discussion
 ---
 
 * noticing quadratic or cubic run time
+  - cubic run might be because edge culling (on pm, say)
+    make the average tile occupancy low that after increasing
+    the grid dize, the number of tiles, $T$, goes from $O(T)$
+    to $O(T^2)$
+  - quadratic because we sweep every cell during the main BP run,
+    fix a cell with a tile, then repeat
+
+At the end, we expect $O(N^2 T^2 S)$, with:
+
+* $N$ - number of cells ($X \cdot Y \cdot Z$)
+* $T$ - number of tiles
+* $S$ - average number of steps until convergence (dependent on epsilon, rate, etc.)
+
+* WFC gets worse as the system size gets larger because it's a one-shot algorithm
+  - 90x90 for pm gives many failures
+  - 20x18x18 for stair gives many failures
+* In principle, BP should be better at these cases, and WFC should have an exponentially
+  decreasing chance of finding a solution
+  - unclear whether WFC can be fixed up with some backtracking that would allow it to
+    overcome this exponentially decreasing probability of finding an answer
+
+
+
 
 
 Glossary
