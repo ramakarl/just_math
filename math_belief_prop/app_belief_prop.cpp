@@ -328,7 +328,7 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
-  m_viz = VIZ_DMU;
+  m_viz = VIZ_NONE;
 
   _bp_opt_t* op = bpc.get_opt();
 
@@ -363,14 +363,14 @@ bool Sample::init()
   #endif
 
   //-- Experiments
-  bpc.expr.num_expr = 10;
-  bpc.expr.num_run = 8;
-  bpc.expr.grid_min.Set (12, 12, 1);
-  bpc.expr.grid_max.Set (12, 12, 1);
+  bpc.expr.num_expr = 20;
+  bpc.expr.num_run = 1;
+  bpc.expr.grid_min.Set (6, 6, 6);
+  bpc.expr.grid_max.Set (26, 26, 26);
   bpc.expr.maxstep_min = 10;
   bpc.expr.maxstep_max = 10;
-  bpc.expr.steprate_min = 0.90;
-  bpc.expr.steprate_max = 1.00;
+  bpc.expr.steprate_min = 0.98;
+  bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .001;
   bpc.expr.eps_max = .001;
 
