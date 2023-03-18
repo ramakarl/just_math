@@ -3,6 +3,11 @@ TODO
 
 ###### 2023-03-12
 
+* integrate wfc into realize pre/post/step
+
+
+###### 2023-03-12
+
 * additional statistics:
   - mean/mode/std-dev occupancy
   - mean/mode/std-dev cluster size?

@@ -237,8 +237,11 @@ def load_image(data, fn):
 
   info["size"] = sz
 
-  tile_c = int(sz[0]/info["stride"][0])
-  tile_r = int(sz[1]/info["stride"][1])
+  col_idx = data["col_idx"]
+  row_idx = data["row_idx"]
+
+  tile_c = int(sz[0]/info["stride"][col_idx])
+  tile_r = int(sz[1]/info["stride"][row_idx])
 
   uniq_tile_id = 1
   info["firstgid"] = uniq_tile_id
@@ -249,7 +252,11 @@ def load_image(data, fn):
   }
 
   data["pxl_src_img"] = pxl
-  data["stride"] = [ info["stride"][0], info["stride"][1] ]
+
+  #data["stride"] = [ info["stride"][0], info["stride"][1] ]
+  data["stride"] = [ -1, -1 ]
+  data["stride"][col_idx] = info["stride"][col_idx]
+  data["stride"][row_idx] = info["stride"][row_idx]
 
 def pixel_tile_rotate(pxl, nrot, n_r, n_c):
   _eps = 1.0/(1024.0*1024.0)
