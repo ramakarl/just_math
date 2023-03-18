@@ -374,12 +374,12 @@ bool Sample::init()
 
   //-- Experiments
   
-  bpc.expr.num_expr = 10;
+  /*bpc.expr.num_expr = 10;
   bpc.expr.num_run = 8;
   bpc.expr.grid_min.Set (6, 6, 6);
   bpc.expr.grid_max.Set (16, 16, 16);
-  bpc.expr.maxstep_min = 50;
-  bpc.expr.maxstep_max = 50;
+  bpc.expr.maxstep_min = 10;
+  bpc.expr.maxstep_max = 10;
   bpc.expr.steprate_min = 0.98;
   bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .001;
@@ -389,13 +389,13 @@ bool Sample::init()
 
   printf ("WAVEFRONT: %d\n", int(bpc.op.alg_accel) );
 
-  bp_experiments ( bpc, "expr_stairs.csv" ); 
+  bp_experiments ( bpc, "expr_stairs.csv" );  */
   
   
   //-- Multirun testing  
-  /*bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
+  /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
   
-  exit(-5);*/
+  exit(-5); */
     
   // Initiate Belief Propagation   
   
@@ -632,6 +632,8 @@ void Sample::reshape(int w, int h)
   m_cam->setAspect(float(w) / float(h));
   m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
   m_cam->updateMatricies();
+
+  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8 );
 
   appPostRedisplay();
 }

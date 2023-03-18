@@ -93,7 +93,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
   fp = fopen ( outfile.c_str(), "w" );
 
   // write header
-  fprintf ( fp, "run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+  fprintf ( fp, "expr, run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
 
   // platform-specific, find name & rule files
@@ -151,7 +151,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
         }
 
         // write json output
-        write_tiled_json( bpc );
+        // write_tiled_json( bpc );
 
       } else {
         // error condition
