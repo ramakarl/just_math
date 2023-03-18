@@ -398,6 +398,10 @@ def construct_id_pxl_map(data):
           key = str(rgb[0]) + ":" + str(rgb[1]) + ":" + str(rgb[2])
           if not (key in uniq_pixel):
             uniq_pixel[key] = 0
+
+            ### DEBUG
+            print("pixel:", key)
+
           uniq_pixel[key]+=1
 
           pxl_tile_cur.append( rgb[0] )
@@ -605,6 +609,9 @@ def construct_block_tile(data):
   s_r = stride[row_idx] - window[row_idx]
   n_r = sz[row_idx] + window[row_idx] - stride[row_idx]
 
+  ## DEBUG
+  uniq_pixel = {}
+
   for r in range(s_r, n_r, stride[row_idx]):
     for c in range(s_c, n_c, stride[col_idx]):
 
@@ -651,6 +658,13 @@ def construct_block_tile(data):
             st_key_a.append(str_r)
             st_key_a.append(str_g)
             st_key_a.append(str_b)
+
+            ## DEBUG
+            _pkey = str_r + ":" + str_g + ":" + str_b
+            if not (_pkey  in uniq_pixel):
+              uniq_pixel[_pkey] = _pkey
+              print(">>>", _pkey)
+
 
           st_key = "".join(st_key_a)
 
@@ -1057,5 +1071,9 @@ if info["tileset"]["realize"]:
   write_tileset_png(data, info["tileset"]["fn"], True)
 
 #if info["tilemap"]["realize"]:
+#
+#  print(data["dedup_id_block_map"])
+#
+#  print("????")
 #  write_tiled_json(info, info["tilemap"]["data"])
 
