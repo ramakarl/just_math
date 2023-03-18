@@ -88,6 +88,14 @@ int BeliefPropagation::default_opts () {
 
   st.instr = 0;
 
+  st.occupancy_mean = 0.0;
+  st.occupancy_mode = 0.0;
+  st.occupancy_second_moment = 0.0;
+
+  st.cluster_mean = 0.0;
+  st.cluster_mode = 0.0;
+  st.cluster_second_moment = 0.0;
+
   op.eps_converge = (1.0/(1024.0));
 
   setConverge ( &op, op.eps_converge );
@@ -521,7 +529,7 @@ void BeliefPropagation::ComputeBeliefField () {
 
 float BeliefPropagation::MaxDiffMU () {
   int i, n_a, a;
-  float v0,v1, d, 
+  float v0, v1, d;
   Vector3DI jp;
 
   float global_maxdiff = 0;
@@ -2607,13 +2615,13 @@ int BeliefPropagation::start () {
   int ret=0;
 
   m_rand.seed ( op.seed );
-  
+
   int v = m_rand.randI();  // first random # (used as spot check)
 
   if (op.verbose >= VB_STEP ) {
     printf ("  Started. grid %d,%d,%d, seed = %d\n", op.X, op.Y, op.Z, op.seed );
   }
-  
+
   op.seed++;
 
   // reset stats (must do first)
@@ -2650,7 +2658,7 @@ void BeliefPropagation::ResetStats () {
     op.cur_iter = 0;
     st.elapsed_time = 0;
     st.iter_resolved = 0;
-    st.total_resolved = 0; 
+    st.total_resolved = 0;
     st.post = 1;
 
     st.time_boundary = 0;
@@ -2708,17 +2716,17 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
 
 void BeliefPropagation::reset () {
 
-    // reset clears all memory buffers 
+    // reset clears all memory buffers
     // allowing a full rebuild of bp from init.
 
     // erase all buffers
     for (int n=0; n < BUF_MAX; n++)
         m_buf[ n ].Clear ();
- 
+
     // reset stats
     ResetStats();
 
-    // do not erase ops as they 
+    // do not erase ops as they
     // may be needed for re-init
 }
 
@@ -3105,7 +3113,8 @@ int BeliefPropagation::RealizePost(void) {
     if (op.verbose >= VB_INTRASTEP ) {
       vp = getVertexPos(cell);
       n_idx = getValI ( BUF_TILE_IDX_N, cell );
-      printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i, belief:%f (tile_idx:%i / %i) [rp]\n",
+      printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rp]\n",
+          (int)op.cur_iter,
           (int)cell,
           (int)vp.x, (int)vp.y, (int)vp.z,
           (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
@@ -3187,10 +3196,11 @@ std::string BeliefPropagation::getStatMessage () {
 
   snprintf ( msg, 1024, 
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f\n",
-
-              (st.post==1) ? "RUN" : (st.constraints==0) ? "SUCCESS" : "FAIL", op.cur_run, op.max_run, op.cur_iter, 
-              st.elapsed_time, st.constraints, 
-              st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+              ((st.post==1) ? "RUN" :
+                ((st.constraints==0) ? "RUN_SUCCESS" : "RUN_FAIL")),
+              op.cur_run, op.max_run, op.cur_iter, 
+              st.elapsed_time, (int)st.constraints, 
+              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
               op.cur_step, op.max_step, 
               st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu );
   
@@ -3200,33 +3210,33 @@ std::string BeliefPropagation::getStatMessage () {
   return msg;
 }
 
-std::string BeliefPropagation::getStatCSV (int mode)
-{
-   char msg[1024] = {0};   
-   int status;
-   status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;   
+std::string BeliefPropagation::getStatCSV (int mode) {
 
-   snprintf ( msg, 1024, 
-                   "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",  
+  char msg[1024] = {0};
+  int status;
+  status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;
 
-                   op.cur_run, status, op.cur_iter, st.elapsed_time, st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
-                   op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
-                   st.ave_mu, st.ave_dmu,
-                   st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
+  snprintf ( msg, 1024, 
+      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",  
+      op.cur_run, status, op.cur_iter, st.elapsed_time,
+      (int)st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+      op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+      st.ave_mu, st.ave_dmu,
+      st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
 
-    return msg;
+  return msg;
 }
 
 
 float BeliefPropagation::getLinearEps () {
 
-    // linear interpolation epsilon
-    //
-    float _eps = op.eps_converge;
+  // linear interpolation epsilon
+  //
+  float _eps = op.eps_converge;
 
-    _eps = op.eps_converge_beg + ((op.eps_converge_end - op.eps_converge_beg) * float(op.cur_iter) / float(op.max_iter) );
+  _eps = op.eps_converge_beg + ((op.eps_converge_end - op.eps_converge_beg) * float(op.cur_iter) / float(op.max_iter) );
 
-    return _eps;
+  return _eps;
 }
 
 
@@ -3280,10 +3290,8 @@ int BeliefPropagation::RealizeStep(void) {
   //---
 
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
-
     d = step(MU_COPY);
     if (fabs(d) < _eps) { ret = 0; }
-
   }
 
   //---
@@ -3292,9 +3300,7 @@ int BeliefPropagation::RealizeStep(void) {
 
     mu_idx = indexHeap_peek_mu_pos( &idir, &cell, &tile, &f_residue);
 
-    if (f_residue < _eps) {
-      ret = 0;
-    }
+    if (f_residue < _eps) { ret = 0; }
     else {
       if (op.verbose >= VB_INTRASTEP ) {
         printf("  [it:%i,step:%i] updating mu[%i,%i,%i](%i) residue:%f\n",
@@ -3309,9 +3315,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   //--- unknown algorithm
 
-  else {
-    ret = -1;
-  }
+  else { ret = -1; }
 
   // complete timing
   //
@@ -3319,11 +3323,8 @@ int BeliefPropagation::RealizeStep(void) {
   st.elapsed_time += ((((double) m_t2-m_t1) / CLOCKS_PER_SEC) * 1000);
 
   if ( ret==1 ) {
-    if (op.cur_step >= op.max_step ) {
-        ret=-2;
-    } else {
-        op.cur_step++;
-    }
+    if (op.cur_step >= op.max_step )  { ret = -2; }
+    else                              { op.cur_step++; }
   }
 
   return ret;
@@ -3475,25 +3476,24 @@ float BeliefPropagation::step (int update_mu) {
   // initial boundary condiitions
   //
   #ifdef OPT_MUBOUND
-      if (st.instr) t1 = clock();
-      WriteBoundaryMUbuf(BUF_MU);      
-      //WriteBoundaryMUbuf(BUF_MU_NXT);  //-- not necessary i believe, BeliefProp will overwrite buf_mu_nxt
-      if (st.instr) {st.time_boundary += clock()-t1;}
+    if (st.instr) t1 = clock();
+    WriteBoundaryMUbuf(BUF_MU);      
+    //WriteBoundaryMUbuf(BUF_MU_NXT);  //-- not necessary i believe, BeliefProp will overwrite buf_mu_nxt
+    if (st.instr) {st.time_boundary += clock()-t1;}
 
-      if (st.instr) t1 = clock();
-      NormalizeMU( BUF_MU );
-      if (st.instr) {st.time_normalize += clock()-t1;}
+    if (st.instr) t1 = clock();
+    NormalizeMU( BUF_MU );
+    if (st.instr) {st.time_normalize += clock()-t1;}
   #endif
 
 
   // run main bp, store in BUF_MU_NXT
   //
   if (st.instr) t1 = clock();
-  if (op.use_svd) { 
-      BeliefProp_svd(); 
-  } else {
-      BeliefProp(); 
-  }
+
+  if (op.use_svd) { BeliefProp_svd(); }
+  else            { BeliefProp(); }
+
   if (st.instr) {st.time_bp += clock()-t1;}
 
   // renormalize BUF_MU_NXT
@@ -3582,7 +3582,7 @@ float BeliefPropagation::step_residue(int32_t idir, int64_t cell, int32_t tile) 
     nei_cell = getNeighbor( cell, dir_idx );
     if (nei_cell < 0) { continue; }
 
-    if (op.use_svd)  { BeliefProp_cell_residue_svd(nei_cell); }
+    if (op.use_svd) { BeliefProp_cell_residue_svd(nei_cell); }
     else            { BeliefProp_cell_residue(nei_cell); }
 
     NormalizeMU_cell_residue( BUF_MU_NXT, nei_cell );
@@ -3642,10 +3642,12 @@ int BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
     if (op.verbose >= VB_INTRASTEP ) {
       Vector3DI vp;
       vp = getVertexPos(pos);
-      printf("RESOLVE cell:%i;[%i,%i,%i] tile:%i [fk]\n",
+
+      tile_val = getValI( BUF_TILE_IDX, 0, pos );
+      printf("RESOLVE it:-1 cell:%i;[%i,%i,%i] tile:%i [fk]\n",
           (int)pos,
           (int)vp.x, (int)vp.y, (int)vp.z,
-          (int)tile_id[0]);
+          (int)tile_val);
     }
 
   }
@@ -3694,10 +3696,12 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
     if (op.verbose >= VB_INTRASTEP ) {
       Vector3DI vp;
       vp = getVertexPos(pos);
-      printf("RESOLVE cell:%i;[%i,%i,%i] tile:%i [fd]\n",
+
+      tile_val = getValI( BUF_TILE_IDX, 0, pos );
+      printf("RESOLVE it:-1 cell:%i;[%i,%i,%i] tile:%i [fd]\n",
           (int)pos,
           (int)vp.x, (int)vp.y, (int)vp.z,
-          (int)tile_id[0]);
+          (int)tile_val);
     }
 
   }
@@ -4484,7 +4488,8 @@ int BeliefPropagation::cellConstraintPropagate() {
             tile_valid = 0;
 
             if (op.verbose >= VB_INTRASTEP ) {
-              printf("# REMOVE cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
+              printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
+                  (int)op.cur_iter,
                   (int)anch_cell,
                   (int)jp.x, (int)jp.y, (int)jp.z,
                   (int)anch_b_val,
@@ -4501,7 +4506,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               resolved++;
 
               if (op.verbose >= VB_INTRASTEP ) {
-                printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i [cp.0]\n",
+                printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
+                    (int)op.cur_iter,
                     (int)anch_cell,
                     (int)jp.x, (int)jp.y, (int)jp.z,
                     (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
@@ -4562,7 +4568,8 @@ int BeliefPropagation::cellConstraintPropagate() {
             tile_valid = 0;
 
             if (op.verbose >= VB_INTRASTEP ) {
-              printf("# REMOVE cell:%i;[%i,%i,%i] tile %i (invalid conn dir:%i(%s), tile:%i) [cp.1]\n",
+              printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (invalid conn dir:%i(%s), tile:%i) [cp.1]\n",
+                  (int)op.cur_iter,
                   (int)anch_cell,
                   (int)jp.x, (int)jp.y, (int)jp.z,
                   (int)anch_b_val,
@@ -4575,7 +4582,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               resolved++;
 
               if (op.verbose >= VB_INTRASTEP ) {
-                printf("RESOLVE cell:%i;[%i,%i,%i], tile:%i [cp.1]\n",
+                printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.1]\n",
+                    (int)op.cur_iter,
                     (int)anch_cell,
                     (int)jp.x, (int)jp.y, (int)jp.z,
                     (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );

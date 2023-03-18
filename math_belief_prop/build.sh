@@ -2,7 +2,7 @@
 
 #  lib/libsvd.a \
 
-debug=0
+debug=1
 
 if [[ "$debug" -eq "1" ]] ; then
 

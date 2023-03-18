@@ -1,0 +1,131 @@
+#!/usr/bin/python3
+#
+# LICENSE: CC0
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+## tiled.bin --export-map input.json out.tmx
+## tmxrasterizer out.tmx out.png
+## convert orange.png black.png -compose overlay -composite result.png
+
+import os
+import re
+import sys
+import json
+from PIL import Image
+import png
+import math
+import random
+
+import getopt
+
+import colorsys as color
+
+inlog = ".experiment/pm64.log"
+
+# all elements are in [0,1]
+# for hsv and rgb
+# hsv_to_rgb(h,s,v)
+
+hsv_info = {
+  "dh": (1/64.0),
+  #"rs": [0.5,0.95],
+  #"rv": [0.5,0.95],
+  "rs": [0.85,0.99],
+  "rv": [0.95,0.99],
+
+  "h": 0.0,
+  "s": 0.5,
+  "v": 0.5
+}
+
+row_idx = 0
+col_idx = 1
+
+stride = [8,8]
+#cell = [90,90]
+cell = [64,64]
+
+png_col = cell[col_idx]*stride[col_idx]
+png_row = cell[row_idx]*stride[row_idx]
+
+pxl_stride = 3
+pxl_stride = 4
+
+def parse_resolve_log(logfn):
+
+  cell_list = []
+
+  with open(logfn, "r") as fp:
+    for line in fp:
+      if not re.match( 'RESOLVE', line ): continue
+
+      m = re.search( 'it:(\d+).*cell:(\d+)', line)
+      if not m: continue
+
+      it = int(m.group(1))
+      cell = int(m.group(2))
+
+      for s in range( len(cell_list), it+1 ):
+        cell_list.append([])
+
+      cell_list[it].append(cell)
+
+  return cell_list
+
+
+heat_group = parse_resolve_log(inlog)
+
+def hsv_incr(hsv):
+  dh = hsv["dh"]
+  hsv["h"] += dh
+  if hsv["h"] > 1.0:
+    hsv["h"] -= 1.0
+  hsv["s"] = hsv["rs"][0] + (hsv["rs"][1] - hsv["rs"][0])*random.random()
+  hsv["v"] = hsv["rv"][0] + (hsv["rv"][1] - hsv["rv"][0])*random.random()
+
+  rgb_n = color.hsv_to_rgb(hsv["h"], hsv["s"], hsv["v"]) 
+  rgb = [ int(255.0*rgb_n[0]), int(255.0*rgb_n[1]), int(255.0*rgb_n[2]) ]
+
+  return rgb
+
+pxl_dat = []
+for r in range(png_row):
+  pxl_row = []
+  for c in range(png_col):
+    for px in range(pxl_stride):
+      pxl_row.append(0)
+  pxl_dat.append(pxl_row)
+
+#for row in range(cell[row_idx]):
+#  for col in range(cell[col_idx]):
+
+for it in range(len(heat_group)):
+  for pos in heat_group[it]:
+
+    row = int( float(pos) / float(cell[col_idx]) )
+    col = pos - cell[col_idx]*row
+
+    c = int(random.random()*255.0)
+    c_rgb = hsv_incr(hsv_info)
+
+    for px_r in range(stride[row_idx]):
+      for px_c in range(stride[col_idx]):
+
+        pxl_dat[row*stride[row_idx] + px_r][pxl_stride*(col*stride[col_idx] + px_c) + 0] = c_rgb[0]
+        pxl_dat[row*stride[row_idx] + px_r][pxl_stride*(col*stride[col_idx] + px_c) + 1] = c_rgb[1]
+        pxl_dat[row*stride[row_idx] + px_r][pxl_stride*(col*stride[col_idx] + px_c) + 2] = c_rgb[2]
+        pxl_dat[row*stride[row_idx] + px_r][pxl_stride*(col*stride[col_idx] + px_c) + 3] = 140
+
+w = png.Writer( png_col, png_row, greyscale=False, alpha=True)
+png_ofp = open("out.png", "wb")
+w.write(png_ofp, pxl_dat)
+png_ofp.close()
+
+

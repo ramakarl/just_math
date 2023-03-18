@@ -252,39 +252,58 @@ typedef struct constraint_op_type {
 
 typedef struct _bp_stat_type {
 
-    char    enabled;
-    int     post;
+  char    enabled;
+  int     post;
 
-    float   max_belief;
+  float   max_belief;
 
-    int     upper_step;
-    double  avg_step,
-            second_moment_step;
+  int     upper_step;
+  double  avg_step,
+          second_moment_step;
 
-    float   eps_curr;
+  float   eps_curr;
 
-    float   max_dmu,
-            ave_mu,
-            ave_dmu;
+  float   max_dmu,
+          ave_mu,
+          ave_dmu;
 
-    int64_t num_culled,
-            num_collapsed,
-            num_chosen;
+  int64_t num_culled,
+          num_collapsed,
+          num_chosen;
 
-    int     iter_resolved,
-            total_resolved;
+  int     iter_resolved,
+          total_resolved;
 
-    float   elapsed_time;
+  float   elapsed_time;
 
-    int64_t constraints;
+  int64_t constraints;
 
-    bool    instr;
-    float   time_boundary,
-            time_normalize,
-            time_bp,
-            time_viz,
-            time_maxdiff,
-            time_updatemu;
+  bool    instr;
+  float   time_boundary,
+          time_normalize,
+          time_bp,
+          time_viz,
+          time_maxdiff,
+          time_updatemu;
+
+  // number of tiles in a cell (more than one)
+  //
+  float   occupancy_mean,
+          occupancy_mode,
+          occupancy_second_moment;
+
+  // cluster is yet to be defined but an initial
+  // guess is that it's the size of a number of
+  // cells of 'forced' tiles. For example,
+  // force a tile, this might have a cascade
+  // effect on other tiles, the size of that
+  // cascade would be a cluster.
+  // Needs some thinking and might need
+  // some more infrastructure to implement
+  //
+  float   cluster_mean,
+          cluster_mode,
+          cluster_second_moment;
 
 } bp_stat_t;
 
@@ -296,7 +315,7 @@ typedef struct _bp_expr_type {
     int         num_run;
 
     Vector3DI   grid_min, grid_max;
-    
+
     int         maxstep_min, maxstep_max;
 
     float       steprate_min, steprate_max;
@@ -318,7 +337,7 @@ public:
     default_opts();
 
   };
-  
+
   //------------------------ high level API
 
   int       default_opts ();
@@ -491,7 +510,7 @@ public:
   void          ResetStats ();
 
   std::string   getStatMessage ();
-  
+
   std::string   getStatCSV (int mode=0);
 
   bp_opt_t*     get_opt()              { return &op; }
@@ -576,7 +595,7 @@ public:
 
   // experiments
   bp_expr_t     expr;
-  
+
 };
 
 
