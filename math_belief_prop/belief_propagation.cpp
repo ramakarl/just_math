@@ -55,7 +55,6 @@
 #include "belief_propagation.h"
 
 
-
 void BeliefPropagation::setConverge ( bp_opt_t* oparg, float c ) {
 
   oparg->eps_converge = c;
@@ -131,6 +130,7 @@ int BeliefPropagation::default_opts () {
   op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
   op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
   op.alg_run_opt = ALG_RUN_VANILLA;
+  op.alg_accel = ALG_ACCEL_NONE;
 
   op.use_cuda = false;
 
@@ -332,6 +332,10 @@ void BeliefPropagation::ConstructTempBufs () {
   //-- Construct TILE buf
   //
   AllocBuf ( BUF_TILES, 'i', m_num_verts );
+  
+  //-- Construct B buf
+  //
+  AllocBuf ( BUF_B, 'f', m_num_verts );
 
   //-- Construct C (constraint count) buf
   //
@@ -442,13 +446,19 @@ int BeliefPropagation::getMaxBeliefTile ( uint64_t j ) {
   return maxtv;
 }
 
-
+// ComputeBeliefField
+// - fills BUF_TILES with maxbelief tiles (always)
+// - fills BUF_VIZ with maxbelief values (if VIZ_BELIEF)
+//
 void BeliefPropagation::ComputeBeliefField () {
 
   int tile_idx_n, tile_idx, tile_val;
 
+  float global_maxb;
   float b, maxb, sum;
   int maxt;
+
+  global_maxb = 0;
 
   for (int j=0; j < m_num_verts; j++) {
 
@@ -492,22 +502,30 @@ void BeliefPropagation::ComputeBeliefField () {
 
     }
 
+    if ( maxb > global_maxb ) global_maxb = maxb;
+
     // set max belief for this vertex
     //
-    if (op.viz_opt==VIZ_BELIEF) { SetValF( BUF_VIZ, maxb, j ); }
+    SetValF( BUF_B, maxb, j );
 
     SetValI( BUF_TILES, maxt , j );
   }
+
+  // global max belief
+  st.max_belief = global_maxb;
+
 }
+
 
 //---
 
 float BeliefPropagation::MaxDiffMU () {
   int i, n_a, a;
-  float v0,v1, d, max_diff;
+  float v0,v1, d, 
   Vector3DI jp;
 
-  float max_overall = 0;
+  float global_maxdiff = 0;
+  float vert_maxdiff;
 
   int mu_cnt = 0;
   st.ave_mu = 0;
@@ -516,7 +534,7 @@ float BeliefPropagation::MaxDiffMU () {
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
 
-    max_diff = 0;
+    vert_maxdiff = 0;
 
     for (int in=0; in < getNumNeighbors(j); in++) {
       i = getNeighbor(j, jp, in);
@@ -528,24 +546,41 @@ float BeliefPropagation::MaxDiffMU () {
         v1 = getValF ( BUF_MU_NXT, in, a, j );
 
         d = fabs(v0-v1);
-        if (d > max_diff) { max_diff = d; }
+        if (d > vert_maxdiff) { vert_maxdiff = d; }
 
         if (st.enabled) {
             st.ave_mu += v1;
             st.ave_dmu += d;
             mu_cnt++;
-        }
+        } 
       }
     }
-    if ( max_diff > max_overall ) {max_overall = max_diff;}
+
+    if ( op.alg_accel==ALG_ACCEL_WAVE) {
+      // store the dmu in BUF_MU_NXT temporarily 
+      //  (will be overwriten on next bp step)
+      SetValF ( BUF_MU_NXT, vert_maxdiff, 0, 0, j );
+    }
+
+    if ( vert_maxdiff > global_maxdiff ) {global_maxdiff = vert_maxdiff;}
     //printf ( "max overall: %f\n", max_overall );
   }
 
   st.ave_mu /= mu_cnt;
   st.ave_dmu /= mu_cnt;
 
-  return max_overall;
+  return global_maxdiff;
 }
+
+void BeliefPropagation::InitializeDMU (int buf_id) {
+
+     for (int j=0; j < m_num_verts; j++) {
+
+         SetValF ( BUF_MU_NXT, 1.0, 0, 0, j );
+
+     }
+}
+
 
 float BeliefPropagation::MaxDiffMUCellTile (float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx) {
   int i, n_a, a;
@@ -701,7 +736,8 @@ void BeliefPropagation::SetVis (int vopt) {
 // DMU  dmu =  scalar * std::max(0.0f, std::min(1.0f, pow ( src.getVal ( BUF_DMU, j ), 0.1f ) ));
 //
 Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
-  float f;
+
+  float f, c, b;
   Vector4DF s;
 
   float vexp = 0.3;
@@ -720,15 +756,37 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     //
     f = getValF ( BUF_VIZ, v );
 
-    f = std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));
-    s = Vector4DF(f,f,f,f);
+    c = 0.1 + std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));
+    
+    if ( f <= op.eps_converge ) s = Vector4DF(0,c,0,c);
+    else                        s = Vector4DF(c,c,c,c);
+
     break;
 
-  case VIZ_BELIEF:
-
-    f = getValF ( BUF_VIZ, v );
+  case VIZ_BELIEF:    
+    // get maxbelief value
+    f = getValF ( BUF_B, v );
     f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
     s = Vector4DF(f,f,f,f);
+    break;
+  
+  case VIZ_TILECOUNT:
+    // 1. compute maxbelief and outputs json
+    // 2. visualizes 1/TILE_NDX_N as alpha (eg. 1=opaque=fully resolved)
+    // 3. visualizes green-red as maxbelief # constraints/cell (eg. 0=green, 6=all faces of cell)
+
+    f = getValF ( BUF_VIZ, v );        // 1/tilecount
+
+    c = getValI ( BUF_C, v ) / 6.0f;   // constraints
+    b = getValF ( BUF_B, v );          // belief
+
+    s = Vector4DF( c, 1-c, 0, f );
+
+    float beps = 0.1;
+
+    if ( f==1 ) s = Vector4DF(1,1,1,1);              // white = resolved to 1 tile
+    if ( b >= st.max_belief - beps ) s = Vector4DF(1,0,1,1);  // purple = current max belief vertex
+
     break;
   }
 
@@ -1442,8 +1500,11 @@ float BeliefPropagation::BeliefProp () {
   float rate = 1.0,
         max_diff=-1.0;
 
+  float dmu;
+
   float mu_val;
   int   odd_even_cell = -1;
+  int   eval;
 
   rate = op.step_rate;
 
@@ -1453,8 +1514,33 @@ float BeliefPropagation::BeliefProp () {
   //
   for ( anch_cell=0; anch_cell < getNumVerts(); anch_cell++ ) {
 
-    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
+
+    // if already decided, continue
+    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );    
+
+    if ( anch_tile_idx_n==1 ) { continue; }
+
+
     jp = getVertexPos(anch_cell);
+
+    if ( op.alg_accel==ALG_ACCEL_WAVE) {
+        //----- WAVEFRONT BP
+        // vertex dmu was temporarily stored in mu_nxt from MaxDiffMU of last step
+        float conv_frac = 1.0;
+        eval = 0;
+        for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
+          nei_cell = getNeighbor(anch_cell, jp, anch_in_idx);
+          if (nei_cell==-1) {
+              eval++;
+          } else {
+              dmu = getValF( BUF_MU_NXT, 0, 0, nei_cell );
+              if ( dmu >= op.eps_converge * conv_frac ) eval++;
+            }
+        }
+        dmu = getValF( BUF_MU_NXT, 0, 0, anch_cell ); 
+        if ( eval==0 && dmu < op.eps_converge * conv_frac ) { continue; }
+        //------
+    }
 
     if (op.use_checkerboard) {
       odd_even_cell = (jp.x + jp.y + jp.z)%2;
@@ -2549,6 +2635,10 @@ int BeliefPropagation::start () {
   //
   NormalizeMU ();
 
+  if ( op.alg_accel==ALG_ACCEL_WAVE) {
+    InitializeDMU ();
+  }
+
   // caller should remove constrained tiles
   // right after this func
   //
@@ -3096,14 +3186,16 @@ std::string BeliefPropagation::getStatMessage () {
   char msg[1024] = {0};
 
   snprintf ( msg, 1024, 
-             "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f, b:%f, n:%f, bp:%f, v:%f, md:%f, u:%f\n",
+             "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f\n",
 
               (st.post==1) ? "RUN" : (st.constraints==0) ? "SUCCESS" : "FAIL", op.cur_run, op.max_run, op.cur_iter, 
               st.elapsed_time, st.constraints, 
               st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
               op.cur_step, op.max_step, 
-              st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu,
-              st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );
+              st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu );
+  
+  // b:%f, n:%f, bp:%f, v:%f, md:%f, u:%f
+  // st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );
 
   return msg;
 }
@@ -3284,6 +3376,24 @@ int BeliefPropagation::CheckConstraints () {
 }
 
 
+int BeliefPropagation::ComputeTilecountField () {
+
+    int sum = 0;
+    int i;
+
+    for (int64_t vtx = 0; vtx < m_num_verts; vtx++) {
+
+        i = getValI ( BUF_TILE_IDX_N, vtx );
+
+        sum += i;
+
+        SetValF ( BUF_VIZ, 1.0 / i, vtx );        
+    }
+
+    return sum;
+}
+
+
 
 int BeliefPropagation::CheckConstraints ( int64_t vtx ) {
 
@@ -3367,7 +3477,7 @@ float BeliefPropagation::step (int update_mu) {
   #ifdef OPT_MUBOUND
       if (st.instr) t1 = clock();
       WriteBoundaryMUbuf(BUF_MU);      
-      WriteBoundaryMUbuf(BUF_MU_NXT);
+      //WriteBoundaryMUbuf(BUF_MU_NXT);  //-- not necessary i believe, BeliefProp will overwrite buf_mu_nxt
       if (st.instr) {st.time_boundary += clock()-t1;}
 
       if (st.instr) t1 = clock();
@@ -3390,7 +3500,6 @@ float BeliefPropagation::step (int update_mu) {
   //
   NormalizeMU( BUF_MU_NXT );
 
-
   // visualize before updateMU
   //
   if (st.instr) t1 = clock();
@@ -3398,8 +3507,14 @@ float BeliefPropagation::step (int update_mu) {
     ComputeDiffMUField ();
   }
 
-  if ( op.viz_opt == VIZ_BELIEF ) {
+  if ( op.viz_opt == VIZ_BELIEF ) {    
     ComputeBeliefField ();
+  }
+  if ( op.viz_opt == VIZ_CONSTRAINT || op.viz_opt == VIZ_TILECOUNT ) {
+    
+    // ComputesBeliefField first. see CheckConstraints
+    CheckConstraints ();   
+    ComputeTilecountField ();
   }
   if (st.instr) {st.time_viz += clock()-t1;}
 

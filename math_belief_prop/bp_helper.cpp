@@ -150,10 +150,10 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile )
                     // append csv run done
                     fprintf ( fp, "%s\n", bpc.getStatCSV( 1 ).c_str() );  fflush ( fp );
                     fprintf ( fp, "%s\n", bpc.getStatCSV( 2 ).c_str() );  fflush ( fp );
-
-                    // write json output
-                    write_tiled_json( bpc );
                 }
+
+                // write json output
+                write_tiled_json( bpc );
 
             } else {
                 // error condition
@@ -928,6 +928,7 @@ int write_tiled_json ( BeliefPropagation & bpc) {
   // set filename
   char fname[1024];
   sprintf (fname, "%s%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
+  //sprintf (fname, "%s.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
 
   // get BP options
   bp_opt_t* op = bpc.get_opt();
