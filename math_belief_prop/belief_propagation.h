@@ -96,6 +96,9 @@
 #define ALG_RUN_VANILLA         35
 #define ALG_RUN_RESIDUAL        36
 
+#define ALG_ACCEL_NONE          0
+#define ALG_ACCEL_WAVE          1
+
 // memory locations: cpu + (z*mUseRY + y)*mUseRX + x
 
 // static buffers (input)                                                                                               // Allocation (B=num_vals)
@@ -114,13 +117,14 @@
 #define BUF_VISITED     9     // temporary,     1x int,     all verts - beliefprop                                      // <num_vert, 1, 1>
 #define BUF_NOTE        10    // which cells,   2x int,     all verts (of size cell count (i32))                        // <num_vert, 2, 1>
 #define BUF_VIZ         11    // vizualization, 1x float,   all verts                                                   // <num_vert, 1, 1>
-#define BUF_TILES       12    // max belief ,   1x int,     all verts                                                   // <num_vert, 1, 1>
-#define BUF_C           13    // num constraint,1x int,     all verts                                                   // <num_vert, 1, 1>
+#define BUF_TILES       12    // maxb tile,     1x int,     all verts                                                   // <num_vert, 1, 1>
+#define BUF_B           13    // maxb value,    1x float,   all verts                                                   // <num_vert, 1, 1>
+#define BUF_C           14    // num constraint,1x int,     all verts                                                   // <num_vert, 1, 1>
 
 // svd & residual bp
-#define BUF_SVD_U       14    //                                                                                        // <B,  B*, 6>
-#define BUF_SVD_Vt      15    //                                                                                        // <B*, B,  6>
-#define BUF_SVD_VEC     16    //                                                                                        // <B*, 1,  1>
+#define BUF_SVD_U       16    //                                                                                        // <B,  B*, 6>
+#define BUF_SVD_Vt      17    //                                                                                        // <B*, B,  6>
+#define BUF_SVD_VEC     18    //                                                                                        // <B*, 1,  1>
 
 // auxiliary buffers for residual belief propagaion
 //
@@ -203,6 +207,7 @@ typedef struct _bp_opt_t {
   int32_t   alg_cell_opt;       // ALG_CELL_ANY, ALG_CELL_MIN_ENTROPY
   int32_t   alg_tile_opt;       // ALG_TILE_MAX_BELIEF
   int32_t   alg_run_opt;
+  int32_t   alg_accel;
 
   int32_t   viz_opt;            // VIS_NONE, VIS_MU, VIS_BELIEF, etc..
 
@@ -249,6 +254,8 @@ typedef struct _bp_stat_type {
 
   char    enabled;
   int     post;
+
+  float   max_belief;
 
   int     upper_step;
   double  avg_step,
@@ -426,6 +433,7 @@ public:
 
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
+  void  InitializeDMU (int buf_id=BUF_MU_NXT);
   float MaxDiffMU();
   float MaxDiffMUCellTile(float *max_diff, int64_t *max_cell, int64_t *max_tile_idx, int64_t *max_dir_idx);
 
@@ -443,6 +451,7 @@ public:
   // used for visualization
   void  ComputeDiffMUField ();
   void  ComputeBeliefField ();
+  int   ComputeTilecountField ();
 
 
   // non "strict" bp functions but helpful still

@@ -117,7 +117,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
     int seed = 0;
     int test_num = 0;
     char dash = arg.at(0);
-    char ch = arg.at(1);    
+    char ch = (arg.length()<=1) ? '0' : arg.at(1); 
 
     // get opt structure to load
     bp_opt_t* op = bpc.get_opt();
@@ -204,6 +204,10 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
           op->step_rate = r;
         }
         }break;
+
+      case 'W':
+        op->alg_accel = ALG_ACCEL_WAVE;
+        break;
     }
     }
 }
@@ -363,11 +367,11 @@ bool Sample::init()
   #endif
 
   //-- Experiments
-  
-  bpc.expr.num_expr = 20;
-  bpc.expr.num_run = 1;
-  bpc.expr.grid_min.Set (6, 6, 6);
-  bpc.expr.grid_max.Set (26, 26, 26);
+  /*
+  bpc.expr.num_expr = 2;
+  bpc.expr.num_run = 10;
+  bpc.expr.grid_min.Set (90, 90, 1);
+  bpc.expr.grid_max.Set (100, 100, 1);
   bpc.expr.maxstep_min = 10;
   bpc.expr.maxstep_max = 10;
   bpc.expr.steprate_min = 0.98;
@@ -375,17 +379,16 @@ bool Sample::init()
   bpc.expr.eps_min = .001;
   bpc.expr.eps_max = .001;
 
-  bpc.st.instr = 1;
+  bpc.st.instr = 0;
 
-  bp_experiments ( bpc, "expr.csv" );  
+  bp_experiments ( bpc, "expr_90.csv" ); */
+  
 
   //-- Multirun testing  
-  
   bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
-
-  exit(-5);
-
   
+  exit(-5);
+    
   // Initiate Belief Propagation   
   
   // find name & rule files
@@ -404,6 +407,10 @@ bool Sample::init()
   //
   bp_restart ( bpc ); 
 
+
+  // start viz
+  m_viz = VIZ_DMU;
+  bpc.SetVis ( m_viz );
 
   // start running
   m_run = true;
@@ -429,6 +436,11 @@ void Sample::display()
 
 
     int ret = bpc.RealizeStep ();
+
+    if ( m_viz==VIZ_TILECOUNT ) {
+        // write json on every step      
+        // write_tiled_json( bpc );  
+    }
 
     if (ret == 0 || ret == -2) {
         // step complete
@@ -575,7 +587,6 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   if (action==AppEnum::BUTTON_RELEASE) return;
 
   switch (keycode) {
-      
   case 'w':  
 
       write_tiled_json( bpc ); 
@@ -590,12 +601,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   case ',':  
       m_viz--; 
-      if (m_viz < VIZ_DMU) m_viz = VIZ_BELIEF;  
+      if (m_viz < VIZ_DMU) m_viz = VIZ_TILECOUNT;  
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > VIZ_BELIEF) m_viz = VIZ_DMU;  
+      if (m_viz > VIZ_TILECOUNT ) m_viz = VIZ_DMU;  
       bpc.SetVis ( m_viz );
       break;
 
