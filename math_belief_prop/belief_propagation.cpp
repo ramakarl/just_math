@@ -519,9 +519,10 @@ void BeliefPropagation::ComputeBeliefField () {
 
 //---
 
-float BeliefPropagation::MaxDiffMU () {
+float BeliefPropagation::MaxDiffMU ()  {
+
   int i, n_a, a;
-  float v0,v1, d, 
+  float v0,v1, d;
   Vector3DI jp;
 
   float global_maxdiff = 0;

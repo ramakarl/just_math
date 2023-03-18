@@ -366,14 +366,20 @@ bool Sample::init()
     }
   #endif
 
+    // pm_90:
+    // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 90 -Y 90 -Z 1 -N pm_tilename.csv -R pm_tilerule.csv -Q pm_tileset.png -s 8 -M pm_tiles -J "d 0"
+
+    // stairs:
+    // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
+
   //-- Experiments
-  /*
-  bpc.expr.num_expr = 2;
-  bpc.expr.num_run = 10;
-  bpc.expr.grid_min.Set (90, 90, 1);
-  bpc.expr.grid_max.Set (100, 100, 1);
-  bpc.expr.maxstep_min = 10;
-  bpc.expr.maxstep_max = 10;
+  
+  bpc.expr.num_expr = 10;
+  bpc.expr.num_run = 8;
+  bpc.expr.grid_min.Set (6, 6, 6);
+  bpc.expr.grid_max.Set (16, 16, 16);
+  bpc.expr.maxstep_min = 50;
+  bpc.expr.maxstep_max = 50;
   bpc.expr.steprate_min = 0.98;
   bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .001;
@@ -381,13 +387,15 @@ bool Sample::init()
 
   bpc.st.instr = 0;
 
-  bp_experiments ( bpc, "expr_90.csv" ); */
-  
+  printf ("WAVEFRONT: %d\n", int(bpc.op.alg_accel) );
 
-  //-- Multirun testing  
-  bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
+  bp_experiments ( bpc, "expr_stairs.csv" ); 
   
-  exit(-5);
+  
+  //-- Multirun testing  
+  /*bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
+  
+  exit(-5);*/
     
   // Initiate Belief Propagation   
   
