@@ -104,6 +104,70 @@ time ../bpc \
   -V 2 | tee oskar_d8.log
 ```
 
+---
+
+
+Knoll et all suggest looking back in an $L$ window to see if the messages are
+repeating when doing residual belief propagation.
+If so, they suggest injecting Gaussian noise (noise injection BP or NIBP) to help alleviate the situation.
+
+Alternatively, Knoll et all suggest introducing a weighting factor that dampens the considered
+residual to schedule updates that have occurred more often less (weight damped belief propagation or WDBP).
+That is, instead of sorting by residual, sort by residual divided by number
+times updates ($\frac{ r _ { i, j } }{ \text{ # times chosen } }$).
+
+Note that the convergence rate for RBP, NIBP or WDBP is higher than the "vanilla" BP case ("asynchronous BP" (ABP) or
+"round robin BP"), the quality might suffer.
+That is, RBP and others might converge, incorrectly, for many more graphs than for ABP, giving substandard results.
+
+As a quick spot check, the results for the Ising glass model Knoll et all were using look to give about a 50% worst
+MSE for RBP, NIBP and WDBP, even though the convergence rate was both higher and quicker.
+
+Discussion
+---
+
+* noticing quadratic or cubic run time
+  - cubic run might be because edge culling (on pm, say)
+    make the average tile occupancy low that after increasing
+    the grid dize, the number of tiles, $T$, goes from $O(T)$
+    to $O(T^2)$
+  - quadratic because we sweep every cell during the main BP run,
+    fix a cell with a tile, then repeat
+
+At the end, we expect $O(N^2 T^2 S)$, with:
+
+* $N$ - number of cells ($X \cdot Y \cdot Z$)
+* $T$ - number of tiles
+* $S$ - average number of steps until convergence (dependent on epsilon, rate, etc.)
+
+* WFC gets worse as the system size gets larger because it's a one-shot algorithm
+  - 90x90 for pm gives many failures
+  - 20x18x18 for stair gives many failures
+* In principle, BP should be better at these cases, and WFC should have an exponentially
+  decreasing chance of finding a solution
+  - unclear whether WFC can be fixed up with some backtracking that would allow it to
+    overcome this exponentially decreasing probability of finding an answer
+
+
+
+
+
+Glossary
+---
+
+| Term | Description |
+|---|---|
+| PGM  | probabilistic graph model |
+| BP   | belief propagation |
+| ABP | asynchronous belief propagation (round robin update) |
+| LBP   | loopy belief propagation |
+| RBP   | residual belief propagation |
+| NIBP | noise injected belief propagation |
+| WDBP | weight decay belief propagation |
+| MRF | Markov random field |
+| MSE | mean square error |
+
+
 
 
 References
@@ -116,3 +180,4 @@ References
   - [Constraint-Based Tile Generators](https://www.boristhebrave.com/2021/10/31/constraint-based-tile-generators/)
   - [WFC Explained](https://www.boristhebrave.com/2020/04/13/wave-function-collapse-explained/)
 
+* ["Message Scheduling Methods for Belief Propagation" by Knoll et all](https://github.com/abetusk/papers/blob/release/ComputerScience/BeliefPropagation/message-sched-for-bp_sknoll-rath-tschiatschek-pernkopf.pdf)
