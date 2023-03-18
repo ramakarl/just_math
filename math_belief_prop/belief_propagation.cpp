@@ -89,6 +89,14 @@ int BeliefPropagation::default_opts () {
 
   st.instr = 0;
 
+  st.occupancy_mean = 0.0;
+  st.occupancy_mode = 0.0;
+  st.occupancy_second_moment = 0.0;
+
+  st.cluster_mean = 0.0;
+  st.cluster_mode = 0.0;
+  st.cluster_second_moment = 0.0;
+
   op.eps_converge = (1.0/(1024.0));
 
   setConverge ( &op, op.eps_converge );
