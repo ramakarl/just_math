@@ -444,7 +444,6 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
-  fprintf(fp, "  -W       run 'wave function collapse' instead of belief propagation\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
   fprintf(fp, "  -Y <#>   set Y\n");
@@ -452,16 +451,18 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
   fprintf(fp, "  -G <#>   algorithm choice\n");
+  fprintf(fp, "   -1      'wave function collapse'\n");
   fprintf(fp, "    0      fix maximum belief tile (default)\n");
-  fprintf(fp, "    1      remove minimum belief tile\n");
-  fprintf(fp, "    2      fix maximum belief tile in minimum entropy cell\n");
-  fprintf(fp, "    3      remove min. belief tile from minimum entropy cell\n");
+  fprintf(fp, "    1      (unused)\n");
+  fprintf(fp, "    2      after convergence, pick minimum entropy cell, maximum belief tile value\n");
+  fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
 
-  fprintf(fp, "  -M <fn>  output tilemap (JSON)\n");
+  fprintf(fp, "  -M <fn>  output tilemap (JSON) or 3D file (STL) (STL output if object location, '-L', option used)\n");
+  fprintf(fp, "  -L <fn>  use object location CSV file for location of 3D object files for each tile name\n");
   fprintf(fp, "  -Q <fn>  tileset filename (PNG)\n");
   fprintf(fp, "  -u       reverse y for tiled output (default 0)\n");
   fprintf(fp, "  -s <#>   png tile stride\n");
@@ -492,7 +493,6 @@ int main(int argc, char **argv) {
   int test_num = -1;
   int X=0, Y=0, Z=0, D=0;
 
-  int wfc_flag = 0;
   int raycast = 0;
   int debug_print = 0;
   int seed = 0;
@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:WD:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -642,10 +642,6 @@ int main(int argc, char **argv) {
 
       case 'J':
         constraint_commands = optarg;
-        break;
-
-      case 'W':
-        wfc_flag = 1;
         break;
 
       case 'E':
@@ -772,115 +768,146 @@ int main(int argc, char **argv) {
 
   }
 
-  if (wfc_flag) {
+  //-------------------
+  //-------------------
+  // Algorithm profiles
+  //-------------------
+  //-------------------
 
-    if (constraint_op_list.size() > 0) {
-      ret = constrain_bp( bpc, constraint_op_list);
-      if (ret < 0) {
-        fprintf(stderr, "constrain_bp failure\n");
-        exit(-1);
-      }
-    }
-
-
-    if (bpc.op.verbose > 0) {
-      printf ( "wfc realize.\n" );
-    }
-    ret = bpc.wfc();
-
-    if (bpc.op.verbose > 0) {
-      printf("# wfc got: %i\n", ret);
-      bpc.debugPrint();
-    }
-
+  if (bpc.op.alg_idx == 0) {
+    bpc.op.alg_cell_opt = ALG_CELL_ANY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
   }
 
+  // wfc...
+  //
+  else if (bpc.op.alg_idx == -1) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_WFC;
+  }
+
+  else if (bpc.op.alg_idx == 1) {
+    
+    // unused
+
+    printf("## alg_idx == 1 specified, using default\n");
+
+    bpc.op.alg_cell_opt = ALG_CELL_ANY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
+  }
+
+  else if (bpc.op.alg_idx == 2) {
+    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
+  }
+
+  else if (bpc.op.alg_idx == 3) {
+    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
+    bpc.op.alg_accel    = ALG_ACCEL_WAVE;
+  }
+
+  else if (bpc.op.alg_idx == 4) {
+    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_RESIDUAL;
+  }
+
+  // default
+  //
   else {
+    printf("## alg_idx oob, using default\n");
 
-    if (bpc.op.alg_idx == 0) {
-      bpc.op.alg_cell_opt = ALG_CELL_ANY;
-      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-    }
+    bpc.op.alg_cell_opt = ALG_CELL_ANY;
+    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
+  }
 
-    else if (bpc.op.alg_idx == 2) {
-      bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-    }
 
-    else if (bpc.op.alg_idx == 4) {
-      bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-      bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-      bpc.op.alg_run_opt  = ALG_RUN_RESIDUAL;
-    }
+  //----
+  //----
+  //----
 
-    if (bpc.op.verbose > 0) {
-      printf ( "bpc realize.\n" );
-    }
 
-    ret = bpc.start();
-    if (ret < 0) {
-      printf("ERROR: bpc.start() failed (%i)\n", ret);
+  //if (bpc.op.verbose > 0) { printf ( "bpc realize.\n" ); }
 
-      if (bpc.op.verbose > 0) {
-        printf("####################### DEBUG PRINT\n" );
-        bpc.debugPrint();
-      }
-
-      exit(-1);
-    }
-
-    // updating constrints has to happen after start()
-    //
-    if (constraint_op_list.size() > 0) {
-      ret = constrain_bp( bpc, constraint_op_list);
-      if (ret < 0) {
-        fprintf(stderr, "constrain_bp failure\n");
-        exit(-1);
-      }
-
-    }
-
-    n_it = bpc.m_num_verts * bpc.m_num_values;
-
-    for (it=0; it < n_it; it++) {
-
-      ret = bpc.RealizePre();
-      if (ret < 0) { break; }
-
-      ret = 1;
-      while (ret>0) {
-        ret = bpc.RealizeStep();
-      }
-      //if (ret<0) { break; }
-
-      ret = bpc.RealizePost();
-      if (ret <= 0) { break; }
-
-      if ( raycast )  {
-
-        //DEBUG
-        printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
-        visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
-
-        raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
-        snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
-
-        if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
-        save_png ( imgfile, m_img, iresx, iresy, 3 );
-      }
-
-    }
+  ret = bpc.start();
+  if (ret < 0) {
+    printf("ERROR: bpc.start() failed (%i)\n", ret);
 
     if (bpc.op.verbose > 0) {
-      printf("# bp realize got: %i\n", ret);
-
       printf("####################### DEBUG PRINT\n" );
       bpc.debugPrint();
     }
 
+    exit(-1);
   }
+
+  // updating constrints has to happen after start()
+  //
+  if (constraint_op_list.size() > 0) {
+    ret = constrain_bp( bpc, constraint_op_list);
+    if (ret < 0) {
+      fprintf(stderr, "constrain_bp failure\n");
+      exit(-1);
+    }
+
+  }
+
+  //----
+  //----
+  //----
+
+  n_it = bpc.m_num_verts * bpc.m_num_values;
+
+  for (it=0; it < n_it; it++) {
+
+    ret = bpc.RealizePre();
+    if (ret < 0) { break; }
+
+    ret = 1;
+    while (ret>0) {
+      ret = bpc.RealizeStep();
+    }
+    //if (ret<0) { break; }
+
+    ret = bpc.RealizePost();
+    if (ret <= 0) { break; }
+
+    if ( raycast )  {
+
+      //DEBUG
+      printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
+      visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
+
+      raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+      snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+
+      if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
+      save_png ( imgfile, m_img, iresx, iresy, 3 );
+    }
+
+  }
+
+  //----
+  //----
+  //----
+
+  if (bpc.op.verbose > 0) {
+    printf("# bp realize got: %i\n", ret);
+
+    printf("####################### DEBUG PRINT\n" );
+    bpc.debugPrint();
+  }
+
+  //----
+  //----
+  //----
 
   if (bpc.op.tilemap_fn.size() > 0) {
 
@@ -896,6 +923,10 @@ int main(int argc, char **argv) {
       write_tiled_json( bpc );
     }
   }
+
+  //----
+  //----
+  //----
 
   if (name_fn) { free(name_fn); }
   if (rule_fn) { free(rule_fn); }

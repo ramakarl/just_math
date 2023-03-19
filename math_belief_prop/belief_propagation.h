@@ -88,6 +88,7 @@
 #define VIZ_CHANGE      7
 #define VIZ_RESPICK     8
 
+#define ALG_CELL_WFC            31
 #define ALG_CELL_ANY            32
 #define ALG_CELL_MIN_ENTROPY    33
 
@@ -95,6 +96,7 @@
 
 #define ALG_RUN_VANILLA         35
 #define ALG_RUN_RESIDUAL        36
+#define ALG_RUN_WFC             37
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1

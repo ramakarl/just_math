@@ -2349,6 +2349,16 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
   return count;
 }
 
+// find minimum entropy cell and tile
+// If non-null, min_cell, min_tile, min_tile_idx and min_entropy will all be filled
+//   in appropriately if a minimum entropy cell and tile is found
+//
+// return values:
+//
+// 0                - grid is fully realized (without contradictions, presumably), so no entry chosen
+// positive value   - returns count of number of minimum entropy values (within eps_zero)
+// negative value   - error
+//
 int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_entropy) {
 
   int64_t anch_cell=0;
@@ -2368,20 +2378,8 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
 
     anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
 
-    //DEBUG
-    //printf("chooseMinEntropy: anch_cell:%i (tile_idx_n %i)\n",
-    //    (int)anch_cell,(int)anch_tile_idx_n);
-
     if (anch_tile_idx_n==0) { return -1; }
-    if (anch_tile_idx_n==1) {
-
-      //DEBUG
-      //printf("chooseMinEntropy: skip anch_cell:%i (tile_idx_n %i)\n",
-      //    (int)anch_cell,(int)anch_tile_idx_n);
-
-
-      continue;
-    }
+    if (anch_tile_idx_n==1) { continue; }
 
     g_sum = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2390,14 +2388,7 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
       g_sum += g;
     }
 
-    if (g_sum < _eps) {
-
-      //DEBUG
-      //printf("chooseMinEntropy: skipping anch_chell:%i (%f < %f)\n",
-      //    (int)anch_cell, (float)g_sum, (float)_eps);
-
-      continue;
-    }
+    if (g_sum < _eps) { continue; }
 
     _entropy = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2408,19 +2399,10 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
       }
     }
 
-    //DEBUG
-    //printf("chooseMinEntropy: (cell:%i) cur entropy: %f (g_sum:%f) (_eps:%0.12f)\n",
-    //    (int)anch_cell, (float)_entropy, (float)g_sum, _eps);
-
 
     // initialize min entropy
     //
     if (count==0) {
-
-      //DEBUG
-      //printf("chooseMinEntropy: (cell:%i) init _min_entropy = %f\n",
-      //    (int)anch_cell, (float)_entropy);
-
       _min_cell     = anch_cell;
       _min_entropy = _entropy;
       count=1;
@@ -2429,16 +2411,7 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
 
     if (_entropy < (_min_entropy + _eps)) {
 
-      //DEBUG
-      //printf("chooseMinEntropy: cp.0\n");
-
-
       if (_entropy < _min_entropy) {
-
-        //DEBUG
-        //printf("chooseMinEntropy: cell:%i min_entropy:%f (was %f)\n",
-        //    (int)anch_cell, _entropy, _min_entropy);
-
         _min_entropy  = _entropy;
         _min_cell     = anch_cell;
         count=1;
@@ -2451,17 +2424,7 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
         count++;
         p = m_rand.randF();
 
-        //DEBUG
-        //printf("chooseMinEntropy: cp.1 count now %i, p %f, (1/count=%f)\n",
-        //    (int)count, (float)p, (float)(1.0/(float)count));
-
-
         if ( p < (1.0/(float)count) ) {
-
-          //DEBUG
-          //printf("chooseMinEntropy: cell:%i min_entropy:%f (was %f) (choosing alternate min with same entropy)\n",
-          //    (int)anch_cell, _entropy, _min_entropy);
-
           _min_entropy  = _entropy;
           _min_cell     = anch_cell;
         }
@@ -2471,13 +2434,7 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
 
   }
 
-  if (_min_cell<0) {
-
-    //DEBUG
-    //printf("chooseMinEntropy: _min_cell < 0 (%i), done\n", (int)_min_cell);
-
-    return 0;
-  }
+  if (_min_cell<0) { return 0; }
 
   _min_tile = getValI( BUF_TILE_IDX, _min_cell, 0 );
   _min_tile_idx = 0;
@@ -2506,10 +2463,6 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
         _min_tile     = anch_tile;
         _min_tile_idx = anch_tile_idx;
 
-        //DEBUG
-        //printf("wfc: chooseMinEntropy: choosing cell:%i tile:%i tile_idx:%i entropy:%f\n",
-        //    (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_entropy);
-
         break;
       }
     }
@@ -2520,14 +2473,8 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
   //
   else {
 
-
     _min_tile = getValI( BUF_TILE_IDX, 0, anch_cell );
     _min_tile_idx = 0;
-
-    //DEBUG
-    //printf("wfc: chooseMinEntropy: ????? choosing cell:%i tile:%i tile_idx:%i entropy:%f\n",
-    //   (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_entropy);
-
 
   }
 
@@ -2535,9 +2482,6 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
   if (min_tile)     { *min_tile     = _min_tile; }
   if (min_tile_idx) { *min_tile_idx = _min_tile_idx; }
   if (min_entropy)  { *min_entropy  = _min_entropy; }
-
-  //DEBUG
-  //printf("wfc: count: %i\n", count);
 
   return count;
 }
@@ -2963,18 +2907,9 @@ int BeliefPropagation::wfc() {
     return ret;
   }
 
-  //DEBUG
-  //printf("wfc: wfc_start got %i\n", (int)ret);
-
-
   for (it = 0; it < m_num_verts; it++) {
 
-    //DEBUG
-    //printf("wfc: it[%i/%i]\n", (int)it, (int)m_num_verts);
-
     ret = wfc_step ( it );
-
-    //printf("wfc: it[%i/%i] wfc_step got %i\n", (int)it, (int)m_num_verts, (int)ret);
 
     if ( ret==0 ) { break; }
 
@@ -2988,16 +2923,11 @@ int BeliefPropagation::wfc() {
     }
   }
 
-  //printf("wfc: done (%i)\n", (int)ret);
-
   return ret;
 }
 
 int BeliefPropagation::wfc_start() {
   int ret=0;
-
-  //DEBUG
-  //printf("wfc_start: seed %i\n", (int)op.seed);
 
   m_rand.seed ( op.seed );
 
@@ -3031,9 +2961,6 @@ int BeliefPropagation::wfc_step(int64_t it) {
 
   cellFillVisited(cell, m_note_plane );
   unfillVisited( m_note_plane );
-
-  //ret = cellConstraintPropagate(cell);
-  //int resolved;
 
   ret = cellConstraintPropagate();
   if (ret < 0) { return -3; }
@@ -3104,6 +3031,12 @@ int BeliefPropagation::RealizePre(void) {
 
   }
 
+  else if (op.alg_run_opt == ALG_RUN_WFC) {
+
+    // nothing to be done?
+
+  }
+
   return 0;
 }
 
@@ -3125,12 +3058,23 @@ int BeliefPropagation::RealizePost(void) {
   // choose the cell and propagate choice
   //
   switch (op.alg_cell_opt) {
+    case ALG_CELL_WFC:
+
+      // belief here is min. entropy
+      //
+      ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+      break;
+
     case ALG_CELL_ANY:
+
       ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
       break;
+
     case ALG_CELL_MIN_ENTROPY:
+
       ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
       break;
+
     default:
       return -1;
       break;
@@ -3342,6 +3286,20 @@ int BeliefPropagation::RealizeStep(void) {
 
       step_residue( idir, cell, tile );
     }
+
+  }
+
+  else if (op.alg_run_opt == ALG_RUN_WFC) {
+
+    // all computation for WFC happens in RelaizePost.
+    // In some sense, running WFC is like running BP
+    // with 0 iterations.
+    //
+
+    // make sure to indicate that wfc should 'stop'
+    // stepping and go into RealizePost
+    //
+    ret = 0;
 
   }
 
