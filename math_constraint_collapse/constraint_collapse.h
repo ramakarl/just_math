@@ -39,7 +39,7 @@
 #define CONSTRAINT_COLLAPSE_VERSION "0.0.1"
 
 #define BUF_T           0    // selected tiles
-#define BUF_C           1    // face constraints
+#define BUF_C           1    // constraints
 #define BUF_E           2    // vertex constraints (extended)
 #define BUF_R           3    // tile confidence (R=resolved)
 #define BUF_F           4    // rule list, 6xB
@@ -61,6 +61,7 @@ public:
   int check_constraints ();
   int check_constraints ( int64_t p );
   void fix_constraints (bool stuck);
+  void generate_noise ();
   void check_r ();
   
   int GetVertexConstraints ( int64_t p );
@@ -77,7 +78,7 @@ public:
   int64_t    getVertex(int x, int y, int z);
   int64_t    getFace (int64_t a, int nbr );
   Vector4DF  getSample ( int buf, int64_t v );  // for visualization
-  inline int getNumNeighbors(int j)  {return 6;}     
+  inline int getNumNeighbors()      {return (m_res.z==1) ? 4 : 6;}
   inline int getNumValues()         {return m_num_values;}
   inline int getNumVerts()          {return m_num_verts;}
 

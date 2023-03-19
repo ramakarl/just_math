@@ -61,6 +61,8 @@
 #define BUF_VOL      0      // render volume
 
 
+ std::vector< std::vector< float > >    tri_shape_lib;
+
 class Sample : public Application {
 public:
   virtual void startup();
@@ -156,6 +158,9 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         break;      
       case 'J':
         op->constraint_cmd = optarg;
+        break;
+      case 'L':
+        op->tileobj_fn = optarg;
         break;
       case 'M':
         op->tilemap_fn = optarg;
@@ -411,6 +416,17 @@ bool Sample::init()
      exit(-1);
   }
 
+  // tileobj -> tri_shape_lib
+  std::string obj_path;
+  if (bpc.op.tileobj_fn.size() > 0) {
+    getFileLocation ( op->tileobj_fn, obj_path );
+    ret=load_obj_stl_lib( obj_path, tri_shape_lib );
+    if (ret<0) {
+      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", bpc.op.tileobj_fn.c_str());
+      exit(-1);
+    }
+  }
+
   // start belief prop
   //
   bp_restart ( bpc ); 
@@ -469,7 +485,12 @@ void Sample::display()
         } else if ( ret==0 ) {
                 
             // write json output            
-            write_tiled_json( bpc );  
+            if (bpc.op.tileobj_fn.size() > 0) {
+              bpc.op.outstl_fn = bpc.op.tilemap_fn;
+              write_bp_stl( bpc, tri_shape_lib );
+            } else {
+              write_tiled_json( bpc );
+            }
 
             // hit completion
             printf ( "BPC DONE.\n" );

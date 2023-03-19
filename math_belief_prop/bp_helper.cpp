@@ -895,7 +895,11 @@ int write_bp_stl (BeliefPropagation& bp, std::vector< std::vector< float > > tri
 
 
   fp = fopen( bp.op.outstl_fn.c_str(), "w");
-  if (!fp) { return -1; }
+  if (!fp) { 
+      return -1; 
+  } else {
+       if (bp.op.verbose >= 2) printf("Writing stl (%s)\n", bp.op.outstl_fn.c_str() );
+  }
 
   for (ix=0; ix<bp.m_res.x; ix++) {
     for (iy=0; iy<bp.m_res.y; iy++) {
@@ -1285,10 +1289,16 @@ int load_obj_stl_lib(std::string fn, std::vector< std::vector< float > > &tris) 
   ret = _read_name_csv(fn, obj_fns, w);
   if (ret<0) { return ret; }
 
+  std::string obj_path;
+
   for (i=0; i<obj_fns.size(); i++) {
-    ret = load_obj2tri(obj_fns[i], tri);
+
+    getFileLocation ( obj_fns[i], obj_path );
+
+    ret = load_obj2tri( obj_path, tri);
     if (ret<0) { return ret; }
     tris.push_back(tri);
+
   }
 
   return 0;
