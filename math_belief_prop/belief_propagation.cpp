@@ -222,6 +222,7 @@ Vector3DI BeliefPropagation::getVertexPos(int64_t j) {
 // get 3D grid neighbor
 //
 int64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr ) {
+
   Vector3DI jp = getVertexPos(j);
 
   // 3D spatial neighbor function
@@ -237,9 +238,18 @@ int64_t BeliefPropagation::getNeighbor( uint64_t j, int nbr ) {
   return -1;
 }
 
+
+
+
 // get 3D grid neighbor
 //
 int64_t BeliefPropagation::getNeighbor( uint64_t j, Vector3DI jp, int nbr ) {
+
+  //-- using lookup
+  /* int32_t ndx = (nbr<2) ? jp.x : (nbr<4) ? jp.y : jp.z;
+  int64_t n = nbr_lookup[nbr][ ndx ];    
+  n = (n==NOUT) ? -1 : j + n;
+  return n; */
 
   // 3D spatial neighbor function
   //
@@ -250,8 +260,8 @@ int64_t BeliefPropagation::getNeighbor( uint64_t j, Vector3DI jp, int nbr ) {
   case 3:    return (jp.y > 0) ?        j-m_bpres.x : -1;
   case 4:    return (jp.z < m_bpres.z-1) ?  j+(m_bpres.x*m_bpres.y) : -1;
   case 5:    return (jp.z > 0) ?        j-(m_bpres.x*m_bpres.y) : -1;
-  };
-  return -1;
+  }; 
+  return -1; 
 }
 
 
@@ -527,7 +537,8 @@ void BeliefPropagation::ComputeBeliefField () {
 
 //---
 
-float BeliefPropagation::MaxDiffMU () {
+float BeliefPropagation::MaxDiffMU ()  {
+
   int i, n_a, a;
   float v0, v1, d;
   Vector3DI jp;
@@ -788,7 +799,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     c = getValI ( BUF_C, v ) / 6.0f;   // constraints
     b = getValF ( BUF_B, v );          // belief
 
-    s = Vector4DF( c, 1-c, 0, f );
+    s = Vector4DF( c, 1-c, 0, f*f );
 
     float beps = 0.1;
 
@@ -1534,7 +1545,7 @@ float BeliefPropagation::BeliefProp () {
     if ( op.alg_accel==ALG_ACCEL_WAVE) {
         //----- WAVEFRONT BP
         // vertex dmu was temporarily stored in mu_nxt from MaxDiffMU of last step
-        float conv_frac = 1.0;
+        float conv_frac = 2.0;
         eval = 0;
         for (anch_in_idx=0; anch_in_idx < getNumNeighbors(anch_cell); anch_in_idx++) {
           nei_cell = getNeighbor(anch_cell, jp, anch_in_idx);
@@ -2760,6 +2771,7 @@ int BeliefPropagation::init(
   m_dir_inv[4] = 5;
   m_dir_inv[5] = 4;
 
+
   //---
 
   m_tile_name.clear();
@@ -2801,6 +2813,27 @@ int BeliefPropagation::init(
   m_num_verts = m_bpres.x * m_bpres.y * m_bpres.z;
   m_num_values = m_tile_name.size();
   m_res.Set ( Rx, Ry, Rz );
+
+
+  // Neighbor lookups
+  if ( m_bpres.x > 512 || m_bpres.y > 512 || m_bpres.z > 512 ) {
+      printf ( "ERROR: Neighbor lookup limit. Must also modify NOUT.\n" );
+      exit(-17);
+  }
+  for (int nbr=0; nbr < 6; nbr++) {
+    for (int i=0; i < std::max(m_bpres.x, std::max(m_bpres.y, m_bpres.z)); i++) {
+        switch (nbr) {
+        case 0: nbr_lookup[nbr][i] = (i < m_bpres.x-1) ?     1 : NOUT;                      break;
+        case 1: nbr_lookup[nbr][i] = (i > 0) ?              -1 : NOUT;                      break;
+        case 2: nbr_lookup[nbr][i] = (i < m_bpres.y-1) ?    +m_bpres.x : NOUT;              break;
+        case 3: nbr_lookup[nbr][i] = (i > 0) ?              -m_bpres.x : NOUT;              break;
+        case 4: nbr_lookup[nbr][i] = (i < m_bpres.z-1) ?    +(m_bpres.x*m_bpres.y) : NOUT;  break;
+        case 5: nbr_lookup[nbr][i] = (i > 0) ?              -(m_bpres.x*m_bpres.y) : NOUT;  break;
+        };
+    }
+  }
+
+
 
   //-- Construct temp buffers
   //
@@ -3166,24 +3199,23 @@ int BeliefPropagation::RealizePost(void) {
   //
   if (post_ret >= 0) {
 
-    // check constraints
-    //
     if (st.enabled) {
+      // check constraints
       st.constraints = CheckConstraints ();
-      st.eps_curr = getLinearEps();
-      st.post = post_ret;
-
-      // print iter stats
-      //
-      if (post_ret==1 && op.verbose >= VB_STEP ) {
-        printf ("%s", getStatMessage().c_str() );
-      }
-      // print run completion
-      if (post_ret==0 && op.verbose >= VB_RUN ) {
-        printf ("%s", getStatMessage().c_str() );
-      }
     }
+    st.eps_curr = getLinearEps();
+    st.post = post_ret;
 
+    // print iter stats
+    //
+    if (post_ret==1 && op.verbose >= VB_STEP ) {
+      printf ("%s", getStatMessage().c_str() );
+    }
+    // print run completion
+    if (post_ret==0 && op.verbose >= VB_RUN ) {
+      printf ("%s", getStatMessage().c_str() );
+    }
+    
     op.cur_iter++;
   }
 

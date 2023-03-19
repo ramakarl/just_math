@@ -151,6 +151,8 @@
 #define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
 
+#define NOUT        -134217728
+
 // Belief propagation - options
 
 typedef struct _bp_opt_t {
@@ -579,6 +581,8 @@ public:
   std::vector< std::string > m_tile_name;
   std::vector< std::string > m_dir_desc;
   int           m_dir_inv[6];
+
+  int           nbr_lookup[6][512];
 
   uint64_t      m_note_n[2];
   int64_t       m_note_plane;
