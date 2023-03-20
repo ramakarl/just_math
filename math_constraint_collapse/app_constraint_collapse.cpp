@@ -486,7 +486,7 @@ void Sample::display()
     
     if ( m_run_cc ) {
 
-      for (int iter=0; iter < 10; iter++) {
+      for (int iter=0; iter < 20; iter++) {
           int cnt = cc.single_step();
           if (cnt==0) {
               // DONE!
