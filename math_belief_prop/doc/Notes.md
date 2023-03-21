@@ -148,6 +148,14 @@ At the end, we expect $O(N^2 T^2 S)$, with:
   - unclear whether WFC can be fixed up with some backtracking that would allow it to
     overcome this exponentially decreasing probability of finding an answer
 
+---
+
+```
+eps_converge
+spatial dimension
+# tilecount
+constraidedness
+```
 
 
 

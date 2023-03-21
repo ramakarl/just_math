@@ -1525,6 +1525,10 @@ float BeliefPropagation::BeliefProp () {
   int   odd_even_cell = -1;
   int   eval;
 
+  // get linear interpolation eps
+  //
+  float _eps = getLinearEps();
+
   rate = op.step_rate;
 
   Vector3DI jp;
@@ -1553,11 +1557,13 @@ float BeliefPropagation::BeliefProp () {
               eval++;
           } else {
               dmu = getValF( BUF_MU_NXT, 0, 0, nei_cell );
-              if ( dmu >= op.eps_converge * conv_frac ) eval++;
+              //if ( dmu >= op.eps_converge * conv_frac ) eval++;
+              if ( dmu >= _eps * conv_frac ) eval++;
             }
         }
         dmu = getValF( BUF_MU_NXT, 0, 0, anch_cell ); 
-        if ( eval==0 && dmu < op.eps_converge * conv_frac ) { continue; }
+        //if ( eval==0 && dmu < op.eps_converge * conv_frac ) { continue; }
+        if ( eval==0 && dmu < _eps * conv_frac ) { continue; }
         //------
     }
 
@@ -2993,7 +2999,7 @@ int BeliefPropagation::RealizePre(void) {
     NormalizeMU(BUF_MU);
 
     if (op.verbose >= VB_INTRASTEP ) {
-      printf("# RealizePre %f (%i/%i) {%f:%f}\n",
+      printf("# RealizePre %f (%i/%i) eps[%f:%f]\n",
           (float) _eps, (int) op.cur_iter, (int) op.max_iter,
           (float) op.eps_converge_beg, (float) op.eps_converge_end);
     }
@@ -3848,7 +3854,8 @@ void BeliefPropagation::debugPrint() {
   printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
   printf("run_cuda: %i, op.use_svd: %i, op.use_checkerboard: %i\n",
       (int) op.use_cuda, (int) op.use_svd, (int) op.use_checkerboard);
-  printf("eps_converge: %f, eps_zero: %f, rate: %f, max_step: %i, seed: %i\n",
+  printf("eps_converge: [%f,%f](%f), eps_zero: %f, rate: %f, max_step: %i, seed: %i\n",
+      (float) op.eps_converge_beg, (float) op.eps_converge_end,
       (float) op.eps_converge, (float) op.eps_zero,
       (float) op.step_rate, (int) op.max_step,
       (int) op.seed);

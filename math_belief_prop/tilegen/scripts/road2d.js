@@ -14,7 +14,7 @@
 
 var fs = require("fs");
 
-let tiled_compatible = false;
+let tiled_compatible = true;
 
 function write_name(tile_name, ofn) {
   let fp = fs.createWriteStream(ofn);
@@ -188,5 +188,8 @@ write_name(name_list, tilename_fn);
 console.log("writing", tilerule_fn);
 write_rule(name_list, rule_d_a, tilerule_fn);
 
-console.log("writing", objloc_fn);
-write_objloc(name_list, objloc_fn, "./stair");
+if (!tiled_compatible) {
+  console.log("writing", objloc_fn);
+  write_objloc(name_list, objloc_fn, "./stair");
+}
+
