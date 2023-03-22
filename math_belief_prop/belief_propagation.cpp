@@ -334,6 +334,10 @@ void BeliefPropagation::ConstructDynamicBufs () {
   AllocBuf ( BUF_RESIDUE_HEAP_CELL_BP,  'l', 6 * m_num_verts * m_num_values );
   AllocBuf ( BUF_RESIDUE_CELL_HEAP,     'l', 6 * m_num_verts * m_num_values );
 
+  AllocBuf ( BUF_BT,     'l', 2 * m_num_verts * m_num_values );
+  AllocBuf ( BUF_BT_IDX, 'l',     m_num_verts * m_num_values );
+
+
   RandomizeMU ();
 
 }
@@ -3057,8 +3061,11 @@ int BeliefPropagation::RealizePost(void) {
   int post_ret=0;
   int ret;
   int64_t cell=-1;
-  int32_t tile=-1, tile_idx=-1, n_idx=-1;
-  float belief=-1.0, d = -1.0;
+  int32_t tile=-1,
+          tile_idx=-1,
+          n_idx=-1;
+  float belief=-1.0,
+        d = -1.0;
 
   Vector3DI vp;
 
@@ -3144,9 +3151,55 @@ int BeliefPropagation::RealizePost(void) {
   else if ( ret == 0 ) { post_ret = 0; }
   else if ( ret < 0)   { post_ret = -1; }
 
+  printf("??? post_ret: %i (lah %i)\n", (int)post_ret, (int)op.use_lookahead);
+
   // iteration or overall complete
   //
   if (post_ret >= 0) {
+
+
+    //-------------------------------
+    //-------------------------------
+    //-------------------------------
+    // EXPERIMENTAL
+    //-------------------------------
+    //-------------------------------
+    //-------------------------------
+    //
+    if ( (post_ret >= 0) &&
+         (op.use_lookahead) ) {
+
+      int _r = 0;
+      int64_t _idir=0,
+              _nei_cell = 0;
+      int64_t _idx = 0,
+              _n = 0,
+              _tv = -1;
+
+      for (_idir=0; _idir<6; _idir++) {
+        _nei_cell = getNeighbor( cell, _idir );
+        if (_nei_cell < 0) { continue; }
+        _n = getValI( BUF_TILE_IDX_N, _nei_cell );
+        if (_n <= 1) { continue; }
+        for (_idx=0;  _idx<_n; _idx++) {
+          _tv = getValI( BUF_TILE_IDX, _idx, _nei_cell );
+          _r = cellConstraintPropagate_lookahead( _nei_cell, _tv );
+          printf(" cell %i, tile %i, got lookahead %i\n", (int)_nei_cell, (int)_tv, (int)_r );
+        }
+
+      }
+
+
+    }
+    //-------------------------------
+    //-------------------------------
+    //-------------------------------
+    // EXPERIMENTAL
+    //-------------------------------
+    //-------------------------------
+    //-------------------------------
+
+
 
     if (st.enabled) {
       // check constraints
@@ -4610,3 +4663,307 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   return 0;
 }
+
+int BeliefPropagation::btPush(int64_t bt_cur_stack_idx, int64_t cell, int64_t tile_val) {
+
+  int64_t bt_idx=0;
+
+  bt_idx = getValI( BUF_BT_IDX, bt_cur_stack_idx );
+
+  SetValI( BUF_BT, cell, bt_idx );
+  bt_idx++;
+
+  SetValI( BUF_BT, (int64_t)tile_val , bt_idx+1 );
+  bt_idx++;
+
+  SetValI( BUF_BT_IDX, bt_idx, bt_cur_stack_idx );
+
+  return 0;
+}
+
+int BeliefPropagation::btUnwind(int64_t bt_cur_stack_idx) {
+
+  int64_t n=0,
+          cell = 0,
+          tile_val = 0;
+
+  int64_t bt_idx=0,
+          bt_idx_st=0,
+          bt_idx_en=0;
+
+  if (bt_cur_stack_idx > 0) {
+    bt_idx_st = getValI( BUF_BT_IDX, bt_cur_stack_idx-1 );
+  }
+  bt_idx_en = getValI( BUF_BT_IDX, bt_cur_stack_idx );
+
+  for (bt_idx=bt_idx_st; bt_idx < bt_idx_en; bt_idx+=1) {
+    cell      = getValI( BUF_BT, bt_idx+0 );
+    tile_val  = getValI( BUF_BT, bt_idx+1 );
+
+    n = getValI( BUF_TILE_IDX_N, cell );
+    SetValI( BUF_TILE_IDX, tile_val, n, cell );
+    n++;
+    SetValI( BUF_TILE_IDX_N, n, cell );
+  }
+
+  return 0;
+}
+
+// fix tile_val at cell and propgate constraints.
+// BUF_TILE_IDX might get shuffled as a result
+// but should hold the same values as it did
+// before the call.
+//
+// Uses BUF_BT and BUF_BT_IDX as storage to know
+// what to unwind after the attempt
+//
+//  1 - contradiction
+//  0 - no contradiction
+// -1 - error
+//
+int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t tile_val) {
+
+  int still_culling=1, i;
+
+  int64_t note_idx, anch_cell, nei_cell;
+  int64_t nei_n_tile, nei_a_idx, nei_a_val;
+
+  int64_t v,
+          idx,
+          anch_n_tile,
+          anch_idx,
+          anch_b_idx,
+          anch_b_val;
+  int anch_has_valid_conn = 0;
+
+  int boundary_tile = 0, tile_valid = 0;
+  int gn_idx = 0;
+
+  float _eps = op.eps_zero;
+  Vector3DI jp;
+
+  int resolved = 0,
+      contradiction = 0;
+
+  int64_t bt_idx = 0;
+
+  // find the index of the tile we'r about to fix
+  //
+  anch_n_tile = getValI( BUF_TILE_IDX_N, cell );
+  if (anch_n_tile <= 1) { return 0; }
+  for (anch_idx=0; anch_idx < anch_n_tile; anch_idx++) {
+    if ( getValI( BUF_TILE_IDX, anch_idx, cell ) == tile_val ) {
+      break;
+    }
+  }
+  if (anch_idx == anch_n_tile) { return -1; }
+
+  // remember which tiles we're about to remove from the
+  // collapse
+  //
+  for ( idx=0; idx < anch_n_tile; idx++) {
+    if (idx == anch_idx) { continue; }
+    v = getValI( BUF_TILE_IDX, idx, cell );
+    btPush( 0, cell, v );
+  }
+
+  // collapse the current cell for tile_val
+  //
+  tileIdxCollapse( cell, anch_idx );
+
+  m_note_n[ m_note_plane ]      = 0;
+  m_note_n[ 1 - m_note_plane ]  = 0;
+  cellFillVisited ( cell, m_note_plane );
+  unfillVisited ( m_note_plane );
+
+  while (still_culling) {
+
+    for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
+
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );
+
+      jp = getVertexPos(anch_cell);
+
+      anch_n_tile = getValI ( BUF_TILE_IDX_N, anch_cell );
+
+      for (anch_b_idx=0; anch_b_idx < anch_n_tile; anch_b_idx++) {
+
+        // Test if anchor tile has connection that falls out of bounds.
+        // if so, remove tile from BUF_TILE_IDX and add unvisited
+        // neighbors to BUF_NOTE for later processing.
+        //
+        tile_valid = 1;
+        anch_b_val = getValI ( BUF_TILE_IDX, anch_b_idx, anch_cell);
+
+        for (i=0; i<getNumNeighbors(anch_cell); i++) {
+          nei_cell = getNeighbor(anch_cell, jp, i);
+
+          if ((nei_cell<0) &&
+              (getValF( BUF_F, anch_b_val, boundary_tile, i ) < _eps)) {
+
+            if (anch_n_tile==1) {
+
+              if (op.verbose >= VB_DEBUG) {
+
+                printf("# BeliefPropagation::cellConstraintPropagate_lookahead: contradiction, "
+                        "cell %i slated to rmove last remaining tile (tile %s(%i) "
+                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
+                        (int)anch_cell,
+                        m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                        (int)nei_cell,
+                        m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
+                        m_dir_desc[i].c_str(), (int)i);
+              }
+
+              contradiction = 1;
+              break;
+            }
+
+            tile_valid = 0;
+
+            if (op.verbose >= VB_DEBUG) {
+              printf("# bt_remove it:%i cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
+                  (int)op.cur_iter,
+                  (int)anch_cell,
+                  (int)jp.x, (int)jp.y, (int)jp.z,
+                  (int)anch_b_val,
+                  (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+
+               //printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
+               //   (int)anch_b_val, (int)anch_cell,
+               //   (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+            }
+
+            removeTileIdx (anch_cell, anch_b_idx);
+
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
+              resolved++;
+
+              if (op.verbose >= VB_INTRASTEP ) {
+                printf("bt_resolve it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
+                    (int)op.cur_iter,
+                    (int)anch_cell,
+                    (int)jp.x, (int)jp.y, (int)jp.z,
+                    (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
+              }
+
+            }
+
+            cellFillVisited (anch_cell, 1 - m_note_plane );
+
+            anch_b_idx--;
+            anch_n_tile--;
+
+            break;
+          }
+        }
+
+        if (contradiction) { break; }
+
+        if (!tile_valid) { continue; }
+
+        // Test for at least one valid neighbor from the anchor point.
+        // That is, for each anchor cell and tile value, make sure
+        // there is at least one "admissible" tile in the appropriate
+        // direction by checking the BUF_F table.
+        //
+        for (i=0; i<getNumNeighbors(anch_cell); i++) {
+          nei_cell = getNeighbor(anch_cell, jp, i);
+
+          if (nei_cell<0) { continue; }
+
+          anch_has_valid_conn = 0;
+
+          nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
+          for (nei_a_idx=0; nei_a_idx < nei_n_tile; nei_a_idx++) {
+            nei_a_val = getValI ( BUF_TILE_IDX, nei_a_idx, nei_cell );
+
+            if (getValF( BUF_F, anch_b_val, nei_a_val, i ) > _eps) {
+              anch_has_valid_conn = 1;
+              break;
+            }
+          }
+
+          if (!anch_has_valid_conn) {
+            if (anch_n_tile==1) {
+
+              if (op.verbose >= VB_DEBUG ) {
+                printf("# BeliefPropagation::cellConstraintPropagate_lookahead: contradiction, "
+                        "cell %i slated to rmove last remaining tile (tile %s(%i) "
+                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
+                        (int)anch_cell,
+                        m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                        (int)nei_cell,
+                        m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
+                        m_dir_desc[i].c_str(), (int)i);
+              }
+
+              contradiction = 1;
+              break;
+            }
+
+            tile_valid = 0;
+
+            if (op.verbose >= VB_DEBUG ) {
+              printf("# bt_remove it:%i cell:%i;[%i,%i,%i] tile %i (invalid conn dir:%i(%s), tile:%i) [cp.1]\n",
+                  (int)op.cur_iter,
+                  (int)anch_cell,
+                  (int)jp.x, (int)jp.y, (int)jp.z,
+                  (int)anch_b_val,
+                  (int)i, (char *)m_dir_desc[i].c_str(), (int)nei_a_val);
+            }
+
+            v = getValI( BUF_TILE_IDX, anch_b_idx, anch_cell );
+            btPush( 0, anch_cell, v);
+
+            removeTileIdx(anch_cell, anch_b_idx);
+
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
+              resolved++;
+
+              if (op.verbose >= VB_DEBUG ) {
+                printf("bt_reolve it:%i cell:%i;[%i,%i,%i] tile:%i [cp.1]\n",
+                    (int)op.cur_iter,
+                    (int)anch_cell,
+                    (int)jp.x, (int)jp.y, (int)jp.z,
+                    (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
+              }
+
+
+            }
+
+            cellFillVisited (anch_cell, 1 - m_note_plane );
+            anch_b_idx--;
+            anch_n_tile--;
+
+            break;
+          }
+
+          if (contradiction) { break; }
+
+        }
+
+        if (contradiction) { break; }
+
+        if (!tile_valid) { continue; }
+      }
+
+      if (contradiction) { break; }
+    }
+
+
+    unfillVisited (1 - m_note_plane );
+
+    if (contradiction) { break; }
+
+    if (m_note_n[ m_note_plane ] == 0) { still_culling = 0; }
+
+    m_note_n[ m_note_plane ] = 0;
+    m_note_plane  = 1 - m_note_plane ;
+  }
+
+  btUnwind(0);
+
+  return contradiction;
+}
+

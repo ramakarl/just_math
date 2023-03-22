@@ -529,7 +529,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:l")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -649,6 +649,9 @@ int main(int argc, char **argv) {
         break;
       case 'B':
         bpc.op.use_checkerboard = 1;
+        break;
+      case 'l':
+        bpc.op.use_lookahead = 1;
         break;
 
       case 'L':

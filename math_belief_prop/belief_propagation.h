@@ -151,7 +151,7 @@
 #define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
 
 #define BUF_BT                    22    // <2*B*num_vert, 1, 1>
-#define BUF_BT_IDX                23    // <2*B*num_vert, 1, 1>
+#define BUF_BT_IDX                23    // <B*num_vert, 1, 1>
 
 #define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
@@ -556,6 +556,12 @@ public:
   int   wfc();
   int   wfc_start();
   int   wfc_step(int64_t it);
+
+  //-------------------------- backtracking
+  int cellConstraintPropagate_lookahead(int64_t, int32_t);
+  int btPush(int64_t, int64_t, int64_t);
+  int btUnwind(int64_t);
+
 
 
   //-------------------------- debugging functions

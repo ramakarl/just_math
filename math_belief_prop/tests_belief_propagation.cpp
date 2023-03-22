@@ -2519,6 +2519,84 @@ int test_wfc0(int x, int y, int z) {
   return 0;
 }
 
+int test_lookahead0(BeliefPropagation &_bp) {
+
+  int ret;
+  int i;
+  int iter, max_iter=10;
+  float maxdiff, _eps = (1.0/(1024*1024));
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+
+  int x = 3, y = 3, z = 1;
+
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+
+  bp.op.verbose = VB_DEBUG;
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  bp.filterKeep( bp.getVertex(0,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"T003") );
+  bp.filterKeep( bp.getVertex(0,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(0,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r000") );
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(1,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  keep_list.push_back( bp.tileName2ID((char *)"r003") );
+  bp.filterKeep( bp.getVertex(1,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"|001") );
+  bp.filterKeep( bp.getVertex(1,0,0), keep_list);
+
+  //--
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r001") );
+  bp.filterKeep( bp.getVertex(2,2,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"T001") );
+  bp.filterKeep( bp.getVertex(2,1,0), keep_list);
+
+  keep_list.clear();
+  keep_list.push_back( bp.tileName2ID((char *)"r002") );
+  bp.filterKeep( bp.getVertex(2,0,0), keep_list);
+
+  //---
+  bp.op.seed = 0;
+
+  for (i=0; i<9; i++) {
+    bp.cellFillVisited (i, bp.m_note_plane);
+  }
+  bp.unfillVisited (bp.m_note_plane);
+
+  ret = bp.cellConstraintPropagate();
+
+  bp.debugPrint();
+
+  return 0;
+}
+
 int run_test(BeliefPropagation &bp, int test_num) {
 
   switch(test_num) {
@@ -2620,6 +2698,10 @@ int run_test(BeliefPropagation &bp, int test_num) {
       break;
     case 29:
       test_residual8();
+      break;
+
+    case 30:
+      test_lookahead0(bp);
       break;
 
     default:
