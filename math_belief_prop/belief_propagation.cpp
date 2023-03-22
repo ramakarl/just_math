@@ -4168,7 +4168,7 @@ int BeliefPropagation::CullBoundary() {
   int ret=0;
   int64_t x, y, z, vtx;
   Vector3DI vp;
-  int64_t new_vtx_idx;
+  int64_t note_idx;
 
   // set initial notes
 
@@ -4178,8 +4178,8 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(0, y, z);
       assert ( vtx < m_num_verts );
 
-      new_vtx_idx = m_note_n[ m_note_plane ];
-      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      note_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
       m_note_n[ m_note_plane ]++;
 
       if ((m_res.x-1) != 0) {
@@ -4187,8 +4187,8 @@ int BeliefPropagation::CullBoundary() {
         vtx = getVertex(m_res.x-1, y, z);
         assert ( vtx < m_num_verts );
 
-        new_vtx_idx = m_note_n[ m_note_plane ];
-        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        note_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
         m_note_n[ m_note_plane ]++;
       }
 
@@ -4201,8 +4201,8 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(x, 0, z);
       assert ( vtx < m_num_verts );
 
-      new_vtx_idx = m_note_n[ m_note_plane ];
-      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      note_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
       m_note_n[ m_note_plane ]++;
 
       if ((m_res.y-1) != 0) {
@@ -4210,8 +4210,8 @@ int BeliefPropagation::CullBoundary() {
         vtx = getVertex(x, m_res.y-1, z);
         assert ( vtx < m_num_verts );
 
-        new_vtx_idx = m_note_n[ m_note_plane ];
-        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        note_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
         m_note_n[ m_note_plane ]++;
       }
 
@@ -4224,8 +4224,8 @@ int BeliefPropagation::CullBoundary() {
       vtx = getVertex(x, y, 0);
       assert ( vtx < m_num_verts );
 
-      new_vtx_idx = m_note_n[ m_note_plane ];
-      SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+      note_idx = m_note_n[ m_note_plane ];
+      SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
       m_note_n[ m_note_plane ]++;
 
       if ((m_res.z-1) != 0) {
@@ -4233,8 +4233,8 @@ int BeliefPropagation::CullBoundary() {
         vtx = getVertex(x, y, m_res.z-1);
         assert ( vtx < m_num_verts );
 
-        new_vtx_idx = m_note_n[ m_note_plane ];
-        SetValL ( BUF_NOTE, (vtx), new_vtx_idx, m_note_plane );
+        note_idx = m_note_n[ m_note_plane ];
+        SetValL ( BUF_NOTE, (vtx), note_idx, m_note_plane );
         m_note_n[ m_note_plane ]++;
       }
 
@@ -4274,10 +4274,10 @@ void BeliefPropagation::cellFillVisited(uint64_t vtx, int32_t note_plane ) {
     if (nei_vtx<0) { continue; }
     if (getValL ( BUF_VISITED, nei_vtx ) != 0) { continue; }
 
-    int32_t new_vert_idx = m_note_n [ note_plane ];
-    SetValL ( BUF_NOTE, nei_vtx, new_vert_idx, note_plane );
+    int32_t note_idx = m_note_n [ note_plane ];
+    SetValL ( BUF_NOTE, nei_vtx, note_idx, note_plane );
     SetValL ( BUF_VISITED, 1, nei_vtx );
-    m_note_n[note_plane]++;
+    m_note_n[ note_plane ]++;
   }
 
 }
@@ -4286,8 +4286,8 @@ int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_plane) {
 
   if (getValL( BUF_VISITED, vtx ) != 0) { return 0; }
 
-  int32_t new_vert_idx = m_note_n [ note_plane ];
-  SetValL ( BUF_NOTE,    vtx, new_vert_idx, note_plane );
+  int32_t note_idx = m_note_n [ note_plane ];
+  SetValL ( BUF_NOTE,    vtx, note_idx, note_plane );
   SetValL ( BUF_VISITED, 1, vtx  );
   m_note_n[ note_plane ]++;
 
@@ -4310,17 +4310,6 @@ int BeliefPropagation::getTilesAtVertex ( int64_t vtx ) {
 
   return n_a;
 }
-
-/*void BeliefPropagation::UpdateAllVertsFromNotes ()
-{
-  int64_t i, vtx;
-
-  for (i=0; i < m_note_n[ m_grid_note_idx ]; i++) {
-    vtx = getValNote( BUF_NOTE, m_grid_note_idx, i );
-
-    //SetVal( BUF_MU, 0, vtx, tile_val, 1.0 );
-  }
-}*/
 
 // unwind/remove all 'filled' cells
 //

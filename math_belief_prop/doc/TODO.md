@@ -7,7 +7,7 @@ TODO
   - consider 'look ahead' algorithm to try and
     cull tiles that we know will lead to contradiction
     if they're fixed
-* 2d tileset png
+* ~2d tileset png~
 * statistics for knowing where in the cluster (chain of
   implication after a tile has been chosen/forced) that
   leads to a contradiction
