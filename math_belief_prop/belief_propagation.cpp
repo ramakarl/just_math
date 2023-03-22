@@ -130,6 +130,7 @@ int BeliefPropagation::default_opts () {
 
   op.use_svd = 0;
   op.use_checkerboard = 0;
+  op.use_lookahead = 0;
 
   op.index_heap_size = 0;
 
@@ -3066,8 +3067,6 @@ int BeliefPropagation::RealizePost(void) {
   switch (op.alg_cell_opt) {
     case ALG_CELL_WFC:
 
-      // belief here is min. entropy
-      //
       ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
       break;
 
@@ -3307,6 +3306,11 @@ int BeliefPropagation::RealizeStep(void) {
     //
     ret = 0;
 
+  }
+
+  else if (op.alg_run_opt == ALG_RUN_BACKTRACK) {
+
+    ret = 0;
   }
 
   //--- unknown algorithm

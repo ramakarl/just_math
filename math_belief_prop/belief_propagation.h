@@ -97,6 +97,7 @@
 #define ALG_RUN_VANILLA         35
 #define ALG_RUN_RESIDUAL        36
 #define ALG_RUN_WFC             37
+#define ALG_RUN_BACKTRACK       38
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1
@@ -149,6 +150,8 @@
 #define BUF_RESIDUE_HEAP_CELL_BP  20    //                                                                               // <6*B*num_vert, 1, 1>
 #define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
 
+#define BUF_BT                    22    // <2*B*num_vert, 1, 1>
+#define BUF_BT_IDX                23    // <2*B*num_vert, 1, 1>
 
 #define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
@@ -218,6 +221,8 @@ typedef struct _bp_opt_t {
   bool      use_cuda;
   int       use_svd;
   int       use_checkerboard;
+
+  int       use_lookahead;
 
   // As a general rule of thumb, the verbosity is:
   //
