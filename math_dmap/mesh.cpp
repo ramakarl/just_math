@@ -980,7 +980,6 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 				}
 			}
 
-
 			// add face				
 			AddFaceFast ( fv[0], fv[1], fv[2] );	
 

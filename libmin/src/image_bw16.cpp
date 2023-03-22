@@ -35,7 +35,7 @@ void Image::FillBW16 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 	dest_pix_stop = dest_pix + getInfo()->GetSize();
 	for (; dest_pix < dest_pix_stop;) {
 		memcpy (dest_pix, fillbuf, getInfo()->GetBytesPerRow());
-		dest_pix += getInfo()->GetBytesPerRow();
+		dest_pix++;
 	}	
 	// setNotify ( 1 ); // *** NOTIFY(1)
 }

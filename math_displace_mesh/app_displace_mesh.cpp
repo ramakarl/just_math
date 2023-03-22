@@ -101,6 +101,7 @@ public:
 
 	void		Resize ();
 	void		DrawGrid ();	
+	void		DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr );
 	void		UpdateCamera();
 	void		MoveCamera ( char t, Vector3DF del );
 
@@ -121,6 +122,7 @@ public:
 	Mersenne	m_rand;
 
 	float		m_displace_depth;
+	float		m_displace_scalar;
 	float		m_time;
 	int			m_samples;
 	bool		m_run, m_displace;
@@ -169,7 +171,8 @@ bool Sample::init()
 	m_cam->setFov ( 40 );
 	m_cam->setAspect ( 1 );
 	
-	m_cam->setOrbit ( -44, 30, 0, Vector3DF(0.2, 0.25, 0), 6, 1 );
+	//m_cam->setOrbit ( -44, 30, 0, Vector3DF(0.2, 0.25, 0), 6, 1 );
+	m_cam->setOrbit ( -44, 30, 0, Vector3DF(0, 0, 0), 6, 1 );
 
 
 	m_lgt = Vector3DF(-200, 150, 150);
@@ -179,12 +182,20 @@ bool Sample::init()
 	m_res = 64;
 	m_yline = 0;
 
-
 	// set bump depth
-	m_displace_depth = 0.20;
+	
+	//----- cube-sphere
+	//m_displace_depth = 1.5;			// extent necessary to cover depth
+	//m_displace_scalar = 0.83;			// mapping from depth img 65535 to actual depth
+
+	//-- dragon
+	m_displace_depth = 1.0;
+	m_displace_scalar = 0.15;
+
 
 	// load displacement map 
-	std::string fpath;	
+	std::string fpath;		
+	//getFileLocation ( "model_cube_displace.tif", fpath );
 	getFileLocation ( "model_dragon_disp4k.tif", fpath );
 	//getFileLocation ( "stones_displace.png", fpath );
 	//getFileLocation ( "rocks01_displace.png", fpath );
@@ -197,6 +208,7 @@ bool Sample::init()
 		dbgprintf ( "ERROR: Unable to open %s.\n", fpath.c_str() );
 		exit(-2);
 	}
+	m_bump_img->Commit (  DT_CPU | DT_GLTEX );
 
 	getFileLocation ( "color_white.png", fpath );
 	//getFileLocation ( "stones_color.png", fpath );
@@ -212,6 +224,7 @@ bool Sample::init()
 	}
 
 	// load mesh
+	//getFileLocation ( "model_cube.obj", fpath );
 	getFileLocation ( "model_dragon_head.obj", fpath );
 	//getFileLocation ( "surface.obj", fpath );
 	//getFileLocation ( "asteroid.obj", fpath );
@@ -237,6 +250,28 @@ void Sample::DrawGrid ()
 		drawLine3D(float(i),-0.01f, -10.f, float(i), -0.01f, 10.f, .2f, .2f, .2f, 1.f);
 		drawLine3D(-10.f,	-0.01f, float(i), 10.f, -0.01f, float(i), .2f, .2f, .2f, 1.f);
 	}	
+}
+
+void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
+{
+	Vector3DF uv0, uv1, uv2;
+	AttrV3* f;
+	int num_tri = m->GetNumElem ( BFACEV3 );
+
+	Vector3DF sz (w, h, 0);
+
+	for (int i = 0; i < num_tri; i++)  {
+
+		f = (AttrV3*) m->GetElem (BFACEV3, i );
+		
+		uv0 = *m->GetVertTex( f->v1 );	uv1 = *m->GetVertTex( f->v2 );	uv2 = *m->GetVertTex( f->v3 );
+		uv0.y = 1-uv0.y; uv1.y = 1-uv1.y; uv2.y = 1-uv2.y;   // plot y+ upward
+
+		// draw triangle		
+		drawLine ( uv0*sz, uv1*sz, clr ); 
+		drawLine ( uv1*sz, uv2*sz, clr );	
+		drawLine ( uv2*sz, uv0*sz, clr ); 
+	}
 }
 
 void Sample::Resize ()
@@ -342,22 +377,27 @@ void Sample::RaytraceMesh ( float bump_depth,  Image* img )
 				intersectRayTriangle ( rpos, rdir, v1, v2, v3, t, bc.x, bc.y, front );
 
 				// interpolate uv coords from barycentric
-				uv = uv1 * (bc.x) + uv2 * (bc.y) + uv3 * (1-bc.x-bc.y);
-				
+				uv = uv1 * (bc.x) + uv2 * (bc.y) + uv3 * (1-bc.x-bc.y);				
+	
 				// read texture
 				//tx = m_bump_img->GetPixelUV16 ( uv.x, uv.y );
 				tx = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
-	
-				// interpolate normal
-				n1 = *m_mesh->GetVertNorm( f->v1 );	n2 = *m_mesh->GetVertNorm( f->v2 );	n3 = *m_mesh->GetVertNorm( f->v3 );
-				norm = n1 * float(bc.x) + n2 * float(bc.y) + n3 * float(1-bc.x-bc.y);
-				norm.Normalize();
 
-				// diffuse shading
-				diffuse = std::max(0.0, norm.Dot( m_lgt ));
-				c = m_color_img->GetPixelFilteredUV ( uv.x, uv.y );
-				c = c * float(diffuse * 255.0);
-				if (c.x > 255 || c.y > 255 || c.z > 255) c = Vector3DF(255,255,255);
+				if (0) {
+					//---- shading
+					// interpolate normal
+					n1 = *m_mesh->GetVertNorm( f->v1 );	n2 = *m_mesh->GetVertNorm( f->v2 );	n3 = *m_mesh->GetVertNorm( f->v3 );
+					norm = n1 * float(bc.x) + n2 * float(bc.y) + n3 * float(1-bc.x-bc.y);
+					norm.Normalize();
+
+					// diffuse shading
+					diffuse = std::max(0.0, norm.Dot( m_lgt ));
+					c = m_color_img->GetPixelFilteredUV ( uv.x, uv.y );
+					c = c * float(diffuse * 255.0);					
+				} else {
+					c = tx * 255.0;
+				}
+				if (c.x > 255 || c.y > 255 || c.z > 255) c = Vector3DF(255,255,255); 
 					
 				img->SetPixel ( x, y, c.x, c.y, c.z, 255.0 );	
 			} 
@@ -534,7 +574,7 @@ void Sample::ConstructPrisms ( float depth )
 
 	float d = m_displace_depth;
 
-	float dmin = -m_displace_depth * 0.2;
+	float dmin = 0.0; //-m_displace_depth * 0.1;
 
 	for (f = (AttrV3*) m_mesh->GetStart(BFACEV3); f <= (AttrV3*) m_mesh->GetEnd(BFACEV3); f++ ) {
 
@@ -631,7 +671,7 @@ Vector3DF getBarycentricInTriangle ( Vector3DF& hit, Vector3DF& ve0, Vector3DF& 
 } 
 
 
-#define EPS     0.0
+#define EPS     0.01
 
 bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float tmin, float tmax, int edge, int edgemax, float dt, float& t, Vector3DF& bc )
 {
@@ -735,7 +775,7 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 
 	// Sample displacement texture for initial surface height			
 	uv = vuv0*bc.x + vuv1*bc.y + vuv2*bc.z;				
-	bmphgt = m_displace_depth * m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
+	bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar;
 
 	// [optional] visualization	
 	if ( m_vcurr==1 ) {		
@@ -749,7 +789,7 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 
 	// March ray until it hits or leaves prism
 	//
-	for (t=tmin; rayhgt >= bmphgt && t < tmax; t += dt) {
+	for (t=tmin; rayhgt >= bmphgt && t < tmax + EPS; t += dt) {
 
 		// march along ray
 		hit += rdir * dt;							
@@ -777,25 +817,21 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 
 		// sample bump map to get displacement height
 		uv = vuv0*bc.x + vuv1*bc.y + vuv2*bc.z;
-		bmphgt = m_displace_depth * m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
+		bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar;
 
 		// [optional] visualization
 		if ( m_vcurr==1 ) {	
 			Vector3DF q1 = s->ve0 *bc.x + s->ve1 *bc.y + s->ve2 *bc.z;
-			Vector3DF a = p + (q1-p) * (bmphgt / m_displace_depth);
+			Vector3DF a = p + (q1-p).Normalize() * bmphgt;
 
 			VisDot ( hit, .5, m_vsample );		// sample points 
 			VisDot ( p, .5, m_vbase );			// base points 						
-			VisDot ( a, .5, m_vsurf );			// surface points 
-			
-			VisLine ( ve0, ve1, m_vsample );
-			VisLine ( ve1, ve2, m_vsample );
-			VisLine ( ve2, ve0, m_vsample );
+			VisDot ( a, .5, m_vsurf );			// surface points 			
 		}
 	}
 
 	// Check for miss or t out-of-bounds
-	if ( t >= tmax ) 
+	if ( t >= tmax + EPS ) 
 		return false;
 	
 	// Hit surface
@@ -806,13 +842,13 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 	uv = vuv0 * bcl.x + vuv1 * bcl.y + vuv2 * bcl.z;
 	p = vb0*bcl.x + vb1*bcl.y + vb2*bcl.z;					
 	float rayhgt0 = ( ( hit - rdir*dt ) - p).Length();
-	float bmphgt0 = m_displace_depth * m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
+	float bmphgt0 = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
 	// interpolate between previous and current sample
 	float u = (rayhgt0-bmphgt0) / ((rayhgt0-bmphgt0)+(bmphgt-rayhgt));
-	u = (u<0) ? 0 : (u>1) ? 1 : u;									
+	u = (u<0) ? 0 : (u>1) ? 1 : u;									 
 					
 	// Final hit t
-	t = (hit - rpos).Length() - dt + u*dt;
+	t = (hit - rpos).Length() - dt + u*dt; 	
 	
 	hit = rpos + rdir * t;
 
@@ -842,7 +878,7 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 	Vector3DF vn0, vn1, vn2;
 	Vector3DF vuv0, vuv1, vuv2, uv;	
 	Vector3DF q0, q1, q2;
-	float dpu, dpv;
+	float dpu, dpv, nadj;
 
 	Vector3DF L, R, V, c, n0;			// shading rays
 	float diffuse, spec;
@@ -861,23 +897,23 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 	dpv = 1.0 / (m_bump_img->GetHeight()-1);
 
 	// interpolated base normal
-    n0 = vn0 * bc.x + vn1 * bc.y + vn2 * bc.z;
-    n0.Normalize();
+    n0 = vn0 * bc.x + vn1 * bc.y + vn2 * bc.z;	
+    n0.Normalize();	
 
 	// sample along barycentric u
-	uv = vuv0*(bc.x+dpu) + vuv1*bc.y + vuv2 * (1-(bc.x+dpu)-bc.y);    
+	uv = vuv0*(bc.x+dpu) + vuv1 * bc.y + vuv2 * (1-(bc.x+dpu)-bc.y);
     q1 = vb0 * (bc.x+dpu) + vb1 * bc.y + vb2 * (1-(bc.x+dpu)-bc.y);
-    q1 += n0 * (displace_depth *  m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) );	
+    q1 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar);	
 
     // sample along barycentric v	
     uv = vuv0*(bc.x) + vuv1*(bc.y+dpu) + vuv2 * (1-bc.x-(bc.y+dpu));                
     q2 = vb0 * bc.x + vb1 * (bc.y+dpu) + vb2 * (1-bc.x-(bc.y+dpu));
-    q2 += n0 * (displace_depth *  m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) );            
+    q2 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar);            
 
 	// central sample
     uv = vuv0*bc.x + vuv1*bc.y + vuv2 * bc.z;
     q0 = vb0 * bc.x + vb1 * bc.y + vb2 * bc.z;
-    q0 += n0 * (displace_depth *  m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) );
+    q0 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar);
 
 	// color texture
 	clr = m_color_img->GetPixelFilteredUV ( uv.x, uv.y );
@@ -918,16 +954,16 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 	// colored final surface			
 	clr = clr * diffuse + Vector3DF(spec,spec,spec);
 
-	// world xyz
-	// clr = Vector3DF(q0.x, q0.y, q0.z)*0.3f + 0.5f;
+	//--- color /w world xyz
+	//clr = Vector3DF(q0.x, q0.y, q0.z)*0.3f + 0.5f;
 
-	// surface normal
+	//--- color /w surface normal
 	//clr = n*0.5f + 0.5f;
 
-	// barycentric
+	//--- color /w barycentric
 	// clr = Vector3DF(bc.x, bc.y, 1-bc.x-bc.y);
 
-	// interpolated base normal
+	//--- color /w interpolated base normal
 	//clr = Vector3DF(1,1,1) * 0.5f * float( pow( n0.Dot(L), 3) );
 
 	clr *= 255.0;
@@ -952,7 +988,7 @@ void Sample::RaytraceDisplacementMesh ( Image* img )
 	Vector3DF rpos, rdir, n, bc;
 	Vector3DF clr(1,1,1);
 	
-	float dt = 0.005;
+	float dt = 0.001;
 	
 	float doff = 0.0;
 	bool used;
@@ -970,7 +1006,7 @@ void Sample::RaytraceDisplacementMesh ( Image* img )
 	if ( m_yline >= img->GetHeight()/2 +1 ) m_yline++;
 	if ( m_yline <= 0 ) m_yline = img->GetHeight()/2 + 1;
 	if ( m_yline==img->GetHeight()-1) { m_yline = img->GetHeight()/2; m_samples++; }
-	dbgprintf ( "%d ", m_yline );
+	//dbgprintf ( "%d ", m_yline );
 
 	// raytrace scan line
 
@@ -1044,18 +1080,22 @@ void Sample::VisTriangleSurface ( int face )
 	ve0 = s->ve0; ve1 = s->ve1; ve2 = s->ve2;
 	vb0 = s->vb0; vb1 = s->vb1; vb2 = s->vb2;
 
-	for (float a=0; a < 1.0; a += 0.05) {
-		for (float b=0; b < 1.0; b+= 0.05) {
+	for (float a=0; a < 1.0; a += 0.01) {
+		for (float b=0; b < 1.0; b+= 0.01) {
 
 			// construct line connecting inner and outer triangles at this bc
 			q0 = vb0*a + vb1*b + vb2*(1-a-b);
 			q1 = ve0*a + ve1*b + ve2*(1-a-b);
 
 			uv = vuv0*a + vuv1*b + vuv2*(1-a-b);
-			bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y );
+			bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace_scalar;
 
-			p = q0 + (q1-q0) * bmphgt;
-			VisDot ( p, 0.1, m_vsurf );
+			q1 -= q0;
+			q1.Normalize();
+
+			p = q0 + q1 * bmphgt;
+
+			VisDot ( p, 0.2, m_vsurf );
 		}
 	}
 
@@ -1229,16 +1269,21 @@ void Sample::display()
 	// Draw grid
 	start3D(m_cam);
 	setLight(S3D, m_lgt.x, m_lgt.y, m_lgt.z);	
-		DrawGrid();
+		DrawGrid();		
 	end3D();
 	draw3D();
 
 	// Draw raycast image
 	start2D();
 	setview2D(getWidth(), getHeight());		
-	drawImg ( m_out_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );		// draw raycast image 	
+		drawImg ( m_out_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );		// draw raycast image 	
+
+		drawImg ( m_bump_img->getGLID(), 0, 0, 512, 512, 1,1,1,1 );		// draw raycast image 	
+
+		DrawMeshUV ( m_mesh, 512, 512, Vector4DF(1,1,1,1) );
 	end2D();	
 	draw2D();										// complete 2D rendering to OpenGL
+
 
 	V = m_cam->getDir ();
 	V.Normalize();

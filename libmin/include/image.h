@@ -84,8 +84,11 @@
 		void CopyAlpha ( Image* new_alpha );		
 
 		// Float pixels
-		inline void SetPixelF ( int x, int y, float v )	{ * (float*) (GetData()  + (y*getInfo()->mXres+x) * getInfo()->GetBytesPerPix()) = v; }
-		inline float GetPixelF ( int x, int y )			{ return *(float*) (GetData()  + (y*getInfo()->mXres+x) * getInfo()->GetBytesPerPix()); }
+		inline void SetPixelF ( int x, int y, float v )			{ *			(((float*) m_Pix.mCpu) + (y*m_Info.mXres+x)) = v; }
+		inline float GetPixelF ( int x, int y )					{ return *	(((float*) m_Pix.mCpu) + (y*m_Info.mXres+x)); }
+
+		inline void		SetPixel16 ( int x, int y, uint16_t v ) { *			(((uint16_t*) m_Pix.mCpu) + (y*m_Info.mXres+x)) = v; }
+		inline uint16_t	GetPixel16 ( int x, int y )				{ return *	(((uint16_t*) m_Pix.mCpu) + (y*m_Info.mXres+x)); }
 
 		// Image Operations
 		Vector4DF	GetPixelFilteredUV (float x, float y);

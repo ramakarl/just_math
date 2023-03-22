@@ -226,20 +226,22 @@ Vector4DF Image::GetPixelFilteredUV (float x, float y)
 
 float Image::GetPixelFilteredUV16 (float x, float y)
 {
-	float u = x * (getInfo()->mXres - 1);
-	float v = y * (getInfo()->mYres - 1);
+	float u = x * (m_Info.mXres - 1);
+	float v = y * (m_Info.mYres - 1);
 	int xu = u;
 	int yu = v;
 	u -= xu;
 	v -= yu;
 	
-	XBYTE r,g,b,a;
 	float c[7];
+	unsigned short i ;
 
-	(this->*m_GetPixelFunc) ( xu,    yu, r,g,b,a ); c[0] = (r+(g/255.0f))/255.0f;
-	(this->*m_GetPixelFunc) ( xu+1,  yu, r,g,b,a ); c[1] = (r+(g/255.0f))/255.0f;
-	(this->*m_GetPixelFunc) ( xu,  yu+1, r,g,b,a ); c[2] = (r+(g/255.0f))/255.0f;
-	(this->*m_GetPixelFunc) ( xu+1,yu+1, r,g,b,a ); c[3] = (r+(g/255.0f))/255.0f;
+	if (xu < 0 || yu < 0 || xu >= m_Info.mXres-1 || yu >= m_Info.mYres-1 ) return 0;
+
+	i = GetPixel16 ( xu,    yu );	c[0] = float(i) / 65535.0f;
+	i = GetPixel16 ( xu+1,  yu );	c[1] = float(i) / 65535.0f;
+	i = GetPixel16 ( xu,  yu+1 );	c[2] = float(i) / 65535.0f;
+	i = GetPixel16 ( xu+1,yu+1 );   c[3] = float(i) / 65535.0f;
 	
 	// bi-linear filtering
 	c[4] = c[0] + (c[1]-c[0]) * u;

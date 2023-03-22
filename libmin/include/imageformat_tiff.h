@@ -142,6 +142,7 @@
 		unsigned long		m_NumStrips;
 		unsigned long		m_StripOffsets;
 		unsigned long		m_StripCounts;
+		int					m_SamplesPerPix;
 		int					m_RowsPerStrip;		
 		int					m_PlanarConfig;
 		bool				m_DebugTif;
