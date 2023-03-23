@@ -37,6 +37,12 @@
 
 #define BUF_VOL			0
 
+struct Vis {
+	char type;
+	Vector3DF a, b;
+	Vector4DF clr;
+};
+
 class Sample : public Application {
 public:
 	virtual void startup();
@@ -52,7 +58,7 @@ public:
 	bool		intersect_tri ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vector3DF& v1, Vector3DF& v2, float& t, float& alpha, float& beta );
 	bool		intersect_mesh ( Vector3DF rpos, Vector3DF rdir, float& t, int& fhit ) ;
 
-	float		ComputeDisplacement ( Image* img, int x, int y, Vector3DF& v, Vector3DF& vhit );
+	bool		ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF& v, Vector3DF& vhit );
 	void		ComputeDisplacement ( Image* img );
 	void		SaveImage ( Image* img );
 
@@ -60,8 +66,12 @@ public:
 	void		UpdateCamera();
 	void		MoveCamera ( char t, Vector3DF del );
 	void		DrawGrid();
-	void		DrawMesh( MeshX* m, Vector4DF clr );
+	void		DrawMesh( MeshX* m, Vector4DF clr, bool normals=false );
 	void		DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr );
+
+	void		VisDot ( Vector3DF p, float r, Vector3DF clr );
+	void		VisLine ( Vector3DF a, Vector3DF b, Vector3DF clr );
+	void		DrawVis ();
 
 	Camera3D*	m_cam;				// camera
 	Vector3DF   m_lgt;		
@@ -69,7 +79,10 @@ public:
 	MeshX*		m_mesh_src;			// high-res source 
 	MeshX*		m_mesh_dest;		// low-res target
 
+	float		m_limit;	
+
 	Image*		m_displace_img;	
+	Image*		m_view_img;
 	Vector3DI	m_res;
 
 	Mersenne	m_rand;
@@ -78,12 +91,14 @@ public:
 	int			m_curr_tri;			// triangle cache (perf)
 	int			m_curr_hit;
 
-	float		m_displace_depth;
 	float		m_time;
 	int			mouse_down;
 	bool		m_view_hires;
 	bool		m_view_disp;
 	bool		m_run;
+
+	char		m_venable;			// visualize enabled	
+	std::vector<Vis> m_debugvis;	// debug visualizations	
 
 };
 Sample obj;
@@ -94,10 +109,13 @@ bool Sample::init()
 	std::string fpath;
 
 	addSearchPath(ASSET_PATH);
+	addSearchPath( "G:\\Assets_Models" );
+
 	init2D( "arial" );
 	setText( .02, 1);
 	
 	m_time = 0;
+	m_run = true;
 	m_view_hires = false;
 	m_view_disp = false;
 	m_curr_tri = 0;
@@ -113,12 +131,29 @@ bool Sample::init()
 
 	m_lgt = Vector3DF(-200, 150, 150);
 
-	// set bump depth
-	m_displace_depth = 0.20;
+	// set depth limit
+	m_limit = 1.5;	
+
+	// load lo-res target mesh
+	getFileLocation ( "cube_smooth.obj", fpath );
+	//getFileLocation ( "armadillo_lores.obj", fpath );
+
+	dbgprintf ( "Loading: %s\n", fpath.c_str());
+	m_mesh_dest = new MeshX;
+	if ( !m_mesh_dest->Load ( fpath ) ) {
+		dbgprintf ( "ERROR: Unable to open %s.\n", fpath.c_str() );
+		exit(-3);
+	}
+	if ( m_mesh_dest->GetVertTex(0) == 0x0 ) {
+		dbgprintf ( "ERROR: Low res mesh does not have UVs.\n" );
+		exit(-4);
+	}
 
 	// load hi-res source mesh
-	getFileLocation ( "iso_sphere.obj", fpath );
-	//getFileLocation ( "uv_sphere.obj", fpath );
+	//getFileLocation ( "golfball.obj", fpath );
+	getFileLocation ( "sphere_iso.obj", fpath );
+	//getFileLocation ( "sphere_uv.obj", fpath );
+	//getFileLocation ( "armadillo_hires.obj", fpath );
 	
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_src = new MeshX;
@@ -127,28 +162,19 @@ bool Sample::init()
 		exit(-3);
 	}
 
-
-	// load lo-res target mesh
-	getFileLocation ( "cube.obj", fpath );
-
-	dbgprintf ( "Loading: %s\n", fpath.c_str());
-	m_mesh_dest = new MeshX;
-	if ( !m_mesh_dest->Load ( fpath ) ) {
-		dbgprintf ( "ERROR: Unable to open %s.\n", fpath.c_str() );
-		exit(-3);
-	}
-
-
 	// create displacement map (16-bit tiff)
 
 	m_res.Set ( 256, 256, 0 );
 	
 	m_displace_img = new Image;
 	m_displace_img->ResizeImage ( m_res.x, m_res.y, ImageOp::F32 );		
-
 	memset ( m_displace_img->GetData(), 0, m_displace_img->GetSize() );
-
 	m_displace_img->Commit ( DT_CPU | DT_GLTEX );
+
+	m_view_img = new Image;
+	m_view_img->ResizeImage ( m_res.x, m_res.y, ImageOp::RGB8 );		
+	memset ( m_view_img->GetData(), 0, m_view_img->GetSize() );
+	m_view_img->Commit ( DT_CPU | DT_GLTEX );
 			
 	UpdateCamera();
 
@@ -165,10 +191,11 @@ void Sample::DrawGrid ()
 	}	
 }
 
-void Sample::DrawMesh( MeshX* m, Vector4DF clr )
+void Sample::DrawMesh( MeshX* m, Vector4DF clr, bool normals )
 {
 	Vector3DF n, V;
 	Vector3DF v0, v1, v2;
+	Vector3DF n0, n1, n2;
 	Vector3DF uv0, uv1, uv2;
 	AttrV3* f;
 	int num_tri = m->GetNumElem ( BFACEV3 );
@@ -178,6 +205,7 @@ void Sample::DrawMesh( MeshX* m, Vector4DF clr )
 		f = (AttrV3*) m->GetElem (BFACEV3, i );
 		
 		v0 = *m->GetVertPos( f->v1 );	v1 = *m->GetVertPos( f->v2 );	v2 = *m->GetVertPos( f->v3 );		
+		n0 = *m->GetVertNorm( f->v1 );	n1 = *m->GetVertNorm( f->v2 );	n2 = *m->GetVertNorm( f->v3 );		
 	
 		n = (v2-v1).Cross ( v0-v1 );
 		n.Normalize ();
@@ -187,7 +215,14 @@ void Sample::DrawMesh( MeshX* m, Vector4DF clr )
 			// draw triangle
 			drawLine3D ( v0, v1, clr ); 
 			drawLine3D ( v1, v2, clr );	
-			drawLine3D ( v2, v0, clr ); 			
+			drawLine3D ( v2, v0, clr ); 
+
+			if ( normals ) {
+				drawLine3D ( v0, v0+n0*0.5f, Vector4DF(1,0,1,0.5) );
+				drawLine3D ( v1, v1+n1*0.5f, Vector4DF(1,0,1,0.5) );
+				drawLine3D ( v2, v2+n2*0.5f, Vector4DF(1,0,1,0.5) );
+			}
+
 		} 	
 					
 	}	
@@ -215,6 +250,53 @@ void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
 	}
 }
 
+void Sample::VisDot ( Vector3DF p, float r, Vector3DF clr )
+{
+	Vis v;
+	v.type = 'p';
+	v.a = p;
+	v.b.x = r;
+	v.clr = Vector4DF(clr, 1);
+	m_debugvis.push_back(v);	
+}
+
+void Sample::VisLine ( Vector3DF a, Vector3DF b, Vector3DF clr )
+{
+	Vis v;
+	v.type = 'l';
+	v.a = a;
+	v.b = b;
+	v.clr = Vector4DF(clr, 1);
+	m_debugvis.push_back(v);	
+}
+
+
+void Sample::DrawVis ()
+{
+	Vector3DF vb0, vb1, V;
+	V = m_cam->getDir();
+	V.Normalize();
+
+	// Draw debug visualization
+	float vscale = 0.001f;
+
+	setview2D(getWidth(), getHeight());	
+	for (int i=0; i < m_debugvis.size(); i++) {
+		if ( m_debugvis[i].type == 'p' ) {
+			vb0 = m_debugvis[i].a; vb1 = m_debugvis[i].b;
+			drawCircle3D ( vb0, vb0+V, vscale * vb1.x, m_debugvis[i].clr );
+		}
+	}
+	for (int i=0; i < m_debugvis.size(); i++) {
+		if ( m_debugvis[i].type == 'l' ) {
+			vb0 = m_debugvis[i].a; vb1 = m_debugvis[i].b;
+			drawLine3D ( vb0, vb1, m_debugvis[i].clr );
+		}
+	}
+	
+}
+
+
 void Sample::Resize ()
 {
 
@@ -229,7 +311,8 @@ bool Sample::intersect_tri ( Vector3DF orig, Vector3DF dir, Vector3DF& v0, Vecto
 	float ndotr = n.Dot( dir );	
 	Vector3DF e2 = (v0 - orig) / ndotr;
 	t = n.Dot ( e2 );
-	if ( t<0.0 ) return false;
+
+	// if ( t<0.0 ) return false;
 
 	Vector3DF i = dir.Cross ( e2 );
 	alpha =	i.x*e0.x + i.y*e0.y + i.z*e0.z;	
@@ -246,25 +329,31 @@ bool Sample::intersect_mesh ( Vector3DF rpos, Vector3DF rdir, float& t, int& fhi
 	float a, b;	
 	int num_tri = m_mesh_src->GetNumElem ( BFACEV3 );
 
-	// attempt cached tri frist
-	f = (AttrV3*) m_mesh_src->GetElem (BFACEV3, m_curr_hit );		
-	v0 = *m_mesh_src->GetVertPos( f->v1 );		v1 = *m_mesh_src->GetVertPos( f->v2 );		v2 = *m_mesh_src->GetVertPos( f->v3 );			
-	if ( intersect_tri ( rpos, rdir, v0, v1, v2, t, a, b ) ) {
-		fhit = m_curr_hit;
-		return true;
-	}
+	float tpos =  1e10;	
+	float tneg = -1e10;
+	t = 0;
+
 	// search all tris
+	fhit = -1;
 	for (int i = 0; i < num_tri; i++)  {
 		f = (AttrV3*) m_mesh_src->GetElem (BFACEV3, i );		
 		v0 = *m_mesh_src->GetVertPos( f->v1 );		v1 = *m_mesh_src->GetVertPos( f->v2 );		v2 = *m_mesh_src->GetVertPos( f->v3 );			
 
+		//if ( intersectLineBox ( rpos, rdir, s->bmin, s->bmax, t ) ) 
+
 		if ( intersect_tri ( rpos, rdir, v0, v1, v2, t, a, b ) ) {
-			m_curr_hit = i;
-			fhit = i;
-			return true;
+			
+			if ( t > 0 && t < m_limit && t < tpos ) tpos = t;
+			if ( t < 0 && t >-m_limit && t > tneg ) tneg = t;
 		}
 	}
-	return false;
+	t = 1e10;
+	if ( tneg != -1e10 ) t = tneg;
+	if ( tpos !=  1e10 && tpos < fabs(t) ) 
+		t = tpos;
+	
+	return (t != 1e10);
+	
 }
 
 float sign (Vector3DF p1, Vector3DF p2, Vector3DF p3)
@@ -272,46 +361,71 @@ float sign (Vector3DF p1, Vector3DF p2, Vector3DF p3)
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
-bool pointInTriangle (Vector3DF pt, Vector3DF p0, Vector3DF p1, Vector3DF p2, float& s, float& t)
+bool pointInTriangle3D (Vector3DF pt, Vector3DF v0, Vector3DF v1, Vector3DF v2, float& s, float& t)
 {
-	float area = 0.5*(-p1.y*p2.x + p0.y*(-p1.x+p2.x) + p0.x*(p1.y-p2.y) + p1.x*p2.y);
-	float w;
-	w = (0.5/area) * (p0.x*p1.y - p0.y*p1.x + (p0.y-p1.y)*pt.x + (p1.x - p0.x)*pt.y );
-	t = (0.5/area) * (p0.y*p2.x - p0.x*p2.y + (p2.y-p0.y)*pt.x + (p0.x - p2.x)*pt.y );	
-	s = (1-w-t);
+	v0 -= v2;
+	v1 -= v2;
+	v2 = pt - v2;
 
-    if ( s >=0 && s <=1 && t >= 0 && t <= 1 && (s+t) <= 1 ) 
+	float e00 = v0.Dot (v0);
+	float e01 = v0.Dot (v1);
+	float e02 = v0.Dot (v2);
+	float e11 = v1.Dot (v1);
+	float e12 = v1.Dot (v2);
+	float invd = 1.0/( e00 * e11 - e01 * e01);
+	float w;
+	s = invd * (e11 * e02 - e01 * e12);
+	t = invd * (e00 * e12 - e01 * e02);
+	//w = (1-w-t);
+
+    if ( s >=0 && t >= 0 && s+t < 1 ) 
 		return true;
 
 	return false;
 }
 
-float Sample::ComputeDisplacement ( Image* img, int x, int y, Vector3DF& v, Vector3DF& vhit )
+bool pointInTriangle2D (Vector2DF& pt, Vector2DF& v1, Vector2DF& v2, Vector2DF& v0, float& s, float& t)
+{
+	s = v0.y*v2.x - v0.x*v2.y + (v2.y-v0.y)*pt.x + (v0.x-v2.x)*pt.y;
+	t = v0.x*v1.y - v0.y*v1.x + (v0.y-v1.y)*pt.x + (v1.x-v0.x)*pt.y;		
+	//if ( s < 0 || t < 0 ) return false;
+	float d = -v1.y*v2.x + v0.y*(-v1.x+v2.x) + v0.x*(v1.y-v2.y) + v1.x*v2.y;
+	s /= d;
+	t /= d; 
+
+    return (s >= 0 && t >= 0 && s+t < 1);
+}
+
+bool Sample::ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF& v, Vector3DF& vhit )
 {
 	bool found = false;
 	int fhit;
-	float a, b, d, t;
-	Vector3DF uv0, uv1, uv2;
-	Vector3DF n0, n1, n2, n;
+	float a, b, t;
+	Vector2DF uv0, uv1, uv2;
+	Vector3DF n0, n1, n2, n, na, nb;
 	Vector3DF v0, v1, v2;
 	Vector3DF p;
 	AttrV3* f;
 	int num_tri = m_mesh_dest->GetNumElem ( BFACEV3 );
 
-	Vector3DF uv (float(x) / img->GetWidth(), float(y) / img->GetHeight(), 0);
+	//--- get UV of current pixel
+	// make sure we sample center of pixel 
+	Vector2DF uv;
+	uv = Vector2DF (float(x+0.5) / img->GetWidth(), float(y+0.5) / img->GetHeight() );
 
 	//--- find triangle containing UV	
 	//
 	//- attempt current (cache) triangle first for performance	
 	f = (AttrV3*) m_mesh_dest->GetElem (BFACEV3, m_curr_tri );		
-	uv0 = *m_mesh_dest->GetVertTex( f->v1 );	uv1 = *m_mesh_dest->GetVertTex( f->v2 );	uv2 = *m_mesh_dest->GetVertTex( f->v3 );	
+	uv0 = *m_mesh_dest->GetVertTex( f->v1 );	uv1 = *m_mesh_dest->GetVertTex( f->v2 );	uv2 = *m_mesh_dest->GetVertTex( f->v3 );
 
-	if ( !pointInTriangle (uv, uv0, uv1, uv2, a, b ) ) {	
+	if ( !pointInTriangle2D (uv, uv0, uv1, uv2, a, b ) ) {	
+
 		//- search all triangles
 		for (int i = 0; i < num_tri && !found; i++)  {
 			f = (AttrV3*) m_mesh_dest->GetElem (BFACEV3, i );		
 			uv0 = *m_mesh_dest->GetVertTex( f->v1 );	uv1 = *m_mesh_dest->GetVertTex( f->v2 );	uv2 = *m_mesh_dest->GetVertTex( f->v3 );	
-			if ( pointInTriangle (uv, uv0, uv1, uv2, a, b ) ) {			
+			if ( pointInTriangle2D (uv, uv0, uv1, uv2, a, b ) ) {			
 				m_curr_tri = i;
 				found = true;
 			}
@@ -320,41 +434,45 @@ float Sample::ComputeDisplacement ( Image* img, int x, int y, Vector3DF& v, Vect
 		found = true;
 	}
 	
-	d = 0;
 
 	if ( found ) {
 
 		//--- compute *smooth* normal	
+		f = (AttrV3*) m_mesh_dest->GetElem (BFACEV3, m_curr_tri );
 		n0 = *m_mesh_dest->GetVertNorm( f->v1 );	n1 = *m_mesh_dest->GetVertNorm( f->v2 );	 n2 = *m_mesh_dest->GetVertNorm( f->v3 );	
-		n = n0 * a + n1 * b + n2 * (1-(a+b));
+		n = n0 * a +  n1 * b + n2 * (1-a-b);		
 		n.Normalize();
 	
-		v0 = *m_mesh_dest->GetVertPos( f->v1 );		v1 = *m_mesh_dest->GetVertPos( f->v2 );		v2 = *m_mesh_dest->GetVertPos( f->v3 );		
-		v = v0 * a + v1 * b + v2 * (1-(a+b));
+		v0 = *m_mesh_dest->GetVertPos( f->v1 );		v1 = *m_mesh_dest->GetVertPos( f->v2 );		v2 = *m_mesh_dest->GetVertPos( f->v3 );
+		v = v0 * a + v1 * b + v2 * (1-a-b);
 
 		//--- intersect normal with high-res mesh
 
-		if ( intersect_mesh ( v, n, t, fhit ) && t > 0 ) {
+		if ( intersect_mesh ( v, n, t, fhit ) ) {
 
+			// mesh hit
 			d = t;
-
 			vhit = v + n * t;	// hit point
+			return true;
+		
+		} else {
+			// no mesh intersection
+			d = -2;
+			v = 0; 
+			vhit = 0;
 		}
-	} 
-
-	if ( d < 0 || d > 2 ) {
-		dbgprintf ("ERROR: d = %f\n", d );
+	} else {
+		// uv not found in triangle
+		d = -1;
 	}
-	
-	img->SetPixelF ( x, (img->GetHeight()-1)-y, d );
-	
-	return d;
+	return false;
+
 }
 
 
 void Sample::SaveImage ( Image* img )
 {
-	float d, dmax=0;
+	float d, dmin=0, dmax=0;
 	int w = img->GetWidth();
 	int h = img->GetHeight();
 	
@@ -362,6 +480,7 @@ void Sample::SaveImage ( Image* img )
 	for (int y=0; y < h; y++) {
 		for (int x=0; x < w; x++) {
 			d = img->GetPixelF( x, y );
+			if ( d < dmin ) dmin = d;
 			if ( d > dmax ) dmax = d;
 		}
 	}
@@ -374,14 +493,14 @@ void Sample::SaveImage ( Image* img )
 	for (int y=0; y < h; y++) {
 		for (int x=0; x < w; x++) {
 			d = img->GetPixelF( x, y );
-			d = d * 65535 / dmax;
-			outimg->SetPixel16 ( x, y, d );			
+			d = (d - dmin) * 65535 / (dmax - dmin);
+			outimg->SetPixel16 ( x, y, int16_t( d ) );
 		}
 	}
 	// save it 
 	outimg->Save ( "out.tif" );	
 
-	printf ( "Saved. max depth = %f\n", dmax );
+	printf ( "Saved. dmin=%f, dmax= %f\n", dmin, dmax );
 
 	delete outimg;
 }
@@ -396,7 +515,7 @@ void Sample::ComputeDisplacement ( Image* img )
 
 	for (int y=0; y < h; y++) {
 		for (int x=0; x < w; x++) {
-			d = ComputeDisplacement ( img, x, y, v, vhit );
+			 ComputeDisplacement ( img, x, y, d, v, vhit );
 			
 			img->SetPixel16 ( x, h-y, d * 65535.0 );
 		}
@@ -407,6 +526,8 @@ void Sample::ComputeDisplacement ( Image* img )
 
 void Sample::display()
 {
+	Vector3DI c;	
+	float d;
 	Vector3DF v, vhit;
 	clearGL();
 
@@ -418,17 +539,30 @@ void Sample::display()
 		int ih = m_displace_img->GetHeight();
 
 		// Compute displacement
-		ComputeDisplacement ( m_displace_img, m_curr_pix.x, m_curr_pix.y, v, vhit );
+		if ( ComputeDisplacement ( m_displace_img, m_curr_pix.x, m_curr_pix.y, d, v, vhit ) ) {
+
+			m_displace_img->SetPixelF ( m_curr_pix.x, (ih-1)-m_curr_pix.y, d );
+
+			c.x = 255*(d - m_limit) / (2.0*m_limit);
+			m_view_img->SetPixel ( m_curr_pix.x, (ih-1)-m_curr_pix.y, c.x );
+
+			VisDot  ( v, 1.0, Vector4DF(1,1,0,1 ));
+			VisLine ( v, vhit, Vector4DF(1,1,0,1 ));
+		} else {
+			c = (d==-1) ? Vector3DI(0,0,50) : Vector3DI(50,0,0);
+			m_view_img->SetPixel ( m_curr_pix.x, (ih-1)-m_curr_pix.y, c.x, c.y, c.z );
+		}
+		m_view_img->Commit ( DT_CPU | DT_GLTEX );
 
 		if (++m_curr_pix.x >= iw ) {
 			m_curr_pix.x = 0;
+			m_debugvis.clear ();
 			if (++m_curr_pix.y >= ih ) {			
 				// Done!
 				SaveImage ( m_displace_img );
 				m_curr_pix.Set(0,0,0);	
 			}
-		}
-		m_displace_img->Commit ( DT_CPU | DT_GLTEX );
+		}		
 	}
 
 	// Draw grid
@@ -440,13 +574,14 @@ void Sample::display()
 		DrawGrid();
 	
 		// Draw low-res mesh
-		DrawMesh( m_mesh_dest, Vector4DF(1,1,1,1) );
+		DrawMesh( m_mesh_dest, Vector4DF(1,1,1,1), true );
 
 		// Draw hi-res mesh
 		if (m_view_hires)
-			DrawMesh( m_mesh_src, Vector4DF(0,1,1,1) );
+			DrawMesh( m_mesh_src, Vector4DF(0,1,1,0.2) );
 
-		// Draw current solution point & normal
+		// Draw debug vis 
+		DrawVis ();
 		
 	
 	end3D();		
@@ -459,9 +594,9 @@ void Sample::display()
 		int w = 512, h = 512;
 		if (m_view_disp) {w = getWidth(); h = getHeight();}			
 
-		drawImg ( m_displace_img->getGLID(), 0, 0, w, h, 1,1,1,1 );
+		drawImg ( m_view_img->getGLID(), 0, 0, w, h, 1,1,1,1 );
 
-		DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(1,1,1,1) );
+		DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(.5,.5,.5, .1) );
 		
 	end2D();	
 	draw2D();	
