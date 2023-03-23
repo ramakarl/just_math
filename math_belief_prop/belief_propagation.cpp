@@ -3151,8 +3151,6 @@ int BeliefPropagation::RealizePost(void) {
   else if ( ret == 0 ) { post_ret = 0; }
   else if ( ret < 0)   { post_ret = -1; }
 
-  printf("??? post_ret: %i (lah %i)\n", (int)post_ret, (int)op.use_lookahead);
-
   // iteration or overall complete
   //
   if (post_ret >= 0) {
@@ -3166,15 +3164,19 @@ int BeliefPropagation::RealizePost(void) {
     //-------------------------------
     //-------------------------------
     //
-    if ( (post_ret >= 0) &&
+    if ( (post_ret > 0) &&
          (op.use_lookahead) ) {
 
-      int _r = 0;
+      int _r = 0,
+          _end_lookahead=0;
       int64_t _idir=0,
-              _nei_cell = 0;
+              _nei_cell = 0,
+              _nei_tile_idx = 0;
       int64_t _idx = 0,
               _n = 0,
               _tv = -1;
+
+      Vector3DI _vp;
 
       for (_idir=0; _idir<6; _idir++) {
         _nei_cell = getNeighbor( cell, _idir );
@@ -3184,8 +3186,53 @@ int BeliefPropagation::RealizePost(void) {
         for (_idx=0;  _idx<_n; _idx++) {
           _tv = getValI( BUF_TILE_IDX, _idx, _nei_cell );
           _r = cellConstraintPropagate_lookahead( _nei_cell, _tv );
-          printf(" cell %i, tile %i, got lookahead %i\n", (int)_nei_cell, (int)_tv, (int)_r );
+          _vp = getVertexPos(_nei_cell);
+          printf(" cell %i[%i,%i,%i], tile %i, lookahead %i\n",
+              (int)_nei_cell, (int)_vp.x, (int)_vp.y, (int)_vp.z,
+              (int)_tv, (int)_r );
+
+          if (_r) {
+            for (_nei_tile_idx=0; _nei_tile_idx < _n; _nei_tile_idx++) {
+              if ( getValI( BUF_TILE_IDX, _nei_tile_idx, _nei_cell ) == _tv) {
+                break;
+              }
+            }
+            if (_nei_tile_idx == _n) { return -1; }
+
+            if (op.verbose >= VB_INTRASTEP ) {
+              printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i tile_idx %i (/%i) [la]\n",
+                  (int)op.cur_iter,
+                  (int)_nei_cell,
+                  (int)_vp.x, (int)_vp.y, (int)_vp.z,
+                  (int)_tv, (int)_nei_tile_idx, (int)_n);
+            }
+
+            removeTileIdx(_nei_cell, _nei_tile_idx);
+
+            cellFillVisited ( _nei_cell , m_note_plane );
+            unfillVisited( m_note_plane  );
+
+            // propagate constraints to remove neighbor tiles,
+            // and count number resolved (only 1 tile val remain)
+            //
+            ret = cellConstraintPropagate();
+            if (ret < 0) {
+              post_ret = -1;
+              _end_lookahead = 1;
+              break;
+            }
+
+            if (op.verbose >= VB_DEBUG) {
+              printf("#### _l_a\n");
+            }
+
+
+
+          }
+
         }
+
+        if (_end_lookahead) { break; }
 
       }
 
@@ -4670,10 +4717,14 @@ int BeliefPropagation::btPush(int64_t bt_cur_stack_idx, int64_t cell, int64_t ti
 
   bt_idx = getValI( BUF_BT_IDX, bt_cur_stack_idx );
 
+  //DEBUG
+  printf("btPush cell: %i, tile_val: %i [%i,%i]\n",
+      (int)cell, (int)tile_val, (int)bt_idx, (int)(bt_idx+1));
+
   SetValI( BUF_BT, cell, bt_idx );
   bt_idx++;
 
-  SetValI( BUF_BT, (int64_t)tile_val , bt_idx+1 );
+  SetValI( BUF_BT, (int64_t)tile_val , bt_idx );
   bt_idx++;
 
   SetValI( BUF_BT_IDX, bt_idx, bt_cur_stack_idx );
@@ -4696,15 +4747,25 @@ int BeliefPropagation::btUnwind(int64_t bt_cur_stack_idx) {
   }
   bt_idx_en = getValI( BUF_BT_IDX, bt_cur_stack_idx );
 
-  for (bt_idx=bt_idx_st; bt_idx < bt_idx_en; bt_idx+=1) {
+  for (bt_idx=bt_idx_st; bt_idx < bt_idx_en; bt_idx+=2) {
     cell      = getValI( BUF_BT, bt_idx+0 );
     tile_val  = getValI( BUF_BT, bt_idx+1 );
 
     n = getValI( BUF_TILE_IDX_N, cell );
+
+    //DEBUG
+    printf("btUnwind cell: %i, tile_val %i (n %i)\n",
+        (int)cell, (int)tile_val, (int)n);
+
+
     SetValI( BUF_TILE_IDX, tile_val, n, cell );
     n++;
     SetValI( BUF_TILE_IDX_N, n, cell );
   }
+
+  // reset BT_IDX buf
+  //
+  SetValI( BUF_BT_IDX, bt_idx_st, bt_cur_stack_idx );
 
   return 0;
 }
@@ -4753,10 +4814,20 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
   if (anch_n_tile <= 1) { return 0; }
   for (anch_idx=0; anch_idx < anch_n_tile; anch_idx++) {
     if ( getValI( BUF_TILE_IDX, anch_idx, cell ) == tile_val ) {
+
+      //DEBUG
+      printf("### FOUND: cell:%i anch_idx:%i tile_val:%i\n",
+          (int)cell, (int)anch_idx, (int)tile_val);
       break;
     }
   }
-  if (anch_idx == anch_n_tile) { return -1; }
+  if (anch_idx == anch_n_tile) {
+
+    printf("### ERROR! NOT FOUND cell:%i tile_val:%i (/%i)\n",
+        (int)cell, (int)tile_val, (int)anch_n_tile);
+
+    return -1;
+  }
 
   // remember which tiles we're about to remove from the
   // collapse
