@@ -261,6 +261,7 @@ int DataX::AddElem ( int i )
 	//--- this part identical to AddElemDirect
 	if ( mBuf[b].mNum >= mBuf[b].mMax ) 
 		mBuf[b].Append ( mBuf[b].mStride, mBuf[b].mMax + 8 );	// expand
+
 	mBuf[b].mNum++;
 	return mBuf[b].mNum-1;
 }

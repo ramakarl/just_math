@@ -35,6 +35,9 @@
 #include "geom_helper.h"
 #include "mesh.h"
 
+#define NO_UVTRI		-1e10
+#define NO_MESH			 1e10
+
 #define BUF_VOL			0
 
 struct Vis {
@@ -61,6 +64,7 @@ public:
 	bool		ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF& v, Vector3DF& vhit );
 	void		ComputeDisplacement ( Image* img );
 	void		SaveImage ( Image* img );
+	float		getNeighbor (Image* img, int x, int y );
 
 	void		Resize();
 	void		UpdateCamera();
@@ -132,11 +136,12 @@ bool Sample::init()
 	m_lgt = Vector3DF(-200, 150, 150);
 
 	// set depth limit
-	m_limit = 1.5;	
+	m_limit = 0.3;
 
 	// load lo-res target mesh
-	getFileLocation ( "cube_smooth.obj", fpath );
-	//getFileLocation ( "armadillo_lores.obj", fpath );
+	//getFileLocation ( "surface.obj", fpath );
+	//getFileLocation ( "cube_smooth.obj", fpath );
+	getFileLocation ( "armadillo_lores.obj", fpath );
 
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_dest = new MeshX;
@@ -150,10 +155,11 @@ bool Sample::init()
 	}
 
 	// load hi-res source mesh
+	//getFileLocation ( "surface_smooth.obj", fpath );
 	//getFileLocation ( "golfball.obj", fpath );
-	getFileLocation ( "sphere_iso.obj", fpath );
+	//getFileLocation ( "sphere_iso.obj", fpath );
 	//getFileLocation ( "sphere_uv.obj", fpath );
-	//getFileLocation ( "armadillo_hires.obj", fpath );
+	getFileLocation ( "armadillo_hires.obj", fpath );
 	
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_src = new MeshX;
@@ -241,7 +247,8 @@ void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
 		f = (AttrV3*) m->GetElem (BFACEV3, i );
 		
 		uv0 = *m->GetVertTex( f->v1 );	uv1 = *m->GetVertTex( f->v2 );	uv2 = *m->GetVertTex( f->v3 );
-		uv0.y = 1-uv0.y; uv1.y = 1-uv1.y; uv2.y = 1-uv2.y;   // plot y+ upward
+		
+		//uv0.y = 1-uv0.y; uv1.y = 1-uv1.y; uv2.y = 1-uv2.y;   // plot y+ upward
 
 		// draw triangle		
 		drawLine ( uv0*sz, uv1*sz, clr ); 
@@ -401,7 +408,7 @@ bool Sample::ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF
 	bool found = false;
 	int fhit;
 	float a, b, t;
-	Vector2DF uv0, uv1, uv2;
+	Vector2DF uv0, uv1, uv2, uvchk;
 	Vector3DF n0, n1, n2, n, na, nb;
 	Vector3DF v0, v1, v2;
 	Vector3DF p;
@@ -444,7 +451,13 @@ bool Sample::ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF
 		n.Normalize();
 	
 		v0 = *m_mesh_dest->GetVertPos( f->v1 );		v1 = *m_mesh_dest->GetVertPos( f->v2 );		v2 = *m_mesh_dest->GetVertPos( f->v3 );
-		v = v0 * a + v1 * b + v2 * (1-a-b);
+		v = v0 * a + v1 * b + v2 * (1-a-b);		
+
+		//--- uv check
+		// the uvs from computed barycentric coordinates should match input uvs from pixel
+		/*uv0 = *m_mesh_dest->GetVertTex( f->v1 );	uv1 = *m_mesh_dest->GetVertTex( f->v2 );	uv2 = *m_mesh_dest->GetVertTex( f->v3 );
+		uvchk= uv0* a + uv1* b + uv2* (1-a-b);
+		printf ( "%f,%f -> %f,%f\n", uv.x, uv.y, uvchk.x, uvchk.y ); */
 
 		//--- intersect normal with high-res mesh
 
@@ -457,34 +470,92 @@ bool Sample::ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF
 		
 		} else {
 			// no mesh intersection
-			d = -2;
+			d = NO_MESH;
 			v = 0; 
 			vhit = 0;
 		}
 	} else {
 		// uv not found in triangle
-		d = -1;
+		d = NO_UVTRI;
 	}
 	return false;
 
 }
 
+float Sample::getNeighbor (Image* img, int x, int y )
+{
+	if ( x < 0 || x >= img->GetWidth() ) return NO_UVTRI;
+	if ( y < 0 || y >= img->GetHeight()) return NO_UVTRI;
+	
+	return img->GetPixelF(x,y);
+}
 
 void Sample::SaveImage ( Image* img )
 {
 	float d, dmin=0, dmax=0;
+	float n, nbr[4];
+	int cnt;
 	int w = img->GetWidth();
 	int h = img->GetHeight();
+
+	Image* tempimg = new Image;
+	tempimg->ResizeImage ( w, h, ImageOp::F32 );
 	
 	// normalize the displacement map
 	for (int y=0; y < h; y++) {
 		for (int x=0; x < w; x++) {
 			d = img->GetPixelF( x, y );
-			if ( d < dmin ) dmin = d;
-			if ( d > dmax ) dmax = d;
+			if ( d > NO_UVTRI && d < NO_MESH) {
+				if ( d < dmin ) dmin = d;
+				if ( d > dmax ) dmax = d;
+			}
 		}
 	}
 
+	// expand border pixels 
+	for (int iter=0; iter < 4; iter++) {
+
+		for (int y=0; y < h; y++) {
+			for (int x=0; x < w; x++) {
+
+				d = img->GetPixelF( x, y );
+
+				// only affect invalid (out-of-bounds) pixels..
+				if ( d <= NO_UVTRI) {			
+					// evaluate neighbors
+					nbr[0] = getNeighbor( img, x-1, y );
+					nbr[1] = getNeighbor( img, x+1, y );
+					nbr[2] = getNeighbor( img, x, y-1 );
+					nbr[3] = getNeighbor( img, x, y+1 );
+					// count and sum only valid neighbors
+					n = 0; cnt = 0;
+					for (int j=0; j<4; j++) {
+						if (nbr[j] > NO_UVTRI) {
+							n += nbr[j];
+							cnt++;	
+						}
+					}	
+					// convert no_uvtri pixel to valid depth
+					if (cnt > 0) 
+						d = n / cnt;						
+				}
+				tempimg->SetPixelF( x, y, d );
+			}
+		}
+		// swap image
+		memcpy ( img->GetData(), tempimg->GetData(), img->GetSize() );
+	}
+
+	// convert any remaining invalid pixels to 0
+	for (int y=0; y < h; y++) {
+		for (int x=0; x < w; x++) {
+			d = img->GetPixelF( x, y );
+			if (d <= NO_UVTRI) 
+				img->SetPixelF( x, y, 0 );
+			else
+				bool stop=true;
+		}
+	}
 
 	// create 16-bit TIF
 	Image* outimg = new Image;
@@ -493,8 +564,12 @@ void Sample::SaveImage ( Image* img )
 	for (int y=0; y < h; y++) {
 		for (int x=0; x < w; x++) {
 			d = img->GetPixelF( x, y );
+			if (d <= NO_UVTRI) {
+				printf ( "ERROR: Invalid pixels remaining.\n");
+				exit(-7);
+			}
 			d = (d - dmin) * 65535 / (dmax - dmin);
-			outimg->SetPixel16 ( x, y, int16_t( d ) );
+			outimg->SetPixel16 ( x, y, uint16_t( d ) );
 		}
 	}
 	// save it 
@@ -541,22 +616,32 @@ void Sample::display()
 		// Compute displacement
 		if ( ComputeDisplacement ( m_displace_img, m_curr_pix.x, m_curr_pix.y, d, v, vhit ) ) {
 
-			m_displace_img->SetPixelF ( m_curr_pix.x, (ih-1)-m_curr_pix.y, d );
+			// write displacement value
+			m_displace_img->SetPixelF ( m_curr_pix.x, m_curr_pix.y, d );
 
-			c.x = 255*(d - m_limit) / (2.0*m_limit);
-			m_view_img->SetPixel ( m_curr_pix.x, (ih-1)-m_curr_pix.y, c.x );
+			// visualization
+			c.x = 255 * (d / m_limit); if (c.x<0) c.x = 0;
+			m_view_img->SetPixel ( m_curr_pix.x, m_curr_pix.y, c.x );
+			
+			//VisDot  ( vhit, 0.5, Vector4DF(1,0,1,1 ));
+			//VisLine ( v, vhit, Vector4DF(1,1,0,1 ));
 
-			VisDot  ( v, 1.0, Vector4DF(1,1,0,1 ));
-			VisLine ( v, vhit, Vector4DF(1,1,0,1 ));
 		} else {
-			c = (d==-1) ? Vector3DI(0,0,50) : Vector3DI(50,0,0);
-			m_view_img->SetPixel ( m_curr_pix.x, (ih-1)-m_curr_pix.y, c.x, c.y, c.z );
+			// no uv triangle or no hires hit
+			if (d <= NO_UVTRI) 
+				m_displace_img->SetPixelF ( m_curr_pix.x, m_curr_pix.y, d );	// write no triangle
+
+			// visualization
+			c = (d <= NO_UVTRI) ? Vector3DI(0,0,50) : Vector3DI(50,0,0);
+			m_view_img->SetPixel ( m_curr_pix.x, m_curr_pix.y, c.x, c.y, c.z );
 		}
 		m_view_img->Commit ( DT_CPU | DT_GLTEX );
 
 		if (++m_curr_pix.x >= iw ) {
 			m_curr_pix.x = 0;
-			m_debugvis.clear ();
+			
+			//m_debugvis.clear ();
+
 			if (++m_curr_pix.y >= ih ) {			
 				// Done!
 				SaveImage ( m_displace_img );
@@ -596,7 +681,7 @@ void Sample::display()
 
 		drawImg ( m_view_img->getGLID(), 0, 0, w, h, 1,1,1,1 );
 
-		DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(.5,.5,.5, .1) );
+		//DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(.5,.5,.5, .2) );
 		
 	end2D();	
 	draw2D();	

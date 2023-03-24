@@ -224,14 +224,14 @@ Vector4DF Image::GetPixelFilteredUV (float x, float y)
 	return Vector4DF(c[6].x/255.0f,c[6].y/255.0f,c[6].z/255.0f,c[6].w/255.0f); 
 }
 
-float Image::GetPixelFilteredUV16 (float x, float y)
+float Image::GetPixelFilteredUV16 (float x, float y, float bias)
 {
 	float u = x * (m_Info.mXres - 1);
 	float v = y * (m_Info.mYres - 1);
 	int xu = u;
 	int yu = v;
-	u -= xu;
-	v -= yu;
+	u = (u - xu)*bias;
+	v = (v - yu)*bias;	
 	
 	float c[7];
 	unsigned short i ;
@@ -249,6 +249,14 @@ float Image::GetPixelFilteredUV16 (float x, float y)
 	c[6] = c[4] + (c[5]-c[4]) * v;	
 	
 	return c[6];
+}
+
+float Image::GetPixelUV16 (float x, float y)
+{
+	int xu = x * (m_Info.mXres - 1);
+	int yu = y * (m_Info.mYres - 1);	
+	if (xu < 0 || yu < 0 || xu >= m_Info.mXres-1 || yu >= m_Info.mYres-1 ) return 0;
+	return GetPixel16 ( xu, yu ) / 65535.0f;	
 }
 
 

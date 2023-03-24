@@ -2,7 +2,9 @@
 #ifndef DEF_MESH_INFO
 	#define DEF_MESH_INFO
 
-	typedef unsigned int	xref;
+	#include "common_defs.h"
+
+	typedef int64_t			xref;
 
 	#define MAX_MFORMAT		6
 	#define MAX_BFORMAT		3

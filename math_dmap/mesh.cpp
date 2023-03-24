@@ -1,4 +1,5 @@
 
+
 #include <math.h>
 #include <assert.h>
 
@@ -839,17 +840,46 @@ void MeshX::AddPlyProperty ( char typ, std::string name )
 	m_Ply [ m_PlyCurrElem ]->prop_list.push_back ( p );
 }
 
-#include <map>
+//----- define tuple to use as a unique key for vertex, norm and tex IDs
+//
+struct triple_t {
+	triple_t(int a0, int b0, int c0 ) {a=a0; b=b0; c=c0;}
+	xref a;
+	xref b;
+	xref c;
 
-xlong tripleFunc ( int a, int b, int c )
-{
-	return (a<<32) + (b<<16) + c;
+	bool operator==(const triple_t& other) const
+	{ return (a==other.a && b==other.b && c==other.c); }
+
+	bool operator< (const triple_t& other) const
+	{ return (a < other.a && b < other.b && c < other.c); }
+};
+
+//-- required hash func for custom keys
+namespace std {
+	template<>
+	struct hash<triple_t>
+    {
+		std::size_t operator()(const triple_t& k) const
+		{
+		  using std::size_t;
+		  using std::hash;		  
+
+		  // Compute individual hash values for first, second and third and combine them using XOR and bit shifting:
+		  return (   (hash<xref>()(k.a)
+				   ^ (hash<xref>()(k.b) << 1)) >> 1)
+				   ^ (hash<xref>()(k.c) << 1);
+		}
+    };
 }
+
+// unordered map is faster since we only need uniqueness, ordering is not required
+#include <unordered_map>
 
 bool MeshX::LoadObj ( const char* fname, float scal )
 {	
 	std::vector<std::string>	fargs;
-	std::map< xlong, int >		vntmap;		// xlong = encoding of vert,norm,tex IDs using tripleFunc.. map vert/norm/tex -> unique id
+	std::unordered_map< triple_t, xref >	vntmap;		// encoding of vert,norm,tex IDs using tripleFunc.. map vert/norm/tex -> unique id
 	std::vector<Vector3DF>		nlist;
 	std::vector<Vector3DF>		tlist;
 	std::vector<Vector3DF>		vlist;
@@ -860,9 +890,12 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 	Vector3DF vec;
 	Vector3DF norm, fnorm;
 	std::string strline, word;	
-	int v[3], n[3], t[3], fv[3];	
+	xref v[3], n[3], t[3], fv[3];
+	xref idx_max = 0;
 	int tmp;
 	bool bNeedNormals = true;
+
+	t[0] = -1;
 
 	if ( m_Format == MF_UNDEF ) {
 		DeleteAllBuffers ();
@@ -960,10 +993,12 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 			// v      = current verts, this face
 			// n      = current norms, this face
 			// t      = current uvs, this face
+			
+			xref tf;
 
-			for (int j=0; j < 3; j++ ) {
-								
-				if ( vntmap.find ( tripleFunc( v[j], n[j], t[j] ) ) == vntmap.end() ) {
+			for (int j=0; j < 3; j++ ) {				
+						
+				if ( vntmap.find ( triple_t( v[j], n[j], t[j] ) ) == vntmap.end() ) {
 					
 					fv[j] = AddVert ( vlist[v[j]] );			// vertex position
 
@@ -973,19 +1008,31 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 					if ( t[0] >= 0 ) 
 						AddVertTex ( tlist[t[j]] );				// vertex texcoord (optional)
 
-					vntmap[ tripleFunc( v[j], n[j], t[j] ) ] = fv[j];
+					vntmap[ triple_t( v[j], n[j], t[j] ) ] = fv[j];
 				
 				}  else {
-					fv[j] = vntmap[ tripleFunc( v[j], n[j], t[j] ) ];						
+					fv[j] = vntmap[ triple_t( v[j], n[j], t[j] ) ];						
+				}
+				
+				if (v[j] > idx_max) idx_max = v[j];
+				if (n[j] > idx_max) idx_max = n[j];
+				if (t[j] > idx_max) idx_max = t[j];
+				if (fv[j] > idx_max) idx_max = fv[j];
+
+				if (fv[j] > 170000 && j==0) {					
+					printf ( "%lld %lld %lld %lld\n", fv[j], v[j], n[j], t[j] );
 				}
 			}
 
 			// add face				
-			AddFaceFast ( fv[0], fv[1], fv[2] );	
+			AddFaceFast ( fv[0], fv[1], fv[2] );
 
 			break;
 		}
 	}	
+
+	printf ( " Mesh. idx_max: %lld\n",  idx_max );
+
 	//Measure ();
 
 	if ( bNeedNormals ) 

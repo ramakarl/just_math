@@ -174,7 +174,7 @@ bool Sample::init()
 	m_cam->setOrbit ( -44, 30, 0, Vector3DF(0, 0, 0), 6, 1 );
 
 
-	m_lgt = Vector3DF(-200, 150, 150);
+	m_lgt = Vector3DF(-100, 200, 150);
 	
 	m_currcam = 0;
 
@@ -184,15 +184,23 @@ bool Sample::init()
 	// set bump depth
 	
 	//-- cube-sphere
-	//m_displace.Set (0.85, 1.5, 0);		
+	//m_displace.Set (0.85, 1.5, 0);
+
+	//m_displace.Set (0.1, 0.2, 0);
 
 	//-- armadillo
-	m_displace.Set( 0.5, 0.6, -0.3);
+	//m_displace.Set( 0.5, 0.6, -0.3);
+
+	//m_displace.Set( 0.322081, 0.5, 0.0);
+
+	m_displace.Set( 0.298748, 0.6, -0.274168);
 
 
 	// load displacement map 
 	std::string fpath;		
-	getFileLocation ( "armadillo_displace_1k.tif", fpath );
+	//getFileLocation ( "surface_displace_256.tif", fpath );
+	getFileLocation ( "armadillo_displace_256.tif", fpath );
+	//getFileLocation ( "cube_test.tif", fpath );	
 	//getFileLocation ( "cube_displace_256.tif", fpath );
 	//getFileLocation ( "model_dragon_disp4k.tif", fpath );
 	//getFileLocation ( "stones_displace.png", fpath );
@@ -200,6 +208,8 @@ bool Sample::init()
 	//getFileLocation ( "rocks02_displace.png", fpath );
 	//getFileLocation ( "rocks07_displace.png", fpath );
 	//getFileLocation ( "gravel02_displace.png", fpath );
+	//getFileLocation ( "bump_weave.tif", fpath );
+
 	dbgprintf ("Loading: %s\n", fpath.c_str() );
 	m_bump_img = new Image;
 	if ( !m_bump_img->Load ( fpath ) ) {
@@ -222,8 +232,11 @@ bool Sample::init()
 	}
 
 	// load mesh
+	//getFileLocation ( "surface.obj", fpath );
 	getFileLocation ( "armadillo_lores.obj", fpath );
 	//getFileLocation ( "cube_smooth.obj", fpath );
+	//getFileLocation ( "sphere_iso.obj", fpath );
+
 	//getFileLocation ( "model_dragon_head.obj", fpath );
 	//getFileLocation ( "surface.obj", fpath );
 	//getFileLocation ( "asteroid.obj", fpath );
@@ -264,7 +277,8 @@ void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
 		f = (AttrV3*) m->GetElem (BFACEV3, i );
 		
 		uv0 = *m->GetVertTex( f->v1 );	uv1 = *m->GetVertTex( f->v2 );	uv2 = *m->GetVertTex( f->v3 );
-		uv0.y = 1-uv0.y; uv1.y = 1-uv1.y; uv2.y = 1-uv2.y;   // plot y+ upward
+		
+		// uv0.y = 1-uv0.y; uv1.y = 1-uv1.y; uv2.y = 1-uv2.y;   // plot y+ upward
 
 		// draw triangle		
 		drawLine ( uv0*sz, uv1*sz, clr ); 
@@ -585,9 +599,9 @@ void Sample::ConstructPrisms ()
 		s.norm = (s.vb2 - s.vb1).Cross ( s.vb0 - s.vb2 ); 
 		s.norm.Normalize();
 		
-		s.ve0 = s.vb0 + vn0 * m_displace.y;
-		s.ve1 = s.vb1 + vn1 * m_displace.y;
-		s.ve2 = s.vb2 + vn2 * m_displace.y;
+		s.ve0 = s.vb0 + vn0 * (m_displace.y + m_displace.z);
+		s.ve1 = s.vb1 + vn1 * (m_displace.y + m_displace.z);
+		s.ve2 = s.vb2 + vn2 * (m_displace.y + m_displace.z);
 
 		s.vb0 = s.vb0 + vn0 * m_displace.z;
 		s.vb1 = s.vb1 + vn1 * m_displace.z;
@@ -666,7 +680,7 @@ Vector3DF getBarycentricInTriangle ( Vector3DF& hit, Vector3DF& ve0, Vector3DF& 
 } 
 
 
-#define EPS     0.01
+#define EPS     0.1
 
 bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float tmin, float tmax, int edge, int edgemax, float dt, float& t, Vector3DF& bc )
 {
@@ -770,11 +784,11 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 
 	// Get ray height
 	p = vb0 * bc.x + vb1 * bc.y + vb2 * bc.z;			
-	rayhgt = (hit-p).Length();	
+	rayhgt = (hit-p).Length();
 
 	// Sample displacement texture for initial surface height			
 	uv = vuv0*bc.x + vuv1*bc.y + vuv2*bc.z;				
-	bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x;
+	bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z);
 
 	// [optional] visualization	
 	if ( m_vcurr==1 ) {		
@@ -807,9 +821,6 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 		// barycentric coords on triangle
 		bcl = bc;
 		bc = getBarycentricInTriangle  ( hit, ve0, ve1, ve2 );	
-		/* bc.z = (edge==3 && bc.z < 0) ? 0 : bc.z;
-		bc.x = (edge==4 && bc.x < 0) ? 0 : bc.x;
-		bc.y = (edge==5 && bc.y < 0) ? 0 : bc.y; */
 
 		// ray height
 		p = vb0*bc.x + vb1*bc.y + vb2*bc.z;			
@@ -817,26 +828,31 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 
 		// sample bump map to get displacement height
 		uv = vuv0*bc.x + vuv1*bc.y + vuv2*bc.z;
-		bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x;
+		bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z);
 
 		// [optional] visualization
 		if ( m_vcurr==1 ) {	
 			Vector3DF q1 = s->ve0 *bc.x + s->ve1 *bc.y + s->ve2 *bc.z;
 			Vector3DF a = p + (q1-p).Normalize() * bmphgt;
 			VisDot ( hit, .5, m_vsample );		// sample points 
-			VisDot ( p, .5, m_vbase );			// base points 						
-			VisDot ( a, .5, m_vsurf );			// surface points 			
+			VisDot ( p, .5, m_vbase );			// base points			
+			VisDot ( a, .5, m_vsurf + 0.2f );	// surface points 
 		}
 	}
 
+	bool tedge = false;
+
 	// Check for miss or t out-of-bounds
 	if ( t >= tmax ) {
+
+		tedge = true;
 
 		// one more check at tmax
 		t = tmax;
 
 		// march along ray
 		hit = rpos + rdir * t;
+
 		// point-to-plane distance
 		q0 = (ve2-ve1).Cross ( ve0-ve2 ); 
 		q0.Normalize();
@@ -846,53 +862,63 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 		ve1 += vd1 * de;
 		ve2 += vd2 * de;
 		// barycentric coords on triangle		
+		bcl = bc;
 		bc = getBarycentricInTriangle  ( hit, ve0, ve1, ve2 );
+		// Ensure valid bcs	at edge
+		bc.x = (bc.x < 0) ? 0 : (bc.x > 1) ? 1 : bc.x;
+		bc.y = (bc.y < 0) ? 0 : (bc.y > 1) ? 1 : bc.y;	
+		bc.z = 1-bc.x-bc.y;
+		bc.z = (bc.z < 0) ? 0 : (bc.z > 1) ? 1 : bc.z;		
 		// ray height
 		p = vb0*bc.x + vb1*bc.y + vb2*bc.z;			
 		rayhgt = (hit-p).Length();
 		// sample bump map to get displacement height
 		uv = vuv0*bc.x + vuv1*bc.y + vuv2*bc.z;
-		bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x;
+		bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z);
 
 		// [optional] visualization
 		if ( m_vcurr==1 ) {	
 			Vector3DF q1 = s->ve0 *bc.x + s->ve1 *bc.y + s->ve2 *bc.z;
 			Vector3DF a = p + (q1-p).Normalize() * bmphgt;
-			VisDot ( hit, 5.5, m_vsample );		// sample points 
-			VisDot ( p, 5.5, m_vbase );			// base points 						
-			VisDot ( a, 5.5, m_vsurf );			// surface points 			
+			VisDot ( hit, 7.0, m_vsample );		// sample points 
+			VisDot ( p, 7.0, m_vbase );			// base points 						
+			VisDot ( a, 7.0, m_vsurf );			// surface points 			
 		}
 
 		if ( rayhgt > bmphgt) 
 			return false;
-	}
-	
-	// Hit surface
 
-	// Linear interpolation to find surface
-	// we have current sample already - below surface					
-	// get previous sample - above surface		
-	uv = vuv0 * bcl.x + vuv1 * bcl.y + vuv2 * bcl.z;
-	p = vb0*bcl.x + vb1*bcl.y + vb2*bcl.z;					
-	float rayhgt0 = ( ( hit - rdir*dt ) - p).Length();
-	float bmphgt0 = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x;
-	// interpolate between previous and current sample
-	float u = (rayhgt0-bmphgt0) / ((rayhgt0-bmphgt0)+(bmphgt-rayhgt));
-	u = (u<0) ? 0 : (u>1) ? 1 : u;									 
+		// Hit surface at edge
+		// Final hit t
+		t = tmax;
+	
+	} else {
+
+		// Hit surface
+		// Linear interpolation to find surface
+		// we have current sample already - below surface					
+		// get previous sample - above surface		
+		uv = vuv0 * bcl.x + vuv1 * bcl.y + vuv2 * bcl.z;
+		p =  vb0  * bcl.x + vb1  * bcl.y + vb2  * bcl.z;
+		float rayhgt0 = ( ( hit - rdir*dt ) - p).Length();
+		float bmphgt0 = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z);
+		// interpolate between previous and current sample
+		float u = (rayhgt0-bmphgt0) / ((rayhgt0-bmphgt0)+(bmphgt-rayhgt));
+		u = (u<0) ? 0 : (u>1) ? 1 : u;									 
 					
-	// Final hit t
-	t = (hit - rpos).Length() - dt + u*dt; 	
-	
-	hit = rpos + rdir * t;
+		// Final hit t
+		t = (hit - rpos).Length() - dt + u*dt; 	
+		hit = rpos + rdir * t;
 
-	// Final update of bcs	
-	q0 = (ve2-ve1).Cross ( ve0-ve2 ); 
-	q0.Normalize();
-	de = q0.Dot( ve0 - hit ) / df;
-	ve0 += vd0 * de;
-	ve1 += vd1 * de;
-	ve2 += vd2 * de;
-	bc = getBarycentricInTriangle  ( hit, ve0, ve1, ve2 );	
+		// Final update of bcs	
+		q0 = (ve2-ve1).Cross ( ve0-ve2 ); 
+		q0.Normalize();
+		de = q0.Dot( ve0 - hit ) / df;
+		ve0 += vd0 * de;
+		ve1 += vd1 * de;
+		ve2 += vd2 * de;
+		bc = getBarycentricInTriangle  ( hit, ve0, ve1, ve2 );	
+	}	
 
 	return true;	
 }
@@ -919,7 +945,7 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 	// Get the prism and face
 	f = (AttrV3*) m_mesh->GetElem(BFACEV3, face);	
 	s = &m_prisms[ face ];		
-	vn0 = *m_mesh->GetVertNorm( f->v1 ); vn1 = *m_mesh->GetVertNorm( f->v2 ); vn2 = *m_mesh->GetVertNorm( f->v3 );	
+	vn0 =  *m_mesh->GetVertNorm( f->v1 ); vn1 = *m_mesh->GetVertNorm( f->v2 ); vn2 = *m_mesh->GetVertNorm( f->v3 );	
 	vuv0 = *m_mesh->GetVertTex( f->v1 ); vuv1 = *m_mesh->GetVertTex( f->v2 ); vuv2 = *m_mesh->GetVertTex( f->v3 );	
 	vb0 = s->vb0;
 	vb1 = s->vb1;
@@ -927,37 +953,41 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 
 	// Construct normal from displacement surface
 	dpu = 1.0 / (m_bump_img->GetWidth()-1);
-	dpv = 1.0 / (m_bump_img->GetHeight()-1);
+	dpv = 1.0 / (m_bump_img->GetHeight()-1);	
+
+	
+    float bDX, bDY;
+	bDX = bc.x + dpu;
+	bDY = bc.y + dpv;
 
 	// interpolated base normal
-    n0 = vn0 * bc.x + vn1 * bc.y + vn2 * bc.z;	
-    n0.Normalize();	
+	n0 = vn0 * bc.x + vn1 * bc.y + vn2 * bc.z; n0.Normalize();
 
-	// sample along barycentric u
-	uv = vuv0*(bc.x+dpu) + vuv1 * bc.y + vuv2 * (1-(bc.x+dpu)-bc.y);
-    q1 = vb0 * (bc.x+dpu) + vb1 * bc.y + vb2 * (1-(bc.x+dpu)-bc.y);
-    q1 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x);	
+	// sample along barycentric u	
+	uv = vuv0* bDX + vuv1* bc.y + vuv2* (1-bDX-bc.y);
+    q1 = vb0 * bDX + vb1 * bc.y + vb2 * (1-bDX-bc.y);
+    q1 += n0 * (m_displace.z + m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z));	
 
-    // sample along barycentric v	
-    uv = vuv0*(bc.x) + vuv1*(bc.y+dpu) + vuv2 * (1-bc.x-(bc.y+dpu));                
-    q2 = vb0 * bc.x + vb1 * (bc.y+dpu) + vb2 * (1-bc.x-(bc.y+dpu));
-    q2 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x);            
+    // sample along barycentric v		
+    uv = vuv0* bc.x + vuv1* bDY + vuv2* (1-bc.x-bDY);
+    q2 = vb0 * bc.x + vb1 * bDY + vb2 * (1-bc.x-bDY);
+    q2 += n0 * (m_displace.z + m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z));            
 
-	// central sample
-    uv = vuv0*bc.x + vuv1*bc.y + vuv2 * bc.z;
+	// central sample	
+    uv = vuv0* bc.x + vuv1* bc.y + vuv2* bc.z;
     q0 = vb0 * bc.x + vb1 * bc.y + vb2 * bc.z;
-    q0 += n0 * (m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x);
+    q0 += n0 * (m_displace.z + m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * (m_displace.x-m_displace.z));
 
 	// color texture
 	clr = m_color_img->GetPixelFilteredUV ( uv.x, uv.y );
 
-	if (m_vcurr==2) {
+	/* if (m_vcurr==2) {
 		VisDot ( q0, 0.1, m_vhit );
 		VisDot ( q1, 0.1, m_vsurf );
 		VisLine( q1, q0, m_vsurf);
 		VisDot ( q2, 0.1, m_vsurf );
 		VisLine( q2, q0, m_vsurf );
-	}
+	}*/
 
 	// Compute normal as cross product of surface displacements
 	q1 -= q0;
@@ -965,11 +995,7 @@ bool Sample::ShadeSurface ( int face, Vector3DF rpos, Vector3DF rdir, float t, V
 	n = q1.Cross (q2); n.Normalize();
 
 	// combine displace normal with adjustment for smooth normal
-	n = n + n0 - s->norm; n.Normalize();
-
-	if (m_vcurr==2) {
-		VisLine (q0, q0 + n*dpu, m_vhit );
-	}
+	// n = n + n0 - s->norm; n.Normalize();
 	
 	V = q0 - m_cam->getPos(); V.Normalize();
 
@@ -1021,7 +1047,7 @@ void Sample::RaytraceDisplacementMesh ( Image* img )
 	Vector3DF rpos, rdir, n, bc;
 	Vector3DF clr(1,1,1);
 	
-	float dt = 0.01;
+	float dt = 0.001;
 	
 	float doff = 0.0;
 	bool used;
@@ -1100,35 +1126,32 @@ void Sample::VisTriangleSurface ( int face )
 {
 	Prism* s;
 	AttrV3* f;
-	float bmphgt;
-	Vector3DF ve0,ve1,ve2;
-	Vector3DF vb0,vb1,vb2;	
+	float bmphgt;	
+	Vector3DF v0, v1, v2, v;
+	Vector3DF n0, n1, n2, n;	
 	Vector3DF q0, q1, p;
-	Vector2DF vuv0, vuv1, vuv2, uv;
+	Vector2DF uv0,uv1,uv2, uv;
 	
 
 	f = (AttrV3*) m_mesh->GetElem(BFACEV3, face);
 	s = &m_prisms[ face ];		
-	vuv0 = *m_mesh->GetVertTex( f->v1 ); vuv1 = *m_mesh->GetVertTex( f->v2 ); vuv2 = *m_mesh->GetVertTex( f->v3 );	
-	ve0 = s->ve0; ve1 = s->ve1; ve2 = s->ve2;
-	vb0 = s->vb0; vb1 = s->vb1; vb2 = s->vb2;
+	n0  = *m_mesh->GetVertNorm( f->v1 ); n1  = *m_mesh->GetVertNorm( f->v2 ); n2  = *m_mesh->GetVertNorm( f->v3 );		
+	v0  = *m_mesh->GetVertPos( f->v1 );  v1  = *m_mesh->GetVertPos( f->v2 );  v2  = *m_mesh->GetVertPos( f->v3 );			
+	uv0 = *m_mesh->GetVertTex( f->v1 );  uv1 = *m_mesh->GetVertTex( f->v2 );  uv2 = *m_mesh->GetVertTex( f->v3 );	
 
 	for (float a=0; a < 1.0; a += 0.01) {
 		for (float b=0; b < 1.0; b+= 0.01) {
 
 			if (a+b > 1) continue;
 
-			// construct line connecting inner and outer triangles at this bc
-			q0 = vb0*a + vb1*b + vb2*(1-a-b);
-			q1 = ve0*a + ve1*b + ve2*(1-a-b);			
+			// getsurface point and normal
+			v = v0 * a + v1 * b + v2 * (1-a-b);
+			n = n0 * a + n1 * b + n2 * (1-a-b);  n.Normalize();
+			uv= uv0* a + uv1* b + uv2* (1-a-b);
 
-			uv = vuv0*a + vuv1*b + vuv2*(1-a-b);
 			bmphgt = m_bump_img->GetPixelFilteredUV16 ( uv.x, uv.y ) * m_displace.x;
 
-			q1 -= q0;
-			q1.Normalize();
-
-			p = q0 + q1 * bmphgt;
+			p = v + n * bmphgt;
 
 			VisDot ( p, 0.2, m_vsurf );
 		}
@@ -1229,6 +1252,7 @@ void Sample::RaytraceDebug ( Vector3DF from, Vector3DF to, int x, int y, Image* 
 		}
 		
 		if ( IntersectSurface ( face, rpos, rdir, candidates[i].tmin, candidates[i].tmax, candidates[i].emin, candidates[i].emax, dt, t, bc ) ) {
+
 			if ( t < best_t ) {
 				best_t = t;				
 				best_bc = bc;
@@ -1265,9 +1289,11 @@ void Sample::RaytraceDebug ( Vector3DF from, Vector3DF to, int x, int y, Image* 
 
 			// hit pnt
 			VisDot ( hit, 3.0, Vector3DF(1,0,0) );
-			VisDot ( hit, 3.5, Vector3DF(1,0,0) );	
-			
-			VisLine ( s->ve0, s->ve1, Vector3DF(1,0,0) ); VisLine ( s->ve1, s->ve2, Vector3DF(1,0,0) ); VisLine ( s->ve2, s->ve0, Vector3DF(1,0,0) );
+			VisDot ( hit, 3.5, Vector3DF(1,0,0) );			
+			// hit scanning triangle (white)
+			VisLine ( s->ve0, s->ve1, Vector3DF(1,0,0) );		
+			VisLine ( s->ve1, s->ve2, Vector3DF(1,0,0) ); 
+			VisLine ( s->ve2, s->ve0, Vector3DF(1,0,0) );
 		}
 
 		Vector3DF n, clr;

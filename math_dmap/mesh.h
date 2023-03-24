@@ -117,10 +117,10 @@
 		// Accessor functions
 		CLRVAL*		GetVertClr ( int n )				{ return (CLRVAL*)		GetElem(BVERTCLR, n);  }
 		Vector3DF*	GetVertPos ( int n )				{ return (Vector3DF*)	GetElem(BVERTPOS, n);  }
-		Vector3DF*	GetVertNorm ( int n )				{ return (Vector3DF*)	GetElem(BVERTNORM, n); }
+		Vector3DF*	GetVertNorm( int n )				{ return (Vector3DF*)	GetElem(BVERTNORM, n); }
 		Vector2DF*	GetVertTex ( int n )				{ return (Vector2DF*)	GetElem(BVERTTEX, n);  }
-		hList*		GetVertFList ( int n )				{ return (hList*)		GetElem(BVERTFLIST, n);}
-		hList*		GetVertEList ( int n )				{ return (hList*)		GetElem(BVERTELIST, n);}
+		hList*		GetVertFList( int n )				{ return (hList*)		GetElem(BVERTFLIST, n);}
+		hList*		GetVertEList( int n )				{ return (hList*)		GetElem(BVERTELIST, n);}
 		AttrV3*		GetFace3 ( int n )					{ return (AttrV3*)		GetElem(BFACEV3, n);}
 		AttrE3*		GetFace3Edge ( int n )				{ return (AttrE3*)		GetElem(BFACEE3, n);}
 		AttrV4*		GetFace4 ( int n )					{ return (AttrV4*)		GetElem(BFACEV4, n);}
