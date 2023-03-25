@@ -41,7 +41,7 @@ info = {
     "rule_weight": False, #True,
     "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
 
-    "barf_supertile": True,
+    "barf_supertile": False, #True,
 
     #"neighbor_type": 0,
     "debug": False
@@ -660,11 +660,10 @@ def construct_block_tile(data):
             st_key_a.append(str_b)
 
             ## DEBUG
-            _pkey = str_r + ":" + str_g + ":" + str_b
-            if not (_pkey  in uniq_pixel):
-              uniq_pixel[_pkey] = _pkey
-              print(">>>", _pkey)
-
+            #_pkey = str_r + ":" + str_g + ":" + str_b
+            #if not (_pkey  in uniq_pixel):
+            #  uniq_pixel[_pkey] = _pkey
+            #  print(">>>", _pkey)
 
           st_key = "".join(st_key_a)
 
@@ -677,6 +676,13 @@ def construct_block_tile(data):
   data["block_id_map"] = block_id_map
   data["id_block_map"] = id_block_map
   data["n_block"] = cur_tile_id
+
+  #### DEBUG
+  #print("DEBUG")
+  #for idx in range(n_dedup_id):
+  #  barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
+
+
 
 ## construct rules from pixel data
 ##
@@ -741,6 +747,7 @@ def construct_block_nei(data):
           nei_key_a.append(rgb[0])
           nei_key_a.append(rgb[1])
           nei_key_a.append(rgb[2])
+
         nei_key_a.append("\n")
       nei_key = "".join(nei_key_a)
 
@@ -856,6 +863,7 @@ def dedup_block(data):
   #DEBUG
   _opt = data["info"]["opt"]
   if _opt["barf_supertile"]:
+    print("BARFING individual block tile pngs to '.img/' directory")
     for idx in range(n_dedup_id):
       barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
 
