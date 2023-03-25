@@ -99,6 +99,8 @@ public:
 	int			mouse_down;
 	bool		m_view_hires;
 	bool		m_view_disp;
+	bool		m_view_uvs;
+	bool		m_view_norms;
 	bool		m_run;
 
 	char		m_venable;			// visualize enabled	
@@ -122,6 +124,8 @@ bool Sample::init()
 	m_run = true;
 	m_view_hires = false;
 	m_view_disp = false;
+	m_view_uvs = false;
+	m_view_norms = false;
 	m_curr_tri = 0;
 	
 	m_rand.seed ( 123 );
@@ -141,7 +145,7 @@ bool Sample::init()
 	// load lo-res target mesh
 	//getFileLocation ( "surface.obj", fpath );
 	//getFileLocation ( "cube_smooth.obj", fpath );
-	getFileLocation ( "armadillo_lores.obj", fpath );
+	getFileLocation ( "armadillo_lores2.obj", fpath );
 
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_dest = new MeshX;
@@ -159,7 +163,7 @@ bool Sample::init()
 	//getFileLocation ( "golfball.obj", fpath );
 	//getFileLocation ( "sphere_iso.obj", fpath );
 	//getFileLocation ( "sphere_uv.obj", fpath );
-	getFileLocation ( "armadillo_hires.obj", fpath );
+	getFileLocation ( "armadillo_hires2.obj", fpath );
 	
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_src = new MeshX;
@@ -170,7 +174,7 @@ bool Sample::init()
 
 	// create displacement map (16-bit tiff)
 
-	m_res.Set ( 256, 256, 0 );
+	m_res.Set ( 2048, 2048, 0 );
 	
 	m_displace_img = new Image;
 	m_displace_img->ResizeImage ( m_res.x, m_res.y, ImageOp::F32 );		
@@ -255,6 +259,7 @@ void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
 		drawLine ( uv1*sz, uv2*sz, clr );	
 		drawLine ( uv2*sz, uv0*sz, clr ); 
 	}
+	drawLine ( Vector3DF(0, sz.y, 0), Vector3DF(m_curr_pix.x, m_curr_pix.y, 0), Vector4DF(0,0,1,1) );
 }
 
 void Sample::VisDot ( Vector3DF p, float r, Vector3DF clr )
@@ -395,12 +400,18 @@ bool pointInTriangle2D (Vector2DF& pt, Vector2DF& v1, Vector2DF& v2, Vector2DF& 
 {
 	s = v0.y*v2.x - v0.x*v2.y + (v2.y-v0.y)*pt.x + (v0.x-v2.x)*pt.y;
 	t = v0.x*v1.y - v0.y*v1.x + (v0.y-v1.y)*pt.x + (v1.x-v0.x)*pt.y;		
-	//if ( s < 0 || t < 0 ) return false;
+	if ( s < 0 || t < 0 ) return false;
 	float d = -v1.y*v2.x + v0.y*(-v1.x+v2.x) + v0.x*(v1.y-v2.y) + v1.x*v2.y;
+	if (d < .00001) {
+		//printf ("ERROR: degenerate triangle <%f,%f> <%f,%f> <%f,%f>\n", v0.x, v0.y, v1.x, v1.y, v2.x, v2.y );
+		return false;
+	}
 	s /= d;
 	t /= d; 
+	if (s >= 0 && t >= 0 && s+t < 1)
+		return true;
 
-    return (s >= 0 && t >= 0 && s+t < 1);
+    return false;
 }
 
 bool Sample::ComputeDisplacement ( Image* img, int x, int y, float& d, Vector3DF& v, Vector3DF& vhit )
@@ -632,7 +643,7 @@ void Sample::display()
 				m_displace_img->SetPixelF ( m_curr_pix.x, m_curr_pix.y, d );	// write no triangle
 
 			// visualization
-			c = (d <= NO_UVTRI) ? Vector3DI(0,0,50) : Vector3DI(50,0,0);
+			c = (d <= NO_UVTRI) ? Vector3DI(0,0,160) : Vector3DI(160,0,0);
 			m_view_img->SetPixel ( m_curr_pix.x, m_curr_pix.y, c.x, c.y, c.z );
 		}
 		m_view_img->Commit ( DT_CPU | DT_GLTEX );
@@ -659,7 +670,7 @@ void Sample::display()
 		DrawGrid();
 	
 		// Draw low-res mesh
-		DrawMesh( m_mesh_dest, Vector4DF(1,1,1,1), true );
+		DrawMesh( m_mesh_dest, Vector4DF(1,1,1,1), m_view_norms );
 
 		// Draw hi-res mesh
 		if (m_view_hires)
@@ -681,7 +692,8 @@ void Sample::display()
 
 		drawImg ( m_view_img->getGLID(), 0, 0, w, h, 1,1,1,1 );
 
-		//DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(.5,.5,.5, .2) );
+		if (m_view_uvs) 
+			DrawMeshUV ( m_mesh_dest, w, h, Vector4DF(.5,.5,.5, .5) );
 		
 	end2D();	
 	draw2D();	
@@ -791,6 +803,16 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 	case 'd':
 		m_view_disp = !m_view_disp;
 		break;
+
+	case 'm':
+		m_view_uvs = !m_view_uvs;
+		break;
+
+	case 'n':
+		m_view_norms = !m_view_norms;
+		break;
+
+
 
 
 	case 'w': case 'W':		MoveCamera('p', Vector3DF( 0, 0,+s)); break;		// WASD navigation keys

@@ -1019,9 +1019,9 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 				if (t[j] > idx_max) idx_max = t[j];
 				if (fv[j] > idx_max) idx_max = fv[j];
 
-				if (fv[j] > 170000 && j==0) {					
+				/*if (fv[j] > 170000 && j==0) {					
 					printf ( "%lld %lld %lld %lld\n", fv[j], v[j], n[j], t[j] );
-				}
+				}*/
 			}
 
 			// add face				

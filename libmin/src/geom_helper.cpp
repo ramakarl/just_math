@@ -87,24 +87,17 @@ bool intersectLineBox (Vector3DF p1, Vector3DF p2, Vector3DF bmin, Vector3DF bma
 }
 */
 
-Vector3DF intersectLinePlane(Vector3DF p1, Vector3DF p2, Vector3DF p0, Vector3DF pnorm)
+Vector3DF intersectLinePlane(Vector3DF rpos, Vector3DF rdir, Vector3DF p0, Vector3DF pnorm)
 {
-	Vector3DF u, w;
-	u = p2;	u -= p1;					// ray direction
-	w = p1;	w -= p0;
-
-	float dval = pnorm.Dot(u);
-	float nval = -pnorm.Dot(w);
-
-	if (fabs(dval) < EPS) {			// segment is parallel to plane
-		if (nval == 0) return p1;       // segment lies in plane
-		else			return p1;      // no intersection
-	}
-	// they are not parallel, compute intersection
-	float t = nval / dval;
-	u *= t;
-	u += p1;
-	return u;
+	float dval = pnorm.Dot( rdir );
+	float nval = -pnorm.Dot( rpos - p0 );
+	
+	if (fabs(dval) < EPS) {			    // segment is parallel to plane
+		if (nval == 0)  return rpos;    // segment lies in plane
+		else			return rpos;    // no intersection
+	}	
+	float t = nval / dval;				// they are not parallel, compute intersection
+	return (rpos + rdir * t);
 }
 
 
