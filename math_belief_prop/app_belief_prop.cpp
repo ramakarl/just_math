@@ -374,22 +374,23 @@ bool Sample::init()
 
   //-- Experiments
   
-  /*bpc.expr.num_expr = 10;
-  bpc.expr.num_run = 8;
-  bpc.expr.grid_min.Set (6, 6, 6);
-  bpc.expr.grid_max.Set (16, 16, 16);
-  bpc.expr.maxstep_min = 10;
-  bpc.expr.maxstep_max = 10;
+  bpc.expr.num_expr = 6;
+  bpc.expr.num_run = 20;
+  bpc.expr.grid_min.Set (60, 60, 1);
+  bpc.expr.grid_max.Set (120, 120, 1);
+  bpc.expr.maxstep_min = 50;
+  bpc.expr.maxstep_max = 50;
   bpc.expr.steprate_min = 0.98;
   bpc.expr.steprate_max = 0.98;
-  bpc.expr.eps_min = .001;
-  bpc.expr.eps_max = .001;
+  bpc.expr.eps_min = .0001;
+  bpc.expr.eps_max = .0001;
 
   bpc.st.instr = 0;
 
+
   printf ("WAVEFRONT: %d\n", int(bpc.op.alg_accel) );
 
-  bp_experiments ( bpc, "expr_stairs.csv" );  */
+  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); 
   
   
   //-- Multirun testing  

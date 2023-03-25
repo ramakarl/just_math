@@ -50,7 +50,7 @@ int bp_restart ( BeliefPropagation& bp );
 
 int bp_multirun ( BeliefPropagation& bp, int runs, std::string outfile );
 
-int bp_experiments ( BeliefPropagation& bpc, std::string outfile );
+int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string outrun );
 
 //---------------------- secondary helpers
 
