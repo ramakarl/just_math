@@ -22,7 +22,9 @@ include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_definitions ( -DLIBHELP_EXPORTS) 
 add_definitions ( -DGLEW_STATIC) 
-add_definitions ( -DBUILD_PNG)		# always PNG. other image formats optional
+
+add_definitions ( -DBUILD_PNG)		# always PNG
+add_definitions ( -DBUILD_TIF)		# always TIF
 
 
 #####################################################################################

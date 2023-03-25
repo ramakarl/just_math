@@ -43,6 +43,8 @@
 #include "image.h"
 #include "imageformat_tiff.h"
 
+#include "event_system.h"
+
 CImageFormatTiff::CImageFormatTiff () : CImageFormat()
 {
 	m_DebugTif = DEBUG_TIF;
@@ -109,6 +111,9 @@ bool CImageFormatTiff::LoadTiff (char *filename)
 	fseek ( m_Tif, 0, SEEK_END );
 	uint64_t sz = ftell ( m_Tif );
 	fseek ( m_Tif, 0, SEEK_SET );	
+
+	m_Buf = new_event ( 4, 'app ', 'tiff', 0, 0x0 );
+
 	m_Buf.attachFromFile (m_Tif, sz);
 	m_Buf.startRead ();
 
@@ -306,6 +311,13 @@ bool CImageFormatTiff::LoadTiffDirectory ()
 		}		
 	} break;	
 	}
+	
+	// If no RowsPerStrip tag, assume full image in 1 strip
+	//  (see libtiff 4.4.0, TIFFReadEncodedStripGetStripSize)
+	if ( m_RowsPerStrip==0 ) {
+		m_RowsPerStrip = m_Yres;
+		m_NumStrips  = 1;
+	}
 
 	// Load actual TIFF Image Data into Image
 	LoadTiffStrips ();
@@ -353,6 +365,9 @@ bool CImageFormatTiff::LoadTiffEntry ()
 		break;
 	case TifExtraSamples:		
 		m_bHasAlpha = true;		
+		break;
+	case TifSamplesPerPixel:
+		m_SamplesPerPix = count;
 		break;
 	case TifBitsPerSample:
 		// NOTE: The TIFF specification defines 'samples',
@@ -430,6 +445,7 @@ void CImageFormatTiff::LoadTiffStrips ()
 	pos = m_Buf.getPosInt();
 	pos_counts = m_StripCounts;
 	pos_offsets = m_StripOffsets;
+
 	if (m_NumStrips==1) {		
 		count = pos_counts;
 		offset = pos_offsets;
@@ -437,15 +453,18 @@ void CImageFormatTiff::LoadTiffStrips ()
 		LoadTiffData (count, offset, row);
 	} else {		
 		row = 0;		
+
 		for (strip=0; strip < m_NumStrips; strip++) {
-			m_Buf.setPos (pos_counts);
-			count =		m_Buf.getUShort();
-			offset =	m_Buf.getULong();
+			
+			// get next count from count header
+			m_Buf.setPos (pos_counts);		count =		m_Buf.getUShort();
+			// get next offset from offset header
+			m_Buf.setPos (pos_offsets);		offset =	m_Buf.getULong ();
 
 			LoadTiffData (count, offset, row);
 			
 			row += m_RowsPerStrip;
-			pos_counts += 4;						// These are not pointers, must increment by 4!
+			pos_counts += 4;						// Each entry is 4-bytes 
 			pos_offsets += 4;
 		}
 	}				
@@ -838,17 +857,25 @@ bool CImageFormatTiff::SaveTiffDirectory ()
 
 	SaveTiffExtras (TifBitsPerSample);
 
-	// Strip counts -- List of # of bytes in each strip. 2-byte list
+	// at this point, we should have written exactly TIFF_SAVE_POFOSSETS bytes	
+	int offs = m_Buf.getPosInt();
+	assert ( offs == TIFF_SAVE_POSOFFSETS );
+
+	int strip_header_size = (m_Yres*4) * 2;		// 2x = counts & offsets
+
+	// Strip counts -- List of # of bytes in each strip. 
+	// 4-byte list (2x ushort) per row	
 	for (int n=0; n < m_Yres; n++) {
 		if (m_DebugTif) dbgprintf ( "Counts #%d: pos: %d, val: %d\n", n, m_Buf.getPos(), m_BytesPerRow );
 		m_Buf.attachUShort ( m_BytesPerRow );		
 		m_Buf.attachUShort ( 0 );
 	}
 	
-	// Strip offsets -- List of strip offsets. 4-byte list
+	// Strip offsets -- List of strip offsets. 
+	// 4-byte list (ulong) per row
 	for (int n=0; n < m_Yres; n++) {
 		if (m_DebugTif) dbgprintf ( "Offset #%d: pos: %d, val: %d\n", n, m_Buf.getPos(), TIFF_SAVE_POSOFFSETS + m_Yres*4*2 + n * m_BytesPerRow);
-		m_Buf.attachULong ( TIFF_SAVE_POSOFFSETS + m_Yres*4*2 + n * m_BytesPerRow );
+		m_Buf.attachULong ( TIFF_SAVE_POSOFFSETS + strip_header_size + n * m_BytesPerRow );
 	}
 
 	SaveTiffData ();
@@ -899,8 +926,7 @@ bool CImageFormatTiff::SaveTiff (char *filename)
 	if ( m_Tif == 0x0 ) { 
 		dbgprintf ( "ERROR: Unable to create TIF file %s\n", filename );
 		return false;
-	}
-	//m_Buf.Reset ();
+	}	
 	
 	switch ( GetFormat( m_pOrigImage) ) {
 	case ImageOp::RGB8: case ImageOp::RGBA8: case ImageOp::RGBA32F: case ImageOp::RGB16: 
@@ -913,7 +939,10 @@ bool CImageFormatTiff::SaveTiff (char *filename)
 	m_Xres = GetWidth( m_pOrigImage );
 	m_Yres = GetHeight( m_pOrigImage );
 	m_BitsPerPixel = GetBitsPerPixel ( m_pOrigImage );
+	
+	m_Buf = new_event ( 4, 'app ', 'tiff', 0, 0x0 );
 
+	m_Buf.startWrite ();
 	m_Buf.attachUShort ( TIFF_BYTEORDER );
 	m_Buf.attachUShort  ( TIFF_MAGIC );
 	m_Buf.attachULong ( TIFF_SAVE_POSIFD );

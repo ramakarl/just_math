@@ -1805,6 +1805,8 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
           anch_tile_idx_n,
           anch_tile ;
 
+  float belief_eps = 0.05;
+
   anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   if (anch_tile_idx_n==0) { return -1; }
   //if (anch_tile_idx_n==1) { continue; }
@@ -1818,8 +1820,12 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
       printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
           f, max_p, (int) anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
+    
+    //---- attempt at more randomness in maps
+    //float u = 1.0 - float(op.cur_iter) / op.max_iter;    
+    //if ( f >= max_p - belief_eps*u && m_rand.randF(0,1) > 0.5f*u ) {
 
-    if ( max_p < f ) {
+    if ( f >= max_p ) {
       max_p = f;
       *max_cell = anch_cell;
       *max_tile = anch_tile;

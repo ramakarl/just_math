@@ -331,7 +331,8 @@ void nvImg::UpdateTex ()
 	void setdepth3D(bool z) { g_2D->setOrder3D(z); }
 	void setText ( float scale, float kern )	{ g_2D->setText(scale,kern); }
 	void drawPnt ( float x, float y, Vector4DF clr)													{ g_2D->drawPnt (x,y,clr ); }
-	void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawLine(x1,y1,x2,y2,r,g,b,a); }
+	void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawLine( Vector3DF(x1,y1,0), Vector3DF(x2,y2,0), Vector4DF(r,g,b,a) ); }
+	void drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr )										{ g_2D->drawLine( a, b, clr ); }
 	void drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawRect(x1,y1,x2,y2,r,g,b,a); }
 	void drawImg ( int img_glid,  float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawImg ( img_glid, x1,y1,x2,y2,r,g,b,a ); }
 	void drawFill ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawFill(x1,y1,x2,y2,r,g,b,a); }
@@ -882,7 +883,7 @@ void nvImg::UpdateTex ()
 		v->x = x; v->y = y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	v++;
 	}
 
-	void nvDraw::drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )
+	void nvDraw::drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr )
 	{
 	#ifdef DEBUG_UTIL
 		dbgprintf  ( "Draw line.\n" );
@@ -890,8 +891,8 @@ void nvImg::UpdateTex ()
 		int ndx;
 		nvVert* v = allocGeom ( 2, GRP_LINES, mCurrSet, ndx );
 
-		v->x = x1; v->y = y1; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v++;
-		v->x = x2; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	
+		v->x = a.x; v->y = a.y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	v++;
+		v->x = b.x; v->y = b.y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	
 	}
 	void nvDraw::drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )
 	{

@@ -267,6 +267,7 @@
 			void setText ( float scale, float kern )		{ mTextScale = scale; mTextKern = kern; }		
 			void drawPnt ( float x, float y, Vector4DF clr );
 			void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
+			void drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr );
 			void drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
 			void drawImg ( int img_glid, float x1, float y1, float x2, float y2, float r, float g, float b, float a );
 			void drawFill ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
@@ -424,6 +425,7 @@
 		HELPAPI void getGlyphSize ( const char c, float& sx, float& sy );
 		HELPAPI void drawPnt(float x, float y, Vector4DF clr);
 		HELPAPI void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
+		HELPAPI void drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr );
 		HELPAPI void drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
 		HELPAPI void drawImg ( int img_glid, float x1, float y1, float x2, float y2, float r, float g, float b, float a );
 		HELPAPI void drawFill ( float x1, float y1, float x2, float y2, float r, float g, float b, float a );
