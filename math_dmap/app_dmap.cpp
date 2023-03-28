@@ -140,12 +140,12 @@ bool Sample::init()
 	m_lgt = Vector3DF(-200, 150, 150);
 
 	// set depth limit
-	m_limit = 0.3;
+	m_limit = 3.0;
 
 	// load lo-res target mesh
 	//getFileLocation ( "surface.obj", fpath );
-	//getFileLocation ( "cube_smooth.obj", fpath );
-	getFileLocation ( "armadillo_lores2.obj", fpath );
+	getFileLocation ( "cube_smooth.obj", fpath );
+	//getFileLocation ( "armadillo_lores3.obj", fpath );
 
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_dest = new MeshX;
@@ -161,9 +161,9 @@ bool Sample::init()
 	// load hi-res source mesh
 	//getFileLocation ( "surface_smooth.obj", fpath );
 	//getFileLocation ( "golfball.obj", fpath );
-	//getFileLocation ( "sphere_iso.obj", fpath );
+	getFileLocation ( "sphere_iso.obj", fpath );
 	//getFileLocation ( "sphere_uv.obj", fpath );
-	getFileLocation ( "armadillo_hires2.obj", fpath );
+	//getFileLocation ( "armadillo_hires.obj", fpath );
 	
 	dbgprintf ( "Loading: %s\n", fpath.c_str());
 	m_mesh_src = new MeshX;
@@ -174,7 +174,7 @@ bool Sample::init()
 
 	// create displacement map (16-bit tiff)
 
-	m_res.Set ( 2048, 2048, 0 );
+	m_res.Set ( 512, 512, 0 );
 	
 	m_displace_img = new Image;
 	m_displace_img->ResizeImage ( m_res.x, m_res.y, ImageOp::F32 );		
@@ -259,7 +259,7 @@ void Sample::DrawMeshUV ( MeshX* m, int w, int h, Vector4DF clr )
 		drawLine ( uv1*sz, uv2*sz, clr );	
 		drawLine ( uv2*sz, uv0*sz, clr ); 
 	}
-	drawLine ( Vector3DF(0, sz.y, 0), Vector3DF(m_curr_pix.x, m_curr_pix.y, 0), Vector4DF(0,0,1,1) );
+	drawLine ( Vector3DF(0, sz.y, 0), Vector3DF(m_curr_pix.x*sz.x/m_displace_img->GetWidth(), m_curr_pix.y*sz.y/m_displace_img->GetHeight(), 0), Vector4DF(0,0,1,1) );
 }
 
 void Sample::VisDot ( Vector3DF p, float r, Vector3DF clr )
