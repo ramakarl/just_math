@@ -93,8 +93,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
   fp = fopen ( outfile.c_str(), "w" );
 
   // write header
-  fprintf ( fp, "expr, run, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
-
+  fprintf ( fp, "run, status, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
   // platform-specific, find name & rule files
   std::string name_path, rule_path;
@@ -177,25 +176,30 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
 // - the state variables are stored in bpc.expr struct
 // - set the desired min/max state variables prior to calling this func
 //
-int bp_experiments ( BeliefPropagation& bpc, std::string outfile ) {
+int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string outrun ) {
+  
   int ret, runret;
   std::string csv;
 
   // start report file:
   // overwrite first
-  FILE* fp = fopen ( outfile.c_str(), "w" );
-  if ( fp==0 ) {
-    printf ( "ERROR: Cannot open %s for output.\n", outfile.c_str() );
-    exit(-7);
-  }
-  fprintf ( fp, "reset\n" );
-  fclose (fp);
+  FILE* fpe = fopen ( outexpr.c_str(), "w" );
+  if ( fpe==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outexpr.c_str() ); exit(-7); }
+  fprintf ( fpe, "reset\n" );
+  fclose (fpe);
+
+  FILE* fpr = fopen ( outrun.c_str(), "w" );
+  if ( fpr==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outrun.c_str() ); exit(-7); }
+  fprintf ( fpr, "reset\n" );
+  fclose (fpr);
 
   // append
-  fp = fopen ( outfile.c_str(), "w" );
+  fpe = fopen ( outexpr.c_str(), "a" );
+  fpr = fopen ( outrun.c_str(), "a" );
 
-  // write header
-  fprintf ( fp, "gridx, gridy, gridz, tiles, max_step, eps, step_rate, # runs, success, %%, fail_constr, total time, ave time(ms), start seed\n" );
+  // write headers
+  fprintf ( fpe, "gridx, gridy, gridz, tiles, max_step, eps, step_rate, # runs, success, %%, fail_constr, total time, ave time(ms), start seed\n" );
+  fprintf ( fpr, "run, status, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
 
   // platform-specific, find name & rule files
   std::string name_path, rule_path;
@@ -268,7 +272,11 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile ) {
           } else if (ret == 0) {
             // done!
             runret = 0;
+            
+            write_tiled_json ( bpc );
           }
+          fprintf ( fpr, "%s\n", bpc.getStatCSV().c_str() ); 
+          
         } else {
           // error, ignore and continue (1). can set runret=ret if you want to stop on error. -1=maxbelief err, -2=tileidx err, -3=cellConstrProp err
           runret = 1;
@@ -299,7 +307,7 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile ) {
           total_time, ave_time, bpc.op.seed );
     }
 
-    fprintf ( fp, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n",
+    fprintf ( fpe, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n",
         (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z,
         (int)bpc.m_num_values, (int)bpc.op.max_step,
         bpc.op.eps_converge, bpc.op.step_rate,
@@ -307,8 +315,10 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile ) {
         fail_constr, total_time, ave_time, bpc.op.seed );
 
     // proper flush
-    fclose ( fp );
-    fp = fopen ( outfile.c_str(), "a" );
+    fclose ( fpe );
+    fpe = fopen ( outexpr.c_str(), "a" );
+    fclose ( fpr );
+    fpr = fopen ( outrun.c_str(), "a" );
 
     // next experiment
     grid += dgrid;
@@ -316,7 +326,8 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outfile ) {
     steprate += dsteprate;
     eps += deps;
   }
-  fclose ( fp );
+  fclose ( fpe );
+  fclose ( fpr );
 
   return 0;
 }
@@ -938,7 +949,7 @@ int write_tiled_json ( BeliefPropagation & bpc) {
 
   // set filename
   char fname[1024];
-  sprintf (fname, "%s%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
+  sprintf (fname, "%s_%03d_%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.X, bpc.op.cur_run );
   //sprintf (fname, "%s.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
 
   // get BP options
