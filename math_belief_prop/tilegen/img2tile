@@ -41,7 +41,7 @@ info = {
     "rule_weight": False, #True,
     "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
 
-    "barf_supertile": True,
+    "barf_supertile": False, #True,
 
     #"neighbor_type": 0,
     "debug": False
@@ -398,6 +398,10 @@ def construct_id_pxl_map(data):
           key = str(rgb[0]) + ":" + str(rgb[1]) + ":" + str(rgb[2])
           if not (key in uniq_pixel):
             uniq_pixel[key] = 0
+
+            ### DEBUG
+            print("pixel:", key)
+
           uniq_pixel[key]+=1
 
           pxl_tile_cur.append( rgb[0] )
@@ -605,6 +609,9 @@ def construct_block_tile(data):
   s_r = stride[row_idx] - window[row_idx]
   n_r = sz[row_idx] + window[row_idx] - stride[row_idx]
 
+  ## DEBUG
+  uniq_pixel = {}
+
   for r in range(s_r, n_r, stride[row_idx]):
     for c in range(s_c, n_c, stride[col_idx]):
 
@@ -652,6 +659,12 @@ def construct_block_tile(data):
             st_key_a.append(str_g)
             st_key_a.append(str_b)
 
+            ## DEBUG
+            #_pkey = str_r + ":" + str_g + ":" + str_b
+            #if not (_pkey  in uniq_pixel):
+            #  uniq_pixel[_pkey] = _pkey
+            #  print(">>>", _pkey)
+
           st_key = "".join(st_key_a)
 
           if not (st_key in block_id_map):
@@ -663,6 +676,13 @@ def construct_block_tile(data):
   data["block_id_map"] = block_id_map
   data["id_block_map"] = id_block_map
   data["n_block"] = cur_tile_id
+
+  #### DEBUG
+  #print("DEBUG")
+  #for idx in range(n_dedup_id):
+  #  barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
+
+
 
 ## construct rules from pixel data
 ##
@@ -727,6 +747,7 @@ def construct_block_nei(data):
           nei_key_a.append(rgb[0])
           nei_key_a.append(rgb[1])
           nei_key_a.append(rgb[2])
+
         nei_key_a.append("\n")
       nei_key = "".join(nei_key_a)
 
@@ -842,6 +863,7 @@ def dedup_block(data):
   #DEBUG
   _opt = data["info"]["opt"]
   if _opt["barf_supertile"]:
+    print("BARFING individual block tile pngs to '.img/' directory")
     for idx in range(n_dedup_id):
       barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
 
@@ -1057,5 +1079,9 @@ if info["tileset"]["realize"]:
   write_tileset_png(data, info["tileset"]["fn"], True)
 
 #if info["tilemap"]["realize"]:
+#
+#  print(data["dedup_id_block_map"])
+#
+#  print("????")
 #  write_tiled_json(info, info["tilemap"]["data"])
 

@@ -237,4 +237,55 @@ $bpc_bin \
 ######
 
 
+name_fn="./example_tile_collection/road2d_tilename.csv"
+rule_fn="./example_tile_collection/road2d_tilerule.csv"
+
+tiled_fn="./example_tile_collection/road2d"
+tileset_fn="./road2d_tileset.png"
+
+echo "running 'road2d' 2D tile collection, producing '$tiled_fn'"
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -Q $tileset_fn \
+  -s 8 \
+  -M $tiled_fn \
+  -X 32 \
+  -Y 32 \
+  -Z 1 \
+  -G 2 \
+  -I 100000000 \
+  -e 0.0001 \
+  -w 0.9 \
+  -S 123 \
+  -V 2 | tee log/road2d.log
+
+
+#echo "running 'road2d' 3D tile collection, producing '$stl_fn'"
+#
+#objloc_fn="./example_tile_collection/road2d_objloc.csv"
+#stl_fn="./example_tile_collection/road2d.stl"
+#
+#$bpc_bin \
+#  -N $name_fn \
+#  -R $rule_fn \
+#  -L $objloc_fn \
+#  -M $stl_fn \
+#  -X 32 \
+#  -Y 32 \
+#  -Z 1 \
+#  -G 2 \
+#  -I 100000000 \
+#  -e 0.0001 \
+#  -w 0.9 \
+#  -S 123 \
+#  -V 2 | tee log/road2d.log
+#
+
+
+######
+######
+
+
 

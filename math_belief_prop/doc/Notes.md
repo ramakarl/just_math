@@ -148,6 +148,14 @@ At the end, we expect $O(N^2 T^2 S)$, with:
   - unclear whether WFC can be fixed up with some backtracking that would allow it to
     overcome this exponentially decreasing probability of finding an answer
 
+---
+
+```
+eps_converge
+spatial dimension
+# tilecount
+constraidedness
+```
 
 
 
@@ -179,5 +187,5 @@ References
   - [Tessera](https://www.boristhebrave.com/permanent/21/08/Tessera_A_Practical_System_for_WFC.pdf)
   - [Constraint-Based Tile Generators](https://www.boristhebrave.com/2021/10/31/constraint-based-tile-generators/)
   - [WFC Explained](https://www.boristhebrave.com/2020/04/13/wave-function-collapse-explained/)
-
 * ["Message Scheduling Methods for Belief Propagation" by Knoll et all](https://github.com/abetusk/papers/blob/release/ComputerScience/BeliefPropagation/message-sched-for-bp_sknoll-rath-tschiatschek-pernkopf.pdf)
+* [Constraint-Based 2D Tile GAme Blending with Sturgeon](https://www.youtube.com/watch?v=4abT8yKh-AQ)
