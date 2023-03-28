@@ -794,7 +794,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     s = Vector4DF(f,f,f,f);
     break;
   
-  case VIZ_TILECOUNT:
+  case VIZ_TILECOUNT: {
     // 1. compute maxbelief and outputs json
     // 2. visualizes 1/TILE_NDX_N as alpha (eg. 1=opaque=fully resolved)
     // 3. visualizes green-red as maxbelief # constraints/cell (eg. 0=green, 6=all faces of cell)
@@ -811,6 +811,13 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     if ( f==1 ) s = Vector4DF(1,1,1,1);              // white = resolved to 1 tile
     if ( b >= st.max_belief - beps ) s = Vector4DF(1,0,1,1);  // purple = current max belief vertex
 
+    } break;
+
+  case VIZ_CONSTRAINT:
+    
+    c = getValI ( BUF_C, v ) / 6.0f;   // constraints
+    
+    s = Vector4DF( c, c, c, c );
     break;
   }
 
@@ -3075,6 +3082,8 @@ int BeliefPropagation::RealizePost(void) {
 
   Vector3DI vp;
 
+  clock_t t1 = clock();
+
   // choose the cell and propagate choice
   //
   switch (op.alg_cell_opt) {
@@ -3251,7 +3260,12 @@ int BeliefPropagation::RealizePost(void) {
     //-------------------------------
     //-------------------------------
     //-------------------------------
-
+    
+    
+    //-- complete timing
+    //
+    clock_t t2 = clock();
+    st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
 
 
     if (st.enabled) {
@@ -3364,7 +3378,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   // start timing
   //
-  clock_t m_t1 = clock();
+  clock_t t1 = clock();
 
   // get linear interpolation eps
   //
@@ -3425,8 +3439,8 @@ int BeliefPropagation::RealizeStep(void) {
 
   // complete timing
   //
-  clock_t m_t2 = clock();
-  st.elapsed_time += ((((double) m_t2-m_t1) / CLOCKS_PER_SEC) * 1000);
+  clock_t t2 = clock();
+  st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
 
   if ( ret==1 ) {
     if (op.cur_step >= op.max_step )  { ret = -2; }

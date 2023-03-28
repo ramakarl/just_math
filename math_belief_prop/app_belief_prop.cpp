@@ -209,9 +209,15 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
           op->step_rate = r;
         }
         }break;
+      
+      case 'A':
+        op->alg_accel = ALG_ACCEL_WAVE;
+        break;
 
       case 'W':
-        op->alg_accel = ALG_ACCEL_WAVE;
+        op->alg_accel = ALG_ACCEL_NONE;
+        op->alg_run_opt = ALG_RUN_WFC;
+        op->alg_cell_opt = ALG_CELL_WFC;
         break;
     }
     }
@@ -379,10 +385,10 @@ bool Sample::init()
 
   //-- Experiments
   
-  bpc.expr.num_expr = 6;
+  bpc.expr.num_expr = 5;
   bpc.expr.num_run = 20;
-  bpc.expr.grid_min.Set (60, 60, 1);
-  bpc.expr.grid_max.Set (120, 120, 1);
+  bpc.expr.grid_min.Set (100, 100, 1);
+  bpc.expr.grid_max.Set (150, 150, 1);
   bpc.expr.maxstep_min = 50;
   bpc.expr.maxstep_max = 50;
   bpc.expr.steprate_min = 0.98;
@@ -398,6 +404,7 @@ bool Sample::init()
   bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); 
   
   
+
   //-- Multirun testing  
   /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
   
@@ -434,7 +441,7 @@ bool Sample::init()
 
 
   // start viz
-  m_viz = VIZ_DMU;
+  m_viz = VIZ_CONSTRAINT ;
   bpc.SetVis ( m_viz );
 
   // start running
@@ -494,7 +501,7 @@ void Sample::display()
             }
 
             // hit completion
-            printf ( "BPC DONE.\n" );
+            printf ( "DONE.\n" );
 
             // stop
             m_run = false;
