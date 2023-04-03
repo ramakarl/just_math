@@ -201,5 +201,5 @@ References
   - [Comparison Model Synthesis and WFC](https://paulmerrell.org/wp-content/uploads/2021/07/comparison.pdf)
   - [Boris the Brave on Model Synthesis](https://www.boristhebrave.com/2021/10/26/model-synthesis-and-modifying-in-blocks/)
 * [Boris the Brave on 'backjumping'](https://twitter.com/boris_brave/status/1485006264119799811)
-
+* [Maxim Gumin on twitter](https://twitter.com/ExUtumno/status/895684431477747715)
 

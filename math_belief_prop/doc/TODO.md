@@ -1,6 +1,13 @@
 TODO
 ===
 
+###### 2023-04-02
+
+* add 'escheresque' tilset:
+  - https://github.com/merrell42/model-synthesis/blob/master/samples/escheresque.txt
+* investigate block based approach from model synthesis
+  - https://www.boristhebrave.com/2021/10/26/model-synthesis-and-modifying-in-blocks/
+
 
 ###### 2023-03-25
 
