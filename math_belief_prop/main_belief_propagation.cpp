@@ -450,7 +450,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
-  fprintf(fp, "  -G <#>   algorithm choice\n");
+  fprintf(fp, "  -G <#>   Algorithm/BP decimation policy\n");
   fprintf(fp, "   -1      'wave function collapse'\n");
   fprintf(fp, "    0      fix maximum belief tile (default)\n");
   fprintf(fp, "    1      (unused)\n");
@@ -791,6 +791,15 @@ int main(int argc, char **argv) {
     bpc.op.alg_cell_opt = ALG_CELL_WFC;
   }
 
+  // don't run algorithm, run through constraints
+  // and quite (possibly outputing a file)
+  //
+  else if (bpc.op.alg_idx == -2) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_WFC;
+  }
+
   else if (bpc.op.alg_idx == 1) {
     
     // unused
@@ -866,33 +875,37 @@ int main(int argc, char **argv) {
   //----
   //----
 
-  n_it = bpc.m_num_verts * bpc.m_num_values;
+  if (bpc.op.alg_idx != -2) {
 
-  for (it=0; it < n_it; it++) {
+    n_it = bpc.m_num_verts * bpc.m_num_values;
 
-    ret = bpc.RealizePre();
-    if (ret < 0) { break; }
+    for (it=0; it < n_it; it++) {
 
-    ret = 1;
-    while (ret>0) {
-      ret = bpc.RealizeStep();
-    }
-    //if (ret<0) { break; }
+      ret = bpc.RealizePre();
+      if (ret < 0) { break; }
 
-    ret = bpc.RealizePost();
-    if (ret <= 0) { break; }
+      ret = 1;
+      while (ret>0) {
+        ret = bpc.RealizeStep();
+      }
+      //if (ret<0) { break; }
 
-    if ( raycast )  {
+      ret = bpc.RealizePost();
+      if (ret <= 0) { break; }
 
-      //DEBUG
-      printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
-      visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
+      if ( raycast )  {
 
-      raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
-      snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+        //DEBUG
+        printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
+        visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
 
-      if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
-      save_png ( imgfile, m_img, iresx, iresy, 3 );
+        raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+        snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+
+        if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
+        save_png ( imgfile, m_img, iresx, iresy, 3 );
+      }
+
     }
 
   }
