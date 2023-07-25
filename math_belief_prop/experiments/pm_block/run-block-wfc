@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+
+bpc="../../bpc.debug" 
+name_fn="../../tilegen/example_tile_collection/pm_tilename.csv"
+rule_fn="../../tilegen/example_tile_collection/pm_tilerule.csv"
+tiled_fn="pm_block_tiled.json"
+tileset_fn="./pm_tileset.png"
+stride=8
+
+X=48
+Y=48
+
+flt=`cat pm.filter | tr '\n' ' '`
+
+$bpc \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -s $stride \
+  -X $X -Y $Y -Z 1 \
+  -G -1 \
+  -J "$flt" \
+  -I 1000001 \
+  -S 1235 \
+  -V 2 | tee log
+
