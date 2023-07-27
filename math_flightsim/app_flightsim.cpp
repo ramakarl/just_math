@@ -42,8 +42,8 @@ public:
 	virtual void shutdown();
 
 	void		Advance ();
-	void		UpdateCamera();
-	void		drawGrid();
+	void		CameraToCockpit();
+	void		drawGrid( Vector4DF clr );
 	
 	Vector3DF	m_pos, m_vel, m_accel;
 	Vector3DF	m_lift, m_thrust, m_drag, m_force;
@@ -81,7 +81,7 @@ bool Sample::init ()
 	m_cam = new Camera3D;
 	m_cam->setFov ( 120 );
 	m_cam->setNearFar ( 0.1, 10000 );
-	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 30, 1 );
+	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 20, 1 );
 
 	mt.seed(164);
 
@@ -89,8 +89,8 @@ bool Sample::init ()
 	m_vel.Set (0, 0, 0);			// speed = 10 m/s
 	m_roll = 0;
 	m_pitch = 0;
-	m_pitch_adv = 0.1;
-	m_power = 3;
+	m_power = 3;			// "throttle up"
+	m_pitch_adv = 0.3;		// "rotate!"
 	m_accel.Set(0,0,0);
 	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
 	m_DT = 0.001;
@@ -114,12 +114,12 @@ bool Sample::init ()
 	return true;
 }
 
-void Sample::drawGrid()
+void Sample::drawGrid( Vector4DF clr )
 {
 	float o	 = -0.05;		// offset
 	for (int n=-10000; n <= 10000; n+=25 ) {
-		drawLine3D ( n, o,-10000, n, o, 10000, 1,1,1,1);
-		drawLine3D (-10000, o, n, 10000, o, n, 1,1,1,1);
+		drawLine3D ( Vector3DF(n, o,-10000), Vector3DF(n, o, 10000), clr );
+		drawLine3D ( Vector3DF(-10000, o, n), Vector3DF(10000, o, n), clr );
 	}
 }
 
@@ -127,7 +127,7 @@ void Sample::Advance ()
 {
 	Vector3DF force, torque;
 	
-	float m_LiftFactor = 0.00065;
+	float m_LiftFactor = 0.00020;
 	float m_DragFactor = 0.005;
 
 	float mass = 0.1;	// kg. weight of starling = 3.6 oz = 0.1 kg
@@ -141,7 +141,7 @@ void Sample::Advance ()
 	m_speed = m_vel.Length();
 	Vector3DF vaxis = m_vel / m_speed;	
 	if ( m_speed < 0 ) m_speed =  0;		// planes dont go in reverse
-	if ( m_speed > 50 ) m_speed = 50;
+	if ( m_speed > 100 ) m_speed = 100;
 	if ( m_speed==0) vaxis = fwd;
 
 	// Pitch inputs - modify direction of target velocity 
@@ -173,10 +173,12 @@ void Sample::Advance ()
 	m_thrust = fwd * m_power;
 	m_force += m_thrust;
 
-	// Integrate orientation
-	// airplane will reorient toward the velocity vector
+	// Update orientation
+	// airplane will tend to reorient toward the velocity vector
+	// this is an assumption yet much simpler/faster than integrated body orientation.
+	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
-	angvel.fromRotationFromTo (  fwd, vaxis, 0.02 );
+	angvel.fromRotationFromTo ( fwd, vaxis, 0.02 );
 	if ( !isnan(angvel.X) ) {
 		m_orient *= angvel;
 		m_orient.normalize();
@@ -189,21 +191,32 @@ void Sample::Advance ()
 	// Integrate position		
 	m_accel = m_force / mass;
 	m_accel += Vector3DF(0,-9.8,0);	
-	m_pos += m_vel * m_DT;			// do this first so that vel is limited			
-	if (m_pos.y <= 0 ) { m_pos.y = 0; m_vel.y = 0; m_accel += Vector3DF(0,9.8,0); }		// on ground condition
+	m_pos += m_vel * m_DT;			// do this first so that vel is limited				
+	if (m_pos.y <= 0.00001 ) { 
+		// Ground condition
+		m_pos.y = 0; m_vel.y = 0; 
+		m_accel += Vector3DF(0,9.8,0);	// ground force
+		m_vel *= 0.9999;				// ground friction
+		m_orient.fromDirectionAndRoll ( Vector3DF(fwd.x, 0, fwd.z), 0 );	// zero pitch & roll
+		ctrl_roll.fromAngleAxis ( -m_roll*0.001, Vector3DF(0,1,0) );		// on ground, left/right is rudder
+		m_orient *= ctrl_roll; m_orient.normalize();
+		m_vel *= ctrl_roll;		
+	}	
 	m_vel += m_accel * m_DT;
 	
 }
 
 
-void Sample::UpdateCamera()
+
+void Sample::CameraToCockpit()
 {
 	// View direction	
 	Vector3DF fwd = m_vel; fwd.Normalize();
 	Vector3DF angs;
 	m_orient.toEuler ( angs );
+	Vector3DF p = m_pos + Vector3DF(0,1,0);	  // eye level above centerline
 	
-	m_cam->setDirection ( m_pos, m_pos + fwd, -angs.x );
+	m_cam->setDirection ( p, p + fwd, -angs.x );
 }
 
 void Sample::display ()
@@ -219,7 +232,10 @@ void Sample::display ()
 		Advance ();
 	}
 	if (m_flightcam) {
-		UpdateCamera();
+		CameraToCockpit();
+	} else {
+		m_cam->SetOrbit ( Vector3DF(30,40,0), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
+		dbgprintf ( "%f\n", m_cam->getOrbitDist() );
 	}
 	
 	char msg[128];
@@ -227,37 +243,45 @@ void Sample::display ()
 	clearGL();
 	start2D();
 		setview2D(getWidth(), getHeight());
+
+		Vector3DF angs;
+		m_orient.toEuler ( angs );
 		
-		sprintf ( msg, "power: %f", m_power );	drawText(10, 20, msg, 1,1,1,1);
-		sprintf ( msg, "speed: %f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
-		sprintf ( msg, "roll:  %f", m_roll );	drawText(10, 60, msg, 1,1,1,1);
-		sprintf ( msg, "pitch: %f", m_pitch_adv );	drawText(10, 80, msg, 1,1,1,1);
+		sprintf ( msg, "power:    %4.1f", m_power );	drawText(10, 20, msg, 1,1,1,1);
+		sprintf ( msg, "speed:    %4.5f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
+		sprintf ( msg, "altitude: %4.2f", m_pos.y );	drawText(10, 60, msg, 1,1,1,1);
+		sprintf ( msg, "roll:     %4.1f", angs.x );	drawText(10, 80, msg, 1,1,1,1);
+		sprintf ( msg, "pitch:    %4.1f", angs.y );	drawText(10, 100, msg, 1,1,1,1);
+		sprintf ( msg, "heading:  %4.1f", angs.z );	drawText(10, 120, msg, 1,1,1,1);
 	end2D();
 
 
 	start3D(m_cam);
 
-		drawGrid();
-		Vector3DF a,b,c;
-		a = Vector3DF(1,0,0)*m_orient;
-		b = Vector3DF(0,1,0)*m_orient;
-		c = Vector3DF(0,0,1)*m_orient;
-		drawLine3D ( m_pos, m_pos+a, Vector4DF(1,1,1,1) );
-		drawLine3D ( m_pos, m_pos+b, Vector4DF(1,1,1,1) );
-		drawLine3D ( m_pos, m_pos+c, Vector4DF(1,1,1,1) );
-		drawLine3D ( m_pos, m_pos+m_lift, Vector4DF(0,1,0,1) );
-		drawLine3D ( m_pos, m_pos+m_thrust, Vector4DF(1,0,0,1) );
-		drawLine3D ( m_pos, m_pos+m_drag, Vector4DF(1,0,1,1) );
-		drawLine3D ( m_pos, m_pos+m_vel, Vector4DF(1,1,0,0.5) );
+		// draw ground
+		drawGrid( (m_flightcam) ? Vector4DF(1,1,1,1) : Vector4DF(0.2,0.2,0.2,1) );
 
-		drawLine3D ( Vector3DF(0,0,0), a, Vector4DF(1,1,1,1) );
-		drawLine3D ( Vector3DF(0,0,0), b, Vector4DF(1,1,1,1) );
-		drawLine3D ( Vector3DF(0,0,0), c, Vector4DF(1,1,1,1) );
-		drawLine3D ( Vector3DF(0,0,0), m_lift, Vector4DF(0,1,0,1) );
-		drawLine3D ( Vector3DF(0,0,0), m_thrust, Vector4DF(1,0,0,1) );
-		drawLine3D ( Vector3DF(0,0,0), m_drag, Vector4DF(1,0,1,1) );
-		drawLine3D ( Vector3DF(0,0,0), m_vel, Vector4DF(1,1,0,1) );
-		drawLine3D ( Vector3DF(0,0,0), m_force, Vector4DF(0,1,1,1) );
+		// draw plane orientation
+		if ( !m_flightcam ) {
+			Vector3DF a,b,c;
+			a = Vector3DF(1,0,0)*m_orient;
+			b = Vector3DF(0,1,0)*m_orient;
+			c = Vector3DF(0,0,1)*m_orient;			
+			drawLine3D ( m_pos, m_pos+c, Vector4DF(1,1,1,1) );
+			drawLine3D ( m_pos, m_pos+m_lift, Vector4DF(0,1,0,1) );
+			drawLine3D ( m_pos, m_pos+m_thrust, Vector4DF(1,0,0,1) );
+			drawLine3D ( m_pos, m_pos+m_drag, Vector4DF(1,0,1,1) );			
+			drawLine3D ( m_pos, m_pos+m_force, Vector4DF(0,1,1,.2) );
+			drawLine3D ( m_pos+Vector3DF(0,-.1,0), m_pos+m_vel*0.2f+Vector3DF(0,-.1,0), Vector4DF(1,1,0,.5) );
+			drawLine3D ( m_pos, Vector3DF(m_pos.x, 0, m_pos.z), Vector4DF(0.5,0.5,0.8,.3) );
+			
+			drawLine3D ( Vector3DF(0,0,0), c, Vector4DF(1,1,1,1) );
+			drawLine3D ( Vector3DF(0,0,0), m_lift, Vector4DF(0,1,0,1) );
+			drawLine3D ( Vector3DF(0,0,0), m_thrust, Vector4DF(1,0,0,1) );
+			drawLine3D ( Vector3DF(0,0,0), m_drag, Vector4DF(1,0,1,1) );			
+			drawLine3D ( Vector3DF(0,0,0), m_force, Vector4DF(0,1,1,.2) );
+			
+		}
 
 	end3D();
 
@@ -265,7 +289,6 @@ void Sample::display ()
 	draw2D (); 	
 	appPostRedisplay();								// Post redisplay since simulation is continuous
 }
-
 
 
 void Sample::mouse(AppEnum button, AppEnum state, int mods, int x, int y)
@@ -317,7 +340,7 @@ void Sample::mousewheel(int delta)
 	float dolly = m_cam->getDolly();
 	float zoom = (dist - dolly) * 0.001f;
 	dist -= delta * zoom * zoomamt;
-
+	
 	m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);		
 }
 
@@ -337,16 +360,14 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 	switch ( keycode ) {
 	case ' ':	m_run = !m_run;	break;
 	case 'c':	
-		m_flightcam = !m_flightcam; 
-		if (!m_flightcam) {
-			m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(0,0,0), 100, 1 );
-		}
+		m_flightcam = !m_flightcam; 		
 		break;
 	case 'w':	
-		m_power += 1.0; 
+		m_power += 0.1;
+		if (m_power > 5) m_power = 5;
 		break;
 	case 's':	
-		m_power -= 1.0; 
+		m_power -= 0.1; 
 		if (m_power < 0) m_power = 0; 
 		break;
 	case KEY_LEFT:	m_roll = -1.0; break;

@@ -141,6 +141,8 @@ void Camera3D::SetOrbit  ( Vector3DF angs, Vector3DF tp, float dist, float dolly
 
 void Camera3D::SetOrbit ( float ax, float ay, float az, Vector3DF tp, float dist, float dolly )
 {
+	up_dir = Vector3DF(0,1,0);
+
 	ang_euler.Set ( ax, ay, az );
 	mOrbitDist = dist;
 	mDolly = dolly;
@@ -154,7 +156,8 @@ void Camera3D::SetOrbit ( float ax, float ay, float az, Vector3DF tp, float dist
 	to_pos = tp;
 	//to_pos.x = from_pos.x - (float) dx * mDolly;
 	//to_pos.y = from_pos.y - (float) dy * mDolly;
-	//to_pos.z = from_pos.z - (float) dz * mDolly;
+	//to_pos.z = from_pos.z - (float) dz * mDolly;	
+
 	LookAt ();
 }
 
@@ -193,9 +196,6 @@ void Camera3D::setDirection ( Vector3DF from, Vector3DF to, float roll )
 	up_dir.Set ( 0, cos(roll*DEGtoRAD), sin(roll*DEGtoRAD) );
 	up_dir *= local; 
 
-	// update orbit dist
-	mOrbitDist = del.Length();
-	
 	LookAt();
 }
 
