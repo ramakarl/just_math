@@ -151,6 +151,12 @@ int BeliefPropagation::default_opts () {
   op.tileset_height = 0;
   op.tiled_reverse_y = 0;
 
+  op.block_size[0] = 8;
+  op.block_size[1] = 8;
+  op.block_size[2] = 8;
+
+  op.block_schedule = 0;
+
   return 0;
 }
 
@@ -2970,7 +2976,7 @@ int BeliefPropagation::wfc_step(int64_t it) {
   m_note_n[ m_note_plane ] = 0;
   m_note_n[ 1 - m_note_plane ] = 0;
 
-  cellFillVisited(cell, m_note_plane );
+  cellFillVisitedNeighbor(cell, m_note_plane );
   unfillVisited( m_note_plane );
 
   ret = cellConstraintPropagate();
@@ -2986,14 +2992,41 @@ int BeliefPropagation::wfc_step(int64_t it) {
 //
 int BeliefPropagation::RealizePre(void) {
 
+  int ret = 0;
+
   int64_t cell=-1;
-  int32_t tile=-1, tile_idx=-1, n_idx=-1;
+  int32_t tile=-1,
+          tile_idx=-1,
+          n_idx=-1;
   float belief=-1.0, d = -1.0;
 
   // reset steps
   op.cur_step = 0;
 
   float _eps = getLinearEps();
+
+  int32_t sub_block[6],
+          m_block_size[3],
+          x,y,z,
+          dx,dy,dz;
+
+  //DEBUG
+  //
+  m_block_size[0] = 8;
+  m_block_size[1] = 8;
+  m_block_size[2] = 1;
+  sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
+  sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
+  sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
+  dx = m_block_size[0];
+  dy = m_block_size[1];
+  dz = m_block_size[2];
+  printf(">>> BLOCK [%i+%i,%i+%i,%i+%i]\n",
+      (int)sub_block[0], (int)m_block_size[0],
+      (int)sub_block[1], (int)m_block_size[1],
+      (int)sub_block[2], (int)m_block_size[2]);
+  //
+  //DEBUG
 
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
@@ -3048,7 +3081,59 @@ int BeliefPropagation::RealizePre(void) {
 
   }
 
-  return 0;
+  else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+
+    // fuzz out a block
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
+
+    for (x=sub_block[0]; x<(sub_block[0]+dx); x++) {
+      for (y=sub_block[1]; y<(sub_block[1]+dy); y++) {
+        for (z=sub_block[2]; z<(sub_block[2]+dz); z++) {
+
+          n_idx=0;
+          cell = getVertex(x,y,z);
+          for (tile_idx=0; tile_idx < (m_num_values-1); tile_idx++) {
+            tile = tile_idx+1;
+            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+            cellFillVisitedSingle ( cell, m_note_plane );
+            cellFillVisitedNeighbor ( cell, m_note_plane );
+
+            n_idx++;
+          }
+
+          SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+        }
+      }
+    }
+
+    //DEBUG
+    //printf(">>>CP.0\n");
+    //debugPrint();
+    //DEBUG
+
+    // reset visited from above so that constraint propagate
+    // can use it.
+    //
+    unfillVisited( m_note_plane  );
+
+    // propagate constraints to remove neighbor tiles,
+    // and count number resolved (only 1 tile val remain)
+    //
+    ret = cellConstraintPropagate();
+
+    //DEBUG
+    //printf(">>>CP.1 (ret:%i)\n", (int)ret);
+    //debugPrint();
+    //DEBUG
+
+  }
+
+  return ret;
 }
 
 //  0 - success and finish
@@ -3077,6 +3162,25 @@ int BeliefPropagation::RealizePost(void) {
       ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
       break;
 
+    case ALG_CELL_BLOCK_WFC:
+
+
+      // TODO: potentially check for iteration count.
+      // There's a check on the outer loop (in main)
+      // to only iteration for a certain number but it
+      // should probably go here as well.
+      //
+      // For now, just return 1 (continue) so that
+      // it's handled at a higher level.
+      //
+      // TODO: (important) if wfc fails on the sub block,
+      // go back and replace with previous known
+      // good state.
+      //
+      ret = 1;
+      return 1;
+      break;
+
     case ALG_CELL_ANY:
 
       ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
@@ -3088,8 +3192,10 @@ int BeliefPropagation::RealizePost(void) {
       break;
 
     default:
+
       return -1;
       break;
+
   }
 
   // result of choose..
@@ -3125,7 +3231,7 @@ int BeliefPropagation::RealizePost(void) {
       m_note_n[ m_note_plane ] = 0;
       m_note_n[ 1 - m_note_plane  ] = 0;
 
-      cellFillVisited ( cell, m_note_plane );
+      cellFillVisitedNeighbor ( cell, m_note_plane );
       unfillVisited( m_note_plane  );
 
       // propagate constraints to remove neighbor tiles,
@@ -3209,7 +3315,7 @@ int BeliefPropagation::RealizePost(void) {
 
             removeTileIdx(_nei_cell, _nei_tile_idx);
 
-            cellFillVisited ( _nei_cell , m_note_plane );
+            cellFillVisitedNeighbor ( _nei_cell , m_note_plane );
             unfillVisited( m_note_plane  );
 
             // propagate constraints to remove neighbor tiles,
@@ -3350,11 +3456,18 @@ int BeliefPropagation::RealizeIter (void) {
 //
 int BeliefPropagation::RealizeStep(void) {
 
-  float d;
+  float   d=-1.0,
+          f_residue=-1.0,
+          belief=-1.0;
+  int64_t mu_idx=-1,
+          cell=-1;
+  int32_t idir=-1,
+          tile=-1,
+          tile_idx=-1,
+          n_idx=-1;
 
-  int64_t mu_idx, cell;
-  float f_residue;
-  int32_t idir, tile;
+  Vector3DI vp;
+  int resolved = 0;
 
   // start timing
   //
@@ -3366,7 +3479,8 @@ int BeliefPropagation::RealizeStep(void) {
 
   // assume continue
   //
-  int ret = 1;
+  int ret = 1,
+      _ret = -1;
 
   //---
 
@@ -3408,6 +3522,63 @@ int BeliefPropagation::RealizeStep(void) {
 
   }
 
+  else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+
+    // here we run WFC on the block we've fuzzed
+    //
+    ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+
+    if (ret >= 1) {
+
+      // 1 = continue condition.
+      // display chosen cell
+      //
+      if (op.verbose >= VB_INTRASTEP ) {
+        vp = getVertexPos(cell);
+        n_idx = getValI ( BUF_TILE_IDX_N, cell );
+        printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs]\n",
+            (int)op.cur_iter,
+            (int)cell,
+            (int)vp.x, (int)vp.y, (int)vp.z,
+            (int)tile, 0.0, (int)tile_idx, (int)n_idx);
+      }
+
+      // reset iter resolved and advance total
+      //
+      st.iter_resolved = 1;
+      st.total_resolved++;
+
+      // collapse
+      //
+      _ret = tileIdxCollapse( cell, tile_idx );
+      if (_ret >= 0) {
+        m_note_n[ m_note_plane ] = 0;
+        m_note_n[ 1 - m_note_plane  ] = 0;
+
+        cellFillVisitedNeighbor ( cell, m_note_plane );
+        unfillVisited( m_note_plane  );
+
+        // propagate constraints to remove neighbor tiles,
+        // and count number resolved (only 1 tile val remain)
+        //
+        _ret = cellConstraintPropagate();
+
+      }
+
+      // collapse failed
+      //
+      else { ret = -2; }
+
+      // ret inherits chooseMinEntropy return value (presumably 1)
+      // unless there's an error, in which case we propagate that
+      // value on
+      //
+      if (_ret < 0) { ret = -3; }
+
+    }
+
+  }
+
   else if (op.alg_run_opt == ALG_RUN_BACKTRACK) {
 
     ret = 0;
@@ -3422,6 +3593,10 @@ int BeliefPropagation::RealizeStep(void) {
   clock_t m_t2 = clock();
   st.elapsed_time += ((((double) m_t2-m_t1) / CLOCKS_PER_SEC) * 1000);
 
+  // ret 1 is a 'continue' state, so if we haven't finished,
+  // make sure we don't loop forever by incrementing cur_step
+  // and return max_step is exceedex
+  //
   if ( ret==1 ) {
     if (op.cur_step >= op.max_step )  { ret = -2; }
     else                              { op.cur_step++; }
@@ -4367,7 +4542,7 @@ int BeliefPropagation::CullBoundary() {
 // positions) that need to be inspected to determine
 // if any tiles should be removed.
 //
-void BeliefPropagation::cellFillVisited(uint64_t vtx, int32_t note_plane ) {
+void BeliefPropagation::cellFillVisitedNeighbor(uint64_t vtx, int32_t note_plane ) {
 
   int64_t i, nei_vtx;
 
@@ -4386,7 +4561,7 @@ void BeliefPropagation::cellFillVisited(uint64_t vtx, int32_t note_plane ) {
 
 }
 
-int BeliefPropagation::cellFillSingle(uint64_t vtx, int32_t note_plane) {
+int BeliefPropagation::cellFillVisitedSingle(uint64_t vtx, int32_t note_plane) {
 
   if (getValL( BUF_VISITED, vtx ) != 0) { return 0; }
 
@@ -4605,7 +4780,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             }
 
-            cellFillVisited (anch_cell, 1 - m_note_plane );
+            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
 
             anch_b_idx--;
             anch_n_tile--;
@@ -4682,7 +4857,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             }
 
-            cellFillVisited (anch_cell, 1 - m_note_plane );
+            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
 
@@ -4844,7 +5019,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
 
   m_note_n[ m_note_plane ]      = 0;
   m_note_n[ 1 - m_note_plane ]  = 0;
-  cellFillVisited ( cell, m_note_plane );
+  cellFillVisitedNeighbor ( cell, m_note_plane );
   unfillVisited ( m_note_plane );
 
   while (still_culling) {
@@ -4920,7 +5095,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
 
             }
 
-            cellFillVisited (anch_cell, 1 - m_note_plane );
+            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
 
             anch_b_idx--;
             anch_n_tile--;
@@ -5003,7 +5178,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
 
             }
 
-            cellFillVisited (anch_cell, 1 - m_note_plane );
+            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
 

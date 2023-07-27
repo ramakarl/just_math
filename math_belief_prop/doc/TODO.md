@@ -1,6 +1,12 @@
 TODO
 ===
 
+###### 2023-07-25
+
+* block WFC
+* Tiled has the option for multiple layers, so we can shove 3d tiles on multiple layers
+  or have multiple layers for 2d realizations that have failed (to see other options)
+
 ###### 2023-04-02
 
 * add 'escheresque' tilset:

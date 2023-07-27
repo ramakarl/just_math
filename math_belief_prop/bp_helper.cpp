@@ -818,7 +818,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
             ret = bp.filterDiscard(pos, v);
             if (ret < 0) { return ret; }
 
-            bp.cellFillVisited (pos, bp.m_note_plane);
+            bp.cellFillVisitedNeighbor (pos, bp.m_note_plane);
           }
         }
       }
@@ -841,7 +841,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
             ret = bp.filterKeep(pos, v);
             if (ret < 0) { return ret; }
 
-            bp.cellFillVisited (pos, bp.m_note_plane);
+            bp.cellFillVisitedNeighbor (pos, bp.m_note_plane);
           }
         }
       }
@@ -983,11 +983,13 @@ int write_tiled_json ( BeliefPropagation & bpc) {
         vtx = bpc.getVertex(j, i, 0);
 
         //tile = bpc.getMaxBeliefTile ( vtx );
-         tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
+        tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
 
         fprintf(fp, " %i", tile );
-        if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        else                                { fprintf(fp, "%s", ","); }
+        //if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        //else                                { fprintf(fp, "%s", ","); }
+        if ((i==0) && (j==(bpc.m_res.x-1))) { }
+        else                                { fprintf(fp, ","); }
       }
       fprintf(fp, "\n  ");
     }
@@ -996,30 +998,22 @@ int write_tiled_json ( BeliefPropagation & bpc) {
   else {
     for (i=0; i<(int) (bpc.m_res.y); i++) {
       for (j=0; j<(int) bpc.m_res.x; j++) {
-         vtx = bpc.getVertex(j, i, 0);
+        vtx = bpc.getVertex(j, i, 0);
 
-         //tile = bpc.getMaxBeliefTile ( vtx );
-          tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
+        //tile = bpc.getMaxBeliefTile ( vtx );
+        tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
 
-         fprintf(fp, " %i", tile );
+        fprintf(fp, " %i", tile );
 
-         if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-         else                                { fprintf(fp, "%s", ","); }
+        //if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        //else                                { fprintf(fp, "%s", ","); }
+        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { }
+        else                                { fprintf(fp, ","); }
       }
       fprintf(fp, "\n  ");
     }
 
   }
-
-  /*
-  n = bpc.m_num_verts;
-  for (i=0; i<n; i++) {
-    if ((i%(int)bpc.m_res.x)==0) {
-      fprintf(fp, "\n   ");
-    }
-    fprintf(fp, " %i%s", bpc.getVali( BUF_TILE_IDX, i, 0 ), (i<(n-1)) ? "," : "" );
-  }
-  */
 
   fprintf(fp, "\n    ],\n");
   fprintf(fp, "    \"name\":\"main\",\n");

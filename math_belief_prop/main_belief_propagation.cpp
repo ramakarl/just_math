@@ -444,6 +444,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
+  fprintf(fp, "  -i <#>   set max iteration (default to #cell * #tile)\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
   fprintf(fp, "  -Y <#>   set Y\n");
@@ -451,12 +452,14 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
   fprintf(fp, "  -G <#>   Algorithm/BP decimation policy\n");
-  fprintf(fp, "   -1      'wave function collapse'\n");
   fprintf(fp, "    0      fix maximum belief tile (default)\n");
   fprintf(fp, "    1      (unused)\n");
   fprintf(fp, "    2      after convergence, pick minimum entropy cell, maximum belief tile value\n");
   fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
+  fprintf(fp, "    -1     'wave function collapse'\n");
+  fprintf(fp, "    -2     block 'wave function collapse'\n");
+  fprintf(fp, "  -b <#>   block size (for use in block wfc, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -510,7 +513,9 @@ int main(int argc, char **argv) {
   std::string _eps_str;
   std::vector<float> eps_range;
 
-  int max_iter = -1, it, n_it;
+  int max_iter = -1,
+      it,
+      n_it = -1;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
@@ -529,7 +534,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:l")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -590,6 +595,7 @@ int main(int argc, char **argv) {
           bpc.op.eps_zero = eps_zero;
         }
         break;
+
       case 'I':
         max_iter = atoi(optarg);
         if (max_iter > 0) {
@@ -597,6 +603,10 @@ int main(int argc, char **argv) {
           bpc.op.max_step = (int64_t)max_iter;
         }
         break;
+      case 'i':
+        n_it = atoi(optarg);
+        break;
+
       case 'w':
         step_factor = atof(optarg);
         if (step_factor > 0.0) {
@@ -671,6 +681,12 @@ int main(int argc, char **argv) {
         bpc.op.tiled_reverse_y = 1;
         break;
 
+      case 'b':
+        bpc.op.block_size[0] = atoi(optarg);
+        bpc.op.block_size[1] = atoi(optarg);
+        bpc.op.block_size[2] = atoi(optarg);
+        break;
+
       default:
         show_usage(stderr);
         exit(-1);
@@ -714,6 +730,12 @@ int main(int argc, char **argv) {
         rule_fn_str.c_str() );
     fflush(stdout);
   }
+
+  // clamp block size
+  //
+  if (X < bpc.op.block_size[0]) { bpc.op.block_size[0] = X; }
+  if (Y < bpc.op.block_size[1]) { bpc.op.block_size[1] = Y; }
+  if (Z < bpc.op.block_size[2]) { bpc.op.block_size[2] = Z; }
 
   ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
@@ -791,13 +813,12 @@ int main(int argc, char **argv) {
     bpc.op.alg_cell_opt = ALG_CELL_WFC;
   }
 
-  // don't run algorithm, run through constraints
-  // and quite (possibly outputing a file)
+  // block wfc
   //
   else if (bpc.op.alg_idx == -2) {
     bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_WFC;
-    bpc.op.alg_cell_opt = ALG_CELL_WFC;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
   }
 
   else if (bpc.op.alg_idx == 1) {
@@ -875,37 +896,54 @@ int main(int argc, char **argv) {
   //----
   //----
 
-  if (bpc.op.alg_idx != -2) {
-
+  // set default if not specified on command line
+  //
+  if (n_it <= 0) {
     n_it = bpc.m_num_verts * bpc.m_num_values;
+  }
 
-    for (it=0; it < n_it; it++) {
+  //DEBUG
+  //
+  printf("AFTER INIT:...\n");
+  bpc.debugPrint();
+  //
+  //DEBUG
 
-      ret = bpc.RealizePre();
-      if (ret < 0) { break; }
+  for (it=0; it < n_it; it++) {
 
-      ret = 1;
-      while (ret>0) {
-        ret = bpc.RealizeStep();
-      }
-      //if (ret<0) { break; }
+    ret = bpc.RealizePre();
+    if (ret < 0) { break; }
 
-      ret = bpc.RealizePost();
-      if (ret <= 0) { break; }
+    //DEBUG
+    //
+    //printf("XXX DEBUG: %i\n", (int)it);
+    //bpc.debugPrint();
+    //
+    //DEBUG
 
-      if ( raycast )  {
+    ret = 1;
+    while (ret>0) {
+      ret = bpc.RealizeStep();
 
-        //DEBUG
-        printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
-        visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
+      //DEBUG
+      //printf("STEP: %i\n", (int)ret);
+    }
+    //if (ret<0) { break; }
 
-        raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
-        snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+    ret = bpc.RealizePost();
+    if (ret <= 0) { break; }
 
-        if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
-        save_png ( imgfile, m_img, iresx, iresy, 3 );
-      }
+    if ( raycast )  {
 
+      //DEBUG
+      printf("BUF_BELIEF: %i, VIZ_VOL: %i\n", (int)BUF_BELIEF, (int)VIZ_VOL);
+      visualize_belief ( bpc, BUF_BELIEF, VIZ_VOL, vres );
+
+      raycast_cpu ( vres, &cam, VIZ_VOL, m_img, iresx, iresy, Vector3DF(0,0,0), Vector3DF(vres) );
+      snprintf ( imgfile, 511, "%s%04d.png", base_png.c_str(), (int) it );
+
+      if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
+      save_png ( imgfile, m_img, iresx, iresy, 3 );
     }
 
   }

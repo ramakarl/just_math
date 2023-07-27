@@ -89,15 +89,17 @@
 #define VIZ_RESPICK     8
 
 #define ALG_CELL_WFC            31
-#define ALG_CELL_ANY            32
-#define ALG_CELL_MIN_ENTROPY    33
+#define ALG_CELL_BLOCK_WFC      32
+#define ALG_CELL_ANY            33
+#define ALG_CELL_MIN_ENTROPY    34
 
-#define ALG_TILE_MAX_BELIEF     34
+#define ALG_TILE_MAX_BELIEF     35
 
-#define ALG_RUN_VANILLA         35
-#define ALG_RUN_RESIDUAL        36
-#define ALG_RUN_WFC             37
-#define ALG_RUN_BACKTRACK       38
+#define ALG_RUN_VANILLA         36
+#define ALG_RUN_RESIDUAL        37
+#define ALG_RUN_WFC             38
+#define ALG_RUN_BLOCK_WFC       39
+#define ALG_RUN_BACKTRACK       40
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1
@@ -223,6 +225,9 @@ typedef struct _bp_opt_t {
   int       use_checkerboard;
 
   int       use_lookahead;
+
+  int64_t   block_size[3];
+  int32_t   block_schedule;
 
   // As a general rule of thumb, the verbosity is:
   //
@@ -458,6 +463,7 @@ public:
   int32_t tileName2ID (char *);
 
   // used for visualization
+  //
   void  ComputeDiffMUField ();
   void  ComputeBeliefField ();
   int   ComputeTilecountField ();
@@ -467,8 +473,8 @@ public:
   //
   int   CullBoundary();
   int   cellConstraintPropagate();
-  void  cellFillVisited(uint64_t vtx, int32_t note_idx);
-  int   cellFillSingle(uint64_t vtx, int32_t note_idx);
+  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx);
+  int   cellFillVisitedSingle(uint64_t vtx, int32_t note_idx);
 
   int   tileIdxCollapse(uint64_t pos, int32_t tile_idx);
   int   tileIdxRemove(uint64_t pos, int32_t tile_idx);
@@ -480,17 +486,19 @@ public:
   int   sanityAccessed();
 
   //----------------------- visualization
+
   Vector4DF getVisSample ( int64_t v );
-
-
 
   //------------------------ memory management
 
-  void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+  void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );
   void          ZeroBuf (int id);
 
-  int64_t       getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
-  int64_t       getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
+  // 3D spatial neighbor functions
+  //
+  int64_t       getNeighbor(uint64_t j, int nbr);
+  int64_t       getNeighbor(uint64_t j, Vector3DI jp, int nbr);
+
   Vector3DI     getVertexPos(int64_t j);
   int64_t       getVertex(int x, int y, int z);
   int           getTilesAtVertex ( int64_t vtx );
@@ -498,7 +506,9 @@ public:
 
   //----------------------- new accessor functions
 
-  inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
+  // caller does type casting
+  //
+  inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}
 
   inline int32_t getValI(int id, int x=0, int y=0, int z=0)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}
   inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}
@@ -509,7 +519,6 @@ public:
   inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
   inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}
-  // inline int    getNumNeighbors(int j)        {return 6;}
 
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
@@ -531,37 +540,16 @@ public:
   float         getElapsedTime()       { return st.elapsed_time; }
   void          setConverge ( bp_opt_t* op, float c );
 
-  //----------------------- LEGACY accessor functions
-
-  //  belief prop residue access functions (int64_t)
-  //  index heap - ih
-  //
-  /* inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline int64_t  getVal_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline void     SetVal_ih(int32_t id, int32_t n, int64_t j, int32_t a, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
-
-  inline int64_t* getPtr_ih(int32_t id, int64_t idx)                { return  (int64_t*) m_buf[id].getPtr ( idx ); }
-  inline int64_t  getVal_ih(int32_t id, int64_t idx)                { return *(int64_t*) m_buf[id].getPtr ( idx ); }
-  inline void     SetVal_ih(int32_t id, int64_t idx, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( idx ) = val; }
-
-  inline float* getPtr_ihf(int32_t id, int64_t idx)             { return  (float*) m_buf[id].getPtr ( idx ); }
-  inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
-  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; } */
-
-/* inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
-   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }  */
-
-
   //-------------------------- wave function collapse
   int   wfc();
   int   wfc_start();
   int   wfc_step(int64_t it);
 
-  //-------------------------- backtracking
+  //-------------------------- backtracking (wip)
+
   int cellConstraintPropagate_lookahead(int64_t, int32_t);
   int btPush(int64_t, int64_t, int64_t);
   int btUnwind(int64_t);
-
 
 
   //-------------------------- debugging functions
@@ -582,9 +570,11 @@ public:
   //------------------------- member variables
 
   // primary data stored in buffers
+  //
   DataPtr       m_buf[ BUF_MAX ];
 
   // problem size
+  //
   int64_t       m_num_verts;    // Xi = 0..X (graph domain)
   int64_t       m_num_values;   //  B = 0..Bm-1 (value domain)
   Vector3DI     m_bpres;        // 3D spatial belief prop res
@@ -605,12 +595,15 @@ public:
   Mersenne      m_rand;
 
   // parameters/options
+  //
   bp_opt_t      op;
 
   // statistics
+  //
   bp_stat_t     st;
 
   // experiments
+  //
   bp_expr_t     expr;
 
 };
