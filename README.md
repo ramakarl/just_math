@@ -40,6 +40,7 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 - Voxelizer - Voxelization of triangle into a volume, using several methods.
 - WangTiles - Sampling of spatial distribution functions with scale invariance.
 - WangTiles3D - Alternative demo of Wang Tiles for 3D geometry instancing over a density map landscape.
+- Flightsim - *NEW* 2023. Simple force-driven flight simulator.
 
 ## Libmin
 
