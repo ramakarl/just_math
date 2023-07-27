@@ -577,7 +577,7 @@ Quaternion Sample::Squad (int k, float u, Quaternion* keys, int num_keys, int st
 	if (stride==0) stride = sizeof(Quaternion);
 
 	// SQUAD
-	// Implemented by R.C.Hoetzlein (c) 2021, CC-BY
+	// Implemented by R.C.Hoetzlein (c) 2021, MIT License
 	// Based on paper: eqn 15, 2018, Harrbach et.al, Survey of Higher Order Rigid Body Motion Interpolation Methods for Keyframe Animation and Continuous-Time Trajectory Estimation	
 	// *NOTE* In order for this to work, your Quaternion class must have the 
 	// correct implementations of slerp, log, exp and inverse. No normalization is needed except the last one.

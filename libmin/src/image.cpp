@@ -224,14 +224,26 @@ Vector4DF Image::GetPixelFilteredUV (float x, float y)
 	return Vector4DF(c[6].x/255.0f,c[6].y/255.0f,c[6].z/255.0f,c[6].w/255.0f); 
 }
 
-float Image::GetPixelFilteredUV16 (float x, float y, float bias)
+void Image::FlipY ()
+{
+	int pitch = m_Info.mBytesPerRow;
+	char* data = m_Pix.mCpu;
+	unsigned char* buf = (unsigned char*) malloc ( m_Info.mBytesPerRow );
+	for (int y=0; y < m_Info.mYres/2; y++ ) {
+		memcpy ( buf, data + (y*pitch), pitch );		
+		memcpy ( data + (y*pitch), data + ((m_Info.mYres-y-1)*pitch), pitch );		
+		memcpy ( data + ((m_Info.mYres-y-1)*pitch), buf, pitch );
+	}
+	CommitAll ();
+}
+
+
+float Image::GetPixelFilteredUV16 (float x, float y)
 {
 	float u = x * (m_Info.mXres - 1);
 	float v = y * (m_Info.mYres - 1);
 	int xu = u;
-	int yu = v;
-	u = (u - xu)*bias;
-	v = (v - yu)*bias;	
+	int yu = v;	
 	
 	float c[7];
 	unsigned short i ;

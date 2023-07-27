@@ -58,6 +58,7 @@
 		void ChangeFormat (ImageOp::Format eFormat) 	{ (this->*m_ReformatFunc) ( eFormat); } // Change pixel format of data
 		void DeleteBuffers ();
 		void CopyIntoBuffer ( DataPtr& dest, DataPtr& src, int bpp, int w, int h );
+		void FlipY ();
 
 		// GPU
 		void SetUsage ( uchar use_flags );
@@ -92,7 +93,7 @@
 
 		// Image Operations
 		Vector4DF		GetPixelFilteredUV (float x, float y);
-		float			GetPixelFilteredUV16 (float x, float y, float bias=1);
+		float			GetPixelFilteredUV16 (float x, float y);
 		inline float	GetPixelUV16 ( float u, float v );
 
 		inline float	GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }

@@ -980,9 +980,7 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 	bcl = bc; */
 
 	// Get ray height
-	q0 = v0*bc.x + v1*bc.y + v2*bc.z;
-	q1 = s->ve0*bc.x + s->ve1*bc.y + s->ve2*bc.z;
-	//rayhgt = (q1-q0).Length() - (q1-hit).Length();
+	q0 = v0*bc.x + v1*bc.y + v2*bc.z;	
 	rayhgt = (hit-q0).Length() * sign ( s->norm.Dot(hit-q0) );
 
 	
@@ -1129,7 +1127,6 @@ bool Sample::IntersectSurface ( int face, Vector3DF rpos, Vector3DF rdir, float 
 		q0 = v0 + vn0 * de / float(s->norm.Dot(vn0));
 		q1 = v1 + vn1 * de / float(s->norm.Dot(vn1));
 		q2 = v2 + vn2 * de / float(s->norm.Dot(vn2));
-		bcl = bc;
 		bc = getBarycentricInTriangle  ( hit, q0, q1, q2, area );	
 	}	
 

@@ -121,6 +121,7 @@
 			Quaternion& fromAngleAxis (f32 angle, const Vector3DF& axis);			// From rotation angle and axis			
 			Quaternion& fromRotationFromTo(Vector3DF from, Vector3DF to, float frac=1.0);	// From a rotation from one vector to another
 			Quaternion& fromDirectionAndUp ( Vector3DF fwd, Vector3DF up );			// From a direction and up vector
+			Quaternion& fromDirectionAndRoll ( Vector3DF fwd, float roll );			// From a direction and roll angle
 			Quaternion& changeAngle (f32 angle);
 			
 			// Linear interpolation - Set this Quaternion to the linear interpolation 

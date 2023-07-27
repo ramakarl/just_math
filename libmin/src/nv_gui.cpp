@@ -1674,8 +1674,8 @@ void nvImg::UpdateTex ()
 	void nvDraw::setPreciseEye (int s, Camera3D* cam )
 	{
 		Vector3DF hi,lo;
-		cam->getPreciseEye ( hi, lo );
-		glUniformMatrix4fv ( mView[s],  1, GL_FALSE, cam->getRotateMatrix().GetDataF() );	// use rotate instead of view matrix (no translate)
+		cam->getPreciseEye ( hi, lo );		
+		glUniformMatrix4fv ( mView[s],  1, GL_FALSE, cam->getRotateMtx().GetDataF() );	// use rotate instead of view matrix (no translate)
 		glUniform4f ( mEyeHi[s], hi.x, hi.y, hi.z, 0 );
 		glUniform4f ( mEyeLo[s], lo.x, lo.y, lo.z, 0 );
 	}
