@@ -54,7 +54,7 @@ public:
 	Matrix4F	m_inertia, m_inv_inertia;
 	Vector3DF   m_ctr_of_pressure;
 
-	float		m_speed;	
+	float		m_speed, m_max_speed;
 	float		m_roll, m_pitch, m_pitch_adv, m_power;
 	float		m_DT;
 
@@ -80,7 +80,7 @@ bool Sample::init ()
 	
 	m_cam = new Camera3D;
 	m_cam->setFov ( 120 );
-	m_cam->setNearFar ( 0.1, 10000 );
+	m_cam->setNearFar ( 0.5, 20000 );
 	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 20, 1 );
 
 	mt.seed(164);
@@ -116,18 +116,34 @@ bool Sample::init ()
 
 void Sample::drawGrid( Vector4DF clr )
 {
-	float o	 = -0.05;		// offset
-	for (int n=-10000; n <= 10000; n+=25 ) {
-		drawLine3D ( Vector3DF(n, o,-10000), Vector3DF(n, o, 10000), clr );
-		drawLine3D ( Vector3DF(-10000, o, n), Vector3DF(10000, o, n), clr );
+	Vector3DF a;
+	float o = -0.02;			// offset
+
+	// center section
+	for (int n=-5000; n <= 5000; n += 50 ) {
+		drawLine3D ( Vector3DF(n, o,-5000), Vector3DF(n, o, 5000), clr );
+		drawLine3D ( Vector3DF(-5000, o, n), Vector3DF(5000, o, n), clr );
 	}
+	
+	// large sections
+	for (int j=-5; j <=5 ; j++) {
+		for (int k=-5; k <=5; k++) {
+			a = Vector3DF(j, 0, k) * Vector3DF(5000,0,5000);
+			if (j==0 && k==0) continue;
+			for (int n=0; n <= 5000; n+= 200) {
+				drawLine3D ( Vector3DF(a.x,   o, a.z+n), Vector3DF(a.x+5000, o, a.z+n), Vector4DF(1,1,1,0.2) );
+				drawLine3D ( Vector3DF(a.x+n,-o, a.z  ), Vector3DF(a.x+n,    o, a.z+5000), Vector4DF(1,1,1,0.2) );
+			}
+		}
+	}
+
 }
 
 void Sample::Advance ()
 {
 	Vector3DF force, torque;
 	
-	float m_LiftFactor = 0.00020;
+	float m_LiftFactor = 0.005;
 	float m_DragFactor = 0.005;
 
 	float mass = 0.1;	// kg. weight of starling = 3.6 oz = 0.1 kg
@@ -137,11 +153,15 @@ void Sample::Advance ()
 	Vector3DF up  = Vector3DF(0,1,0) * m_orient;
 	Vector3DF left = Vector3DF(0,0,1) * m_orient;
 
+	// Maximum speed
+	// - afterburner when power >= 3
+	m_max_speed = (m_power > 3 ) ? 500 : 100;
+
 	// Velocity limit
 	m_speed = m_vel.Length();
 	Vector3DF vaxis = m_vel / m_speed;	
 	if ( m_speed < 0 ) m_speed =  0;		// planes dont go in reverse
-	if ( m_speed > 100 ) m_speed = 100;
+	if ( m_speed > m_max_speed ) m_speed = m_max_speed;
 	if ( m_speed==0) vaxis = fwd;
 
 	// Pitch inputs - modify direction of target velocity 
@@ -156,12 +176,12 @@ void Sample::Advance ()
 	torque = 0;
 
 	// Dynamic pressure
-	float p = 1.225;				// kg/m^3m, air density
+	float p = 1.225;				// air density, kg/m^3
 	float dynamic_pressure = 0.5f * p * m_speed * m_speed;
 
 	// Lift force	
 	float aoa = fwd.Dot( vaxis );
-	float L = (aoa*aoa) * dynamic_pressure * m_LiftFactor;
+	float L = (aoa*aoa) * dynamic_pressure * m_LiftFactor * (100.0 / pow(m_max_speed, 1.7) );
 	m_lift = up * L;
 	m_force += m_lift;	
 
@@ -175,7 +195,7 @@ void Sample::Advance ()
 
 	// Update orientation
 	// airplane will tend to reorient toward the velocity vector
-	// this is an assumption yet much simpler/faster than integrated body orientation.
+	// this is an assumption yet much simpler/faster than integrating body orientation.
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
 	angvel.fromRotationFromTo ( fwd, vaxis, 0.02 );
@@ -190,12 +210,13 @@ void Sample::Advance ()
 
 	// Integrate position		
 	m_accel = m_force / mass;
-	m_accel += Vector3DF(0,-9.8,0);	
-	m_pos += m_vel * m_DT;			// do this first so that vel is limited				
+	m_accel += Vector3DF(0,-9.8,0);		// gravity
+	m_pos += m_vel * m_DT;
+
 	if (m_pos.y <= 0.00001 ) { 
 		// Ground condition
 		m_pos.y = 0; m_vel.y = 0; 
-		m_accel += Vector3DF(0,9.8,0);	// ground force
+		m_accel += Vector3DF(0,9.8,0);	// ground force (upward)
 		m_vel *= 0.9999;				// ground friction
 		m_orient.fromDirectionAndRoll ( Vector3DF(fwd.x, 0, fwd.z), 0 );	// zero pitch & roll
 		ctrl_roll.fromAngleAxis ( -m_roll*0.001, Vector3DF(0,1,0) );		// on ground, left/right is rudder
@@ -214,7 +235,9 @@ void Sample::CameraToCockpit()
 	Vector3DF fwd = m_vel; fwd.Normalize();
 	Vector3DF angs;
 	m_orient.toEuler ( angs );
-	Vector3DF p = m_pos + Vector3DF(0,1,0);	  // eye level above centerline
+
+	// Set eye level above centerline
+	Vector3DF p = m_pos + Vector3DF(0,1,0);	  
 	
 	m_cam->setDirection ( p, p + fwd, -angs.x );
 }
@@ -227,15 +250,14 @@ void Sample::display ()
 	int w = getWidth();
 	int h = getHeight();
 
-	if (m_run) { 
-		//m_run = false;
+	if (m_run) { 		
 		Advance ();
 	}
+
 	if (m_flightcam) {
 		CameraToCockpit();
 	} else {
 		m_cam->SetOrbit ( Vector3DF(30,40,0), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
-		dbgprintf ( "%f\n", m_cam->getOrbitDist() );
 	}
 	
 	char msg[128];
@@ -246,22 +268,24 @@ void Sample::display ()
 
 		Vector3DF angs;
 		m_orient.toEuler ( angs );
-		
+
+		// Instrument display
 		sprintf ( msg, "power:    %4.1f", m_power );	drawText(10, 20, msg, 1,1,1,1);
 		sprintf ( msg, "speed:    %4.5f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
 		sprintf ( msg, "altitude: %4.2f", m_pos.y );	drawText(10, 60, msg, 1,1,1,1);
 		sprintf ( msg, "roll:     %4.1f", angs.x );	drawText(10, 80, msg, 1,1,1,1);
 		sprintf ( msg, "pitch:    %4.1f", angs.y );	drawText(10, 100, msg, 1,1,1,1);
 		sprintf ( msg, "heading:  %4.1f", angs.z );	drawText(10, 120, msg, 1,1,1,1);
+
 	end2D();
 
 
 	start3D(m_cam);
 
-		// draw ground
+		// Draw ground
 		drawGrid( (m_flightcam) ? Vector4DF(1,1,1,1) : Vector4DF(0.2,0.2,0.2,1) );
 
-		// draw plane orientation
+		// Draw plane forces (orbit cam only)
 		if ( !m_flightcam ) {
 			Vector3DF a,b,c;
 			a = Vector3DF(1,0,0)*m_orient;
