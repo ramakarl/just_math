@@ -89,7 +89,7 @@ bool Sample::init ()
 	m_vel.Set (0, 0, 0);			// speed = 10 m/s
 	m_roll = 0;
 	m_pitch = 0;
-	m_pitch_adv = 0;
+	m_pitch_adv = 0.1;
 	m_power = 1;
 	m_accel.Set(0,0,0);
 	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
@@ -127,28 +127,28 @@ void Sample::Advance ()
 {
 	Vector3DF force, torque;
 	
-	float m_LiftFactor = 0.0005;
+	float m_LiftFactor = 0.00065;
 	float m_DragFactor = 0.005;
 
 	float mass = 0.1;	// kg. weight of starling = 3.6 oz = 0.1 kg
 	
-
+	// Body frame of reference
 	Vector3DF fwd = Vector3DF(1,0,0) * m_orient;
 	Vector3DF up  = Vector3DF(0,1,0) * m_orient;
 	Vector3DF left = Vector3DF(0,0,1) * m_orient;
 
 	// Velocity limit
 	m_speed = m_vel.Length();
-
 	Vector3DF vaxis = m_vel / m_speed;	
 	if ( m_speed < 0 ) m_speed =  0;		// planes dont go in reverse
 	if ( m_speed > 50 ) m_speed = 50;
 	if ( m_speed==0) vaxis = fwd;
 
+	// Pitch inputs - modify direction of target velocity 
 	Quaternion ctrl_pitch;
 	m_pitch_adv = m_pitch_adv * 0.9995 + m_pitch * 0.005;
 	ctrl_pitch.fromAngleAxis ( m_pitch_adv*0.0001, Vector3DF(0,0,1) * m_orient );
-	vaxis *= ctrl_pitch; 	
+	vaxis *= ctrl_pitch; 				
 
 	m_vel = vaxis * m_speed;
 
@@ -162,16 +162,8 @@ void Sample::Advance ()
 	// Lift force	
 	float aoa = fwd.Dot( vaxis );
 	float L = (aoa*aoa) * dynamic_pressure * m_LiftFactor;
-	
-	//float pt = m_pitch*20;
-	//m_lift.Set ( -sin(pt*DEGtoRAD), cos(m_roll*DEGtoRAD)*cos(pt*DEGtoRAD), sin(m_roll*DEGtoRAD)*cos(pt*DEGtoRAD) );	
-	//m_lift *= L;
-	//m_lift *= m_orient;		
-	
 	m_lift = up * L;
-	m_force += m_lift;
-
-	//torque += Vector3DF(m_roll, 0, m_pitch) * m_speed / 40.0f;	
+	m_force += m_lift;	
 
 	// Drag force	
 	m_drag = vaxis * (dynamic_pressure / (m_speed+0.001f) ) * m_DragFactor * -1.0f;	
@@ -181,50 +173,26 @@ void Sample::Advance ()
 	m_thrust = fwd * m_power;
 	m_force += m_thrust;
 
-	// Integrate rotation
-	/*up.z = 0; up.Normalize();
-	float radius = 3.8f / fabs(left.z);
-	Vector3DF centrip = up * dynamic_pressure / radius;
-	float direc = m_vel.Cross ( centrip).z;	
-	if ( direc != 0.f) {
-		Vector3DF axis = Vector3DF(0,0,direc) * m_orient.inverse();
-		Quaternion angvel;
-		angvel.fromAngleAxis ( m_speed / radius * m_DT, axis );
-		m_orient = m_orient + angvel;
-		m_orient.normalize();
-	} */	
-
-	// Integration rotation	
-
+	// Integrate orientation
+	// airplane will reorient toward the velocity vector
 	Quaternion angvel;
 	angvel.fromRotationFromTo (  fwd, vaxis, 0.02 );
 	if ( !isnan(angvel.X) ) {
 		m_orient *= angvel;
 		m_orient.normalize();
-	}
+	}	
+	// Roll inputs - modify body orientation
 	Quaternion ctrl_roll;
 	ctrl_roll.fromAngleAxis ( m_roll*0.001, Vector3DF(1,0,0) * m_orient );
-	m_orient *= ctrl_roll; m_orient.normalize();	
+	m_orient *= ctrl_roll; m_orient.normalize();		// roll inputs
 
-	
 	// Integrate position		
 	m_accel = m_force / mass;
 	m_accel += Vector3DF(0,-9.8,0);	
-	m_pos += m_vel * m_DT;			// do this first so that vel is limited		
-	if (m_pos.y <= 0 ) { m_pos.y = 0; m_vel.y = 0; m_accel += Vector3DF(0,9.8,0); }	
+	m_pos += m_vel * m_DT;			// do this first so that vel is limited			
+	if (m_pos.y <= 0 ) { m_pos.y = 0; m_vel.y = 0; m_accel += Vector3DF(0,9.8,0); }		// on ground condition
 	m_vel += m_accel * m_DT;
-
-	dbgprintf ( "vel: %f, acc: %f\n", m_vel.Length(), m_accel.Length() );
 	
-	//dbgprintf ( "%f %f %f\n", m_pos.y, m_vel.y, m_accel.y );
-
-	// Integrate orientation
-	/*float inertia_factor = 5.0f;
-	m_angvel += (torque * m_inv_inertia)  * inertia_factor * m_DT;
-	//m_angvel += ((torque - m_angvel.Cross( m_angvel * m_inertia )) * m_inv_inertia) * m_DT; 	
-	Quaternion avq ( m_angvel, 0.0f );
-	m_orient = m_orient + (m_orient * avq) * (0.5*m_DT);
-	m_orient.normalize();  */
 }
 
 
