@@ -71,7 +71,7 @@ bool Sample::init ()
 {
 	int w = getWidth(), h = getHeight();			// window width & height
 	m_run = true;
-	m_flightcam = false;
+	m_flightcam = true;
 
 	addSearchPath ( ASSET_PATH );
 	init2D ( "arial" );
@@ -80,7 +80,7 @@ bool Sample::init ()
 	
 	m_cam = new Camera3D;
 	m_cam->setFov ( 120 );
-	m_cam->setNearFar ( 0.1, 5000 );
+	m_cam->setNearFar ( 0.1, 10000 );
 	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 30, 1 );
 
 	mt.seed(164);
@@ -90,7 +90,7 @@ bool Sample::init ()
 	m_roll = 0;
 	m_pitch = 0;
 	m_pitch_adv = 0.1;
-	m_power = 1;
+	m_power = 3;
 	m_accel.Set(0,0,0);
 	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
 	m_DT = 0.001;
@@ -117,9 +117,9 @@ bool Sample::init ()
 void Sample::drawGrid()
 {
 	float o	 = -0.05;		// offset
-	for (int n=-5000; n <= 5000; n+=20 ) {
-		drawLine3D ( n, o,-5000, n, o,5000, 1,1,1,1);
-		drawLine3D (-5000, o, n, 5000, o, n, 1,1,1,1);
+	for (int n=-10000; n <= 10000; n+=25 ) {
+		drawLine3D ( n, o,-10000, n, o, 10000, 1,1,1,1);
+		drawLine3D (-10000, o, n, 10000, o, n, 1,1,1,1);
 	}
 }
 
@@ -218,7 +218,9 @@ void Sample::display ()
 		//m_run = false;
 		Advance ();
 	}
-	if (m_flightcam) UpdateCamera();
+	if (m_flightcam) {
+		UpdateCamera();
+	}
 	
 	char msg[128];
 
