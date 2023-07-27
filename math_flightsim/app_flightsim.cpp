@@ -1,12 +1,35 @@
 //--------------------------------------------------------
 // JUST MATH:
-// Flight simulator
+// Flight simulator, by R.Hoetzlein 2023
 // 
+// This implements a basic force-based flight simulator with
+// lift, drag, thrust and gravity forces. The goal was to create a flight
+// model that is compact, fast and simple yet has realistic features.
 //
+// Features of this model are: 
+//    Gliding - forces correctly balance under low or no power
+//    Altitude loss - high roll or zero power result in drag causing altitude loss
+//    Roll/pitch control - implemented by deflecting the body orientation & fwd velocity
+//    Stalls - with zero power, aoa increases and drag, cause stalls.
+//    Landing/Take off - ground conditions. zero roll/pitch, ground friction
+//    Taxiing - on the ground left/right becomes rudder
+//    Afterburner - maximum speed increased when power >3
 //
+// Orientation is a unique challenge. A common way to implement this is to
+// treat each wing/control surface as an independent aerofoil acting on a
+// single rigid body. While more realistic this complicates code and requires
+// significantly more computation (e.g. inertia tensors). Instead we take advantage 
+// of the directional stability of aircraft, which tend to reorient toward the forward velocity.
+//   See: https://en.wikipedia.org/wiki/Directional_stability
+// The body orientation is gradually interpolated toward the fwd velocity with quaternions.
+//
+// This model still retains a difference between the forward velocity (m_vel)
+// and the body forward orientation (fwd), which is needed to compute angle-of-attack 
+// for lift forces. However there is no torque, angular velocity or rotational inertia.
+// These assumptions can still cause stalls, but not flat spins or 3D flying.
 //
 //--------------------------------------------------------------------------------
-// Copyright 2019-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
+// Copyright 2019-2023 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
 //
 // * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
 //
@@ -80,7 +103,7 @@ bool Sample::init ()
 	
 	m_cam = new Camera3D;
 	m_cam->setFov ( 120 );
-	m_cam->setNearFar ( 0.5, 20000 );
+	m_cam->setNearFar ( 1.0, 100000 );
 	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 20, 1 );
 
 	mt.seed(164);
@@ -146,15 +169,15 @@ void Sample::Advance ()
 	float m_LiftFactor = 0.005;
 	float m_DragFactor = 0.005;
 
-	float mass = 0.1;	// kg. weight of starling = 3.6 oz = 0.1 kg
+	float mass = 0.1;	// body mass (kg)
 	
 	// Body frame of reference
-	Vector3DF fwd = Vector3DF(1,0,0) * m_orient;
-	Vector3DF up  = Vector3DF(0,1,0) * m_orient;
-	Vector3DF left = Vector3DF(0,0,1) * m_orient;
+	Vector3DF fwd = Vector3DF(1,0,0) * m_orient;		// X-axis is body forward
+	Vector3DF up  = Vector3DF(0,1,0) * m_orient;		// Y-axis is body up
+	Vector3DF right = Vector3DF(0,0,1) * m_orient;		// Z-axis is body right
 
 	// Maximum speed
-	// - afterburner when power >= 3
+	// afterburner when power >= 3
 	m_max_speed = (m_power > 3 ) ? 500 : 100;
 
 	// Velocity limit
@@ -193,9 +216,11 @@ void Sample::Advance ()
 	m_thrust = fwd * m_power;
 	m_force += m_thrust;
 
-	// Update orientation
-	// airplane will tend to reorient toward the velocity vector
-	// this is an assumption yet much simpler/faster than integrating body orientation.
+	// Update Orientation
+	// Directional stability: airplane will typically reorient toward the velocity vector
+	//  see: https://en.wikipedia.org/wiki/Directional_stability
+	// this is an assumption yet much simpler/faster than integrating body orientation
+	// this way we dont need torque, angular vel, or rotational interia
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
 	angvel.fromRotationFromTo ( fwd, vaxis, 0.02 );
@@ -203,7 +228,7 @@ void Sample::Advance ()
 		m_orient *= angvel;
 		m_orient.normalize();
 	}	
-	// Roll inputs - modify body orientation
+	// Roll inputs - modify body orientation along X-axis
 	Quaternion ctrl_roll;
 	ctrl_roll.fromAngleAxis ( m_roll*0.001, Vector3DF(1,0,0) * m_orient );
 	m_orient *= ctrl_roll; m_orient.normalize();		// roll inputs
@@ -415,7 +440,7 @@ void Sample::reshape (int w, int h)
 void Sample::startup ()
 {
 	int w = 1900, h = 1000;
-	appStart ( "Cell simulation", "Cell simulation", w, h, 4, 2, 16, false );
+	appStart ( "Flight simulation", "Flight simulation", w, h, 4, 2, 16, false );
 }
 
 void Sample::shutdown()
