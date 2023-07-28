@@ -174,7 +174,7 @@ void Sample::Advance ()
 	if ( m_pos.y <= 0 ) m_pitch_adv = 1.1;
 	m_pitch_adv = m_pitch_adv * 0.9995 + m_pitch * 0.005;
 	ctrl_pitch.fromAngleAxis ( m_pitch_adv*0.0001, Vector3DF(0,0,1) * m_orient );
-	vaxis *= ctrl_pitch; 				
+	vaxis *= ctrl_pitch;	vaxis.Normalize();	
 
 	m_vel = vaxis * m_speed;
 
@@ -191,15 +191,15 @@ void Sample::Advance ()
 	float dynamic_pressure = 0.5f * p * airflow * airflow;
 
 	// Lift force
-	m_aoa = acos( fwd.Dot( vaxis ) )*RADtoDEG + 1;				// angle-of-attack = angle between velocity and body forward	
+	m_aoa = acos( fwd.Dot( vaxis ) )*RADtoDEG + 1;				// angle-of-attack = angle between velocity and body forward		
 	if (isnan(m_aoa)) m_aoa = 1;
-	float CL = sin( m_aoa * 0.2) + flap_lift;					// approximate CL curve with sin
-	float L = CL * CL * dynamic_pressure * m_LiftFactor * 0.5;
+	float CL = sin( m_aoa * 0.2) + flap_lift;					// CL = coeff of lift, approximate CL curve with sin
+	float L = CL * dynamic_pressure * m_LiftFactor * 0.5;		// lift equation. L = CL 1/2p v^2 * A
 	m_lift = up * L;
 	m_force += m_lift;	
 
 	// Drag force	
-	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * wing_area;
+	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * wing_area;	// drag equation. D = Cd 1/2p v^2 * A
 	m_force += m_drag; 
 
 	// Thrust force
@@ -213,7 +213,7 @@ void Sample::Advance ()
 	// this way we dont need torque, angular vel, or rotational interia
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
-	angvel.fromRotationFromTo ( fwd, vaxis, 0.002 );
+	angvel.fromRotationFromTo ( fwd, vaxis, 0.001 );
 	if ( !isnan(angvel.X) ) {
 		m_orient *= angvel;
 		m_orient.normalize();
@@ -293,7 +293,7 @@ void Sample::display ()
 		sprintf ( msg, "power:    %4.1f", m_power );	drawText(10, 20, msg, 1,1,1,1);
 		sprintf ( msg, "speed:    %4.5f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
 		sprintf ( msg, "altitude: %4.2f", m_pos.y );	drawText(10, 60, msg, 1,1,1,1);
-		sprintf ( msg, "aoa:      %4.2f", m_aoa );		drawText(10, 80, msg, 1,1,1,1);
+		sprintf ( msg, "aoa:      %4.4f", m_aoa );		drawText(10, 80, msg, 1,1,1,1);
 		sprintf ( msg, "roll:     %4.1f", angs.x );		drawText(10, 100, msg, 1,1,1,1);
 		sprintf ( msg, "pitch:    %4.1f", angs.y );		drawText(10, 120, msg, 1,1,1,1);		
 		sprintf ( msg, "heading:  %4.1f", angs.z );		drawText(10, 140, msg, 1,1,1,1);
