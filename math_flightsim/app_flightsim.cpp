@@ -10,10 +10,12 @@
 //    Gliding - forces correctly balance under low or no power
 //    Altitude loss - high roll or zero power result in drag causing altitude loss
 //    Roll/pitch control - implemented by deflecting the body orientation & fwd velocity
-//    Stalls - with zero power, aoa increases and drag, cause stalls.
+//    Stalls - with zero power, aoa and drag increases, causing stalls.
 //    Landing/Take off - ground conditions. zero roll/pitch, ground friction
 //    Taxiing - on the ground left/right becomes rudder
-//    Afterburner - maximum speed increased when power >3
+//    Wind - modify the m_wind variable to introduce wind
+//    Flaps - press the 'f' key for flags. increases drag, useful when landing.
+//    Afterburner - maximum speed increased when power > 8
 //
 // Orientation is a unique challenge. A common way to implement this is to
 // treat each wing/control surface as an independent aerofoil acting on a
@@ -69,17 +71,12 @@ public:
 	void		drawGrid( Vector4DF clr );
 	
 	Vector3DF	m_pos, m_vel, m_accel;
-	Vector3DF	m_lift, m_thrust, m_drag, m_force;
-	Vector3DF	m_angvel;
+	Vector3DF	m_lift, m_thrust, m_drag, m_force;	
 	Quaternion	m_orient;	
-	
-	
-	Matrix4F	m_inertia, m_inv_inertia;
-	Vector3DF   m_ctr_of_pressure;
-
 	float		m_speed, m_max_speed;
-	float		m_roll, m_pitch, m_pitch_adv, m_power;
-	float		m_DT;
+	float		m_roll, m_pitch, m_pitch_adv, m_power, m_aoa;
+	float		m_DT, m_flaps;
+	Vector3DF	m_wind;
 
 	Mersenne	mt;
 	float		m_time;
@@ -92,7 +89,7 @@ Sample obj;
 
 bool Sample::init ()
 {
-	int w = getWidth(), h = getHeight();			// window width & height
+	int w = getWidth(), h = getHeight();			// window width &f height
 	m_run = true;
 	m_flightcam = true;
 
@@ -116,23 +113,11 @@ bool Sample::init ()
 	m_pitch_adv = 0.3;		// "rotate!"
 	m_accel.Set(0,0,0);
 	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
+	m_flaps = 0;
+
 	m_DT = 0.001;
 
-	m_ctr_of_pressure.Set (10.0f, 0, 0.0);
-
-	 /* m_inertia.toBasis ( Vector3DF(48531.0f, -1320.0f, 0.0f),
-					    Vector3DF(-1320.0f, 256608.0f, 0.0f),
-					    Vector3DF(0.0f, 0.0f, 21133.0f ) ); */
-	
-	/*m_inertia.toBasis ( Vector3DF( 5.0f,  -1.0f, 0.0f),
-					    Vector3DF(-1.0f,   1.0f, 0.0f),
-					    Vector3DF( 0.0f,   0.0f, 1.0f ) );  */
-
-	m_inertia.toBasis ( Vector3DF( 1.0f, 0.0f, 0.0f),
-					    Vector3DF( 0.0f, 1.0f, 0.0f),
-					    Vector3DF( 0.0f, 0.0f, 1.0f ) ); 
-	
-	m_inv_inertia.makeInverse3x3 ( m_inertia );
+	m_wind.Set (20, 0, 0);
 
 	return true;
 }
@@ -167,7 +152,7 @@ void Sample::Advance ()
 	Vector3DF force, torque;
 	
 	float m_LiftFactor = 0.005;
-	float m_DragFactor = 0.005;
+	float m_DragFactor = 0.0001;
 
 	float mass = 0.1;	// body mass (kg)
 	
@@ -177,7 +162,7 @@ void Sample::Advance ()
 	Vector3DF right = Vector3DF(0,0,1) * m_orient;		// Z-axis is body right
 
 	// Maximum speed
-	// afterburner when power >= 3
+	// afterburner when power > 3
 	m_max_speed = (m_power > 3 ) ? 500 : 100;
 
 	// Velocity limit
@@ -199,17 +184,18 @@ void Sample::Advance ()
 	torque = 0;
 
 	// Dynamic pressure
+	float wspd = m_wind.Dot ( vaxis*-1.0f );
 	float p = 1.225;				// air density, kg/m^3
-	float dynamic_pressure = 0.5f * p * m_speed * m_speed;
+	float dynamic_pressure = 0.5f * p * (m_speed + wspd) * (m_speed + wspd);
 
 	// Lift force	
-	float aoa = fwd.Dot( vaxis );
-	float L = (aoa*aoa) * dynamic_pressure * m_LiftFactor * (100.0 / pow(m_max_speed, 1.7) );
+	m_aoa = fwd.Dot( vaxis );
+	float L = (m_aoa * m_aoa) * dynamic_pressure * m_LiftFactor * (100.0 / pow(m_max_speed, 1.7) );
 	m_lift = up * L;
 	m_force += m_lift;	
 
 	// Drag force	
-	m_drag = vaxis * (dynamic_pressure / (m_speed+0.001f) ) * m_DragFactor * -1.0f;	
+	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * (m_flaps+1);	
 	m_force += m_drag; 
 
 	// Thrust force
@@ -228,6 +214,7 @@ void Sample::Advance ()
 		m_orient *= angvel;
 		m_orient.normalize();
 	}	
+
 	// Roll inputs - modify body orientation along X-axis
 	Quaternion ctrl_roll;
 	ctrl_roll.fromAngleAxis ( m_roll*0.001, Vector3DF(1,0,0) * m_orient );
@@ -235,7 +222,11 @@ void Sample::Advance ()
 
 	// Integrate position		
 	m_accel = m_force / mass;
+	
 	m_accel += Vector3DF(0,-9.8,0);		// gravity
+
+	m_accel += m_wind * p * 0.1f;		// wind force. Fw = w^2 p * A, where w=wind speed, p=air density, A=area
+	
 	m_pos += m_vel * m_DT;
 
 	if (m_pos.y <= 0.00001 ) { 
@@ -298,9 +289,10 @@ void Sample::display ()
 		sprintf ( msg, "power:    %4.1f", m_power );	drawText(10, 20, msg, 1,1,1,1);
 		sprintf ( msg, "speed:    %4.5f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
 		sprintf ( msg, "altitude: %4.2f", m_pos.y );	drawText(10, 60, msg, 1,1,1,1);
-		sprintf ( msg, "roll:     %4.1f", angs.x );	drawText(10, 80, msg, 1,1,1,1);
-		sprintf ( msg, "pitch:    %4.1f", angs.y );	drawText(10, 100, msg, 1,1,1,1);
-		sprintf ( msg, "heading:  %4.1f", angs.z );	drawText(10, 120, msg, 1,1,1,1);
+		sprintf ( msg, "aoa:      %4.2f", m_aoa );		drawText(10, 80, msg, 1,1,1,1);
+		sprintf ( msg, "roll:     %4.1f", angs.x );		drawText(10, 100, msg, 1,1,1,1);
+		sprintf ( msg, "pitch:    %4.1f", angs.y );		drawText(10, 120, msg, 1,1,1,1);		
+		sprintf ( msg, "heading:  %4.1f", angs.z );		drawText(10, 140, msg, 1,1,1,1);
 
 	end2D();
 
@@ -419,6 +411,9 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 		m_power -= 0.1; 
 		if (m_power < 0) m_power = 0; 
 		break;
+	case 'f':
+		m_flaps = (m_flaps==0) ? 3 : 0;
+		break;
 	case KEY_LEFT:	m_roll = -1.0; break;
 	case KEY_RIGHT:	m_roll = +1.0; break;
 	case KEY_UP:	m_pitch = -1.0; break;
@@ -446,4 +441,5 @@ void Sample::startup ()
 void Sample::shutdown()
 {
 }
+
 
