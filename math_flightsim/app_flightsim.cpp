@@ -101,7 +101,7 @@ bool Sample::init ()
 	m_cam = new Camera3D;
 	m_cam->setFov ( 120 );
 	m_cam->setNearFar ( 1.0, 100000 );
-	m_cam->SetOrbit ( Vector3DF(30,40,0), Vector3DF(5,0,0), 20, 1 );
+	m_cam->SetOrbit ( Vector3DF(-30,30,0), Vector3DF(5,0,0), 10, 1 );
 
 	mt.seed(164);
 
@@ -110,14 +110,15 @@ bool Sample::init ()
 	m_roll = 0;
 	m_pitch = 0;
 	m_power = 3;			// "throttle up"
-	m_pitch_adv = 0.3;		// "rotate!"
+	m_pitch_adv = 0;
 	m_accel.Set(0,0,0);
 	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
 	m_flaps = 0;
+	m_max_speed = 500.0; 
 
 	m_DT = 0.001;
 
-	m_wind.Set (20, 0, 0);
+	m_wind.Set (0, 0, 0);
 
 	return true;
 }
@@ -151,7 +152,7 @@ void Sample::Advance ()
 {
 	Vector3DF force, torque;
 	
-	float m_LiftFactor = 0.005;
+	float m_LiftFactor = 0.0001;
 	float m_DragFactor = 0.0001;
 
 	float mass = 0.1;	// body mass (kg)
@@ -160,10 +161,6 @@ void Sample::Advance ()
 	Vector3DF fwd = Vector3DF(1,0,0) * m_orient;		// X-axis is body forward
 	Vector3DF up  = Vector3DF(0,1,0) * m_orient;		// Y-axis is body up
 	Vector3DF right = Vector3DF(0,0,1) * m_orient;		// Z-axis is body right
-
-	// Maximum speed
-	// afterburner when power > 3
-	m_max_speed = (m_power > 3 ) ? 500 : 100;
 
 	// Velocity limit
 	m_speed = m_vel.Length();
@@ -174,6 +171,7 @@ void Sample::Advance ()
 
 	// Pitch inputs - modify direction of target velocity 
 	Quaternion ctrl_pitch;
+	if ( m_pos.y <= 0 ) m_pitch_adv = 1.1;
 	m_pitch_adv = m_pitch_adv * 0.9995 + m_pitch * 0.005;
 	ctrl_pitch.fromAngleAxis ( m_pitch_adv*0.0001, Vector3DF(0,0,1) * m_orient );
 	vaxis *= ctrl_pitch; 				
@@ -183,19 +181,25 @@ void Sample::Advance ()
 	m_force = 0;
 	torque = 0;
 
-	// Dynamic pressure
-	float wspd = m_wind.Dot ( vaxis*-1.0f );
-	float p = 1.225;				// air density, kg/m^3
-	float dynamic_pressure = 0.5f * p * (m_speed + wspd) * (m_speed + wspd);
+	// Flaps
+	float flap_lift = m_flaps * cos(m_speed/m_max_speed * (PI/2.0) );	// flap lift decreases with speed
+	float wing_area = 1 + m_flaps;										// flap increases wing area (drag)
 
-	// Lift force	
-	m_aoa = fwd.Dot( vaxis );
-	float L = (m_aoa * m_aoa) * dynamic_pressure * m_LiftFactor * (100.0 / pow(m_max_speed, 1.7) );
+	// Dynamic pressure		
+	float airflow = m_speed + m_wind.Dot ( vaxis*-1.0f );		// airflow = aircraft speed + wind over wing
+	float p = 1.225;											// air density, kg/m^3
+	float dynamic_pressure = 0.5f * p * airflow * airflow;
+
+	// Lift force
+	m_aoa = acos( fwd.Dot( vaxis ) )*RADtoDEG + 1;				// angle-of-attack = angle between velocity and body forward	
+	if (isnan(m_aoa)) m_aoa = 1;
+	float CL = sin( m_aoa * 0.2) + flap_lift;					// approximate CL curve with sin
+	float L = CL * CL * dynamic_pressure * m_LiftFactor * 0.5;
 	m_lift = up * L;
 	m_force += m_lift;	
 
 	// Drag force	
-	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * (m_flaps+1);	
+	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * wing_area;
 	m_force += m_drag; 
 
 	// Thrust force
@@ -209,7 +213,7 @@ void Sample::Advance ()
 	// this way we dont need torque, angular vel, or rotational interia
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
-	angvel.fromRotationFromTo ( fwd, vaxis, 0.02 );
+	angvel.fromRotationFromTo ( fwd, vaxis, 0.002 );
 	if ( !isnan(angvel.X) ) {
 		m_orient *= angvel;
 		m_orient.normalize();
@@ -273,7 +277,7 @@ void Sample::display ()
 	if (m_flightcam) {
 		CameraToCockpit();
 	} else {
-		m_cam->SetOrbit ( Vector3DF(30,40,0), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
+		m_cam->SetOrbit ( m_cam->getAng(), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
 	}
 	
 	char msg[128];
@@ -293,6 +297,7 @@ void Sample::display ()
 		sprintf ( msg, "roll:     %4.1f", angs.x );		drawText(10, 100, msg, 1,1,1,1);
 		sprintf ( msg, "pitch:    %4.1f", angs.y );		drawText(10, 120, msg, 1,1,1,1);		
 		sprintf ( msg, "heading:  %4.1f", angs.z );		drawText(10, 140, msg, 1,1,1,1);
+		sprintf ( msg, "flaps:    %1.0f", m_flaps );	drawText(10, 160, msg, 1,1,1,1);
 
 	end2D();
 
@@ -304,16 +309,18 @@ void Sample::display ()
 
 		// Draw plane forces (orbit cam only)
 		if ( !m_flightcam ) {
+			Vector3DF grav (0,-9.8 * (m_pos.y>0),0);
 			Vector3DF a,b,c;
 			a = Vector3DF(1,0,0)*m_orient;
 			b = Vector3DF(0,1,0)*m_orient;
 			c = Vector3DF(0,0,1)*m_orient;			
-			drawLine3D ( m_pos, m_pos+c, Vector4DF(1,1,1,1) );
+			drawLine3D ( m_pos-c, m_pos+c, Vector4DF(1,1,1,0.3) );			
 			drawLine3D ( m_pos, m_pos+m_lift, Vector4DF(0,1,0,1) );
 			drawLine3D ( m_pos, m_pos+m_thrust, Vector4DF(1,0,0,1) );
 			drawLine3D ( m_pos, m_pos+m_drag, Vector4DF(1,0,1,1) );			
 			drawLine3D ( m_pos, m_pos+m_force, Vector4DF(0,1,1,.2) );
-			drawLine3D ( m_pos+Vector3DF(0,-.1,0), m_pos+m_vel*0.2f+Vector3DF(0,-.1,0), Vector4DF(1,1,0,.5) );
+			drawLine3D ( m_pos, m_pos + grav*0.1f, Vector4DF(0.5,0.5,0.8,1) );
+			drawLine3D ( m_pos+Vector3DF(0,-.1,0), m_pos + m_vel*0.05f +Vector3DF(0,-.1,0), Vector4DF(1,1,0,.5) );
 			drawLine3D ( m_pos, Vector3DF(m_pos.x, 0, m_pos.z), Vector4DF(0.5,0.5,0.8,.3) );
 			
 			drawLine3D ( Vector3DF(0,0,0), c, Vector4DF(1,1,1,1) );
@@ -321,6 +328,7 @@ void Sample::display ()
 			drawLine3D ( Vector3DF(0,0,0), m_thrust, Vector4DF(1,0,0,1) );
 			drawLine3D ( Vector3DF(0,0,0), m_drag, Vector4DF(1,0,1,1) );			
 			drawLine3D ( Vector3DF(0,0,0), m_force, Vector4DF(0,1,1,.2) );
+			
 			
 		}
 
@@ -365,8 +373,8 @@ void Sample::motion (AppEnum button, int x, int y, int dx, int dy)
 	case AppEnum::BUTTON_RIGHT: {
 		// Adjust orbit angles
 		Vector3DF angs = m_cam->getAng();
-		angs.x += dx*0.2f*fine;
-		angs.y -= dy*0.2f*fine;				
+		angs.x += dx*0.2f;
+		angs.y -= dy*0.2f;				
 		m_cam->SetOrbit ( angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly() );
 		} break;	
 
@@ -392,8 +400,8 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 {
 	if (action == AppEnum::BUTTON_RELEASE) {
 		switch ( keycode ) {
-		case KEY_LEFT: case KEY_RIGHT: m_roll = 0; break;
-		case KEY_UP: case KEY_DOWN: m_pitch = 0; break;
+		case KEY_LEFT: case KEY_RIGHT:  m_roll = 0; break;
+		case KEY_UP: case KEY_DOWN:		m_pitch = 0; break;
 		};
 		return;
 	}
@@ -402,17 +410,19 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 	case ' ':	m_run = !m_run;	break;
 	case 'c':	
 		m_flightcam = !m_flightcam; 		
+		if (!m_flightcam)
+			m_cam->SetOrbit ( Vector3DF(-30,30,0), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
 		break;
 	case 'w':	
 		m_power += 0.1;
-		if (m_power > 5) m_power = 5;
+		if (m_power > 10) m_power = 10;
 		break;
 	case 's':	
 		m_power -= 0.1; 
 		if (m_power < 0) m_power = 0; 
 		break;
 	case 'f':
-		m_flaps = (m_flaps==0) ? 3 : 0;
+		m_flaps = (m_flaps==0) ? 1 : 0;
 		break;
 	case KEY_LEFT:	m_roll = -1.0; break;
 	case KEY_RIGHT:	m_roll = +1.0; break;
