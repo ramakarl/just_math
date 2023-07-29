@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.6.0"
+#define BELIEF_PROPAGATION_VERSION "0.7.0"
 
 #define VB_NONE         0
 #define VB_ERROR        0
@@ -74,6 +74,9 @@
 #define OPT_MUPTR
 #define OPT_FH
 #define OPT_MUBOUND
+
+#define OPT_BLOCK_RANDOM      0
+#define OPT_BLOCK_SEQUENTIAL  1
 
 #define MU_NOCOPY 0
 #define MU_COPY 1
@@ -155,6 +158,10 @@
 #define BUF_BT                    22    // <2*B*num_vert, 1, 1>
 #define BUF_BT_IDX                23    // <B*num_vert, 1, 1>
 
+#define BUF_BLOCK                 24    //                                                                               // <num_vert, 1, 1>
+
+
+
 #define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
 
@@ -226,7 +233,7 @@ typedef struct _bp_opt_t {
 
   int       use_lookahead;
 
-  int64_t   block_size[3];
+  //int64_t   block_size[3];
   int32_t   block_schedule;
 
   // As a general rule of thumb, the verbosity is:
@@ -349,6 +356,19 @@ public:
     op.verbose = VB_NONE;
 
     default_opts();
+
+    m_return = 0;
+
+    m_sub_block[0] = 0;
+    m_sub_block[1] = 0;
+    m_sub_block[2] = 0;
+    m_block_size[0] = 0;
+    m_block_size[1] = 0;
+    m_block_size[2] = 0;
+    m_block_idx[0] = 0;
+    m_block_idx[1] = 0;
+    m_block_idx[2] = 0;
+
 
   };
 
@@ -593,6 +613,12 @@ public:
   int64_t       m_svd_nsv[6];
 
   Mersenne      m_rand;
+
+  int32_t       m_return;
+
+  int32_t       m_sub_block[3],
+                m_block_size[3],
+                m_block_idx[3];
 
   // parameters/options
   //

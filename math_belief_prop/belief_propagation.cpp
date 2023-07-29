@@ -151,11 +151,13 @@ int BeliefPropagation::default_opts () {
   op.tileset_height = 0;
   op.tiled_reverse_y = 0;
 
-  op.block_size[0] = 8;
-  op.block_size[1] = 8;
-  op.block_size[2] = 8;
+  //op.block_size[0] = 8;
+  //op.block_size[1] = 8;
+  //op.block_size[2] = 8;
 
-  op.block_schedule = 0;
+  //op.block_schedule = 0;
+  //op.block_schedule = OPT_BLOCK_RANDOM;
+  op.block_schedule = OPT_BLOCK_SEQUENTIAL;
 
   return 0;
 }
@@ -369,6 +371,10 @@ void BeliefPropagation::ConstructTempBufs () {
   //-- Construct C (constraint count) buf
   //
   AllocBuf ( BUF_C, 'i', m_num_verts );
+
+  //-- for block wfc
+  //
+  AllocBuf ( BUF_BLOCK, 'i', m_num_verts );
 
 }
 
@@ -2586,6 +2592,13 @@ int BeliefPropagation::start () {
 
   int ret=0;
 
+  int32_t ix=0, iy=0, iz=0;
+  int32_t x=0, y=0, z=0;
+  int32_t end_x=0, end_y=0, end_z=0;
+  int32_t block_odd_dx=0,
+          block_odd_dy=0,
+          block_odd_dz=0;
+
   m_rand.seed ( op.seed );
 
   int v = m_rand.randI();  // first random # (used as spot check)
@@ -2593,6 +2606,65 @@ int BeliefPropagation::start () {
   if (op.verbose >= VB_STEP ) {
     printf ("  Started. grid %d,%d,%d, seed = %d\n", op.X, op.Y, op.Z, op.seed );
   }
+
+  // BLOCK WFC
+  //
+
+  // clip block parameters (if needed)
+  //
+  m_block_size[0] = ( (m_block_size[0] < m_bpres.x) ? m_block_size[0] : m_bpres.x );
+  m_block_size[1] = ( (m_block_size[1] < m_bpres.y) ? m_block_size[1] : m_bpres.y );
+  m_block_size[2] = ( (m_block_size[2] < m_bpres.z) ? m_block_size[2] : m_bpres.z );
+
+  // calculate block index bounds.
+  //
+  m_block_idx[0] = 0;
+  m_block_idx[1] = 0;
+  m_block_idx[2] = 0;
+
+  block_odd_dx = m_block_size[0] / 2;
+  block_odd_dy = m_block_size[1] / 2;
+  block_odd_dz = m_block_size[2] / 2;
+
+  end_x = m_bpres.x - m_block_size[0];
+  for (ix=0,x=0; ix<m_bpres.x; ix++) {
+    m_block_idx[0]++;
+
+    if (x >= end_x) { break; }
+    if ((ix%2)==0) { x += block_odd_dx; }
+    else { x = ((ix+1)/2) * m_block_size[0]; }
+    if (x > end_x) { x = end_x; }
+  }
+
+  end_y = m_bpres.y - m_block_size[1];
+  for (iy=0,y=0; iy<m_bpres.y; iy++) {
+    m_block_idx[1]++;
+
+    if (y >= end_y) { break; }
+    if ((iy%2)==0) { y += block_odd_dy; }
+    else { y = ((iy+1)/2) * m_block_size[1]; }
+    if (y > end_y) { y = end_y; }
+  }
+
+  end_z = m_bpres.z - m_block_size[2];
+  for (iz=0,z=0; iz<m_bpres.z; iz++) {
+    m_block_idx[2]++;
+
+    if (z >= end_z) { break; }
+    if ((iz%2)==0) { z += block_odd_dz; }
+    else { z = ((iz+1)/2) * m_block_size[2]; }
+    if (z > end_z) { z = end_z; }
+  }
+
+  //DEBUG
+  printf("!!!! m_block_size: %i %i %i\n",
+      (int)m_block_size[0],
+      (int)m_block_size[1],
+      (int)m_block_size[2]);
+
+
+  //
+  // BLOCK WFC
 
   op.seed++;
 
@@ -2830,6 +2902,17 @@ int BeliefPropagation::init(
   op.cur_iter = 0;
   op.max_iter = m_num_verts;
 
+
+  // block init
+  //
+  m_block_size[0] = 16;
+  m_block_size[1] = 16;
+  m_block_size[2] = 16;
+
+  m_sub_block[0] = 0;
+  m_sub_block[1] = 0;
+  m_sub_block[2] = 0;
+
   return 0;
 }
 
@@ -2997,7 +3080,8 @@ int BeliefPropagation::RealizePre(void) {
   int64_t cell=-1;
   int32_t tile=-1,
           tile_idx=-1,
-          n_idx=-1;
+          n_idx=-1,
+          orig_tile=-1;
   float belief=-1.0, d = -1.0;
 
   // reset steps
@@ -3005,28 +3089,69 @@ int BeliefPropagation::RealizePre(void) {
 
   float _eps = getLinearEps();
 
-  int32_t sub_block[6],
-          m_block_size[3],
-          x,y,z,
-          dx,dy,dz;
+  int32_t x=0,y=0,z=0;
+
+  int32_t ix=0, iy=0, iz=0;
+  int32_t end_s[3];
 
   //DEBUG
   //
-  m_block_size[0] = 8;
-  m_block_size[1] = 8;
-  m_block_size[2] = 1;
-  sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
-  sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
-  sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
-  dx = m_block_size[0];
-  dy = m_block_size[1];
-  dz = m_block_size[2];
-  printf(">>> BLOCK [%i+%i,%i+%i,%i+%i]\n",
-      (int)sub_block[0], (int)m_block_size[0],
-      (int)sub_block[1], (int)m_block_size[1],
-      (int)sub_block[2], (int)m_block_size[2]);
-  //
-  //DEBUG
+  //m_block_size[0] = 8;
+  //m_block_size[1] = 8;
+  //m_block_size[2] = 1;
+  if (op.block_schedule == OPT_BLOCK_RANDOM) {
+    m_sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
+    m_sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
+    m_sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
+
+    printf(">>> BLOCK [%i+%i,%i+%i,%i+%i]\n",
+        (int)m_sub_block[0], (int)m_block_size[0],
+        (int)m_sub_block[1], (int)m_block_size[1],
+        (int)m_sub_block[2], (int)m_block_size[2]);
+    //
+    //DEBUG
+  }
+  else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
+
+    end_s[0] = m_bpres.x - m_block_size[0];
+    end_s[1] = m_bpres.y - m_block_size[1];
+    end_s[2] = m_bpres.z - m_block_size[2];
+
+    iz = op.cur_iter / (m_block_idx[0] * m_block_idx[1]);
+    iy = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) ) / (m_block_idx[0]) ;
+    ix = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) - (iy * m_block_idx[0]) );
+
+    x = (ix/2) * m_block_size[0];
+    if ((ix%2)==1) { x += (m_block_size[0]/2); }
+    if (ix == (m_block_idx[0]-1)) { x = end_s[0]; }
+
+    y = (iy/2) * m_block_size[1];
+    if ((iy%2)==1) { y += (m_block_size[1]/2); }
+    if (iy == (m_block_idx[1]-1)) { y = end_s[1]; }
+
+    z = (iz/2) * m_block_size[2];
+    if ((iz%2)==1) { z += (m_block_size[2]/2); }
+    if (iz == (m_block_idx[2]-1)) { z = end_s[2]; }
+
+    x = (x % m_bpres.x);
+    y = (y % m_bpres.y);
+    z = (z % m_bpres.z);
+
+    m_sub_block[0] = x;
+    m_sub_block[1] = y;
+    m_sub_block[2] = z;
+
+    //DEBUG
+    printf("## OPT_BLOCK_SEQUENTIAL: [%i,%i,%i] (iter:%i)\n", (int)x, (int)y, (int)z, (int)op.cur_iter);
+    printf("##   ... m_block_idx[%i,%i,%i]\n",
+        (int)m_block_idx[0], (int)m_block_idx[1], (int)m_block_idx[2]);
+    printf("##   ... m_bpres[%i,%i,%i], m_block_size[%i,%i,%i], ix:%i, iy:%i, iz:%i, end_s[%i,%i,%i]\n",
+        (int)m_bpres.x, (int)m_bpres.y, (int)m_bpres.z,
+        (int)m_block_size[0], (int)m_block_size[1], (int)m_block_size[2],
+        (int)ix, (int)iy, (int)iz,
+        (int)end_s[0], (int)end_s[1], (int)end_s[2]);
+
+  }
 
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
@@ -3088,13 +3213,21 @@ int BeliefPropagation::RealizePre(void) {
     m_note_n[ m_note_plane ] = 0;
     m_note_n[ 1 - m_note_plane  ] = 0;
 
-
-    for (x=sub_block[0]; x<(sub_block[0]+dx); x++) {
-      for (y=sub_block[1]; y<(sub_block[1]+dy); y++) {
-        for (z=sub_block[2]; z<(sub_block[2]+dz); z++) {
+    for (x=m_sub_block[0]; x<(m_sub_block[0]+m_block_size[0]); x++) {
+      for (y=m_sub_block[1]; y<(m_sub_block[1]+m_block_size[1]); y++) {
+        for (z=m_sub_block[2]; z<(m_sub_block[2]+m_block_size[2]); z++) {
 
           n_idx=0;
           cell = getVertex(x,y,z);
+
+          // DEBUG
+          //fprintf(stderr, "### x:%i, y:%i, z:%i, cell:%i\n",
+          //    (int)x, (int)y, (int)z, (int)cell);
+          //fflush(stderr);
+          // DEBUG
+
+          orig_tile = getValI( BUF_TILE_IDX, 0, cell );
+
           for (tile_idx=0; tile_idx < (m_num_values-1); tile_idx++) {
             tile = tile_idx+1;
             SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
@@ -3106,6 +3239,14 @@ int BeliefPropagation::RealizePre(void) {
           }
 
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+          // save original value
+          //
+          SetValI( BUF_BLOCK, orig_tile, cell );
+
+
+          // DEBUG
+          //
 
         }
       }
@@ -3148,9 +3289,13 @@ int BeliefPropagation::RealizePost(void) {
   int64_t cell=-1;
   int32_t tile=-1,
           tile_idx=-1,
-          n_idx=-1;
+          n_idx=-1,
+          orig_tile=-1;
   float belief=-1.0,
         d = -1.0;
+
+  int32_t x=0, y=0, z=0;
+
 
   Vector3DI vp;
 
@@ -3177,6 +3322,56 @@ int BeliefPropagation::RealizePost(void) {
       // go back and replace with previous known
       // good state.
       //
+
+      printf("WFC_BLOCK m_return %i\n", (int)m_return);
+
+      // if wfc failed, reset to previously known good state
+      //
+      if (m_return < 0) {
+
+
+        //DEBUG
+        //
+        printf("BLOCK backup ([%i+%i][%i+%i][%i+%i] (wfc block fail)\n",
+            (int)m_sub_block[0], (int)m_block_size[0],
+            (int)m_sub_block[1], (int)m_block_size[1],
+            (int)m_sub_block[2], (int)m_block_size[2]);
+        //
+        //DEBUG
+
+        for (x=m_sub_block[0]; x<(m_sub_block[0] + m_block_size[0]); x++) {
+          for (y=m_sub_block[1]; y<(m_sub_block[1] + m_block_size[1]); y++) {
+            for (z=m_sub_block[2]; z<(m_sub_block[2] + m_block_size[2]); z++) {
+
+              cell = getVertex(x,y,z);
+              orig_tile = getValI( BUF_BLOCK, cell );
+              SetValI( BUF_TILE_IDX, orig_tile, 0, cell );
+              SetValI( BUF_TILE_IDX_N, 1, cell );
+            }
+          }
+        }
+
+      }
+      else {
+
+        //DEBUG
+        //
+        printf("BLOCK accept ([%i+%i][%i+%i][%i+%i]\n",
+            (int)m_sub_block[0], (int)m_block_size[0],
+            (int)m_sub_block[1], (int)m_block_size[1],
+            (int)m_sub_block[2], (int)m_block_size[2]);
+        //
+        //DEBUG
+
+      }
+
+      // we're taking control away from teh code at teh bottom
+      // since we're not resolving a single cell/tile now,
+      // so we need to do some housekeeping ourselves.
+      //
+
+      op.cur_iter++;
+
       ret = 1;
       return 1;
       break;
@@ -3527,6 +3722,7 @@ int BeliefPropagation::RealizeStep(void) {
     // here we run WFC on the block we've fuzzed
     //
     ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+    m_return = ret;
 
     if (ret >= 1) {
 
@@ -3567,13 +3763,19 @@ int BeliefPropagation::RealizeStep(void) {
 
       // collapse failed
       //
-      else { ret = -2; }
+      else {
+        ret = -2;
+        m_return = ret;
+      }
 
       // ret inherits chooseMinEntropy return value (presumably 1)
       // unless there's an error, in which case we propagate that
       // value on
       //
-      if (_ret < 0) { ret = -3; }
+      if (_ret < 0) {
+        ret = -3;
+        m_return = ret;
+      }
 
     }
 

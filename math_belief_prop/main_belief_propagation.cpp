@@ -682,9 +682,9 @@ int main(int argc, char **argv) {
         break;
 
       case 'b':
-        bpc.op.block_size[0] = atoi(optarg);
-        bpc.op.block_size[1] = atoi(optarg);
-        bpc.op.block_size[2] = atoi(optarg);
+        bpc.m_block_size[0] = atoi(optarg);
+        bpc.m_block_size[1] = atoi(optarg);
+        bpc.m_block_size[2] = atoi(optarg);
         break;
 
       default:
@@ -733,9 +733,9 @@ int main(int argc, char **argv) {
 
   // clamp block size
   //
-  if (X < bpc.op.block_size[0]) { bpc.op.block_size[0] = X; }
-  if (Y < bpc.op.block_size[1]) { bpc.op.block_size[1] = Y; }
-  if (Z < bpc.op.block_size[2]) { bpc.op.block_size[2] = Z; }
+  if (X < bpc.m_block_size[0]) { bpc.m_block_size[0] = X; }
+  if (Y < bpc.m_block_size[1]) { bpc.m_block_size[1] = Y; }
+  if (Z < bpc.m_block_size[2]) { bpc.m_block_size[2] = Z; }
 
   ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
@@ -910,6 +910,9 @@ int main(int argc, char **argv) {
   //DEBUG
 
   for (it=0; it < n_it; it++) {
+
+    //DEBUG
+    printf("IT:%i\n", (int)it);
 
     ret = bpc.RealizePre();
     if (ret < 0) { break; }

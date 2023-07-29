@@ -31,7 +31,6 @@ if [[ "$debug" -eq "1" ]] ; then
     -o bpc.debug
 fi
 
-exit
 
 #  -I ../math_displace_mesh \
 #  ../math_displace_mesh/mesh.cpp \
