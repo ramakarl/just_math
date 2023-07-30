@@ -15,7 +15,6 @@
 //    Taxiing - on the ground left/right becomes rudder
 //    Wind - modify the m_wind variable to introduce wind
 //    Flaps - press the 'f' key for flags. increases drag, useful when landing.
-//    Afterburner - maximum speed increased when power > 8
 //
 // Orientation is a unique challenge. A common way to implement this is to
 // treat each wing/control surface as an independent aerofoil acting on a
@@ -66,6 +65,7 @@ public:
 	virtual void shutdown();
 
 	void		Advance ();
+	void		CheckLanding ();
 	void		CameraToCockpit();
 	void		drawGrid( Vector4DF clr );
 	
@@ -167,6 +167,33 @@ void Sample::drawGrid( Vector4DF clr )
 
 }
 
+
+void Sample::CheckLanding ()
+{
+	if ( m_airborn > 2000 ) {
+		char msg[4096];
+		Vector3DF angs;
+		m_orient.toEuler ( angs );			
+		// Check for good landing:
+		// - Speed < 80 m/s
+		// - Sink rate < 2 m/s
+		// - Pitch < 5 deg
+		// - Roll < 5 deg
+		bool on_runway = (m_pos.x > -m_runway_width) && (m_pos.x < m_runway_width) && (m_pos.z > -m_runway_length) && (m_pos.z < m_runway_length );
+		m_landing_status = (m_speed < 80) && (fabs(m_vel.y) < 2) && (fabs(angs.y) < 5) && (fabs(angs.x) < 5) && on_runway;		
+		sprintf ( msg, "%s\n Speed (<80): %4.1f m/s     %s\n Sink rate (<2): %4.1f m/s      %s\n Pitch (<5): %4.1f deg     %s\n Roll (<5): %4.1f deg     %s\n On Runway: %s\n", 
+				            m_landing_status  ? "LANDED!" : "CRASH", 
+							m_speed, (m_speed<80) ? "OK" : "FAIL", 
+							m_vel.y, (fabs(m_vel.y)<2) ? "OK" : "FAIL", 
+							fabs(angs.y), (fabs(angs.y)<5) ? "OK" : "FAIL",
+							fabs(angs.x), (fabs(angs.x)<5) ? "OK" : "FAIL",
+				            on_runway ? "Yes     OK" : "No     FAIL" );	
+ 		m_landing_info = msg;			
+	}	
+	m_airborn = 0;
+}
+
+
 void Sample::Advance ()
 {
 	Vector3DF force, torque;
@@ -213,12 +240,12 @@ void Sample::Advance ()
 	m_aoa = acos( fwd.Dot( vaxis ) )*RADtoDEG + 1;				// angle-of-attack = angle between velocity and body forward		
 	if (isnan(m_aoa)) m_aoa = 1;
 	float CL = sin( m_aoa * 0.2) + flap_lift;					// CL = coeff of lift, approximate CL curve with sin
-	float L = CL * dynamic_pressure * m_LiftFactor * 0.5;		// lift equation. L = CL 1/2p v^2 * A
+	float L = CL * dynamic_pressure * m_LiftFactor * 0.5;		// lift equation. L = CL (1/2 p v^2) A
 	m_lift = up * L;
 	m_force += m_lift;	
 
 	// Drag force	
-	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * wing_area;	// drag equation. D = Cd 1/2p v^2 * A
+	m_drag = vaxis * dynamic_pressure * m_DragFactor * -1.0f * wing_area;	// drag equation. D = Cd (1/2 p v^2) A
 	m_force += m_drag; 
 
 	// Thrust force
@@ -229,7 +256,7 @@ void Sample::Advance ()
 	// Directional stability: airplane will typically reorient toward the velocity vector
 	//  see: https://en.wikipedia.org/wiki/Directional_stability
 	// this is an assumption yet much simpler/faster than integrating body orientation
-	// this way we dont need torque, angular vel, or rotational interia
+	// this way we dont need torque, angular vel, or rotational interia.
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
 	angvel.fromRotationFromTo ( fwd, vaxis, 0.001 );
@@ -244,11 +271,11 @@ void Sample::Advance ()
 	m_orient *= ctrl_roll; m_orient.normalize();		// roll inputs
 
 	// Integrate position		
-	m_accel = m_force / mass;
+	m_accel = m_force / mass;			// body forces
 	
 	m_accel += Vector3DF(0,-9.8,0);		// gravity
 
-	m_accel += m_wind * p * 0.1f;		// wind force. Fw = w^2 p * A, where w=wind speed, p=air density, A=area
+	m_accel += m_wind * p * 0.1f;		// wind force. Fw = w^2 p * A, where w=wind speed, p=air density, A=frontal area
 	
 	m_pos += m_vel * m_DT;
 
@@ -256,27 +283,7 @@ void Sample::Advance ()
 	if (m_pos.y <= 0.00001 ) { 
 
 		// Record landing status
-		if ( m_airborn > 2000 ) {
-			char msg[4096];
-			Vector3DF angs;
-			m_orient.toEuler ( angs );			
-			// Check for good landing:
-			// - Speed < 80 m/s
-			// - Sink rate < 2 m/s
-			// - Pitch < 5 deg
-			// - Roll < 5 deg
-			bool on_runway = (m_pos.x > -m_runway_width) && (m_pos.x < m_runway_width) && (m_pos.z > -m_runway_length) && (m_pos.z < m_runway_length );
-			m_landing_status = (m_speed < 80) && (fabs(m_vel.y) < 2) && (fabs(angs.y) < 5) && (fabs(angs.x) < 5) && on_runway;		
-			sprintf ( msg, "%s\n Speed (<80): %4.1f m/s     %s\n Sink rate (<2): %4.1f m/s      %s\n Pitch (<5): %4.1f deg     %s\n Roll (<5): %4.1f deg     %s\n On Runway: %s\n", 
-				                m_landing_status  ? "LANDED!" : "CRASH", 
-								m_speed, (m_speed<80) ? "OK" : "FAIL", 
-								m_vel.y, (fabs(m_vel.y)<2) ? "OK" : "FAIL", 
-								fabs(angs.y), (fabs(angs.y)<5) ? "OK" : "FAIL",
-							    fabs(angs.x), (fabs(angs.x)<5) ? "OK" : "FAIL",
-				                on_runway ? "Yes     OK" : "No     FAIL" );	
- 			m_landing_info = msg;			
-		}	
-		m_airborn = 0;
+		CheckLanding ();		
 		
 		// Ground forces
 		m_pos.y = 0; m_vel.y = 0; 
