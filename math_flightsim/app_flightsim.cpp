@@ -52,7 +52,6 @@
 #include "main.h"			// window system 
 #include "nv_gui.h"			// gui system
 #include "quaternion.h"
-#include "mersenne.h"
 
 class Sample : public Application {
 public:
@@ -78,7 +77,12 @@ public:
 	float		m_DT, m_flaps;
 	Vector3DF	m_wind;
 
-	Mersenne	mt;
+	float		m_runway_length;
+	float		m_runway_width;
+	std::string m_landing_info;
+	bool		m_landing_status;
+	int			m_airborn;
+
 	float		m_time;
 	bool		m_run, m_flightcam;
 	Camera3D*	m_cam;
@@ -103,20 +107,22 @@ bool Sample::init ()
 	m_cam->setNearFar ( 1.0, 100000 );
 	m_cam->SetOrbit ( Vector3DF(-30,30,0), Vector3DF(5,0,0), 10, 1 );
 
-	mt.seed(164);
-
 	m_pos.Set (0, 0, 0);
-	m_vel.Set (0, 0, 0);			// speed = 10 m/s
+	m_vel.Set (0, 0, 0);
+	m_airborn = 0;
 	m_roll = 0;
 	m_pitch = 0;
-	m_power = 3;			// "throttle up"
+	m_power = 3;				// "throttle up"
 	m_pitch_adv = 0;
 	m_accel.Set(0,0,0);
-	m_orient.fromDirectionAndRoll ( Vector3DF(1,0,0), m_roll );
+	m_orient.fromDirectionAndRoll ( Vector3DF(0,0,1), m_roll );
 	m_flaps = 0;
-	m_max_speed = 500.0; 
+	m_max_speed = 500.0;		// top speed, 500 m/s = 1800 kph = 1118 mph
 
 	m_DT = 0.001;
+
+	m_runway_length = 2000;		// 2000 meters (6560 ft)
+	m_runway_width = 50;		// 50 meters (164 ft)
 
 	m_wind.Set (0, 0, 0);
 
@@ -126,12 +132,25 @@ bool Sample::init ()
 void Sample::drawGrid( Vector4DF clr )
 {
 	Vector3DF a;
-	float o = -0.02;			// offset
+	float o = 0.02;
+
+	// runway
+	float x = m_runway_width;
+	float z = m_runway_length;
+	drawLine3D ( Vector3DF(-x, o,-z), Vector3DF(-x, o, z), Vector4DF(0,0,1,1) );
+	drawLine3D ( Vector3DF(-x, o, z), Vector3DF( x, o, z), Vector4DF(0,0,1,1) );
+	drawLine3D ( Vector3DF( x, o, z), Vector3DF( x, o,-z), Vector4DF(0,0,1,1) );
+	drawLine3D ( Vector3DF( x, o,-z), Vector3DF(-x, o,-z), Vector4DF(0,0,1,1) );	
+	for (int n=-z; n < z; n+= 60) {
+		drawLine3D ( Vector3DF( 1, o, n), Vector3DF( 1, o, n+20), Vector4DF(1,1,1,1) );
+		drawLine3D ( Vector3DF(-1, o, n), Vector3DF(-1, o, n+20), Vector4DF(1,1,1,1) );
+	}
 
 	// center section
+	o = -0.02;			// offset
 	for (int n=-5000; n <= 5000; n += 50 ) {
-		drawLine3D ( Vector3DF(n, o,-5000), Vector3DF(n, o, 5000), clr );
-		drawLine3D ( Vector3DF(-5000, o, n), Vector3DF(5000, o, n), clr );
+		drawLine3D ( Vector3DF(n, o,-5000), Vector3DF(n, o, 5000), Vector4DF(1,1,1,0.3) );
+		drawLine3D ( Vector3DF(-5000, o, n), Vector3DF(5000, o, n), Vector4DF(1,1,1,0.3) );
 	}
 	
 	// large sections
@@ -233,16 +252,47 @@ void Sample::Advance ()
 	
 	m_pos += m_vel * m_DT;
 
+	// Ground condition
 	if (m_pos.y <= 0.00001 ) { 
-		// Ground condition
+
+		// Record landing status
+		if ( m_airborn > 2000 ) {
+			char msg[4096];
+			Vector3DF angs;
+			m_orient.toEuler ( angs );			
+			// Check for good landing:
+			// - Speed < 80 m/s
+			// - Sink rate < 2 m/s
+			// - Pitch < 5 deg
+			// - Roll < 5 deg
+			bool on_runway = (m_pos.x > -m_runway_width) && (m_pos.x < m_runway_width) && (m_pos.z > -m_runway_length) && (m_pos.z < m_runway_length );
+			m_landing_status = (m_speed < 80) && (fabs(m_vel.y) < 2) && (fabs(angs.y) < 5) && (fabs(angs.x) < 5) && on_runway;		
+			sprintf ( msg, "%s\n Speed (<80): %4.1f m/s     %s\n Sink rate (<2): %4.1f m/s      %s\n Pitch (<5): %4.1f deg     %s\n Roll (<5): %4.1f deg     %s\n On Runway: %s\n", 
+				                m_landing_status  ? "LANDED!" : "CRASH", 
+								m_speed, (m_speed<80) ? "OK" : "FAIL", 
+								m_vel.y, (fabs(m_vel.y)<2) ? "OK" : "FAIL", 
+								fabs(angs.y), (fabs(angs.y)<5) ? "OK" : "FAIL",
+							    fabs(angs.x), (fabs(angs.x)<5) ? "OK" : "FAIL",
+				                on_runway ? "Yes     OK" : "No     FAIL" );	
+ 			m_landing_info = msg;			
+		}	
+		m_airborn = 0;
+		
+		// Ground forces
 		m_pos.y = 0; m_vel.y = 0; 
 		m_accel += Vector3DF(0,9.8,0);	// ground force (upward)
 		m_vel *= 0.9999;				// ground friction
 		m_orient.fromDirectionAndRoll ( Vector3DF(fwd.x, 0, fwd.z), 0 );	// zero pitch & roll
 		ctrl_roll.fromAngleAxis ( -m_roll*0.001, Vector3DF(0,1,0) );		// on ground, left/right is rudder
 		m_orient *= ctrl_roll; m_orient.normalize();
-		m_vel *= ctrl_roll;		
-	}	
+		m_vel *= ctrl_roll;			
+
+	} else {
+		m_airborn++;
+		if (m_airborn > 3200) m_landing_info = "";
+	}
+	
+	// integrate velocity
 	m_vel += m_accel * m_DT;
 	
 }
@@ -257,7 +307,7 @@ void Sample::CameraToCockpit()
 	m_orient.toEuler ( angs );
 
 	// Set eye level above centerline
-	Vector3DF p = m_pos + Vector3DF(0,1,0);	  
+	Vector3DF p = m_pos + Vector3DF(0,2,0);	  
 	
 	m_cam->setDirection ( p, p + fwd, -angs.x );
 }
@@ -280,7 +330,7 @@ void Sample::display ()
 		m_cam->SetOrbit ( m_cam->getAng(), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
 	}
 	
-	char msg[128];
+	char msg[2048];
 
 	clearGL();
 	start2D();
@@ -290,14 +340,25 @@ void Sample::display ()
 		m_orient.toEuler ( angs );
 
 		// Instrument display
-		sprintf ( msg, "power:    %4.1f", m_power );	drawText(10, 20, msg, 1,1,1,1);
-		sprintf ( msg, "speed:    %4.5f", m_speed );	drawText(10, 40, msg, 1,1,1,1);
-		sprintf ( msg, "altitude: %4.2f", m_pos.y );	drawText(10, 60, msg, 1,1,1,1);
-		sprintf ( msg, "aoa:      %4.4f", m_aoa );		drawText(10, 80, msg, 1,1,1,1);
-		sprintf ( msg, "roll:     %4.1f", angs.x );		drawText(10, 100, msg, 1,1,1,1);
-		sprintf ( msg, "pitch:    %4.1f", angs.y );		drawText(10, 120, msg, 1,1,1,1);		
-		sprintf ( msg, "heading:  %4.1f", angs.z );		drawText(10, 140, msg, 1,1,1,1);
-		sprintf ( msg, "flaps:    %1.0f", m_flaps );	drawText(10, 160, msg, 1,1,1,1);
+		sprintf ( msg, "speed:     %4.3f m/s, %4.1f kph, %4.1f mph", m_speed, m_speed*3.6, m_speed*2.237 );	drawText(10, 20, msg, 1,1,1,1);
+		sprintf ( msg, "power:     %4.1f", m_power );		drawText(10, 40, msg, 1,1,1,1);		
+		sprintf ( msg, "altitude:  %4.2f m", m_pos.y );		drawText(10, 60, msg, 1,1,1,1);
+		sprintf ( msg, "sink rate: %4.2f m/s", m_vel.y );	drawText(10, 80, msg, 1,1,1,1);
+		sprintf ( msg, "aoa:       %4.4f", m_aoa );			drawText(10, 100, msg, 1,1,1,1);
+		sprintf ( msg, "roll:      %4.1f", angs.x );		drawText(10, 120, msg, 1,1,1,1);
+		sprintf ( msg, "pitch:     %4.1f", angs.y );		drawText(10, 140, msg, 1,1,1,1);		
+		sprintf ( msg, "heading:   %4.1f", angs.z );		drawText(10, 160, msg, 1,1,1,1);
+		sprintf ( msg, "flaps:     %1.0f", m_flaps );		drawText(10, 180, msg, 1,1,1,1);
+
+		Vector3DF lclr;
+		lclr = (m_landing_status) ? Vector3DF(0,1,0) : Vector3DF(1,0,0);
+		sprintf ( msg, "%s", m_landing_info.c_str() );		drawText(10, 220, msg, lclr.x,lclr.y,lclr.z,1);
+
+		/*sprintf ( msg, "Up/Down    Elevators", m_flaps );	drawText(10, 220, msg, 1,1,1,1);
+		sprintf ( msg, "Left/Right Ailerons", m_flaps );	drawText(10, 240, msg, 1,1,1,1);
+		sprintf ( msg, "Q/A        Power", m_flaps );		drawText(10, 260, msg, 1,1,1,1);
+		sprintf ( msg, "F          Flaps", m_flaps );		drawText(10, 280, msg, 1,1,1,1);
+		sprintf ( msg, "C          Camera", m_flaps );		drawText(10, 300, msg, 1,1,1,1);*/
 
 	end2D();
 
@@ -413,11 +474,11 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 		if (!m_flightcam)
 			m_cam->SetOrbit ( Vector3DF(-30,30,0), m_pos, m_cam->getOrbitDist(), m_cam->getDolly() );
 		break;
-	case 'w':	
+	case 'w': case 'q':
 		m_power += 0.1;
 		if (m_power > 10) m_power = 10;
 		break;
-	case 's':	
+	case 's': case 'a':
 		m_power -= 0.1; 
 		if (m_power < 0) m_power = 0; 
 		break;
