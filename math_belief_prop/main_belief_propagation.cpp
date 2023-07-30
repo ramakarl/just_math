@@ -440,6 +440,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
   fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
+  fprintf(fp, "  -j <range> set range of admissible tiles for block wfc\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
@@ -519,12 +520,19 @@ int main(int argc, char **argv) {
       n_it = -1;
 
   int64_t cell=-1;
-  int32_t n_idx=-1;
+  int32_t n_idx=-1,
+          tile=-1,
+          tile_idx=-1 ;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
   std::string constraint_commands;
   std::vector< constraint_op_t > constraint_op_list;
+
+  std::string block_admissible_tile_range;
+  std::vector< int32_t > block_admissible_tile_list;
+
+
 
   std::vector< std::vector< float > > tri_shape_lib;
 
@@ -538,7 +546,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -654,6 +662,9 @@ int main(int argc, char **argv) {
         Z = atoi(optarg);
         break;
 
+      case 'j':
+        block_admissible_tile_range = optarg;
+        break;
       case 'J':
         constraint_commands = optarg;
         break;
@@ -759,6 +770,26 @@ int main(int argc, char **argv) {
       fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
       exit(-1);
     }
+
+  }
+
+  if (block_admissible_tile_range.size() > 0) {
+    std::vector<int> tile_range, tile_dim;
+
+    tile_dim.push_back(bpc.m_num_values);
+    ret = parse_range(tile_range, block_admissible_tile_range, tile_dim);
+    if (ret<0) {
+      fprintf(stderr, "could not parse admissbile block tile range, ignoring\n");
+    }
+    else {
+
+      block_admissible_tile_list.clear();
+      for (tile=tile_range[0]; tile < tile_range[1]; tile++) {
+        block_admissible_tile_list.push_back(tile);
+      }
+
+    }
+
 
   }
 
@@ -924,6 +955,29 @@ int main(int argc, char **argv) {
       }
 
     }
+
+    // allow only certain tiles when fuzzing block
+    // by default, filter out the '0' tile
+    // (hard coded for now)
+    //
+    /*
+    bpc.m_block_admissible_tile.clear();
+    for (tile=1; tile < bpc.m_num_values; tile++) {
+      bpc.m_block_admissible_tile.push_back(tile);
+    }
+    */
+    if (block_admissible_tile_list.size() > 0) {
+      bpc.m_block_admissible_tile = block_admissible_tile_list;
+    }
+
+    if (bpc.op.verbose >= VB_RUN) {
+      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
+      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
+        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
+      }
+      printf("\n");
+    }
+
   }
 
 

@@ -2619,6 +2619,11 @@ int BeliefPropagation::start () {
   m_block_size[1] = ( (m_block_size[1] < m_bpres.y) ? m_block_size[1] : m_bpres.y );
   m_block_size[2] = ( (m_block_size[2] < m_bpres.z) ? m_block_size[2] : m_bpres.z );
 
+  m_block_admissible_tile.clear();
+  for (n_idx=0; n_idx<m_num_values; n_idx++) {
+    m_block_admissible_tile.push_back(n_idx);
+  }
+
   // calculate block index bounds.
   //
   m_block_idx[0] = 0;
@@ -2736,7 +2741,9 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
     pos = getVertex(x,y,z);
     if ((pos < 0) || (pos >= m_num_verts)) { continue; }
 
-    if ( x < 0 || x >= m_res.x || y <0 || y >= m_res.y || z<0 || z >= m_res.z) {
+    if ( (x < 0) || (x >= m_res.x) ||
+         (y < 0) || (y >= m_res.y) ||
+         (z < 0) || (z >= m_res.z) ) {
       printf ( "error: constraint out of range: %d,%d,%d\n", x,y,z);
       exit(-1);
     }
@@ -3221,6 +3228,20 @@ int BeliefPropagation::RealizePre(void) {
 
           orig_tile = getValI( BUF_TILE_IDX, 0, cell );
 
+          for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
+            tile = m_block_admissible_tile[tile_idx];
+            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+            cellFillVisitedSingle ( cell, m_note_plane );
+            cellFillVisitedNeighbor ( cell, m_note_plane );
+
+            n_idx++;
+          }
+
+          /*
+          // TODO: create better filtering
+          // constraining by hand here
+          //
           for (tile_idx=0; tile_idx < (m_num_values-1); tile_idx++) {
             tile = tile_idx+1;
             SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
@@ -3230,6 +3251,7 @@ int BeliefPropagation::RealizePre(void) {
 
             n_idx++;
           }
+          */
 
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
 

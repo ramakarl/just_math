@@ -51,6 +51,7 @@
 
 
 bpc_bin="../bpc"
+#bpc_bin="../bpc.debug"
 
 mkdir -p log
 
@@ -76,11 +77,12 @@ $bpc_bin \
   -s 8 \
   -b 8 \
   -G -2 \
+  -j '1:' \
   -J "$flt" \
   -I 100000 \
   -i 20000 \
   -S 1234 \
-  -V 1 | tee log/pm_wfc_block.log
+  -V 3 | tee log/pm_wfc_block.log
 
 ######
 ######

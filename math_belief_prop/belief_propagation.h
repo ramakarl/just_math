@@ -369,7 +369,6 @@ public:
     m_block_idx[1] = 0;
     m_block_idx[2] = 0;
 
-
   };
 
   //------------------------ high level API
@@ -619,6 +618,8 @@ public:
   int32_t       m_sub_block[3],
                 m_block_size[3],
                 m_block_idx[3];
+
+  std::vector< int32_t > m_block_admissible_tile;
 
   // parameters/options
   //
