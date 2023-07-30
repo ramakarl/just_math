@@ -2592,6 +2592,9 @@ int BeliefPropagation::start () {
 
   int ret=0;
 
+  int64_t cell=-1;
+  int32_t n_idx=0;
+
   int32_t ix=0, iy=0, iz=0;
   int32_t x=0, y=0, z=0;
   int32_t end_x=0, end_y=0, end_z=0;
@@ -2655,14 +2658,6 @@ int BeliefPropagation::start () {
     else { z = ((iz+1)/2) * m_block_size[2]; }
     if (z > end_z) { z = end_z; }
   }
-
-  //DEBUG
-  printf("!!!! m_block_size: %i %i %i\n",
-      (int)m_block_size[0],
-      (int)m_block_size[1],
-      (int)m_block_size[2]);
-
-
   //
   // BLOCK WFC
 
@@ -2905,9 +2900,9 @@ int BeliefPropagation::init(
 
   // block init
   //
-  m_block_size[0] = 16;
-  m_block_size[1] = 16;
-  m_block_size[2] = 16;
+  if (m_block_size[0] == 0) { m_block_size[0] = 16; }
+  if (m_block_size[1] == 0) { m_block_size[1] = 16; }
+  if (m_block_size[2] == 0) { m_block_size[2] = 16; }
 
   m_sub_block[0] = 0;
   m_sub_block[1] = 0;
@@ -3094,22 +3089,18 @@ int BeliefPropagation::RealizePre(void) {
   int32_t ix=0, iy=0, iz=0;
   int32_t end_s[3];
 
-  //DEBUG
-  //
-  //m_block_size[0] = 8;
-  //m_block_size[1] = 8;
-  //m_block_size[2] = 1;
   if (op.block_schedule == OPT_BLOCK_RANDOM) {
     m_sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
     m_sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
     m_sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
 
-    printf(">>> BLOCK [%i+%i,%i+%i,%i+%i]\n",
-        (int)m_sub_block[0], (int)m_block_size[0],
-        (int)m_sub_block[1], (int)m_block_size[1],
-        (int)m_sub_block[2], (int)m_block_size[2]);
-    //
-    //DEBUG
+    if (op.verbose >= VB_INTRASTEP) {
+      printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
+          (int)m_sub_block[0], (int)m_block_size[0],
+          (int)m_sub_block[1], (int)m_block_size[1],
+          (int)m_sub_block[2], (int)m_block_size[2]);
+    }
+
   }
   else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
 
@@ -3142,6 +3133,7 @@ int BeliefPropagation::RealizePre(void) {
     m_sub_block[2] = z;
 
     //DEBUG
+    /*
     printf("## OPT_BLOCK_SEQUENTIAL: [%i,%i,%i] (iter:%i)\n", (int)x, (int)y, (int)z, (int)op.cur_iter);
     printf("##   ... m_block_idx[%i,%i,%i]\n",
         (int)m_block_idx[0], (int)m_block_idx[1], (int)m_block_idx[2]);
@@ -3150,6 +3142,7 @@ int BeliefPropagation::RealizePre(void) {
         (int)m_block_size[0], (int)m_block_size[1], (int)m_block_size[2],
         (int)ix, (int)iy, (int)iz,
         (int)end_s[0], (int)end_s[1], (int)end_s[2]);
+        */
 
   }
 
@@ -3323,21 +3316,21 @@ int BeliefPropagation::RealizePost(void) {
       // good state.
       //
 
-      printf("WFC_BLOCK m_return %i\n", (int)m_return);
+      if (op.verbose >= VB_INTRASTEP) {
+        printf("WFC_BLOCK m_return %i\n", (int)m_return);
+      }
 
       // if wfc failed, reset to previously known good state
       //
       if (m_return < 0) {
 
 
-        //DEBUG
-        //
-        printf("BLOCK backup ([%i+%i][%i+%i][%i+%i] (wfc block fail)\n",
-            (int)m_sub_block[0], (int)m_block_size[0],
-            (int)m_sub_block[1], (int)m_block_size[1],
-            (int)m_sub_block[2], (int)m_block_size[2]);
-        //
-        //DEBUG
+        if (op.verbose >= VB_INTRASTEP) {
+          printf("BLOCK backup ([%i+%i][%i+%i][%i+%i] (wfc block fail)\n",
+              (int)m_sub_block[0], (int)m_block_size[0],
+              (int)m_sub_block[1], (int)m_block_size[1],
+              (int)m_sub_block[2], (int)m_block_size[2]);
+        }
 
         for (x=m_sub_block[0]; x<(m_sub_block[0] + m_block_size[0]); x++) {
           for (y=m_sub_block[1]; y<(m_sub_block[1] + m_block_size[1]); y++) {
@@ -3354,14 +3347,13 @@ int BeliefPropagation::RealizePost(void) {
       }
       else {
 
-        //DEBUG
-        //
-        printf("BLOCK accept ([%i+%i][%i+%i][%i+%i]\n",
-            (int)m_sub_block[0], (int)m_block_size[0],
-            (int)m_sub_block[1], (int)m_block_size[1],
-            (int)m_sub_block[2], (int)m_block_size[2]);
-        //
-        //DEBUG
+        if (op.verbose >= VB_INTRASTEP) {
+          printf("BLOCK accept ([%i+%i][%i+%i][%i+%i]\n",
+              (int)m_sub_block[0], (int)m_block_size[0],
+              (int)m_sub_block[1], (int)m_block_size[1],
+              (int)m_sub_block[2], (int)m_block_size[2]);
+        }
+        
 
       }
 
@@ -4939,7 +4931,18 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             if (anch_n_tile==1) {
 
-              if (op.verbose >= VB_ERROR ) {
+              if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+                if (op.verbose >= VB_INTRASTEP) {
+                  printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
+                          "cell %i slated to remove last remaining tile (tile %s(%i) "
+                          "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [wfc-block.0]\n",
+                          (int)anch_cell,
+                          m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                          m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
+                          m_dir_desc[i].c_str(), (int)i);
+                }
+              }
+              else if (op.verbose >= VB_ERROR ) {
                 printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
                         "cell %i slated to remove last remaining tile (tile %s(%i) "
                         "conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
@@ -5018,10 +5021,22 @@ int BeliefPropagation::cellConstraintPropagate() {
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
 
-              if (op.verbose >= VB_ERROR ) {
+              if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+                if (op.verbose >= VB_INTRASTEP) {
+                  printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
+                          "cell %i slated to rmove last remaining tile (tile %s(%i) "
+                          "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [wfc-block.1]\n",
+                          (int)anch_cell,
+                          m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                          (int)nei_cell,
+                          m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
+                          m_dir_desc[i].c_str(), (int)i);
+                }
+              }
+              else if (op.verbose >= VB_ERROR ) {
                 printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
                         "cell %i slated to rmove last remaining tile (tile %s(%i) "
-                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
+                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [e0]\n",
                         (int)anch_cell,
                         m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                         (int)nei_cell,
@@ -5255,7 +5270,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
 
                 printf("# BeliefPropagation::cellConstraintPropagate_lookahead: contradiction, "
                         "cell %i slated to rmove last remaining tile (tile %s(%i) "
-                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
+                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [la.0]\n",
                         (int)anch_cell,
                         m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                         (int)nei_cell,
@@ -5338,7 +5353,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
               if (op.verbose >= VB_DEBUG ) {
                 printf("# BeliefPropagation::cellConstraintPropagate_lookahead: contradiction, "
                         "cell %i slated to rmove last remaining tile (tile %s(%i) "
-                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d))\n",
+                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [la.1]\n",
                         (int)anch_cell,
                         m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                         (int)nei_cell,

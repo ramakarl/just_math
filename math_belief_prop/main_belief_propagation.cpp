@@ -458,7 +458,8 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "    -1     'wave function collapse'\n");
-  fprintf(fp, "    -2     block 'wave function collapse'\n");
+  fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
+  fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
   fprintf(fp, "  -b <#>   block size (for use in block wfc, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
@@ -516,6 +517,9 @@ int main(int argc, char **argv) {
   int max_iter = -1,
       it,
       n_it = -1;
+
+  int64_t cell=-1;
+  int32_t n_idx=-1;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
@@ -819,6 +823,18 @@ int main(int argc, char **argv) {
     bpc.op.alg_accel    = ALG_ACCEL_NONE;
     bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
     bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_SEQUENTIAL;
+  }
+
+  // block wfc
+  //
+  else if (bpc.op.alg_idx == -3) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
   }
 
   else if (bpc.op.alg_idx == 1) {
@@ -892,6 +908,26 @@ int main(int argc, char **argv) {
 
   }
 
+
+  if (bpc.op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+    for (cell=0; cell<bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+
+      // for block wfc to work, we assume 'ground state'
+      // of configuration is chosen, so return an
+      // error here if that assumption is invalid.
+      //
+      if (n_idx != 1) {
+        fprintf(stderr, "block wfc requires valid ground state\n");
+        exit(-1);
+      }
+
+    }
+  }
+
+
+
   //----
   //----
   //----
@@ -910,9 +946,6 @@ int main(int argc, char **argv) {
   //DEBUG
 
   for (it=0; it < n_it; it++) {
-
-    //DEBUG
-    printf("IT:%i\n", (int)it);
 
     ret = bpc.RealizePre();
     if (ret < 0) { break; }
