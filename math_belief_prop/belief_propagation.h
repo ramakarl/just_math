@@ -75,8 +75,9 @@
 #define OPT_FH
 #define OPT_MUBOUND
 
-#define OPT_BLOCK_RANDOM      0
-#define OPT_BLOCK_SEQUENTIAL  1
+#define OPT_BLOCK_RANDOM        0
+#define OPT_BLOCK_RANDOM_1      1
+#define OPT_BLOCK_SEQUENTIAL    2
 
 #define MU_NOCOPY 0
 #define MU_COPY 1
@@ -352,6 +353,7 @@ typedef struct _bp_expr_type {
 class BeliefPropagation {
 public:
   BeliefPropagation() {
+    int i,j;
 
     op.verbose = VB_NONE;
 
@@ -368,6 +370,13 @@ public:
     m_block_idx[0] = 0;
     m_block_idx[1] = 0;
     m_block_idx[2] = 0;
+
+
+    for (i=0; i<3; i++) {
+      for (j=0; j<2; j++) {
+        m_sub_block_range[i][j] = 0;
+      }
+    }
 
   };
 
@@ -617,7 +626,8 @@ public:
 
   int32_t       m_sub_block[3],
                 m_block_size[3],
-                m_block_idx[3];
+                m_block_idx[3],
+                m_sub_block_range[3][2];
 
   std::vector< int32_t > m_block_admissible_tile;
 

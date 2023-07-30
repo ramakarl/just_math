@@ -3109,6 +3109,27 @@ int BeliefPropagation::RealizePre(void) {
     }
 
   }
+  else if (op.block_schedule == OPT_BLOCK_RANDOM_1) {
+
+    m_block_size[0] = ( m_sub_block_range[0][0] +
+                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[0][1] - m_sub_block_range[0][0]) ) );
+    m_block_size[1] = ( m_sub_block_range[1][0] +
+                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[1][1] - m_sub_block_range[1][0]) ) );
+    m_block_size[2] = ( m_sub_block_range[2][0] +
+                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[2][1] - m_sub_block_range[2][0]) ) );
+
+    m_sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
+    m_sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
+    m_sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
+
+    if (op.verbose >= VB_INTRASTEP) {
+      printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
+          (int)m_sub_block[0], (int)m_block_size[0],
+          (int)m_sub_block[1], (int)m_block_size[1],
+          (int)m_sub_block[2], (int)m_block_size[2]);
+    }
+
+  }
   else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
 
     end_s[0] = m_bpres.x - m_block_size[0];
@@ -3118,6 +3139,10 @@ int BeliefPropagation::RealizePre(void) {
     iz = op.cur_iter / (m_block_idx[0] * m_block_idx[1]);
     iy = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) ) / (m_block_idx[0]) ;
     ix = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) - (iy * m_block_idx[0]) );
+
+    ix %= m_block_idx[0];
+    iy %= m_block_idx[1];
+    iz %= m_block_idx[2];
 
     x = (ix/2) * m_block_size[0];
     if ((ix%2)==1) { x += (m_block_size[0]/2); }
@@ -3131,9 +3156,9 @@ int BeliefPropagation::RealizePre(void) {
     if ((iz%2)==1) { z += (m_block_size[2]/2); }
     if (iz == (m_block_idx[2]-1)) { z = end_s[2]; }
 
-    x = (x % m_bpres.x);
-    y = (y % m_bpres.y);
-    z = (z % m_bpres.z);
+    //x = (x % m_bpres.x);
+    //y = (y % m_bpres.y);
+    //z = (z % m_bpres.z);
 
     m_sub_block[0] = x;
     m_sub_block[1] = y;
@@ -3141,10 +3166,10 @@ int BeliefPropagation::RealizePre(void) {
 
     //DEBUG
     /*
-    printf("## OPT_BLOCK_SEQUENTIAL: [%i,%i,%i] (iter:%i)\n", (int)x, (int)y, (int)z, (int)op.cur_iter);
-    printf("##   ... m_block_idx[%i,%i,%i]\n",
+    fprintf(stderr, "## OPT_BLOCK_SEQUENTIAL: [%i,%i,%i] (iter:%i)\n", (int)x, (int)y, (int)z, (int)op.cur_iter);
+    fprintf(stderr, "##   ... m_block_idx[%i,%i,%i]\n",
         (int)m_block_idx[0], (int)m_block_idx[1], (int)m_block_idx[2]);
-    printf("##   ... m_bpres[%i,%i,%i], m_block_size[%i,%i,%i], ix:%i, iy:%i, iz:%i, end_s[%i,%i,%i]\n",
+    fprintf(stderr, "##   ... m_bpres[%i,%i,%i], m_block_size[%i,%i,%i], ix:%i, iy:%i, iz:%i, end_s[%i,%i,%i]\n",
         (int)m_bpres.x, (int)m_bpres.y, (int)m_bpres.z,
         (int)m_block_size[0], (int)m_block_size[1], (int)m_block_size[2],
         (int)ix, (int)iy, (int)iz,
@@ -3221,9 +3246,13 @@ int BeliefPropagation::RealizePre(void) {
           cell = getVertex(x,y,z);
 
           // DEBUG
-          //fprintf(stderr, "### x:%i, y:%i, z:%i, cell:%i\n",
-          //    (int)x, (int)y, (int)z, (int)cell);
-          //fflush(stderr);
+          //
+          /*
+          fprintf(stderr, "### x:%i, y:%i, z:%i, cell:%i\n",
+              (int)x, (int)y, (int)z, (int)cell);
+          fflush(stderr);
+          */
+          //
           // DEBUG
 
           orig_tile = getValI( BUF_TILE_IDX, 0, cell );
@@ -3267,6 +3296,7 @@ int BeliefPropagation::RealizePre(void) {
       }
     }
 
+
     //DEBUG
     //printf(">>>CP.0\n");
     //debugPrint();
@@ -3286,6 +3316,11 @@ int BeliefPropagation::RealizePre(void) {
     //printf(">>>CP.1 (ret:%i)\n", (int)ret);
     //debugPrint();
     //DEBUG
+
+    // cull boundary
+    //
+    ret = CullBoundary();
+    if (ret < 0) { return ret; }
 
   }
 

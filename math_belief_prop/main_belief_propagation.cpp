@@ -461,6 +461,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -1     'wave function collapse'\n");
   fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
   fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
+  fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
   fprintf(fp, "  -b <#>   block size (for use in block wfc, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
@@ -700,6 +701,13 @@ int main(int argc, char **argv) {
         bpc.m_block_size[0] = atoi(optarg);
         bpc.m_block_size[1] = atoi(optarg);
         bpc.m_block_size[2] = atoi(optarg);
+
+        bpc.m_sub_block_range[0][0] = 1;
+        bpc.m_sub_block_range[1][0] = 1;
+        bpc.m_sub_block_range[2][0] = 1;
+        bpc.m_sub_block_range[0][1] = bpc.m_block_size[0];
+        bpc.m_sub_block_range[1][1] = bpc.m_block_size[1];
+        bpc.m_sub_block_range[2][1] = bpc.m_block_size[2];
         break;
 
       default:
@@ -866,6 +874,16 @@ int main(int argc, char **argv) {
     bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
 
     bpc.op.block_schedule = OPT_BLOCK_RANDOM;
+  }
+
+  // block wfc
+  //
+  else if (bpc.op.alg_idx == -4) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM_1;
   }
 
   else if (bpc.op.alg_idx == 1) {
