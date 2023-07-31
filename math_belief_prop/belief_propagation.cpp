@@ -2619,6 +2619,15 @@ int BeliefPropagation::start () {
   m_block_size[1] = ( (m_block_size[1] < m_bpres.y) ? m_block_size[1] : m_bpres.y );
   m_block_size[2] = ( (m_block_size[2] < m_bpres.z) ? m_block_size[2] : m_bpres.z );
 
+  m_sub_block_range[0][0] = ( (m_sub_block_range[0][0] < m_bpres.x) ? m_sub_block_range[0][0] : m_bpres.x );
+  m_sub_block_range[0][1] = ( (m_sub_block_range[0][1] < m_bpres.x) ? m_sub_block_range[0][1] : m_bpres.x );
+
+  m_sub_block_range[1][0] = ( (m_sub_block_range[1][0] < m_bpres.y) ? m_sub_block_range[1][0] : m_bpres.y );
+  m_sub_block_range[1][1] = ( (m_sub_block_range[1][1] < m_bpres.y) ? m_sub_block_range[1][1] : m_bpres.y );
+
+  m_sub_block_range[2][0] = ( (m_sub_block_range[2][0] < m_bpres.z) ? m_sub_block_range[2][0] : m_bpres.z );
+  m_sub_block_range[2][1] = ( (m_sub_block_range[2][1] < m_bpres.z) ? m_sub_block_range[2][1] : m_bpres.z );
+
   m_block_admissible_tile.clear();
   for (n_idx=0; n_idx<m_num_values; n_idx++) {
     m_block_admissible_tile.push_back(n_idx);
@@ -2682,6 +2691,7 @@ int BeliefPropagation::start () {
   // cull boundary
   //
   ret = CullBoundary();
+  if (ret < 0) { return ret; }
 
   // requires tileidx filled (in DynamicBufs)
   //
@@ -3311,15 +3321,36 @@ int BeliefPropagation::RealizePre(void) {
     // and count number resolved (only 1 tile val remain)
     //
     ret = cellConstraintPropagate();
+    if (ret < 0) { return ret; }
 
     //DEBUG
     //printf(">>>CP.1 (ret:%i)\n", (int)ret);
     //debugPrint();
     //DEBUG
 
+    // reset for cull boundary
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
     // cull boundary
     //
     ret = CullBoundary();
+    if (ret < 0) {
+
+      fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
+
+      return ret;
+    }
+
+    // reset for cull boundary
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
+    // paranoia
+    //
+    ret = cellConstraintPropagate();
     if (ret < 0) { return ret; }
 
   }
@@ -3797,6 +3828,7 @@ int BeliefPropagation::RealizeStep(void) {
       //
       _ret = tileIdxCollapse( cell, tile_idx );
       if (_ret >= 0) {
+
         m_note_n[ m_note_plane ] = 0;
         m_note_n[ 1 - m_note_plane  ] = 0;
 
@@ -5009,6 +5041,10 @@ int BeliefPropagation::cellConstraintPropagate() {
                         m_dir_desc[i].c_str(), (int)i);
               }
 
+              // unwind
+              //
+              unfillVisited (1 - m_note_plane );
+
               return -1;
             }
 
@@ -5100,6 +5136,10 @@ int BeliefPropagation::cellConstraintPropagate() {
                         m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
                         m_dir_desc[i].c_str(), (int)i);
               }
+
+              // unwind
+              //
+              unfillVisited (1 - m_note_plane );
 
               return -1;
             }

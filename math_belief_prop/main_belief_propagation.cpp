@@ -1020,7 +1020,10 @@ int main(int argc, char **argv) {
   for (it=0; it < n_it; it++) {
 
     ret = bpc.RealizePre();
-    if (ret < 0) { break; }
+    if (ret < 0) {
+      fprintf(stderr, "RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
+      break;
+    }
 
     //DEBUG
     //
