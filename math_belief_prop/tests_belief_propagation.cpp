@@ -2500,7 +2500,7 @@ int test_residual8() {
 
 
 
-int test_wfc0(int x, int y, int z) {
+int test_wfc0(BeliefPropagation &_bp, int x, int y, int z) {
   int ret;
   int iter, max_iter=10;
   float maxdiff, _eps = (1.0/(1024*1024));
@@ -2508,7 +2508,7 @@ int test_wfc0(int x, int y, int z) {
   BeliefPropagation bp;
 
   //bp.init(x,y,z);
-  ret = bp_init_CSV( bp, x,y,z, bp.op.name_fn, bp.op.rule_fn );
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   ret = bp.wfc();
@@ -2516,6 +2516,112 @@ int test_wfc0(int x, int y, int z) {
   printf("(%i,%i,%i) got: %i\n", x, y, z, ret);
 
   bp.debugPrint();
+  return 0;
+}
+
+
+int test_block_wfc(BeliefPropagation &_bp) {
+  BeliefPropagation bp;
+  int x=4,y=4, z=4;
+  int64_t cell=0, idx=0, count=0;
+  int err_code = -1;
+  int ret;
+
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+  err_code--;
+
+  bp.op.alg_accel         = ALG_ACCEL_NONE;
+  bp.op.alg_run_opt       = ALG_RUN_BLOCK_WFC;
+  bp.op.alg_cell_opt      = ALG_CELL_BLOCK_WFC;
+  bp.op.block_schedule    = OPT_BLOCK_SEQUENTIAL;
+
+  ret = bp.start();
+  if (ret < 0) { return ret; }
+
+  // force a collpase into an error state to make sure
+  // visited is still valid after contraint propagation
+  //
+  bp.tileIdxCollapse( 0, 0 );
+  bp.tileIdxCollapse( 1, 19 );
+
+  bp.m_note_n[ 0 ] = 0;
+  bp.m_note_n[ 1 ] = 0;
+  bp.cellFillVisitedNeighbor( 0, 0 );
+  bp.cellFillVisitedNeighbor( 1, 0 );
+  bp.unfillVisited(0);
+
+  // we expect an error, so if we don't get one,
+  // fail
+  //
+  ret = bp.cellConstraintPropagate();
+  if (ret >= 0) { return err_code; }
+  err_code--;
+
+  printf("??...\n");
+
+  ret = bp.sanityAccessed();
+  if (ret < 0) { return err_code; }
+  err_code--;
+
+
+  printf("ok block_wfc\n");
+
+
+  return 0;
+}
+
+
+int test_visited(BeliefPropagation &_bp) {
+  BeliefPropagation bp;
+  int x=4,y=4, z=4;
+  int64_t cell=0, idx=0, count=0;
+  int err_code = -1;
+  int ret;
+
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+  err_code--;
+
+  ret = bp.start();
+  if (ret < 0) { return ret; }
+
+  if (bp.sanityAccessed() < 0) { return err_code; }
+  err_code--;
+
+  bp.m_note_n[ bp.m_note_plane ] = 0;
+  bp.m_note_n[ 1-bp.m_note_plane ] = 0;
+
+  cell = bp.getVertex(1,1,1);
+
+  bp.cellFillVisitedSingle( cell, bp.m_note_plane );
+  count=0;
+  for (idx=0; idx < bp.m_num_verts; idx++) {
+    if (bp.getValL( BUF_VISITED, idx ) != 0) { count++; }
+  }
+  if (count!=1) { return err_code; }
+  err_code--;
+
+  bp.unfillVisited( bp.m_note_plane );
+  if (bp.sanityAccessed() < 0) { return err_code; }
+  err_code--;
+
+
+  bp.cellFillVisitedNeighbor( cell, bp.m_note_plane );
+  count=0;
+  for (idx=0; idx < bp.m_num_verts; idx++) {
+    if (bp.getValL( BUF_VISITED, idx ) != 0) { count++; }
+  }
+  if (count!=6) { return err_code; }
+  err_code--;
+
+  bp.unfillVisited( bp.m_note_plane );
+  if (bp.sanityAccessed() < 0) { return err_code; }
+  err_code--;
+
+
+  printf("ok visited\n");
+
   return 0;
 }
 
@@ -2598,6 +2704,7 @@ int test_lookahead0(BeliefPropagation &_bp) {
 }
 
 int run_test(BeliefPropagation &bp, int test_num) {
+  int ret;
 
   switch(test_num) {
     case 0:
@@ -2649,7 +2756,7 @@ int run_test(BeliefPropagation &bp, int test_num) {
       break;
 
     case 15:
-      test_wfc0(4,4,4);
+      test_wfc0(bp, 4,4,4);
       break;
 
     case 16:
@@ -2704,9 +2811,21 @@ int run_test(BeliefPropagation &bp, int test_num) {
       test_lookahead0(bp);
       break;
 
+    case 31:
+      test_visited(bp);
+      break;
+
+    case 32:
+      ret = test_block_wfc(bp);
+      break;
+
     default:
       return -1;
 
+  }
+
+  if (ret < 0) {
+    printf("## TEST RETURN: %i\n", ret);
   }
 
   return 0;
