@@ -171,23 +171,33 @@ void Sample::drawGrid( Vector4DF clr )
 void Sample::CheckLanding ()
 {
 	if ( m_airborn > 2000 ) {
+
 		char msg[4096];
 		Vector3DF angs;
 		m_orient.toEuler ( angs );			
+		
 		// Check for good landing:
 		// - Speed < 80 m/s
 		// - Sink rate < 2 m/s
 		// - Pitch < 5 deg
-		// - Roll < 5 deg
-		bool on_runway = (m_pos.x > -m_runway_width) && (m_pos.x < m_runway_width) && (m_pos.z > -m_runway_length) && (m_pos.z < m_runway_length );
-		m_landing_status = (m_speed < 80) && (fabs(m_vel.y) < 2) && (fabs(angs.y) < 5) && (fabs(angs.x) < 5) && on_runway;		
+		// - Roll < 5 deg	
+		// - On runway
+		
+		bool ok_speed = (m_speed < 80);
+		bool ok_sink = (fabs(m_vel.y) < 2);
+		bool ok_pitch = (fabs(angs.y) < 5);
+		bool ok_roll = (fabs(angs.x) < 5);
+		bool ok_runway = (m_pos.x > -m_runway_width) && (m_pos.x < m_runway_width) && (m_pos.z > -m_runway_length) && (m_pos.z < m_runway_length );
+		m_landing_status = ok_speed && ok_sink && ok_pitch && ok_roll && ok_runway;		
+
 		sprintf ( msg, "%s\n Speed (<80): %4.1f m/s     %s\n Sink rate (<2): %4.1f m/s      %s\n Pitch (<5): %4.1f deg     %s\n Roll (<5): %4.1f deg     %s\n On Runway: %s\n", 
 				            m_landing_status  ? "LANDED!" : "CRASH", 
-							m_speed, (m_speed<80) ? "OK" : "FAIL", 
-							m_vel.y, (fabs(m_vel.y)<2) ? "OK" : "FAIL", 
-							fabs(angs.y), (fabs(angs.y)<5) ? "OK" : "FAIL",
-							fabs(angs.x), (fabs(angs.x)<5) ? "OK" : "FAIL",
-				            on_runway ? "Yes     OK" : "No     FAIL" );	
+							m_speed,		ok_speed ? "OK" : "FAIL", 
+							m_vel.y,		ok_sink ? "OK" : "FAIL", 
+							fabs(angs.y),	ok_pitch ? "OK" : "FAIL",
+							fabs(angs.x),	ok_roll ? "OK" : "FAIL",
+				            ok_runway ? "Yes     OK" : "No     FAIL" );	
+
  		m_landing_info = msg;			
 	}	
 	m_airborn = 0;

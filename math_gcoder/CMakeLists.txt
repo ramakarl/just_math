@@ -36,6 +36,7 @@ find_package(Libmin)
 if (LIBMIN_FOUND)
   add_definitions(-DUSE_LIBMIN)  
   add_definitions(-DBUILD_PNG)  
+  add_definitions(-DBUILD_TIFF)  
   include_directories(${LIBMIN_INC_DIR})
   include_directories(${LIBRARIES_INC_DIR})  
   LIST( APPEND LIBRARIES_OPTIMIZED "${LIBMIN_LIB_DIR}/${LIBMIN_REL}")
@@ -118,9 +119,7 @@ add_definitions(-DASSET_PATH="${ASSET_PATH}/")
 # Executable
 #
 file ( GLOB MAIN_FILES *.cpp *.c *.h )
-
-# exclude main when using app_belief_prop
-list ( FILTER MAIN_FILES EXCLUDE REGEX "main_belief_propagation*")
+list ( FILTER MAIN_FILES EXCLUDE REGEX "main_gcoder*")	 # remove cmdline main from app build
 
 unset ( ALL_SOURCE_FILES )
 

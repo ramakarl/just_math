@@ -1,15 +1,9 @@
 //--------------------------------------------------------------------------------
 // JUST MATH:
-// Belief Propagation - on a 3D grid domain
+// GCoder Generator
 //
-// Demonstration of Sum-Product Belief Propagation on a 3D spatial domain.
-// Computes:
-//     mu_{i,j}[b] = SUM f_{i,j}[a,b] g_i[a] PROD mu_{k,i}[b]
-// The message function 'mu' is stored sparsely for neighboring cells in 3D, with size 6*R^3*B,
-// where R is the grid resolution, B is the number of discrete values, and 6 is number of neighbors.
 //
-// To render the result, the belief is estimated at each vertex (voxel), and
-// raytraced as a density volume where value probabilities are mapped to color.
+//
 //
 
 //--------------------------------------------------------------------------------
@@ -34,20 +28,12 @@
 #include "main.h"      // window system
 #include "nv_gui.h"      // gui system
 #include "image.h"
-#include "mersenne.h"
-#include "camera3d.h"
 #include "dataptr.h"
 #include "geom_helper.h"
 #include "string_helper.h"
 
-#include "belief_propagation.h"
-#include "bp_helper.h"
-
 #ifdef USE_OPENGL
   #include <GL/glew.h>
-#endif
-#ifdef USE_CUDA
-  #include "common_cuda.h"
 #endif
 
 #include <stdio.h>
@@ -60,8 +46,33 @@
 
 #define BUF_VOL      0      // render volume
 
+#define CLR_MOVE      0
+#define CLR_CUT       1
+#define CLR_MACHINE   2
+#define CLR_MATL      3
+#define CLR_WORK      4
+#define CLR_GRID      5
 
- std::vector< std::vector< float > >    tri_shape_lib;
+struct Tool {
+    std::string     name;
+    char            type;
+    char            units;
+    float           uconv;
+    float           width;
+    float           depth;
+    float           profile[65535];
+};
+
+struct Pass {
+    int             tool_id;    
+    Vector3DF       pitch;
+    Vector3DF       cut_depth;    // x=current depth, z=depth per pass
+};
+
+struct Line {
+    Vector3DF       a, b;
+    int             c;
+};
 
 class Sample : public Application {
 public:
@@ -76,266 +87,88 @@ public:
   virtual void mousewheel(int delta);
   virtual void shutdown();
 
-  // Belief Propagation funcs
-  void      Restart ();
+  void SetMachine ( Vector3DF mmin, Vector3DF mmax );
+  void SetWork ( float depth, Vector3DF mtl_size, float margin );
+  void SetSource ( std::string name );
+  void AddTool ( std::string name, char tt, float width, float depth, std::string units );
+  int  FindTool ( std::string name );
+  void AddPass ( std::string tool );
+  void CutPass (int p);
+  float getCutHeight ( Vector3DF pos, int tid, float accuracy );
+  void AddCut ( Vector3DF a );
+  void AddMove ( Vector3DF a );
+  void StartGCode ( int pid );
+  void EndGCode ();
 
-
-  // Belief Propagation objects
+  void AddLine ( Vector3DF a, Vector3DF b, char c, int pass );
+  void DrawBox ( Vector3DF a, Vector3DF b, Vector4DF clr );
+  void DrawLine ( Vector3DF p1, Vector3DF p2, int c );
   
-  BeliefPropagation bpc;
+  Vector3DF     m_machine_min;      // min travel of machine
+  Vector3DF     m_machine_max;      // max travel of machine
 
+  Vector3DF     m_material_size;    // material dimensions
+  Vector3DF     m_margin;           // margin on material  
+  Vector3DF     m_work_pos;         // work position
+  Vector3DF     m_work_min;         // work area
+  Vector3DF     m_work_max;         
+  Vector3DF     m_work_size;  
+
+  std::string   m_img_name;         // source image name
+  Image*        m_img_relief;       // image data
+  Vector3DF     m_pix_size;         // size of one pixel in world units
+  Vector3DI     m_res;
   
-  // Volume rendering
-  void      Visualize ( BeliefPropagation& src, int vol_id );  
+  float         m_detail;
+  float         m_stepover;
+  float         m_accuracy;
 
-  void      AllocVolume(int id, Vector3DI res, int chan=1);
-  float     getVoxel ( int id, int x, int y, int z );
-  Vector4DF getVoxel4 ( int id, int x, int y, int z );
-  void      ClearImg (Image* img);
-  void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );
+  float         m_max_depth;        // desired depth  
+  float         m_pmin, m_pmax;     // img min/max values
+  float         m_dmin, m_dmax;     // depth min/max values
+  float         m_doffset;
+  Vector3DF     m_prev_pos;
 
-  Camera3D* m_cam;          // camera
-  Image*    m_img;          // output image
-  Image*    m_img2;
+  std::string   m_out_name;         // output name
+  bool          m_out;
+  FILE*         m_gfile;
   
-  int       m_viz;
-  Vector3DI m_vres;         // volume res
-  DataPtr   m_vol[4];       // volume
+  std::vector<Tool> m_Tools;
+  std::vector<Pass> m_Passes;
 
-  // UI
-  int       mouse_down;
-  bool      m_run;  
-  bool      m_save;
-  float     m_frame;  
+  std::vector<Line> m_Lines[8];
+  Vector4DF     m_palette[16];
+
+  Camera3D*     m_cam;    
+
+  int           mouse_down;
+  int           m_curr_pass;
+
+  bool          m_extras;
+  bool          m_run;  
+  bool          m_save;
+  float         m_frame;  
 
 };
 Sample obj;
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
 {
-    float valf;
-    int vali;
-    int wfc_flag = 0;
-    int seed = 0;
-    int test_num = 0;
     char dash = arg.at(0);
     char ch = (arg.length()<=1) ? '0' : arg.at(1); 
 
-    // get opt structure to load
-    bp_opt_t* op = bpc.get_opt();
+    if (!dash) return;
 
-    if ( dash=='-' ) {
     switch (ch) {
-      case 'd':
-       // debug_print = 1;
+    case 'i':
+        m_img_name = optarg;
         break;
-      case 'V':
-        op->verbose = strToI(optarg);
+    case 'o':
+        m_out_name = optarg;
         break;
-      case 'e':
-        valf = strToF(optarg);
-        if (valf > 0.0) {
-          bpc.setConverge ( op, valf );
-        }
-        break;
-      case 'z':
-        valf = strToF(optarg);
-        if (valf > 0.0) {
-          op->eps_zero = valf;
-        }
-        break;
-      case 'I':
-        vali  = strToI(optarg);
-        if (vali > 0) {
-          op->max_step = (int64_t) vali;
-        }
-        break;
-      case 'N':
-        op->name_fn = optarg;
-        break;
-      case 'R':
-        op->rule_fn = optarg;
-        break;      
-      case 'J':
-        op->constraint_cmd = optarg;
-        break;
-      case 'L':
-        op->tileobj_fn = optarg;
-        break;
-      case 'M':
-        op->tilemap_fn = optarg;
-        break;
-      case 'Q':
-        op->tileset_fn = optarg;
-        break;
-      case 's':
-        op->tileset_stride_x = strToI(optarg);
-        op->tileset_stride_y = op->tileset_stride_x;
-        break;
-      case 'G':
-        op->alg_idx = strToI(optarg);
-        break;
-      case 'S':
-        seed = strToI(optarg);
-        op->seed = seed;
-        break;
-      case 'r':
-        op->max_run = strToI(optarg);
-        break;
-      case 'c':
-        op->cull_list.push_back( strToI(optarg) );
-        break;
-      case 'T':
-        test_num = strToI(optarg);
-        break;
+    };
 
-      case 'D':
-        op->D = strToI(optarg);
-        op->X = op->Y = op->Z = op->D;
-        break;
-      case 'X':
-        op->X = strToI(optarg);
-        break;
-      case 'Y':
-        op->Y = strToI(optarg);
-        break;
-      case 'Z':
-        op->Z = strToI(optarg);
-        break;
-
-      case 'w': {
-        float r = strToF(optarg);
-        if (r > 0.0) {
-          op->step_rate = r;
-        }
-        }break;
-      
-      case 'A':
-        op->alg_accel = ALG_ACCEL_WAVE;
-        break;
-
-      case 'W':
-        op->alg_accel = ALG_ACCEL_NONE;
-        op->alg_run_opt = ALG_RUN_WFC;
-        op->alg_cell_opt = ALG_CELL_WFC;
-        break;
-    }
-    }
 }
-
-void Sample::AllocVolume (int id, Vector3DI res, int chan)    // volume alloc
-{
-  uint64_t cnt = res.x*res.y*res.z;
-  uint64_t sz = cnt * chan * sizeof(float);
-  int flags = DT_CPU;
-  m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
-  memset( (void *) (m_vol[id].getPtr(0)), 0, sz );
-}
-float Sample::getVoxel ( int id, int x, int y, int z )
-{
-  float* dat = (float*) m_vol[id].getPtr ( (z*m_vres.y + y)*m_vres.x + x );
-  return *dat;
-}
-Vector4DF Sample::getVoxel4 ( int id, int x, int y, int z )
-{
-  Vector4DF* dat = (Vector4DF*) m_vol[id].getPtr ( (z*m_vres.y + y)*m_vres.x + x );
-  return *dat;
-}
-
-void Sample::Visualize ( BeliefPropagation& src, int vol_id ) 
-{
-    // volume to write to
-    Vector4DF* vox = (Vector4DF*) m_vol[ vol_id ].getPtr (0);
-    Vector4DF clr;
-
-    for ( uint64_t j=0; j < src.getNumVerts(); j++ ) {
-
-        // map BP sample to RGBA voxel
-        clr = src.getVisSample ( j );
-
-        // write voxel
-        *vox++ = clr;
-   }
-}
-
-void Sample::ClearImg (Image* img)
-{
-    img->Fill ( 0 );
-}
-
-void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax )
-{
-  Vector3DF rpos, rdir;
-  Vector4DF clr;
-
-  Vector3DF wp, dwp, p, dp, t;
-  Vector3DF vdel = m_vres;
-  Vector4DF val;
-  int iter;
-  float alpha;
-  float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
-  float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
-  float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
-  float kWidth = 4.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
-
-  int xres = img->GetWidth();
-  int yres = img->GetHeight();
-
-  // for each pixel in image..
-  for (int y=0; y < yres; y++) {
-    for (int x=0; x < xres; x++) {
-
-      // get camera ray
-      rpos = cam->getPos();
-      rdir = cam->inverseRay ( x, y, xres, yres );
-      rdir.Normalize();
-
-      // intersect with volume box
-      float t;
-      clr.Set(0,0,0,0);
-
-      if ( intersectLineBox ( rpos, rdir, vmin, vmax, t ) ) {
-
-        // hit volume, start raycast...
-        wp = rpos + rdir * (t + pStep);                     // starting point in world space
-        dwp = (vmax-vmin) * rdir * pStep;                     // ray sample stepping in world space
-        p = Vector3DF(m_vres) * (wp - vmin) / (vmax-vmin);    // starting point in volume
-        dp = rdir * pStep;                // step delta along ray
-
-        // accumulate along ray
-        for (iter=0; iter < 512 && clr.w < 0.99 && p.x >= 0 && p.y >= 0 && p.z >= 0 && p.x < m_vres.x && p.y < m_vres.y && p.z < m_vres.z; iter++) {
-          val = getVoxel4 ( BUF_VOL, p.x, m_vres.y-p.y, p.z );          // get voxel value
-          //alpha = val.w;                        // opacity = linear transfer
-          alpha = 1.0 / (1+exp(-(val.w-1.0)*kWidth));        // opacity = sigmoid transfer - accentuates boundaries at 0.5
-          clr += Vector4DF(val.x,val.y,val.z, 0) * (1-clr.w) * alpha * kIntensity * pStep;  // accumulate color
-          clr.w += alpha * kDensity * pStep;              // attenuate alpha
-          p += dp;                           // next sample
-        }
-        if (clr.x > 1.0) clr.x = 1;
-        if (clr.y > 1.0) clr.y = 1;
-        if (clr.z > 1.0) clr.z = 1;
-        clr.x *= 255.0; clr.y *= 255.0; clr.z *= 255.0;
-
-        img->SetPixel ( x, y, clr.x, clr.y, clr.z );
-      }
-    }
-  }
-
-  #ifdef USE_OPENGL
-    //commit image to OpenGL (hardware gl texture) for on-screen display
-    img->Commit ( DT_GLTEX );
-  #endif
-}
-
-void Sample::Restart ()
-{
-    // restart BP state
-    bp_restart ( bpc ); 
-
-    // make sure we're running
-    m_run = true;
-}
-
 
 bool Sample::init()
 {
@@ -343,232 +176,410 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
-  m_viz = VIZ_NONE;
+  init2D("arial");
+  setText(18,1);
 
-  _bp_opt_t* op = bpc.get_opt();
+  m_extras = true;
+  m_curr_pass = 0;
+  m_out = (m_out_name.size() > 0);
 
-  // Render volume
-  // match resolution of BP settings
-  m_vres.Set ( op->X, op->Y, op->Z );
-  AllocVolume ( BUF_VOL, m_vres, 4 );
-
-  // UI Options
-  //
-  m_frame     = 0;
-  m_run       = false;  // must start out false until all other init is done
-  m_save      = false;  // save to disk
   m_cam = new Camera3D;
-  m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
-  m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
+  m_cam->setNearFar(1, 10000);
+  m_cam->SetOrbit ( Vector3DF(160,30,0), Vector3DF(0,0,0), 2000, 1 );
 
-  printf("Init done\n");
-  fflush(stdout);
-  #ifdef USE_OPENGL
-    init2D("arial");
-    setText(18,1);
-  #endif
+  // Drawing colors   
+  m_palette[ CLR_MOVE ] =   Vector4DF(0, 1, 1, 0.5);   // cyan = relocate
+  m_palette[ CLR_CUT ] =    Vector4DF(1, 1, 1, 1);     // white = cut
+  m_palette[ CLR_MACHINE ]= Vector4DF(1, 0, 0, 1);     // red = machine limit
+  m_palette[ CLR_MATL ] =   Vector4DF(1,.5, 0, 1);     // orange = material limit
+  m_palette[ CLR_WORK ] =   Vector4DF(1, 1, 0, 1);     // yellow = working area
+  m_palette[ CLR_GRID ] =   Vector4DF(1, 1, 1, 0.3);   // gray = grid
 
-  #ifdef USE_CUDA
-    if ( m_run_cuda ) {
-      CUcontext ctx;
-      CUdevice dev;
-      cuStart ( DEV_FIRST, 0, dev, ctx, 0, true );    // start CUDA
-    }
-  #endif
 
-    // pm_90:
-    // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 90 -Y 90 -Z 1 -N pm_tilename.csv -R pm_tilerule.csv -Q pm_tileset.png -s 8 -M pm_tiles -J "d 0"
-
-    // stairs:
-    // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
-
-  //-- Experiments
+  // Load tools
+  AddTool ( "1/2 flat",   'f',   0.50,    1.0, "in" );
+  AddTool ( "1/8 sphere", 's',  0.125,  0.125, "in" );
+  AddTool ( "1/16 vbit",  'v', 1/16.0, 3/16.0, "in" );
   
-  bpc.expr.num_expr = 5;
-  bpc.expr.num_run = 20;
-  bpc.expr.grid_min.Set (100, 100, 1);
-  bpc.expr.grid_max.Set (150, 150, 1);
-  bpc.expr.maxstep_min = 50;
-  bpc.expr.maxstep_max = 50;
-  bpc.expr.steprate_min = 0.98;
-  bpc.expr.steprate_max = 0.98;
-  bpc.expr.eps_min = .0001;
-  bpc.expr.eps_max = .0001;
+  //AddTool ( "1/8 sphere", 's', 0.125, 1.0, "in" );
 
-  bpc.st.instr = 0;
+  // Set source image
+  SetSource ( m_img_name );
 
+  // Set machine
+  SetMachine ( Vector3DF(-600, 0, -10 ), Vector3DF(600, 2000, 50) );       // X left/right, Y back/fwd, Z up/down
 
-  printf ("WAVEFRONT: %d\n", int(bpc.op.alg_accel) );
-
-  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); 
+  // Set work
+  SetWork ( 12, Vector3DF( 400, 300, 26), 26 );         // depth=12 mm, 300x200x26 mm = 12 x 7.8 x 1", margin=1"
   
-  
+  // Add passes
+  m_detail =   0.10;        // x-resolution as % of tool width
+  m_stepover = 0.30;        // y-pitch as % of tool width
+  m_accuracy = 0.20;        // search accuracy as % of tool width
 
-  //-- Multirun testing  
-  /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
-  
-  exit(-5); */
-    
-  // Initiate Belief Propagation   
-  
-  // find name & rule files
-  std::string name_path, rule_path;
-  getFileLocation ( op->name_fn, name_path );
-  getFileLocation ( op->rule_fn, rule_path );
-  
-  // initialize belief prop (using helper func)
-  ret = bp_init_CSV ( bpc, op->X, op->Y, op->Z, name_path, rule_path );
-  if (ret<0) {
-     fprintf(stderr, "bpc error loading CSV\n");
-     exit(-1);
-  }
+  AddPass ( "1/2 flat" );
+  AddPass ( "1/8 sphere" );
+  AddPass ( "1/16 vbit" );
 
-  // tileobj -> tri_shape_lib
-  std::string obj_path;
-  if (bpc.op.tileobj_fn.size() > 0) {
-    getFileLocation ( op->tileobj_fn, obj_path );
-    ret=load_obj_stl_lib( obj_path, tri_shape_lib );
-    if (ret<0) {
-      fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", bpc.op.tileobj_fn.c_str());
-      exit(-1);
-    }
-  }
-
-  // start belief prop
-  //
-  bp_restart ( bpc ); 
-
-
-  // start viz
-  m_viz = VIZ_CONSTRAINT ;
-  bpc.SetVis ( m_viz );
-
-  // start running
-  m_run = true;
+  // Create relief
+  for (int n=0; n < m_Passes.size(); n++)
+    CutPass ( n );  
 
   return true;
 }
 
 
-void Sample::display()
+void Sample::AddTool ( std::string name, char tt, float width, float depth, std::string units )
 {
-  int ret;
-  float md= 0.0;
-  char savename[256] = {'\0'};
+    float x;
 
-  Vector3DF a, b, c;
-  Vector3DF p, q, d;
+    Tool t;
+    t.name = name;
+    t.type = tt;
+    t.units = (units.at(0)=='m' ) ? 'm' : 'i';
+    t.uconv = (t.units=='m') ? 1 : 25.4;
+    t.width = width * t.uconv;
+    t.depth = depth * t.uconv;
 
-  void (*_cb_f)(void *) = NULL;
-
-  // Run Belief Propagation
-  //
-  if (m_run) {
-
-
-    int ret = bpc.RealizeStep ();
-
-    if ( m_viz==VIZ_TILECOUNT ) {
-        // write json on every step      
-        // write_tiled_json( bpc );  
+    switch ( tt ) {
+    case 'f':       // flat bit
+        for (int n=0; n < 65535; n++)
+            t.profile[n] = 0;
+        break;
+    case 's':       // sphere bit
+        for (int n=0; n < 65535; n++) {
+            x = float(n)/65535.0;
+            t.profile[n] = sqrt(x*x) * t.width;
+        }
+        break;
+    case 'v':       // v-bit
+        for (int n=0; n < 65535; n++) {
+            x = float(n)/65535.0;
+            t.profile[n] = x * t.depth;
+        }
+        break;
     }
 
-    if (ret == 0 || ret == -2) {
-        // step complete
+    m_Tools.push_back ( t );
+}
 
-        if (ret==-2) {
-            //printf ( "Warning: Hit max iter.\n" );
-        }   
-            
-        // finish this iteration
-        ret = bpc.RealizePost();
-            
-        if ( ret > 0) {
+int Sample::FindTool ( std::string name )
+{
+    for (int n=0; n < m_Tools.size(); n++) {
+        if (m_Tools[n].name.compare (name)==0) return n;
+    }
+    return -1;
+}
 
-            // iteration complete (all steps)
-            // start new iteration
-            bpc.RealizePre();
-            
-        } else if ( ret==0 ) {
+void Sample::AddLine ( Vector3DF a, Vector3DF b, char c, int pass )
+{
+    Line l;
+    l.a = a;
+    l.b = b;
+    l.c = (int) c;
+    m_Lines[pass].push_back ( l );
+}
+
+void Sample::DrawBox ( Vector3DF p1, Vector3DF p2, Vector4DF clr )
+{
+    // swizzle and unit convert
+    Vector3DF a = Vector3DF(-p1.x, p1.z, p1.y);
+    Vector3DF b = Vector3DF(-p2.x, p2.z, p2.y);
+    drawBox3D ( a, b, clr.x,clr.y,clr.z,clr.w );
+}
+void Sample::DrawLine ( Vector3DF p1, Vector3DF p2, int c )
+{
+    // swizzle and unit convert
+    Vector3DF a = Vector3DF(-p1.x, p1.z, p1.y);
+    Vector3DF b = Vector3DF(-p2.x, p2.z, p2.y);
+    Vector4DF clr = m_palette[c];
+    if (c==CLR_CUT) { clr = Vector4DF(1,1,1,1) * (p1.z-m_dmin)/(m_dmax-m_dmin); clr.w=1; }
+    drawLine3D ( a, b, clr );
+}
+
+
+void Sample::SetMachine ( Vector3DF mmin, Vector3DF mmax )
+{
+    m_machine_min = mmin;
+    m_machine_max = mmax;
+}
+void Sample::SetWork ( float depth, Vector3DF mtl_size, float margin )
+{
+    m_material_size  = mtl_size;
+    m_margin = Vector3DF(margin, margin, 0);
+    m_work_min = m_margin;
+    m_work_max = m_material_size - m_margin;
+    m_work_min.z = m_material_size.z - depth;
+    m_work_max.z = m_material_size.z;
+
+    m_work_size = m_work_max - m_work_min;
+    float work_asp = m_work_size.y / m_work_size.x;
+    float src_asp = float(m_res.y) / float(m_res.x);
+    if ( src_asp < work_asp) {
+        m_work_size.y = m_work_size.x * src_asp;
+        m_work_max.y = m_work_min.y + m_work_size.y;
+    }
+
+    m_max_depth = depth;
+    m_pix_size = m_work_size / m_res;
+
+    m_doffset = -m_material_size.z;
+}
+
+void Sample::SetSource ( std::string name )
+{      
+    // Load relief img
+    // - support 16-bit TIFF
+    #ifndef BUILD_TIFF
+        dbgprintf ( "ERROR: BUILD_TIFF not compiled.\n");
+        exit(-1);
+    #endif  
+    std::string imgpath;
+    if ( !getFileLocation ( name, imgpath ) ) { dbgprintf ( "ERROR: Cannot find file %s\n", name.c_str() ); exit(-1); }
+    m_img_relief = new Image;
+    if ( !m_img_relief->Load ( imgpath ) ) { dbgprintf ( "ERROR: Unable to load %s\n", name.c_str() ); exit(-1); }
+    m_img_relief->Commit (DT_GLTEX);
+
+    m_res = Vector3DI(m_img_relief->GetWidth(), m_img_relief->GetHeight(), 1);
+
+    // compute min/max pixel values
+    float v;
+    m_pmin = 65536;
+    m_pmax = 0;
+    for (int x=0; x < m_res.x; x++) {
+        for (int y=0; y < m_res.y; y++) {            
+            v = m_img_relief->GetPixel16 (x,y);
+            if ( v < m_pmin) m_pmin = v;
+            if ( v > m_pmax) m_pmax = v;
+        }
+    }
+    dbgprintf ( "Pixel min: %6.0f, max: %6.0f\n", m_pmin, m_pmax );
+
+}
+
+
+void Sample::AddPass ( std::string tname )
+{
+    Pass p;
+    p.tool_id = FindTool ( tname );
+    if ( p.tool_id==-1 ) {
+        dbgprintf ( "ERROR: Tool '%s' not found.\n", tname.c_str());
+        exit (-2);
+    }
+    
+    float tool_wid = m_Tools[p.tool_id].width;
+    p.pitch.x = tool_wid * m_detail;
+    p.pitch.y = tool_wid * m_stepover;    
+    p.pitch.z = tool_wid * m_accuracy;
+    p.cut_depth = Vector3DF(0, m_max_depth, 0.5 * tool_wid);
+
+    m_Passes.push_back ( p );
+}
+
+float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy )
+{
+    float f, T, h, d, r;
+    Vector3DF pix, o;
+
+    // Search for Maximum safe height
+
+    // Compute tool width in pixels
+    Vector3DI tool_px = Vector3DF(m_Tools[tid].width, m_Tools[tid].width, 0) / m_pix_size;
+
+    // Compute search accuracy
+    int px_jump = accuracy / m_pix_size.x;
+    px_jump = (px_jump < 1) ? 1 : (px_jump > tool_px.x) ? tool_px.x : px_jump;
+
+    float hmax = -m_max_depth;
+    
+    pix.x = (pos.x-m_work_min.x) * m_res.x / m_work_size.x;
+    pix.y = m_res.y - (pos.y-m_work_min.y) * m_res.y / m_work_size.y;
+
+    // Scan over tool extents
+    for (int j=-tool_px.x; j <= tool_px.x; j+= 10 ) {
+        for (int k=-tool_px.y; k <= tool_px.y; k+= 10 ) {
+            if ( pix.x+j >= 0 && pix.x+j < m_res.x && pix.y+k >= 0 && pix.y+k < m_res.y ) {
+    
+                // check if inside tool radius
+                o = Vector3DF(j, k, 0) * m_pix_size;
+                r = sqrt(o.x*o.x + o.y*o.y) / m_Tools[tid].width;
+                if ( r < 1 ) {
+
+                    // get artwork height and convert to real units
+                    f = float( m_img_relief->GetPixel16 (pix.x + j, pix.y + k) - m_pmin ) / (m_pmax-m_pmin);
+                    f = f*m_max_depth;
+
+                    // get radially symmetric tool profile                    
+                    T = m_Tools[tid].profile[ int(r*65535) ];
                 
-            // write json output            
-            if (bpc.op.tileobj_fn.size() > 0) {
-              bpc.op.outstl_fn = bpc.op.tilemap_fn;
-              write_bp_stl( bpc, tri_shape_lib );
-            } else {
-              write_tiled_json( bpc );
+                    // compute tool height at this point
+                    // h(x,y) = f(x+j, y+k) - T(j,k)
+                    h = f - T;        
+
+                    // only accept maximum height over extents
+                    // tool can only go as high as this point or it would cut away artwork
+                    if ( h > hmax ) hmax = h;
+                }
+            }
+        }
+    }
+
+    
+
+    // simple cut depth - assumes 0 tool width
+    /* pix.x = (pos.x-m_work_min.x) * m_res.x / m_work_size.x;
+    pix.y = m_res.y - (pos.y-m_work_min.y) * m_res.y / m_work_size.y;
+    
+        v = float( m_img_relief->GetPixel16 (pix.x, pix.y) - m_pmin ) / (m_pmax-m_pmin);                    
+        d = (1.0-v) * m_max_depth;        
+    } else {
+        v = 0;
+        d = 0;
+    } */
+    
+    return hmax;
+}
+
+void Sample::AddCut ( Vector3DF a )
+{
+    if ( m_out ) {
+        if ( fabs(a.z-m_prev_pos.z) < 0.01 ) {
+            fprintf ( m_gfile, "G01 X%3.1f\n", a.x );   // no z change
+        } else {
+            fprintf ( m_gfile, "G01 X%3.1f Z%3.2f\n", a.x, a.z+m_doffset );
+        }
+    }
+    AddLine ( m_prev_pos, a, CLR_CUT, m_curr_pass ); 
+    m_prev_pos = a;
+}
+void Sample::AddMove ( Vector3DF a )
+{
+    if ( m_out) fprintf ( m_gfile, "G00 X%3.2f Y%3.2f Z%3.2f\n", a.x, a.y, a.z+m_doffset );
+    AddLine ( m_prev_pos, a, CLR_MOVE, m_curr_pass );
+    m_prev_pos = a;
+}
+
+void Sample::StartGCode ( int pid )
+{
+    if ( m_out) {
+        char fname[1024];    
+        sprintf (fname, "%s_p%d.gcode", m_out_name.c_str(), pid );
+        m_gfile = fopen ( fname, "wt" );
+    }
+}
+
+void Sample::EndGCode ()
+{
+    if ( m_out) 
+        fclose ( m_gfile );
+}
+
+void Sample::CutPass (int pid)
+{    
+    Vector3DF pl;
+    Vector3DF pos;
+    float scanx;
+    float v, d;
+
+    StartGCode ( pid );
+
+    dbgprintf ( "Cutting pass %d\n", pid );
+
+    Pass p = m_Passes[pid];
+    m_curr_pass = pid;
+   
+    m_dmin = 1e10;
+    m_dmax = -1e10;
+    float work_hgt = m_work_max.z;
+    float safe_hgt = work_hgt + 5;
+    int dir = 1;
+
+    // goto start of work
+    m_prev_pos = Vector3DF(0,0,work_hgt);
+    AddMove ( Vector3DF(0,0,safe_hgt) );
+    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,safe_hgt) );
+    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,work_hgt) );
+
+    p.cut_depth.x = m_max_depth;
+
+    //for ( float cd = 0; cd < m_max_depth; cd += p.cut_depth.z ) {
+    //    p.cut_depth.x = cd;
+
+        for ( pos.y = m_work_min.y; pos.y < m_work_max.y; pos.y += p.pitch.y ) {    
+
+            pos.x = (dir>0) ? m_work_min.x : m_work_max.x;
+            AddMove ( Vector3DF(pos.x, pos.y, safe_hgt) );     // reposition         
+            AddMove ( Vector3DF(pos.x, pos.y, work_hgt) );     // lower down
+        
+            for ( scanx = 0; scanx <= m_work_size.x; scanx += p.pitch.x ) {
+
+                pos.x = (dir>0) ? m_work_min.x + scanx : m_work_max.x - scanx;
+            
+                d = m_work_min.z + getCutHeight ( pos, p.tool_id, p.pitch.z );
+                if (d < m_dmin) m_dmin = d;
+                if (d > m_dmax) m_dmax = d;
+
+                if ( d < m_work_max.z - p.cut_depth.x) 
+                    d = m_work_max.z - p.cut_depth.x;
+
+                pos.z = d;
+
+                AddCut ( pos );            
             }
 
-            // hit completion
-            printf ( "DONE.\n" );
+            AddMove ( Vector3DF(pos.x, pos.y, safe_hgt) );     // raise up
 
-            // stop
-            m_run = false;
-
-        } else {
-
-            // error condition
-            switch (ret) {                
-            case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-            case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-            case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-            };                
+            dir = -dir;
         }
+    //}
 
-    } 
-    
-    fflush(stdout);
-  }
+    EndGCode ();
+}
 
 
-  Vector3DF wfc_off(0,0,-10);
-  Vector3DF bpc_off(0,0,0);
 
-  // Raycast
-  ClearImg (m_img);
-
-  if ( bpc.getStep() % 5 == 0) { 
-
-      Visualize ( bpc, BUF_VOL );
-
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-  }
-
-  // optional write to disk
-  if ( m_save ) {
-    sprintf ( savename, "out%04d.png", (int) m_frame );
-    m_img->Save ( savename );
-    m_frame++;
-  } else {
-    sprintf ( savename, "save is off");
-  }
-
-  // Interactive rendering (opengl only)
-  #ifdef USE_OPENGL
+void Sample::display()
+{
     clearGL();
     start2D();
-      setview2D(getWidth(), getHeight());
-      drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
+        setview2D( getWidth(), getHeight() );
+        float asp = float(m_img_relief->GetHeight()) / m_img_relief->GetWidth();
+        drawImg ( m_img_relief->getGLID(), 0, 0, 500, 500*asp, 1,1,1,1 );
     end2D();
-    draw2D();                    // complete 2D rendering to OpenGL
+    
 
-    // draw grid in 3D
     start3D(m_cam);
-    setLight(S3D, 20, 100, 20);
-    for (int i=-10; i <= 10; i++ ) {
-      drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
-      drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
-    }
-    drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);
-    end3D();
-    draw3D();                    // complete 3D rendering to OpenGL
-  #else
-    //dbgprintf ( "Running.. saved: %s\n", savename);
-    dbgprintf ( "Running..\n" );
-  #endif
+    
+        int p = m_curr_pass;
 
-  appPostRedisplay();
+        // Draw tool width        
+        int t = m_Passes[p].tool_id;
+        drawCircle3D ( Vector3DF(0,0,0), Vector3DF(0,1,0), m_Tools[t].width, Vector4DF(0,0,1,1) );
+    
+        // Draw tool path        
+        for (int n=0; n < m_Lines[p].size(); n++) {
+            DrawLine ( m_Lines[p][n].a, m_Lines[p][n].b, m_Lines[p][n].c );
+        }
+
+        if ( m_extras ) {
+            // Draw grid
+            float i;
+            for (i=m_machine_min.x; i <= m_machine_max.x; i += 50 ) DrawLine ( Vector3DF( i, m_machine_min.y, 0), Vector3DF(i, m_machine_max.y, 0), CLR_GRID );        
+            for (i=m_machine_min.y; i <= m_machine_max.y; i += 50 ) DrawLine ( Vector3DF( m_machine_min.x, i, 0), Vector3DF(m_machine_max.x, i, 0), CLR_GRID );        
+            // Draw machine
+            DrawBox ( m_machine_min, m_machine_max, Vector4DF(1,0,0,1) );
+            // Draw material
+            DrawBox ( Vector3DF(0,0,0), m_material_size, Vector4DF(1,0.5,0,1) );
+            // Draw work
+            DrawBox ( m_work_min, m_work_max, Vector4DF(1,1,0,1) );
+        }
+
+    end3D();
+
+
+    draw3D();                    // complete 3D rendering to OpenGL
+    draw2D();
+    appPostRedisplay();
 }
 
 void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
@@ -593,7 +604,7 @@ void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
     Vector3DF angs = m_cam->getAng();
     angs.x += dx * 0.2f * fine;
     angs.y -= dy * 0.2f * fine;
-    m_cam->setOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
+    m_cam->SetOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
     appPostRedisplay();  // Update display
   } break;
   }
@@ -614,8 +625,7 @@ void Sample::mousewheel(int delta)
   float dolly = m_cam->getDolly();
   float zoom = (dist - dolly) * 0.001f;
   dist -= delta * zoom * zoomamt;
-
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
+  m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
 }
 
 
@@ -624,30 +634,13 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   if (action==AppEnum::BUTTON_RELEASE) return;
 
   switch (keycode) {
-  case 'w':  
-
-      write_tiled_json( bpc ); 
-
-      break;
-
-  case ' ':  m_run = !m_run;  break;
-  
-  case 'g':  
-      Restart ();    // false = dynamic init
-      break;
-
-  case ',':  
-      m_viz--; 
-      if (m_viz < VIZ_DMU) m_viz = VIZ_TILECOUNT;  
-      bpc.SetVis ( m_viz );
-      break;
-  case '.':  
-      m_viz++; 
-      if (m_viz > VIZ_TILECOUNT ) m_viz = VIZ_DMU;  
-      bpc.SetVis ( m_viz );
-      break;
-
+  case '`': m_extras = !m_extras; break;  
+  case '1': m_curr_pass = 0;    break;
+  case '2': m_curr_pass = 1;    break;
+  case '3': m_curr_pass = 2;    break;
   };
+  if ( m_curr_pass < 0 ) m_curr_pass = 0;
+  if ( m_curr_pass >= m_Passes.size() ) m_curr_pass = m_Passes.size()-1;
 }
 
 void Sample::reshape(int w, int h)
@@ -659,23 +652,25 @@ void Sample::reshape(int w, int h)
 
   m_cam->setSize( w, h );
   m_cam->setAspect(float(w) / float(h));
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
-  m_cam->updateMatricies();
-
-  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8 );
-
+  m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
+  
   appPostRedisplay();
 }
 
 void Sample::startup()
 {
-  int w = 800, h = 600;
-  appStart("Volume Raycast", "Volume Raycast", w, h, 4, 2, 16, false);
+  int w = 1900, h = 1000;
+
+  m_img_name = "";
+  m_out_name = "";
+
+  appStart("GCoder", "GCoder", w, h, 4, 2, 16, false);
 }
 
 void Sample::shutdown()
 {
 }
+
 
 
 
