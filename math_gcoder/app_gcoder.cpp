@@ -60,13 +60,16 @@ struct Tool {
     float           uconv;
     float           width;
     float           depth;
-    float           profile[65535];
+    float           profile[65536];
 };
 
 struct Pass {
     int             tool_id;    
+    int             num_depth_pass;
+    int             max_depth_pass;
     Vector3DF       pitch;
     Vector3DF       cut_depth;    // x=current depth, z=depth per pass
+    float           feedrate;    
 };
 
 struct Line {
@@ -88,28 +91,26 @@ public:
   virtual void shutdown();
 
   void SetMachine ( Vector3DF mmin, Vector3DF mmax );
-  void SetWork ( float depth, Vector3DF mtl_size, float margin );
+  void SetWork ( float depth, Vector3DF wrk_pos, Vector3DF wrk_sz, Vector3DF mtl_size );
   void SetSource ( std::string name );
   void AddTool ( std::string name, char tt, float width, float depth, std::string units );
   int  FindTool ( std::string name );
-  void AddPass ( std::string tool );
-  void CutPass (int p);
-  float getCutHeight ( Vector3DF pos, int tid, float accuracy );
-  void AddCut ( Vector3DF a );
-  void AddMove ( Vector3DF a );
+  void AddToolPass ( std::string tool, float feedrate, int max_dp );
+  void CutToolPass (int p);
+  float getCutHeight ( Vector3DF pos, int tid, float accuracy, float work_minz, float work_maxz, float curr_depth );
+  void AddCut ( Vector3DF a, int tp, int dp );
+  void AddMove ( Vector3DF a, int tp, int dp );
   void StartGCode ( int pid );
   void EndGCode ();
 
-  void AddLine ( Vector3DF a, Vector3DF b, char c, int pass );
+  void AddLine ( Vector3DF a, Vector3DF b, char c, int tpass, int dpass );
   void DrawBox ( Vector3DF a, Vector3DF b, Vector4DF clr );
   void DrawLine ( Vector3DF p1, Vector3DF p2, int c );
   
   Vector3DF     m_machine_min;      // min travel of machine
   Vector3DF     m_machine_max;      // max travel of machine
 
-  Vector3DF     m_material_size;    // material dimensions
-  Vector3DF     m_margin;           // margin on material  
-  Vector3DF     m_work_pos;         // work position
+  Vector3DF     m_material_size;    // material dimensions    
   Vector3DF     m_work_min;         // work area
   Vector3DF     m_work_max;         
   Vector3DF     m_work_size;  
@@ -122,6 +123,7 @@ public:
   float         m_detail;
   float         m_stepover;
   float         m_accuracy;
+  float         m_pass_safety;
 
   float         m_max_depth;        // desired depth  
   float         m_pmin, m_pmax;     // img min/max values
@@ -136,13 +138,13 @@ public:
   std::vector<Tool> m_Tools;
   std::vector<Pass> m_Passes;
 
-  std::vector<Line> m_Lines[8];
+  std::vector<Line> m_Lines[8][8];
   Vector4DF     m_palette[16];
 
   Camera3D*     m_cam;    
 
   int           mouse_down;
-  int           m_curr_pass;
+  int           m_curr_tpass, m_curr_dpass;
 
   bool          m_extras;
   bool          m_run;  
@@ -180,7 +182,8 @@ bool Sample::init()
   setText(18,1);
 
   m_extras = true;
-  m_curr_pass = 0;
+  m_curr_tpass = 0;
+  m_curr_dpass = 0;
   m_out = (m_out_name.size() > 0);
 
   m_cam = new Camera3D;
@@ -195,12 +198,21 @@ bool Sample::init()
   m_palette[ CLR_WORK ] =   Vector4DF(1, 1, 0, 1);     // yellow = working area
   m_palette[ CLR_GRID ] =   Vector4DF(1, 1, 1, 0.3);   // gray = grid
 
-
-  // Load tools
-  AddTool ( "1/2 flat",   'f',   0.50,    1.0, "in" );
-  AddTool ( "1/8 sphere", 's',  0.125,  0.125, "in" );
-  AddTool ( "1/16 vbit",  'v', 1/16.0, 3/16.0, "in" );
+    // Load tools
+  AddTool ( "1/2 flat", 'f',  0.5,  0.5,  "in" );
+  AddTool ( "1/4 sphere", 's',  0.25,  0.25,  "in" );
+  AddTool ( "1/8 sphere", 's',  0.125,  0.125,  "in" );
+  AddTool ( "1mm tapered", 's', 1, 1,  "mm" );          
   
+  // 25.4 mm = 1"
+  // 12.7 mm = 1/2"
+  // 6.35 mm = 1/4"
+  // 3.18 mm = 1/8"
+  // 1.58 mm = 1/16"
+  // 0.75 mm = 1/32"
+  
+  //AddTool ( "1/2 flat",   'f',   0.50,    1.0, "in" );  
+  //AddTool ( "1/16 vbit",  'v', 1/16.0, 3/16.0, "in" );  
   //AddTool ( "1/8 sphere", 's', 0.125, 1.0, "in" );
 
   // Set source image
@@ -210,20 +222,26 @@ bool Sample::init()
   SetMachine ( Vector3DF(-600, 0, -10 ), Vector3DF(600, 2000, 50) );       // X left/right, Y back/fwd, Z up/down
 
   // Set work
-  SetWork ( 12, Vector3DF( 400, 300, 26), 26 );         // depth=12 mm, 300x200x26 mm = 12 x 7.8 x 1", margin=1"
+  SetWork ( 7, Vector3DF(25, 25, 0), Vector3DF( 177, 101, 0), Vector3DF( 914, 406, 18) );         // depth=12 mm, 300x200x26 mm = 12 x 7.8 x 1", margin=1"
   
+  // Detail settings
+  m_detail =   0.03;        // x-resolution as % of tool width
+  m_stepover = 0.20;        // y-pitch as % of tool width
+  m_accuracy = 0.05;        // search accuracy as % of tool width
+  m_pass_safety = 0.5;      // safe pass depth as % of the tool width. specific to machine, spindle and typical speed/feed rate
+
+  dbgprintf ( "Detail:   %3.0f%%\n", m_detail * 100 );
+  dbgprintf ( "Stepover: %3.0f%%\n", m_stepover * 100);
+  dbgprintf ( "Accuracy: %3.0f%%\n", m_accuracy * 100);
+  dbgprintf ( "Safety:   %3.0f%%\n", m_pass_safety * 100);
+
   // Add passes
-  m_detail =   0.10;        // x-resolution as % of tool width
-  m_stepover = 0.30;        // y-pitch as % of tool width
-  m_accuracy = 0.20;        // search accuracy as % of tool width
-
-  AddPass ( "1/2 flat" );
-  AddPass ( "1/8 sphere" );
-  AddPass ( "1/16 vbit" );
-
-  // Create relief
+  //AddToolPass ( "1/8 sphere", 1000, 2 );
+  AddToolPass ( "1mm tapered", 1000, 1 );
+  
+  // Create relief & g-code
   for (int n=0; n < m_Passes.size(); n++)
-    CutPass ( n );  
+    CutToolPass ( n );
 
   return true;
 }
@@ -243,17 +261,17 @@ void Sample::AddTool ( std::string name, char tt, float width, float depth, std:
 
     switch ( tt ) {
     case 'f':       // flat bit
-        for (int n=0; n < 65535; n++)
+        for (int n=0; n <= 65535; n++)
             t.profile[n] = 0;
         break;
     case 's':       // sphere bit
-        for (int n=0; n < 65535; n++) {
+        for (int n=0; n <= 65535; n++) {
             x = float(n)/65535.0;
-            t.profile[n] = sqrt(x*x) * t.width;
+            t.profile[n] = sqrt( 1-(x*x) ) * t.width * 0.5;
         }
         break;
     case 'v':       // v-bit
-        for (int n=0; n < 65535; n++) {
+        for (int n=0; n <= 65535; n++) {
             x = float(n)/65535.0;
             t.profile[n] = x * t.depth;
         }
@@ -271,13 +289,13 @@ int Sample::FindTool ( std::string name )
     return -1;
 }
 
-void Sample::AddLine ( Vector3DF a, Vector3DF b, char c, int pass )
+void Sample::AddLine ( Vector3DF a, Vector3DF b, char c, int tpass, int dpass )
 {
     Line l;
     l.a = a;
     l.b = b;
     l.c = (int) c;
-    m_Lines[pass].push_back ( l );
+    m_Lines[tpass][dpass].push_back ( l );
 }
 
 void Sample::DrawBox ( Vector3DF p1, Vector3DF p2, Vector4DF clr )
@@ -293,7 +311,7 @@ void Sample::DrawLine ( Vector3DF p1, Vector3DF p2, int c )
     Vector3DF a = Vector3DF(-p1.x, p1.z, p1.y);
     Vector3DF b = Vector3DF(-p2.x, p2.z, p2.y);
     Vector4DF clr = m_palette[c];
-    if (c==CLR_CUT) { clr = Vector4DF(1,1,1,1) * (p1.z-m_dmin)/(m_dmax-m_dmin); clr.w=1; }
+    if (c==CLR_CUT) { clr =  Vector4DF(.1,.1,.1,1) + Vector4DF(.9,.9,.9,0) * (p1.z-m_dmin)/(m_dmax-m_dmin); clr.w=1; }
     drawLine3D ( a, b, clr );
 }
 
@@ -303,12 +321,11 @@ void Sample::SetMachine ( Vector3DF mmin, Vector3DF mmax )
     m_machine_min = mmin;
     m_machine_max = mmax;
 }
-void Sample::SetWork ( float depth, Vector3DF mtl_size, float margin )
+void Sample::SetWork ( float depth, Vector3DF wrk_pos, Vector3DF wrk_sz, Vector3DF mtl_size )
 {
-    m_material_size  = mtl_size;
-    m_margin = Vector3DF(margin, margin, 0);
-    m_work_min = m_margin;
-    m_work_max = m_material_size - m_margin;
+    m_material_size  = mtl_size;    
+    m_work_min = wrk_pos;
+    m_work_max = wrk_pos + wrk_sz;
     m_work_min.z = m_material_size.z - depth;
     m_work_max.z = m_material_size.z;
 
@@ -318,12 +335,19 @@ void Sample::SetWork ( float depth, Vector3DF mtl_size, float margin )
     if ( src_asp < work_asp) {
         m_work_size.y = m_work_size.x * src_asp;
         m_work_max.y = m_work_min.y + m_work_size.y;
+    } else {
+        m_work_size.x = m_work_size.y / src_asp;
+        m_work_max.x = m_work_min.x + m_work_size.x;
     }
-
     m_max_depth = depth;
     m_pix_size = m_work_size / m_res;
 
     m_doffset = -m_material_size.z;
+
+    dbgprintf ( "Material size: %4.2f, %4.2f, %4.2f\n", m_material_size.x, m_material_size.y, m_material_size.z);
+    dbgprintf ( "Work pos:      %4.2f, %4.2f, %4.2f\n", m_work_min.x, m_work_min.y, m_work_min.z);
+    dbgprintf ( "Work size:     %4.2f, %4.2f, %4.2f\n", m_work_size.x, m_work_size.y, m_work_size.z);
+    dbgprintf ( "Pixel size:    %4.5f, %4.5f\n\n", m_pix_size.x, m_pix_size.y);    
 }
 
 void Sample::SetSource ( std::string name )
@@ -353,12 +377,11 @@ void Sample::SetSource ( std::string name )
             if ( v > m_pmax) m_pmax = v;
         }
     }
-    dbgprintf ( "Pixel min: %6.0f, max: %6.0f\n", m_pmin, m_pmax );
-
+    dbgprintf ( "Pixel min: %6.0f, max: %6.0f\n\n", m_pmin, m_pmax );
 }
 
 
-void Sample::AddPass ( std::string tname )
+void Sample::AddToolPass ( std::string tname, float feedrate, int max_dp )
 {
     Pass p;
     p.tool_id = FindTool ( tname );
@@ -372,11 +395,13 @@ void Sample::AddPass ( std::string tname )
     p.pitch.y = tool_wid * m_stepover;    
     p.pitch.z = tool_wid * m_accuracy;
     p.cut_depth = Vector3DF(0, m_max_depth, 0.5 * tool_wid);
+    p.feedrate = feedrate;
+    p.max_depth_pass = max_dp;
 
     m_Passes.push_back ( p );
 }
 
-float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy )
+float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy, float work_minz, float work_maxz, float curr_depth )
 {
     float f, T, h, d, r;
     Vector3DF pix, o;
@@ -384,7 +409,7 @@ float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy )
     // Search for Maximum safe height
 
     // Compute tool width in pixels
-    Vector3DI tool_px = Vector3DF(m_Tools[tid].width, m_Tools[tid].width, 0) / m_pix_size;
+    Vector3DI tool_px = Vector3DF(m_Tools[tid].width, m_Tools[tid].width, 0) * 0.5f / m_pix_size;
 
     // Compute search accuracy
     int px_jump = accuracy / m_pix_size.x;
@@ -392,25 +417,27 @@ float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy )
 
     float hmax = -m_max_depth;
     
-    pix.x = (pos.x-m_work_min.x) * m_res.x / m_work_size.x;
-    pix.y = m_res.y - (pos.y-m_work_min.y) * m_res.y / m_work_size.y;
+    // Get pixel for current pos
+    pix.x =     (pos.x-m_work_min.x) * m_res.x / m_work_size.x;
+    pix.y =     m_res.y - (pos.y-m_work_min.y) * m_res.y / m_work_size.y;
 
-    // Scan over tool extents
-    for (int j=-tool_px.x; j <= tool_px.x; j+= 10 ) {
-        for (int k=-tool_px.y; k <= tool_px.y; k+= 10 ) {
+    // Scan tool extent region in image
+    for (int j=-tool_px.x; j <= tool_px.x; j+= px_jump ) {
+        for (int k=-tool_px.y; k <= tool_px.y; k+= px_jump  ) {
+
             if ( pix.x+j >= 0 && pix.x+j < m_res.x && pix.y+k >= 0 && pix.y+k < m_res.y ) {
     
                 // check if inside tool radius
                 o = Vector3DF(j, k, 0) * m_pix_size;
-                r = sqrt(o.x*o.x + o.y*o.y) / m_Tools[tid].width;
-                if ( r < 1 ) {
+                r = sqrt(o.x*o.x + o.y*o.y) / (m_Tools[tid].width * 0.5);
+                if ( r < 1.0 ) {
 
                     // get artwork height and convert to real units
                     f = float( m_img_relief->GetPixel16 (pix.x + j, pix.y + k) - m_pmin ) / (m_pmax-m_pmin);
                     f = f*m_max_depth;
 
                     // get radially symmetric tool profile                    
-                    T = m_Tools[tid].profile[ int(r*65535) ];
+                    T = m_Tools[tid].profile[ int( r * 65535 ) ];
                 
                     // compute tool height at this point
                     // h(x,y) = f(x+j, y+k) - T(j,k)
@@ -424,23 +451,19 @@ float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy )
         }
     }
 
-    
+    // Height above work base
+    d = work_minz + hmax;
+    if (d < m_dmin) m_dmin = d;
+    if (d > m_dmax) m_dmax = d;
 
-    // simple cut depth - assumes 0 tool width
-    /* pix.x = (pos.x-m_work_min.x) * m_res.x / m_work_size.x;
-    pix.y = m_res.y - (pos.y-m_work_min.y) * m_res.y / m_work_size.y;
+    // Clip to current depth
+    if ( d < work_maxz - curr_depth) 
+       d = work_maxz - curr_depth;
     
-        v = float( m_img_relief->GetPixel16 (pix.x, pix.y) - m_pmin ) / (m_pmax-m_pmin);                    
-        d = (1.0-v) * m_max_depth;        
-    } else {
-        v = 0;
-        d = 0;
-    } */
-    
-    return hmax;
+    return d;
 }
 
-void Sample::AddCut ( Vector3DF a )
+void Sample::AddCut ( Vector3DF a, int tp, int dp )
 {
     if ( m_out ) {
         if ( fabs(a.z-m_prev_pos.z) < 0.01 ) {
@@ -449,22 +472,27 @@ void Sample::AddCut ( Vector3DF a )
             fprintf ( m_gfile, "G01 X%3.1f Z%3.2f\n", a.x, a.z+m_doffset );
         }
     }
-    AddLine ( m_prev_pos, a, CLR_CUT, m_curr_pass ); 
+    AddLine ( m_prev_pos, a, CLR_CUT, tp, dp ); 
     m_prev_pos = a;
 }
-void Sample::AddMove ( Vector3DF a )
+void Sample::AddMove ( Vector3DF a, int tp, int dp )
 {
     if ( m_out) fprintf ( m_gfile, "G00 X%3.2f Y%3.2f Z%3.2f\n", a.x, a.y, a.z+m_doffset );
-    AddLine ( m_prev_pos, a, CLR_MOVE, m_curr_pass );
+    AddLine ( m_prev_pos, a, CLR_MOVE, tp, dp );
     m_prev_pos = a;
 }
 
 void Sample::StartGCode ( int pid )
 {
     if ( m_out) {
+
+        // Start g-code file
         char fname[1024];    
         sprintf (fname, "%s_p%d.gcode", m_out_name.c_str(), pid );
         m_gfile = fopen ( fname, "wt" );
+
+        // Set feed rate
+        fprintf ( m_gfile, "F%4.2f\n", m_Passes[pid].feedrate );
     }
 }
 
@@ -474,20 +502,22 @@ void Sample::EndGCode ()
         fclose ( m_gfile );
 }
 
-void Sample::CutPass (int pid)
+void Sample::CutToolPass (int pid)
 {    
     Vector3DF pl;
     Vector3DF pos;
     float scanx;
     float v, d;
 
+    Pass* p = &m_Passes[pid];
+    int tp = pid;
+    int tid = p->tool_id;
+    float twidth = m_Tools[tid].width;
+
+    dbgprintf ( "\nTool Pass: %d\n  Tool: %s, Total depth: %4.2f, Tool width: %4.2f, Safe depth: %4.2f \n", pid, m_Tools[tid].name.c_str(), m_max_depth, twidth, twidth * m_pass_safety);
+
     StartGCode ( pid );
-
-    dbgprintf ( "Cutting pass %d\n", pid );
-
-    Pass p = m_Passes[pid];
-    m_curr_pass = pid;
-   
+       
     m_dmin = 1e10;
     m_dmax = -1e10;
     float work_hgt = m_work_max.z;
@@ -495,45 +525,50 @@ void Sample::CutPass (int pid)
     int dir = 1;
 
     // goto start of work
-    m_prev_pos = Vector3DF(0,0,work_hgt);
-    AddMove ( Vector3DF(0,0,safe_hgt) );
-    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,safe_hgt) );
-    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,work_hgt) );
+    m_prev_pos = Vector3DF(0, 0, work_hgt);
+    AddMove ( Vector3DF(0, 0, safe_hgt), tp, 0 );
+    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,safe_hgt), tp, 0 );
+    AddMove ( Vector3DF(m_work_min.x,m_work_min.y,work_hgt), tp, 0 );
 
-    p.cut_depth.x = m_max_depth;
+    p->num_depth_pass = (m_max_depth / p->cut_depth.z)+1;
+    if (p->num_depth_pass > p->max_depth_pass ) p->num_depth_pass = p->max_depth_pass;
 
-    //for ( float cd = 0; cd < m_max_depth; cd += p.cut_depth.z ) {
-    //    p.cut_depth.x = cd;
+    float pass_depth = float(m_max_depth) / p->num_depth_pass;
+    float curr_depth = pass_depth;
+    
+    for ( int dp = 0; dp < p->num_depth_pass; dp++ ) {
+        
+        dbgprintf ( "  Depth pass %d/%d, Depth: %4.2f\n", dp+1, p->num_depth_pass, curr_depth );
 
-        for ( pos.y = m_work_min.y; pos.y < m_work_max.y; pos.y += p.pitch.y ) {    
+        // start depth pass
+        pos.y = m_work_min.y;
+        pos.x = (dir>0) ? m_work_min.x : m_work_max.x;
+        AddMove ( Vector3DF(pos.x, pos.y, safe_hgt), tp, dp );     // safe height
+    
+        for ( pos.y = m_work_min.y; pos.y < m_work_max.y; pos.y += p->pitch.y ) {    
 
             pos.x = (dir>0) ? m_work_min.x : m_work_max.x;
-            AddMove ( Vector3DF(pos.x, pos.y, safe_hgt) );     // reposition         
-            AddMove ( Vector3DF(pos.x, pos.y, work_hgt) );     // lower down
+            AddMove ( Vector3DF(pos.x, pos.y, work_hgt), tp, dp );     // reposition            
         
-            for ( scanx = 0; scanx <= m_work_size.x; scanx += p.pitch.x ) {
+            for ( scanx = 0; scanx <= m_work_size.x; scanx += p->pitch.x ) {
 
-                pos.x = (dir>0) ? m_work_min.x + scanx : m_work_max.x - scanx;
-            
-                d = m_work_min.z + getCutHeight ( pos, p.tool_id, p.pitch.z );
-                if (d < m_dmin) m_dmin = d;
-                if (d > m_dmax) m_dmax = d;
+                pos.x = (dir>0) ? m_work_min.x + scanx : m_work_max.x - scanx;            
+                pos.z = getCutHeight ( pos, tid, p->pitch.z, m_work_min.z, m_work_max.z, curr_depth );                
 
-                if ( d < m_work_max.z - p.cut_depth.x) 
-                    d = m_work_max.z - p.cut_depth.x;
-
-                pos.z = d;
-
-                AddCut ( pos );            
+                AddCut ( pos, tp, dp );      
             }
 
-            AddMove ( Vector3DF(pos.x, pos.y, safe_hgt) );     // raise up
+            AddMove ( Vector3DF(pos.x, pos.y, work_hgt), tp, dp );
 
             dir = -dir;
         }
-    //}
+        AddMove ( Vector3DF(pos.x, pos.y, safe_hgt), tp, dp );     // safe height
+
+        curr_depth += pass_depth;
+    }
 
     EndGCode ();
+
 }
 
 
@@ -550,15 +585,17 @@ void Sample::display()
 
     start3D(m_cam);
     
-        int p = m_curr_pass;
+        int p = m_curr_tpass;
 
         // Draw tool width        
         int t = m_Passes[p].tool_id;
         drawCircle3D ( Vector3DF(0,0,0), Vector3DF(0,1,0), m_Tools[t].width, Vector4DF(0,0,1,1) );
     
         // Draw tool path        
-        for (int n=0; n < m_Lines[p].size(); n++) {
-            DrawLine ( m_Lines[p][n].a, m_Lines[p][n].b, m_Lines[p][n].c );
+        int num_dp = m_Passes[p].num_depth_pass;
+        int d = m_curr_dpass;
+        for (int n=0; n < m_Lines[p][d].size(); n++) {
+            DrawLine ( m_Lines[p][d][n].a, m_Lines[p][d][n].b, m_Lines[p][d][n].c );
         }
 
         if ( m_extras ) {
@@ -635,12 +672,16 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   switch (keycode) {
   case '`': m_extras = !m_extras; break;  
-  case '1': m_curr_pass = 0;    break;
-  case '2': m_curr_pass = 1;    break;
-  case '3': m_curr_pass = 2;    break;
+  case '1': m_curr_tpass = 0;    break;
+  case '2': m_curr_tpass = 1;    break;
+  case '3': m_curr_tpass = 2;    break;
+  case '+': case '=': m_curr_dpass++; break;
+  case '-': case '_': m_curr_dpass--; break;
   };
-  if ( m_curr_pass < 0 ) m_curr_pass = 0;
-  if ( m_curr_pass >= m_Passes.size() ) m_curr_pass = m_Passes.size()-1;
+  if ( m_curr_tpass < 0 ) m_curr_tpass = 0;
+  if ( m_curr_tpass >= m_Passes.size() ) m_curr_tpass = m_Passes.size()-1;
+  if ( m_curr_dpass < 0 ) m_curr_dpass = 0;
+  if ( m_curr_dpass >= m_Passes[m_curr_tpass].num_depth_pass ) m_curr_dpass = m_Passes[m_curr_tpass].num_depth_pass-1;  
 }
 
 void Sample::reshape(int w, int h)
