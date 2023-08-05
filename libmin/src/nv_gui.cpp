@@ -23,13 +23,13 @@
  * This file provides a utility classes for 2D Drawing and GUIs
  * Functionality in this file:
  *  - nvMesh: Construct, load, and render meshes. PLY format supported
- *  - nvImg: Cosntruct, load, and render images. PNG and TGA format supported
+ *  - nvImg: Construct, load, and render images. PNG and TGA format supported
  *  - nvDraw: A lightweight, efficient, 2D drawing API. Uses VBOs to render
  *     lines, circles, triangles, and text. Allows for both static and dynamic 
  *     groups (rewrite per frame), and immediate style (out-of-order) calling.
  *  - nvGui: A lightweight class for creating on-screen GUIs. Currently only checkboxes
  *    or sliders supported. Relies on nvDraw to render.
- * Useage: 
+ * Usage: 
  *    1. Main programs implement the functions required by app_opengl/directx.
  *    2. During display(), first do any rendering desired by your demo or application.
  *    3. Then call drawGui to render GUI items to the 2D layer.
@@ -2015,7 +2015,7 @@ void nvImg::UpdateTex ()
 			glVertexAttribPointer (localNorm, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*) 36);
 			
 			// bind instances						
-			// a single instance is two verticies wide, so use stride of sizeof(nvVert)*2
+			// a single instance is two vertices wide, so use stride of sizeof(nvVert)*2
 			glBindBuffer ( GL_ARRAY_BUFFER, s.mVBO[GRP_BOX] );				
 			glEnableVertexAttribArray ( attrPos );
 			glVertexAttribPointer( attrPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert)*2, 0 );

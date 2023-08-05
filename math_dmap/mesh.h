@@ -160,7 +160,7 @@
 		void		DebugFV ();
 
 		// FVF - Face-Vertex-Face Mesh
-		// * Explicit storage of neighboring faces of a vertex. Uses heap to store vertex neighhood.
+		// * Explicit storage of neighboring faces of a vertex. Uses heap to store vertex neighborhood.
 		// Buffer 0: Verts (x,y,z))(f1,f2,..fn) -> faces
 		// Buffer 1: Faces (v1, v2, v3) -> verts
 		void		CreateFVF ();
@@ -172,7 +172,7 @@
 		void		DebugFVF ();
 		
 		// CM - Connected Mesh
-		// * Explicit storage of edges. Uses heap to store vertex neighhood of edges and faces.
+		// * Explicit storage of edges. Uses heap to store vertex neighborhood of edges and faces.
 		// Buffer 0: Verts (x,y,z)(e1,e2,..en)(f1,f2,..fn) -> edges, faces
 		// Buffer 1: Edges (v1,v2)(f1,f2) -> verts, faces  
 		// Buffer 2: Faces (v1,v2,v3,v4)(e1,e2,e3,e4) -> verts, edges

@@ -121,7 +121,7 @@ void Sample::DrawGrid ()
 
 void Sample::GeneratePatch ()
 {
-	// generate a random patch by fixing the x-axis and allowng random y/z.
+	// generate a random patch by fixing the x-axis and allowing random y/z.
 	// this can possibly generate an overlapping or twisted patch. intersector handles it ok.
 	//
 	m_p[0] = Vector3DF( -1, m_rand.randF(0,1), m_rand.randF(-1,1) ) * 5.0f;

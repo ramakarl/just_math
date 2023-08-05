@@ -1727,7 +1727,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
         if (cols!=op.rows)					debug.Print (DEBUG_MATRIX, "MatrixF::m*=op: Matricies not compatible (m.cols != op.rows)\n");
     #endif
 	if (cols==op.rows) {
-		VTYPE *newdata, *n, *ne, *a, *as;		// Pointers into A and new A matricies
+		VTYPE *newdata, *n, *ne, *a, *as;		// Pointers into A and new A matrices
 		float *b, *bs, *bce, *be;				// Pointers into B matrix
 		int newr = rows, newc = op.cols;		// Set new rows and columns
 		int newlen = newr * newc;				// Determine new matrix size
@@ -1737,7 +1737,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
 		int bskip = op.cols;					// Calculate row increment for B matrix	
 		bce = op.data + bskip;					// Calculate end of first row in B matrix
 		be = op.data + op.rows*op.cols;			// Calculate end of B matrix	
-		as = data; bs = op.data;				// Goto start of A and B matricies
+		as = data; bs = op.data;				// Goto start of A and B matrices
 		for (n=newdata ;n<ne;) {				// Compute C = A*B		
 			a = as; b = bs;						// Goto beginning of row in A, top of col in B
 			*n = (VTYPE) 0;						// Initialize n element in C

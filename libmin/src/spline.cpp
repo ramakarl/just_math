@@ -215,7 +215,7 @@ Vector4DF Spline::EvaluateLinear ( int b, int k, float u )
 	if (k >= m_num) 
 		return *key;
 	else
-		return *key + (*(key + 1)-*(key))*u;		// linear interploation
+		return *key + (*(key + 1)-*(key))*u;		// linear interpolation
 }
 
 // Vector interpolation

@@ -49,7 +49,7 @@ char* new_event_data ( size_t size, int& max, EventPool* pool )
 			max -= Event::staticSerializedHeaderSize();
 		#endif
 	}
-	// serial header is automatically set aside (preceeds the data start pos)
+	// serial header is automatically set aside (precedes the data start pos)
 	// return the start of payload area
 	return data + Event::staticSerializedHeaderSize();
 }
@@ -66,7 +66,7 @@ Event new_event (size_t size, eventStr_t targ, eventStr_t name, eventStr_t state
 	p.mDataLen = 0;
 	p.mMax = 0;	
 	
-	// provide room for seralized header
+	// provide room for serialized header
 	p.mData = new_event_data ( size, p.mMax, pool );	// payload allocation
 	p.bOwn = true;
 	p.bDestroy = false;			// no kill on local destructor
