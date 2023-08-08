@@ -114,7 +114,7 @@ If so, they suggest injecting Gaussian noise (noise injection BP or NIBP) to hel
 Alternatively, Knoll et all suggest introducing a weighting factor that dampens the considered
 residual to schedule updates that have occurred more often less (weight damped belief propagation or WDBP).
 That is, instead of sorting by residual, sort by residual divided by number
-times updates ($\frac{ r _ { i, j } }{ \text{ # times chosen } }$).
+times updates ($\frac{ r _ { i, j } }{  \# \text{ times chosen } }$).
 
 Note that the convergence rate for RBP, NIBP or WDBP is higher than the "vanilla" BP case ("asynchronous BP" (ABP) or
 "round robin BP"), the quality might suffer.
