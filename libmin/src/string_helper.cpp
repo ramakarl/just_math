@@ -274,7 +274,7 @@ bool strGet ( std::string str, std::string& result, std::string lsep, std::strin
   if ( lfound != std::string::npos) {
     rfound = str.find_first_of ( rsep, lfound+1 );
     if ( rfound != std::string::npos ) {
-      result = str.substr ( lfound+1, rfound-lfound-1 );          // return string strickly between lsep and rsep
+      result = str.substr ( lfound+1, rfound-lfound-1 );          // return string strictly between lsep and rsep
       return true;
     }
   }
@@ -354,7 +354,7 @@ bool strSplit ( std::string str, std::string sep, std::string& left, std::string
   return false;
 }
 
-// Split a string into multiple words deliminated by sep
+// Split a string into multiple words delimited by sep
  int strSplitMultiple ( std::string str, std::string sep, std::vector<std::string>& list )
 {
   list.clear ();

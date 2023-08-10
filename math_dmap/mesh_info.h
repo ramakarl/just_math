@@ -11,12 +11,12 @@
 
 	// Edge attributes
 	struct AttrEdge {
-		xref	v1, v2, f1, f2;		// verticies and faces of an edge
+		xref	v1, v2, f1, f2;		// vertices and faces of an edge
 	};	
 
 	// Face attributes
 	struct AttrV3 {
-		xref	v1, v2, v3;			// verticies of face (tri)
+		xref	v1, v2, v3;			// vertices of face (tri)
 	};
 	struct AttrE3 {
 		xref	e1, e2, e3;			// edges of face (tri)

@@ -189,7 +189,7 @@ std::string Directory::GetCollapsedPath( std::string path )
 		outStr += Directory::gPathDelim;
 	}
 
-	// remember to remove the last extraneous slashies
+	// remember to remove the last extraneous slash
 	return outStr.substr( 0, outStr.length() - 1 );
 }
 
@@ -383,7 +383,7 @@ std::string Directory::GetCollapsedPath( std::string path )
 		outStr += Directory::mPathDelim;
 	}
 
-	// remember to remove the last extraneous slashies
+	// remember to remove the last extraneous slash
 	return outStr.substr( 0, outStr.length() - 1 );
 }
 

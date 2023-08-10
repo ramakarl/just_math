@@ -183,7 +183,7 @@ void Sample::RemakeBasisCopy(Basis& dest, Basis src, Vector3DF pos)
 
 void Sample::RemakeBasisFromAngles (Basis& dest, Basis src, Vector3DF angs)
 {
-	// construct a basis with two angles defining the foward direction
+	// construct a basis with two angles defining the forward direction
 	// this is just to adjust the UI basis for the demo
 	Quaternion q1; q1.fromAngleAxis ( angs.y*DEGtoRAD, src.side );
 	Quaternion q2; q2.fromAngleAxis ( angs.x*DEGtoRAD, src.fwd );
@@ -267,7 +267,7 @@ void Sample::display ()
 				drawBasis( basis[b] );
 	
 				for (int n=0; n < m_lines.size(); n++) {				
-					// transform a point to an new basis (from the construction basis) 
+					// transform a point to a new basis (from the construction basis) 
 					//Matrix4F m;
 					//m.toBasis (basis[b].fwd, basis[b].up, basis[b].side );
 					Quaternion q;

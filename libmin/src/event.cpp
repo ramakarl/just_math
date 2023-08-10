@@ -85,7 +85,7 @@ Event::~Event ()
 void Event::copyEventVars ( Event* dst, const Event* src )
 {
 	// this is NOT a deep copy. the data pointed to by mData is NOT copied.
-	// only the member variables reference to data are transered.
+	// only the member variables reference to data are transferred.
 	dst->mDataLen = src->mDataLen;
 	dst->mName = src->mName;
 	dst->mTarget = src->mTarget;
@@ -420,7 +420,7 @@ char* Event::serialize ()
 	// transfer current serialized header values into payload area
 	memcpy ( serial_data, header, Event::staticSerializedHeaderSize() );
 
-	// data is now complete. attachments in payload are already seralized
+	// data is now complete. attachments in payload are already serialized
 
 	return serial_data;
 }

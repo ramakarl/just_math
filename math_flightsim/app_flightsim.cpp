@@ -266,7 +266,7 @@ void Sample::Advance ()
 	// Directional stability: airplane will typically reorient toward the velocity vector
 	//  see: https://en.wikipedia.org/wiki/Directional_stability
 	// this is an assumption yet much simpler/faster than integrating body orientation
-	// this way we dont need torque, angular vel, or rotational interia.
+	// this way we dont need torque, angular vel, or rotational inertia.
 	// stalls are possible but not flat spins or 3D flying
 	Quaternion angvel;
 	angvel.fromRotationFromTo ( fwd, vaxis, 0.001 );

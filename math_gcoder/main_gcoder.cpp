@@ -851,7 +851,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  // updating constrints has to happen after start()
+  // updating constraints has to happen after start()
   //
   if (constraint_op_list.size() > 0) {
     ret = constrain_bp( bpc, constraint_op_list);
