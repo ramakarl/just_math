@@ -129,7 +129,7 @@
 #define BUF_SVD_Vt      17    //                                                                                        // <B*, B,  6>
 #define BUF_SVD_VEC     18    //                                                                                        // <B*, 1,  1>
 
-// auxiliary buffers for residual belief propagaion
+// auxiliary buffers for residual belief propagation
 //
 // BUF_RESIDUE_HEAP         : heap of absolute differences of mu and mu_nxt (float)
 // BUF_RESIDUE_HEAP_CELL_BP : back pointer of heap value location in CELL_HEAP (in64_t)
@@ -316,7 +316,7 @@ typedef struct _bp_stat_type {
 
 } bp_stat_t;
 
-// Belief propagation - experiements
+// Belief propagation - experiments
 
 typedef struct _bp_expr_type {
 

@@ -447,7 +447,7 @@ void Sample::drawLinearSlerp (float dt)
 		k = FindKey( t, u );	
 
 		// Linear Slerp 
-		// def. Linear interlopation for position, Spherical linear for rotation
+		// def. Linear interpolation for position, Spherical linear for rotation
 		// SPLIT(q,t) = {SLERP(q0,q1,m), LERP(t0,t1,u)}     see Haarbach, 2018, eqn. 25
 		//
 		p = mKeyPnt[k] + (mKeyPnt[k + 1] - mKeyPnt[k]) * u;	// linear translation
@@ -477,7 +477,7 @@ void Sample::drawBSplineSlerp (float dt)
 		k = FindKey( t, u );
 
 		// B-Spline Slerp
-		// def. B-Spline interlopation for position, Spherical linear for rotation
+		// def. B-Spline interpolation for position, Spherical linear for rotation
 		
 		p = BSpline(k, u, mKeyPnt, mNumKeys, m_knots, m_ktmp, m_degree);		// B-spline translation
 
@@ -513,7 +513,7 @@ void Sample::drawCatmullRomSlerp(float dt)
 		k = FindKey( t, u );
 
 		// Catmull-Rom Slerp
-		// def. Catmull-Rom interlopation for position, Spherical linear for rotation
+		// def. Catmull-Rom interrogation for position, Spherical linear for rotation
 
 		p = CatmullRom (k, u, mKeyPnt, mNumKeys, m_mids );			// catmull-rom translation
 

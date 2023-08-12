@@ -391,7 +391,7 @@ void Image::TransferFrom ( Image* src_img )
 	if ( xr > 0 && yr > 0 ) {
 
 		// Determine new format
-		// Note: Only resolution, format and data are transfered. 
+		// Note: Only resolution, format and data are transferred. 
 		// All other flags (filtering, usage) are left alone.
 		unsigned int orig_flags = getInfo()->eFlags;
 		
