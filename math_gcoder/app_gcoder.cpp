@@ -202,7 +202,8 @@ bool Sample::init()
   AddTool ( "1/2 flat", 'f',  0.5,  0.5,  "in" );
   AddTool ( "1/4 sphere", 's',  0.25,  0.25,  "in" );
   AddTool ( "1/8 sphere", 's',  0.125,  0.125,  "in" );
-  AddTool ( "1mm tapered", 's', 1, 1,  "mm" );          
+  AddTool ( "4mm tapered", 's', 4, 4,  "mm" );          
+  AddTool ( "0.5mm tapered", 's', 0.5, 0.5,  "mm" );  
   
   // 25.4 mm = 1"
   // 12.7 mm = 1/2"
@@ -222,10 +223,12 @@ bool Sample::init()
   SetMachine ( Vector3DF(-600, 0, -10 ), Vector3DF(600, 2000, 50) );       // X left/right, Y back/fwd, Z up/down
 
   // Set work
-  SetWork ( 7, Vector3DF(25, 25, 0), Vector3DF( 177, 101, 0), Vector3DF( 914, 406, 18) );         // depth=12 mm, 300x200x26 mm = 12 x 7.8 x 1", margin=1"
+  SetWork ( 7, Vector3DF(19, 19, 0), Vector3DF( 318.16, 146, 0), Vector3DF( 520, 177, 19) );         // depth=12 mm, 300x200x26 mm = 12 x 7.8 x 1", margin=1"
   
+  // muses = 8172 x 3750 = 2.1792 asp, 318x146mm = 12.5 x 5 3/4" (7")
+
   // Detail settings
-  m_detail =   0.03;        // x-resolution as % of tool width
+  m_detail =   0.05;        // x-resolution as % of tool width
   m_stepover = 0.20;        // y-pitch as % of tool width
   m_accuracy = 0.05;        // search accuracy as % of tool width
   m_pass_safety = 0.5;      // safe pass depth as % of the tool width. specific to machine, spindle and typical speed/feed rate
@@ -236,8 +239,8 @@ bool Sample::init()
   dbgprintf ( "Safety:   %3.0f%%\n", m_pass_safety * 100);
 
   // Add passes
-  //AddToolPass ( "1/8 sphere", 1000, 2 );
-  AddToolPass ( "1mm tapered", 1000, 1 );
+  AddToolPass ( "1/4 sphere", 1000, 3 );
+  AddToolPass ( "4mm tapered", 1000, 1 );
   
   // Create relief & g-code
   for (int n=0; n < m_Passes.size(); n++)
@@ -267,13 +270,13 @@ void Sample::AddTool ( std::string name, char tt, float width, float depth, std:
     case 's':       // sphere bit
         for (int n=0; n <= 65535; n++) {
             x = float(n)/65535.0;
-            t.profile[n] = sqrt( 1-(x*x) ) * t.width * 0.5;
+            t.profile[n] = 1.0 - sqrt( 1-(x*x) ) * t.width * 0.5;
         }
         break;
     case 'v':       // v-bit
         for (int n=0; n <= 65535; n++) {
             x = float(n)/65535.0;
-            t.profile[n] = x * t.depth;
+            t.profile[n] = x * t.depth;         // CHECK IF CORRECT
         }
         break;
     }
@@ -466,10 +469,10 @@ float Sample::getCutHeight ( Vector3DF pos, int tid, float accuracy, float work_
 void Sample::AddCut ( Vector3DF a, int tp, int dp )
 {
     if ( m_out ) {
-        if ( fabs(a.z-m_prev_pos.z) < 0.01 ) {
-            fprintf ( m_gfile, "G01 X%3.1f\n", a.x );   // no z change
+        if ( fabs(a.z-m_prev_pos.z) < 0.001 ) {
+            fprintf ( m_gfile, "G01 X%4.2f\n", a.x );   // no z change
         } else {
-            fprintf ( m_gfile, "G01 X%3.1f Z%3.2f\n", a.x, a.z+m_doffset );
+            fprintf ( m_gfile, "G01 X%4.2f Z%4.3f\n", a.x, a.z+m_doffset );
         }
     }
     AddLine ( m_prev_pos, a, CLR_CUT, tp, dp ); 
@@ -477,7 +480,7 @@ void Sample::AddCut ( Vector3DF a, int tp, int dp )
 }
 void Sample::AddMove ( Vector3DF a, int tp, int dp )
 {
-    if ( m_out) fprintf ( m_gfile, "G00 X%3.2f Y%3.2f Z%3.2f\n", a.x, a.y, a.z+m_doffset );
+    if ( m_out) fprintf ( m_gfile, "G00 X%4.2f Y%4.2f Z%4.3f\n", a.x, a.y, a.z+m_doffset );
     AddLine ( m_prev_pos, a, CLR_MOVE, tp, dp );
     m_prev_pos = a;
 }
@@ -535,6 +538,17 @@ void Sample::CutToolPass (int pid)
 
     float pass_depth = float(m_max_depth) / p->num_depth_pass;
     float curr_depth = pass_depth;
+
+    //-- test 
+    /*FILE* fp = fopen ( "test.txt", "wt" );
+    for ( pos.y = m_work_min.y; pos.y < m_work_max.y; pos.y += p->pitch.y ) { 
+         for ( pos.x = m_work_min.x; pos.x <= m_work_max.x; pos.x += p->pitch.x ) {
+            pos.z = getCutHeight ( pos, tid, p->pitch.z, m_work_min.z, m_work_max.z, curr_depth );
+            fprintf ( fp, "%f %f %f\n", pos.x, pos.y, pos.z );
+         }
+    }
+    fclose (fp);
+    return; */
     
     for ( int dp = 0; dp < p->num_depth_pass; dp++ ) {
         
@@ -542,7 +556,7 @@ void Sample::CutToolPass (int pid)
 
         // start depth pass
         pos.y = m_work_min.y;
-        pos.x = (dir>0) ? m_work_min.x : m_work_max.x;
+        pos.x = (dir>0) ? m_work_min.x : m_work_max.x;                
         AddMove ( Vector3DF(pos.x, pos.y, safe_hgt), tp, dp );     // safe height
     
         for ( pos.y = m_work_min.y; pos.y < m_work_max.y; pos.y += p->pitch.y ) {    
@@ -552,8 +566,8 @@ void Sample::CutToolPass (int pid)
         
             for ( scanx = 0; scanx <= m_work_size.x; scanx += p->pitch.x ) {
 
-                pos.x = (dir>0) ? m_work_min.x + scanx : m_work_max.x - scanx;            
-                pos.z = getCutHeight ( pos, tid, p->pitch.z, m_work_min.z, m_work_max.z, curr_depth );                
+                pos.x = (dir>0) ? m_work_min.x + scanx : m_work_max.x - scanx;                
+                pos.z = getCutHeight ( pos, tid, p->pitch.z, m_work_min.z, m_work_max.z, curr_depth );
 
                 AddCut ( pos, tp, dp );      
             }
@@ -711,6 +725,7 @@ void Sample::startup()
 void Sample::shutdown()
 {
 }
+
 
 
 
