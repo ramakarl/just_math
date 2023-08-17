@@ -149,12 +149,50 @@ when updating the $\mu$ values.
 In this pathological case, at least, the $\mu$'s converge, with a preference for one configuration
 over another based on initial conditions of the random $\mu$ values.
 
+### Multi-Scale Notes
+
+We've discussed trying to figure out how to make the BP updates not so locally dependent, so longer range constraints can be
+properly handled.
+For example, if endpoints of a path are put at opposite ends of a map, BP (and presumably WFC) would meander around a solution,
+potentially getting into a dead end, ignoring more global constraints that could help guide its search.
+
+As a possible heuristic, a combination of a multi-scale solution and reduced the labelling set to only consider "satisfied" or "unsatisfied"
+rules can be done.
+
+First, create an auxiliary grid that now holds only two (or three?) states per cell with labels $s$ and $u$ for "satisfied" and
+"unsatisfied" ("wildcard"?) respectively.
+From this, do a multi-scale grid, grouping together cells in super-blocks, to form the higher order grids.
+Key in this is figuring out how to estimate, even if only a heuristic, the probability of a block or super-block neighboring each
+other is satisfiable/unsatisfiable.
+
+Providing two states (sat/unsat) gives a much more easily interpretable meaning as it's easier to think about super-blocks "satisfying"
+neighboring super-blocks, rather than talking about individual tiles.
+Further, state space can blow up if only tile labels are considered for super-blocks.
+
+It's not clear to me how to estimate the probability of super-blocks next to each other being satisfied.
+For example, if there are two 8x8x8 super-blocks, one with an endpoint in the middle but wildcard tile choices everywhere else, next to
+a complete wildcard 8x8x8 superblock, this wouldn't convey the information we would expect, as the endpoint tile is insulated from
+the boundary.
+
+One could imagine some sampling technique to try and estimate the configuration space and thus the sat/unsat of neighboring super-blocks.
+Another is to try and have finer grained grids pass messages up to coarser grained grids (or back) to help inform what the how constrained
+the super-block is.
+
 
 ### Miscellaneous Notes
 
 
 * I have been told, but still don't understand, that BP is minimizing the Free Energy (${\lt}E{\gt} - TS$), maybe as it relates to
   the Bethe lattice approximation (of the Free Energy?)
+  - I haven't been through the calculation but presumably this is done by using Lagrange multipliers on the constraints of the system
+    (See \[0\])
 * From observation, one of the constrained systems does manage to find the solution, given a low enough convergence epsilon,
-  but the solution looks like it meanders a lot more than it should
+  but the solution looks like it meanders a lot more than it should. UPDATE: this is probably an artifact of it just doing random
+  search and it just happens to work in this case when epsilon is small 
+
+
+References
+---
+
+* ["Generalized Belief Propagation" by Yedidia, Freeman, Weiss](https://github.com/abetusk/papers/blob/release/ComputerScience/BeliefPropagation/NIPS-2000-generalized-belief-propagation-Paper_yedidia-freeman-weiss.pdf)
 
