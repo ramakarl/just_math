@@ -308,6 +308,11 @@ void BeliefPropagation::ConstructDynamicBufs () {
   AllocBuf ( BUF_TILE_IDX,   'i', m_num_values, m_num_verts );
   AllocBuf ( BUF_TILE_IDX_N, 'i', m_num_verts );
 
+  //-- Construct PREFATORY_TILE_IDX
+  //
+  AllocBuf ( BUF_PREFATORY_TILE_IDX,   'i', m_num_values, m_num_verts );
+  AllocBuf ( BUF_PREFATORY_TILE_IDX_N, 'i', m_num_verts );
+
   // initialize to all tiles per vertex
   //
   for (int i=0; i<m_num_verts; i++) {
@@ -315,6 +320,7 @@ void BeliefPropagation::ConstructDynamicBufs () {
     // vtx i has num_vals possible number of tiles
     //
     SetValI ( BUF_TILE_IDX_N, (m_num_values), i );
+    SetValI ( BUF_PREFATORY_TILE_IDX_N, (0), i );
 
     for (int b=0; b<m_num_values; b++) {
 
@@ -322,6 +328,7 @@ void BeliefPropagation::ConstructDynamicBufs () {
       // in order at vtx i
       //
       SetValI ( BUF_TILE_IDX, b, b, i );
+      SetValI ( BUF_PREFATORY_TILE_IDX, b, b, i );
     }
   }
 
@@ -419,8 +426,6 @@ void BeliefPropagation::ComputeDiffMUField () {
   int i, n_a, a;
   float v0, v1, d, max_diff;
   Vector3DI jp;
-
-  //int vtx = 528;
 
   for (int j=0; j < m_num_verts; j++) {
     jp = getVertexPos(j);
@@ -3304,6 +3309,9 @@ int BeliefPropagation::RealizePre(void) {
     }
 
   }
+
+  // sequential and overlapping
+  //
   else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
 
     end_s[0] = m_bpres.x - m_block_size[0];
@@ -3330,32 +3338,33 @@ int BeliefPropagation::RealizePre(void) {
     if ((iz%2)==1) { z += (m_block_size[2]/2); }
     if (iz == (m_block_idx[2]-1)) { z = end_s[2]; }
 
-    //x = (x % m_bpres.x);
-    //y = (y % m_bpres.y);
-    //z = (z % m_bpres.z);
-
     m_sub_block[0] = x;
     m_sub_block[1] = y;
     m_sub_block[2] = z;
-
-    //DEBUG
-    /*
-    fprintf(stderr, "## OPT_BLOCK_SEQUENTIAL: [%i,%i,%i] (iter:%i)\n", (int)x, (int)y, (int)z, (int)op.cur_iter);
-    fprintf(stderr, "##   ... m_block_idx[%i,%i,%i]\n",
-        (int)m_block_idx[0], (int)m_block_idx[1], (int)m_block_idx[2]);
-    fprintf(stderr, "##   ... m_bpres[%i,%i,%i], m_block_size[%i,%i,%i], ix:%i, iy:%i, iz:%i, end_s[%i,%i,%i]\n",
-        (int)m_bpres.x, (int)m_bpres.y, (int)m_bpres.z,
-        (int)m_block_size[0], (int)m_block_size[1], (int)m_block_size[2],
-        (int)ix, (int)iy, (int)iz,
-        (int)end_s[0], (int)end_s[1], (int)end_s[2]);
-        */
-
   }
 
   else if (op.block_schedule == OPT_BLOCK_MIN_ENTROPY) {
     //WIP
     //EXPERIMENTAL
+
+    // choose block with minimum (average) entropy (?)
+    //
+    // $\sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
+    //
   }
+
+  else if (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY) {
+    //WIP
+    //EXPERIMENTAL
+
+    // choose block with minimum (average) entropy (?)
+    // and add a noise factor to allow for some randomness in choice
+    //
+    // $\text(rand)() + \sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
+    //
+  }
+
+  //---
 
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
@@ -3406,14 +3415,101 @@ int BeliefPropagation::RealizePre(void) {
 
   else if (op.alg_run_opt == ALG_RUN_WFC) {
 
-    // nothing to be done?
+    // Nothing to be done.
+    // All relevant code is in RealizeStep and RealizePost
+    //
 
   }
 
   else if (op.alg_run_opt == ALG_RUN_BREAKOUT) {
 
-    //WIP
-    //EXPERIMENTAL
+    // fuzz out a block
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
+    for (x=m_sub_block[0]; x<(m_sub_block[0]+m_block_size[0]); x++) {
+      for (y=m_sub_block[1]; y<(m_sub_block[1]+m_block_size[1]); y++) {
+        for (z=m_sub_block[2]; z<(m_sub_block[2]+m_block_size[2]); z++) {
+
+          n_idx=0;
+          cell = getVertex(x,y,z);
+
+          for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
+            tile = m_block_admissible_tile[tile_idx];
+            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+            cellFillVisitedSingle ( cell, m_note_plane );
+            cellFillVisitedNeighbor ( cell, m_note_plane );
+
+            n_idx++;
+          }
+
+          SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+        }
+      }
+    }
+
+    // reset visited from above so that constraint propagate
+    // can use it.
+    //
+    unfillVisited( m_note_plane  );
+
+    // If we get an error here during the initial constraint propagate
+    // phase, before we start trying block realizations in RealizeStep,
+    // this is not strictly a hard error.
+    // If we fail to set an initial state, we should consider
+    // this as a failed breakout state so we can proceed to the
+    // 'soften' phase.
+    // Regardless, we should return a 'success' code
+    // as we still want to continue trying.
+    //
+    // If we were unable to get into an arc consistent state before
+    // this step, that is an error.
+    // Meaning, if the prefatory state, after the setup
+    // constraint propagation phase, is not arc consistent, that
+    // is a valid error state and should have been handled before
+    // we got here.
+    //
+
+    // propagate constraints to remove neighbor tiles,
+    // and count number resolved (only 1 tile val remain)
+    //
+    ret = cellConstraintPropagate();
+    if (ret < 0) {
+      m_return = -1;
+      return 0;
+    }
+
+    // reset for cull boundary
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
+    // Cull boundary.
+    // If this fails, we have no hope of any iteration
+    // of breakout succeeding in RealizeStep, so
+    // return.
+    //
+    ret = CullBoundary();
+    if (ret < 0) {
+      m_return = -1;
+      return 0;
+    }
+
+    // reset for cull boundary
+    //
+    m_note_n[ m_note_plane ] = 0;
+    m_note_n[ 1 - m_note_plane  ] = 0;
+
+    // paranoia
+    //
+    ret = cellConstraintPropagate();
+    if (ret < 0) {
+      m_return = -1;
+      return 0;
+    }
 
   }
 
@@ -3511,6 +3607,8 @@ int BeliefPropagation::RealizePost(void) {
   float belief=-1.0,
         d = -1.0;
 
+  int32_t _soften_bounds[6] = {0};
+
   int32_t x=0, y=0, z=0;
 
 
@@ -3527,6 +3625,42 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_BREAKOUT:
       //WIP
       //EXPERIMENTAL
+
+      // SOFTEN phase
+      //
+      if (m_return < 0) {
+
+        if (op.verbose >= VB_INTRASTEP) {
+          printf("BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+              (int)m_sub_block[0], (int)m_block_size[0],
+              (int)m_sub_block[1], (int)m_block_size[1],
+              (int)m_sub_block[2], (int)m_block_size[2]);
+        }
+
+        // WIP!!!
+
+        //_soften_bounds[0] = (m_sub_block[0] - m_block_size[0]
+
+        for (x=m_sub_block[0]; x<(m_sub_block[0] + m_block_size[0]); x++) {
+          for (y=m_sub_block[1]; y<(m_sub_block[1] + m_block_size[1]); y++) {
+            for (z=m_sub_block[2]; z<(m_sub_block[2] + m_block_size[2]); z++) {
+
+              cell = getVertex(x,y,z);
+
+              n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+              SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+              for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+                tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+                SetValI( BUF_TILE_IDX, tile, tile_idx, cel );
+              }
+
+            }
+          }
+        }
+
+      }
+
       break;
 
     case ALG_CELL_BLOCK_WFC:
@@ -3586,7 +3720,7 @@ int BeliefPropagation::RealizePost(void) {
 
       }
 
-      // we're taking control away from teh code at teh bottom
+      // we're taking control away from the code at the bottom
       // since we're not resolving a single cell/tile now,
       // so we need to do some housekeeping ourselves.
       //

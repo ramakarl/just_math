@@ -75,10 +75,11 @@
 #define OPT_FH
 #define OPT_MUBOUND
 
-#define OPT_BLOCK_RANDOM        0
-#define OPT_BLOCK_RANDOM_1      1
-#define OPT_BLOCK_SEQUENTIAL    2
-#define OPT_BLOCK_MIN_ENTROPY   3
+#define OPT_BLOCK_RANDOM              0
+#define OPT_BLOCK_RANDOM_1            1
+#define OPT_BLOCK_SEQUENTIAL          2
+#define OPT_BLOCK_MIN_ENTROPY         3
+#define OPT_BLOCK_NOISY_MIN_ENTROPY   4
 
 #define MU_NOCOPY 0
 #define MU_COPY   1
@@ -162,6 +163,14 @@
 #define BUF_BT_IDX                23    // <B*num_vert, 1, 1>
 
 #define BUF_BLOCK                 24    //                                                                               // <num_vert, 1, 1>
+
+//--
+//
+// prefatory state for breakout model synthesis
+//
+#define BUF_PREFATORY_TILE_IDX    25    // <B, num_vert, 1>
+#define BUF_PREFATORY_TILE_IDX_N  26    // <num_vert, 1, 1>
+//--
 
 
 

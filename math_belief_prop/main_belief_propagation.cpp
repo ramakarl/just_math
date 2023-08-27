@@ -489,7 +489,7 @@ void show_version(FILE *fp) {
 
 int main(int argc, char **argv) {
   int i, j, k, idx, ret=0;
-  char ch;
+  char ch = -1;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str,
@@ -517,7 +517,7 @@ int main(int argc, char **argv) {
   std::vector<float> eps_range;
 
   int max_iter = -1,
-      it,
+      it = -1,
       n_it = -1;
 
   int64_t cell=-1;
@@ -532,8 +532,6 @@ int main(int argc, char **argv) {
 
   std::string block_admissible_tile_range;
   std::vector< int32_t > block_admissible_tile_list;
-
-
 
   std::vector< std::vector< float > > tri_shape_lib;
 
@@ -974,16 +972,46 @@ int main(int argc, char **argv) {
 
     }
 
-    // allow only certain tiles when fuzzing block
-    // by default, filter out the '0' tile
-    // (hard coded for now)
+    // Allow only certain tiles when fuzzing block
     //
-    /*
-    bpc.m_block_admissible_tile.clear();
-    for (tile=1; tile < bpc.m_num_values; tile++) {
-      bpc.m_block_admissible_tile.push_back(tile);
+    if (block_admissible_tile_list.size() > 0) {
+      bpc.m_block_admissible_tile = block_admissible_tile_list;
     }
-    */
+
+    if (bpc.op.verbose >= VB_RUN) {
+      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
+      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
+        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
+      }
+      printf("\n");
+    }
+
+  }
+
+  else if (bpc.op.alg_run_opt == ALG_RUN_BREAKOUT) {
+
+    // Save "prefatory" state.
+    // We assume initial constraints have been propagated, including
+    // boundary condition constraints and any user specified constraints.
+    // The prefatory state will be used in the "soften" stage, should a block
+    // choice fail, the prefatory state will be used to fill in the failed
+    // block and its neighbors.
+    //
+    for (cell=0; cell<bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, cell, n_idx );
+
+      for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+        tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
+        bpc.SetValI( BUF_PREFATORY_TILE_IDX, tile, tile_idx, cell );
+      }
+
+    }
+
+    // Allow only certain tiles when fuzzing blocks.
+    // Maybe not needed for breakout?
+    //
     if (block_admissible_tile_list.size() > 0) {
       bpc.m_block_admissible_tile = block_admissible_tile_list;
     }
@@ -1025,21 +1053,10 @@ int main(int argc, char **argv) {
       break;
     }
 
-    //DEBUG
-    //
-    //printf("XXX DEBUG: %i\n", (int)it);
-    //bpc.debugPrint();
-    //
-    //DEBUG
-
     ret = 1;
     while (ret>0) {
       ret = bpc.RealizeStep();
-
-      //DEBUG
-      //printf("STEP: %i\n", (int)ret);
     }
-    //if (ret<0) { break; }
 
     ret = bpc.RealizePost();
     if (ret <= 0) { break; }
