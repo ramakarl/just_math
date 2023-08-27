@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.7.0"
+#define BELIEF_PROPAGATION_VERSION "0.8.0"
 
 #define VB_NONE         0
 #define VB_ERROR        0
@@ -78,9 +78,10 @@
 #define OPT_BLOCK_RANDOM        0
 #define OPT_BLOCK_RANDOM_1      1
 #define OPT_BLOCK_SEQUENTIAL    2
+#define OPT_BLOCK_MIN_ENTROPY   3
 
 #define MU_NOCOPY 0
-#define MU_COPY 1
+#define MU_COPY   1
 
 #define VIZ_NONE        0
 #define VIZ_MU          1
@@ -104,6 +105,7 @@
 #define ALG_RUN_WFC             38
 #define ALG_RUN_BLOCK_WFC       39
 #define ALG_RUN_BACKTRACK       40
+#define ALG_RUN_BREAKOUT        41
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1
@@ -473,6 +475,8 @@ public:
   int   chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
+
+  int   chooseMinEntropyBlock(std::vector<int64_t> &block_bound, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);

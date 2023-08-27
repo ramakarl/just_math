@@ -2509,6 +2509,170 @@ int BeliefPropagation::chooseMinEntropy(int64_t *min_cell, int32_t *min_tile, in
   return count;
 }
 
+
+// find minimum entropy cell and tile restricted to a block
+// If non-null, min_cell, min_tile, min_tile_idx and min_entropy will all be filled
+//   in appropriately if a minimum entropy cell and tile is found
+//
+// return values:
+//
+// 0                - block is fully realized (without contradictions, presumably), so no entry chosen
+// positive value   - returns count of number of minimum entropy values (within eps_zero)
+// negative value   - error
+//
+int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
+                                              int64_t *min_cell,
+                                              int32_t *min_tile,
+                                              int32_t *min_tile_idx,
+                                              float *min_entropy) {
+
+  int64_t anch_cell=0;
+  int32_t anch_tile_idx, anch_tile_idx_n, anch_tile;
+  int count=0;
+
+  float p, g, _entropy, g_sum, g_cdf;
+
+  float _min_entropy= -1.0;
+  int64_t _min_cell = -1;
+  int32_t _min_tile = -1,
+          _min_tile_idx = -1;
+  float _eps = op.eps_zero;
+
+  int64_t block_s_x = -1,
+          block_s_y = -1,
+          block_s_z = -1;
+  int64_t block_n_x = -1,
+          block_n_y = -1,
+          block_n_z = -1;
+
+  block_s_x = block_bound[0];
+  block_n_x = block_bound[1];
+
+  block_s_y = block_bound[2];
+  block_n_y = block_bound[3];
+
+  block_s_z = block_bound[4];
+  block_n_z = block_bound[5];
+
+  for (iz=block_s_z; iz<(block_s_z + block_n_z); iz++) {
+    for (iy=block_s_y; iy<(block_s_y + block_n_y); iy++) {
+      for (ix=block_s_x; ix<(block_s_x + block_n_x); ix++) {
+
+        anch_cell = getVertex( (int)ix, (int)iy, (int)iz );
+
+        anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
+
+        if (anch_tile_idx_n==0) { return -1; }
+        if (anch_tile_idx_n==1) { continue; }
+
+        g_sum = 0.0;
+        for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+          anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          g = getValF( BUF_G, anch_tile );
+          g_sum += g;
+        }
+
+        if (g_sum < _eps) { continue; }
+
+        _entropy = 0.0;
+        for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+          anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+          g = getValF( BUF_G, anch_tile ) / g_sum;
+          if (g > _eps) {
+            _entropy += -g * logf(g);
+          }
+        }
+
+        // initialize min entropy
+        //
+        if (count==0) {
+          _min_cell     = anch_cell;
+          _min_entropy = _entropy;
+          count=1;
+          continue;
+        }
+
+        if (_entropy < (_min_entropy + _eps)) {
+
+          if (_entropy < _min_entropy) {
+            _min_entropy  = _entropy;
+            _min_cell     = anch_cell;
+            count=1;
+          }
+
+          // randomize 'equal' choices
+          //
+          else {
+
+            count++;
+            p = m_rand.randF();
+
+            if ( p < (1.0/(float)count) ) {
+              _min_entropy  = _entropy;
+              _min_cell     = anch_cell;
+            }
+          }
+
+        }
+      }
+    }
+
+  }
+
+  if (_min_cell<0) { return 0; }
+
+  _min_tile = getValI( BUF_TILE_IDX, _min_cell, 0 );
+  _min_tile_idx = 0;
+
+  // now we choose a particular tile from the tile position
+  // (both tile ID and tile index)
+  //
+  anch_cell = _min_cell;
+  anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
+  g_sum = 0.0;
+  for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+    anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+    g_sum += getValF( BUF_G, anch_tile);
+  }
+
+  if (g_sum > _eps) {
+
+    p = m_rand.randF();
+
+    g_cdf = 0.0;
+    for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+      g_cdf += getValF( BUF_G, anch_tile ) / g_sum;
+
+      if (p < g_cdf) {
+        _min_tile     = anch_tile;
+        _min_tile_idx = anch_tile_idx;
+
+        break;
+      }
+    }
+
+  }
+
+  // ? just pick the first one?
+  //
+  else {
+
+    _min_tile = getValI( BUF_TILE_IDX, 0, anch_cell );
+    _min_tile_idx = 0;
+
+  }
+
+  if (min_cell)     { *min_cell     = _min_cell; }
+  if (min_tile)     { *min_tile     = _min_tile; }
+  if (min_tile_idx) { *min_tile_idx = _min_tile_idx; }
+  if (min_entropy)  { *min_entropy  = _min_entropy; }
+
+  return count;
+}
+
+
+
 //----
 
 float BeliefPropagation::getVertexBelief ( uint64_t j ) {
@@ -3188,6 +3352,11 @@ int BeliefPropagation::RealizePre(void) {
 
   }
 
+  else if (op.block_schedule == OPT_BLOCK_MIN_ENTROPY) {
+    //WIP
+    //EXPERIMENTAL
+  }
+
   if (op.alg_run_opt == ALG_RUN_VANILLA) {
 
     // after we've propagated constraints, BUF_MU
@@ -3241,6 +3410,13 @@ int BeliefPropagation::RealizePre(void) {
 
   }
 
+  else if (op.alg_run_opt == ALG_RUN_BREAKOUT) {
+
+    //WIP
+    //EXPERIMENTAL
+
+  }
+
   else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
 
     // fuzz out a block
@@ -3255,16 +3431,6 @@ int BeliefPropagation::RealizePre(void) {
           n_idx=0;
           cell = getVertex(x,y,z);
 
-          // DEBUG
-          //
-          /*
-          fprintf(stderr, "### x:%i, y:%i, z:%i, cell:%i\n",
-              (int)x, (int)y, (int)z, (int)cell);
-          fflush(stderr);
-          */
-          //
-          // DEBUG
-
           orig_tile = getValI( BUF_TILE_IDX, 0, cell );
 
           for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
@@ -3277,40 +3443,15 @@ int BeliefPropagation::RealizePre(void) {
             n_idx++;
           }
 
-          /*
-          // TODO: create better filtering
-          // constraining by hand here
-          //
-          for (tile_idx=0; tile_idx < (m_num_values-1); tile_idx++) {
-            tile = tile_idx+1;
-            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
-
-            cellFillVisitedSingle ( cell, m_note_plane );
-            cellFillVisitedNeighbor ( cell, m_note_plane );
-
-            n_idx++;
-          }
-          */
-
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
 
           // save original value
           //
           SetValI( BUF_BLOCK, orig_tile, cell );
 
-
-          // DEBUG
-          //
-
         }
       }
     }
-
-
-    //DEBUG
-    //printf(">>>CP.0\n");
-    //debugPrint();
-    //DEBUG
 
     // reset visited from above so that constraint propagate
     // can use it.
@@ -3322,11 +3463,6 @@ int BeliefPropagation::RealizePre(void) {
     //
     ret = cellConstraintPropagate();
     if (ret < 0) { return ret; }
-
-    //DEBUG
-    //printf(">>>CP.1 (ret:%i)\n", (int)ret);
-    //debugPrint();
-    //DEBUG
 
     // reset for cull boundary
     //
@@ -3386,6 +3522,11 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_WFC:
 
       ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+      break;
+
+    case ALG_CELL_BREAKOUT:
+      //WIP
+      //EXPERIMENTAL
       break;
 
     case ALG_CELL_BLOCK_WFC:
@@ -3798,6 +3939,76 @@ int BeliefPropagation::RealizeStep(void) {
   }
 
   else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+    //WIP
+    //EXPERIMENTAL
+  }
+
+  else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+
+    // here we run WFC on the block we've fuzzed
+    //
+    ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+    m_return = ret;
+
+    if (ret >= 1) {
+
+      // 1 = continue condition.
+      // display chosen cell
+      //
+      if (op.verbose >= VB_INTRASTEP ) {
+        vp = getVertexPos(cell);
+        n_idx = getValI ( BUF_TILE_IDX_N, cell );
+        printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs]\n",
+            (int)op.cur_iter,
+            (int)cell,
+            (int)vp.x, (int)vp.y, (int)vp.z,
+            (int)tile, 0.0, (int)tile_idx, (int)n_idx);
+      }
+
+      // reset iter resolved and advance total
+      //
+      st.iter_resolved = 1;
+      st.total_resolved++;
+
+      // collapse
+      //
+      _ret = tileIdxCollapse( cell, tile_idx );
+      if (_ret >= 0) {
+
+        m_note_n[ m_note_plane ] = 0;
+        m_note_n[ 1 - m_note_plane  ] = 0;
+
+        cellFillVisitedNeighbor ( cell, m_note_plane );
+        unfillVisited( m_note_plane  );
+
+        // propagate constraints to remove neighbor tiles,
+        // and count number resolved (only 1 tile val remain)
+        //
+        _ret = cellConstraintPropagate();
+
+      }
+
+      // collapse failed
+      //
+      else {
+        ret = -2;
+        m_return = ret;
+      }
+
+      // ret inherits chooseMinEntropy return value (presumably 1)
+      // unless there's an error, in which case we propagate that
+      // value on
+      //
+      if (_ret < 0) {
+        ret = -3;
+        m_return = ret;
+      }
+
+    }
+
+  }
+
+  else if (op.alg_run_opt == ALG_RUN_BREAKOUT) {
 
     // here we run WFC on the block we've fuzzed
     //
