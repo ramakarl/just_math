@@ -3321,6 +3321,12 @@ int BeliefPropagation::RealizePre(void) {
   int32_t ix=0, iy=0, iz=0;
   int32_t end_s[3];
 
+  if (op.verbose >= VB_INTRASTEP) {
+    printf("RealizePre cp.0\n");
+  }
+
+
+
   // random position, fixed size
   //
   if (op.block_schedule == OPT_BLOCK_RANDOM) {
@@ -3474,6 +3480,14 @@ int BeliefPropagation::RealizePre(void) {
   }
 
   else if (op.alg_run_opt == ALG_RUN_BREAKOUT) {
+
+    if (op.verbose >= VB_INTRASTEP) {
+      printf("BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
+          (int)m_sub_block[0], (int)m_block_size[0],
+          (int)m_sub_block[1], (int)m_block_size[1],
+          (int)m_sub_block[2], (int)m_block_size[2]);
+    }
+
 
     // inefficient, but just to get working, save whole grid state
     // so that if we need to restore state after a block choice failure,
@@ -3688,6 +3702,16 @@ int BeliefPropagation::RealizePost(void) {
 
         m_breakout_block_fail_count = 0;
 
+        if (op.verbose >= VB_INTRASTEP) {
+          printf("BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
+              (int)m_sub_block[0], (int)m_block_size[0],
+              (int)m_sub_block[1], (int)m_block_size[1],
+              (int)m_sub_block[2], (int)m_block_size[2],
+              (int)m_breakout_block_fail_count,
+              (int)m_breakout_soften_limit );
+        }
+
+
         // we accept the block
         // ... do nothing
 
@@ -3741,6 +3765,13 @@ int BeliefPropagation::RealizePost(void) {
           if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
           if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
 
+          if (op.verbose >= VB_INTRASTEP) {
+            printf("BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
+                (int)_soften_bounds[0], (int)_soften_bounds[1],
+                (int)_soften_bounds[2], (int)_soften_bounds[3],
+                (int)_soften_bounds[4], (int)_soften_bounds[5]);
+          }
+
           m_note_n[ m_note_plane ] = 0;
           m_note_n[ 1 - m_note_plane  ] = 0;
 
@@ -3769,6 +3800,11 @@ int BeliefPropagation::RealizePost(void) {
           // can use it.
           //
           unfillVisited( m_note_plane  );
+
+          if (op.verbose >= VB_INTRASTEP) {
+            printf("BREAKOUT-SOFTEN after soften, before constraint propagation:\n");
+            debugPrintTerse();
+          }
 
           // if the constraint propgation fails, we're in a bad state
           // as we should have been in an even more unrestricted state
@@ -3991,7 +4027,8 @@ int BeliefPropagation::RealizePost(void) {
             }
             if (_nei_tile_idx == _n) { return -1; }
 
-            if (op.verbose >= VB_INTRASTEP ) {
+            //if (op.verbose >= VB_INTRASTEP ) {
+            if (op.verbose >= VB_DEBUG) {
               printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i tile_idx %i (/%i) [la]\n",
                   (int)op.cur_iter,
                   (int)_nei_cell,
@@ -4342,6 +4379,7 @@ int BeliefPropagation::RealizeStep(void) {
       // value on
       //
       if (_ret < 0) {
+        m_breakout_block_fail_count++;
         ret = -3;
         m_return = ret;
       }
@@ -4878,6 +4916,88 @@ void BeliefPropagation::debugPrintS() {
       printf("\n");
     }
     printf("---\n");
+  }
+
+}
+
+void BeliefPropagation::debugPrintTerse() {
+
+  int i=0, j=0, n=3, m=7, jnbr=0, a=0;
+  int a_idx=0, a_idx_n=0;
+  int64_t u=0;
+  Vector3DI p;
+  double v=0.0;
+  float _vf = 0.0, f, _eps;
+
+  int __a = 0;
+
+  int64_t max_cell=-1;
+  int32_t max_tile=-1, max_tile_idx=-1;
+  float max_belief=-1.0;
+  int count=-1;
+
+  int print_rule = 0;
+
+  _eps = op.eps_zero;
+
+  std::vector< std::string > _dp_desc;
+
+  _dp_desc.push_back("+1:0:0");
+  _dp_desc.push_back("-1:0:0");
+  _dp_desc.push_back("0:+1:0");
+  _dp_desc.push_back("0:-1:0");
+  _dp_desc.push_back("0:0:+1");
+  _dp_desc.push_back("0:0:-1");
+
+  printf("bp version: %s\n", BELIEF_PROPAGATION_VERSION);
+  printf("op.verbose: %i\n", op.verbose);
+
+  printf("res: (%i,%i,%i)\n", m_res.x, m_res.y, m_res.z);
+  printf("bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
+  printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
+  printf("stat_enabled: %i\n", (int) st.enabled);
+
+  printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
+  for (i=0; i < m_tile_name.size(); i++) {
+    if ((i%m)==0) { printf("\n"); }
+    v = getValF( BUF_G, i );
+    printf(" %s(%2i):%0.4f)", m_tile_name[i].c_str(), i, (float)v);
+  }
+  printf("\n\n");
+
+  if (print_rule) {
+    for (jnbr=0; jnbr<6; jnbr++) {
+      printf("dir[%i]:\n", jnbr);
+
+      for (i=0; i<m_num_values; i++) {
+        printf(" ");
+        for (j=0; j<m_num_values; j++) {
+          f = getValF(BUF_F, i, j, jnbr);
+          if (f > _eps) {
+            printf(" %5.2f", (float)getValF(BUF_F, i, j, jnbr));
+          }
+          else {
+            printf("      ");
+          }
+        }
+        printf("\n");
+      }
+      printf("\n");
+    }
+  }
+
+  //---
+
+  for (u=0; u<m_num_verts; u++) {
+    p = getVertexPos(u);
+    a_idx_n = getValI( BUF_TILE_IDX_N, u );
+
+    printf("[%i,%i,%i](%i): ", (int)p.x, (int)p.y, (int)p.z, (int)u);
+    for (a_idx=0; a_idx<a_idx_n; a_idx++) {
+      a = getValI( BUF_TILE_IDX, (int)a_idx, (int)u );
+      printf(" %i", (int)a);
+    }
+    printf("\n");
   }
 
 }
@@ -5553,7 +5673,8 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
-            if (op.verbose >= VB_INTRASTEP ) {
+            //if (op.verbose >= VB_INTRASTEP ) {
+            if (op.verbose >= VB_DEBUG) {
               printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
                   (int)op.cur_iter,
                   (int)anch_cell,
@@ -5649,7 +5770,8 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             tile_valid = 0;
 
-            if (op.verbose >= VB_INTRASTEP ) {
+            //if (op.verbose >= VB_INTRASTEP ) {
+            if (op.verbose >= VB_DEBUG) {
               printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (invalid conn dir:%i(%s), tile:%i) [cp.1]\n",
                   (int)op.cur_iter,
                   (int)anch_cell,

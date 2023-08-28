@@ -610,6 +610,7 @@ public:
   // helper arrays and functions for ease of testing and simple use
   //
   void  debugPrint();
+  void  debugPrintTerse();
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();

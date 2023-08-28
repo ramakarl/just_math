@@ -890,7 +890,7 @@ int main(int argc, char **argv) {
   else if (bpc.op.alg_idx == -5) {
     bpc.op.alg_accel    = ALG_ACCEL_NONE;
     bpc.op.alg_run_opt  = ALG_RUN_BREAKOUT;
-    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BREAKOUT;
 
     bpc.op.block_schedule = OPT_BLOCK_RANDOM;
   }
@@ -1011,7 +1011,7 @@ int main(int argc, char **argv) {
     for (cell=0; cell<bpc.m_num_verts; cell++) {
 
       n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
-      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, cell, n_idx );
+      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, n_idx, cell );
 
       for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
         tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
@@ -1051,8 +1051,8 @@ int main(int argc, char **argv) {
 
   //DEBUG
   //
-  printf("AFTER INIT:...\n");
-  bpc.debugPrint();
+  printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
+  bpc.debugPrintTerse();
   //
   //DEBUG
 
@@ -1061,16 +1061,28 @@ int main(int argc, char **argv) {
     ret = bpc.RealizePre();
     if (ret < 0) {
       fprintf(stderr, "RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
+      fprintf(stdout, "RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
       break;
     }
+
+    printf("it: cp.1\n");
 
     ret = 1;
     while (ret>0) {
       ret = bpc.RealizeStep();
     }
 
+    printf("it: cp.2\n");
+
     ret = bpc.RealizePost();
     if (ret <= 0) { break; }
+
+    if (bpc.m_return == 0) {
+      printf("success!\n");
+      bpc.debugPrintTerse();
+    }
+
+    printf("it: cp.3\n");
 
     if ( raycast )  {
 
@@ -1095,7 +1107,7 @@ int main(int argc, char **argv) {
     printf("# bp realize got: %i\n", ret);
 
     printf("####################### DEBUG PRINT\n" );
-    bpc.debugPrint();
+    bpc.debugPrintTerse();
   }
 
   //----
