@@ -98,15 +98,16 @@
 #define ALG_CELL_BLOCK_WFC      32
 #define ALG_CELL_ANY            33
 #define ALG_CELL_MIN_ENTROPY    34
+#define ALG_CELL_BREAKOUT       35
 
-#define ALG_TILE_MAX_BELIEF     35
+#define ALG_TILE_MAX_BELIEF     36
 
-#define ALG_RUN_VANILLA         36
-#define ALG_RUN_RESIDUAL        37
-#define ALG_RUN_WFC             38
-#define ALG_RUN_BLOCK_WFC       39
-#define ALG_RUN_BACKTRACK       40
-#define ALG_RUN_BREAKOUT        41
+#define ALG_RUN_VANILLA         37
+#define ALG_RUN_RESIDUAL        38
+#define ALG_RUN_WFC             39
+#define ALG_RUN_BLOCK_WFC       40
+#define ALG_RUN_BACKTRACK       41
+#define ALG_RUN_BREAKOUT        42
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1
@@ -170,6 +171,9 @@
 //
 #define BUF_PREFATORY_TILE_IDX    25    // <B, num_vert, 1>
 #define BUF_PREFATORY_TILE_IDX_N  26    // <num_vert, 1, 1>
+
+#define BUF_SAVE_TILE_IDX         27    // <B, num_vert, 1>
+#define BUF_SAVE_TILE_IDX_N       28    // <num_vert, 1, 1>
 //--
 
 
@@ -383,6 +387,8 @@ public:
     m_block_idx[1] = 0;
     m_block_idx[2] = 0;
 
+    m_breakout_block_fail_count = 0;
+    m_breakout_soften_limit = 2;
 
     for (i=0; i<3; i++) {
       for (j=0; j<2; j++) {
@@ -416,6 +422,11 @@ public:
   int       CheckConstraints ();
 
   void      SetVis (int viz_opt);
+
+  //----
+  void _saveTileIdx(void);
+  void _restoreTileIdx(void);
+
 
   //------------------------ belief propagation, mid-level API
 
@@ -644,6 +655,11 @@ public:
                 m_sub_block_range[3][2];
 
   std::vector< int32_t > m_block_admissible_tile;
+
+  // unused right now...
+  //
+  int64_t       m_breakout_block_fail_count,
+                m_breakout_soften_limit;
 
   // parameters/options
   //

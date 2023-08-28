@@ -462,7 +462,8 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
   fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
   fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
-  fprintf(fp, "  -b <#>   block size (for use in block wfc, default 8x8x8, clamped to dimension)\n");
+  fprintf(fp, "    -5     breakout model synthesis\n");
+  fprintf(fp, "  -b <#>   block size (for use in block wfc and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -882,6 +883,16 @@ int main(int argc, char **argv) {
     bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
 
     bpc.op.block_schedule = OPT_BLOCK_RANDOM_1;
+  }
+
+  // breakout model synthesis
+  //
+  else if (bpc.op.alg_idx == -5) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
   }
 
   else if (bpc.op.alg_idx == 1) {
