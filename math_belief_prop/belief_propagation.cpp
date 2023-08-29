@@ -3698,6 +3698,8 @@ int BeliefPropagation::RealizePost(void) {
 
   Vector3DI vp;
 
+  clock_t t1 = clock();
+
   // choose the cell and propagate choice
   //
   switch (op.alg_cell_opt) {
