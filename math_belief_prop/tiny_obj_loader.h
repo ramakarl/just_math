@@ -706,7 +706,7 @@ struct vertex_index_t {
 // index + smoothing group.
 struct face_t {
   unsigned int
-      smoothing_group_id;  // smoothing group id. 0 = smoothing groupd is off.
+      smoothing_group_id;  // smoothing group id. 0 = smoothing group is off.
   int pad_;
   std::vector<vertex_index_t> vertex_indices;  // face vertex indices.
 
@@ -716,7 +716,7 @@ struct face_t {
 // Internal data structure for line representation
 struct __line_t {
   // l v1/vt1 v2/vt2 ...
-  // In the specification, line primitrive does not have normal index, but
+  // In the specification, line primitive does not have normal index, but
   // TinyObjLoader allow it
   std::vector<vertex_index_t> vertex_indices;
 };
@@ -724,7 +724,7 @@ struct __line_t {
 // Internal data structure for points representation
 struct __points_t {
   // p v1 v2 ...
-  // In the specification, point primitrive does not have normal index and
+  // In the specification, point primitive does not have normal index and
   // texture coord index, but TinyObjLoader allow it.
   std::vector<vertex_index_t> vertex_indices;
 };
@@ -928,12 +928,12 @@ static bool tryParseDouble(const char *s, const char *s_end, double *result) {
     sign = *curr;
     curr++;
     if ((curr != s_end) && (*curr == '.')) {
-      // accept. Somethig like `.7e+2`, `-.5234`
+      // accept. Something like `.7e+2`, `-.5234`
       leading_decimal_dots = true;
     }
   } else if (IS_DIGIT(*curr)) { /* Pass through. */
   } else if (*curr == '.') {
-    // accept. Somethig like `.7e+2`, `-.5234`
+    // accept. Something like `.7e+2`, `-.5234`
     leading_decimal_dots = true;
   } else {
     goto fail;
@@ -999,7 +999,7 @@ static bool tryParseDouble(const char *s, const char *s_end, double *result) {
     read = 0;
     end_not_reached = (curr != s_end);
     while (end_not_reached && IS_DIGIT(*curr)) {
-      // To avoid annoying MSVC's min/max macro definiton,
+      // To avoid annoying MSVC's min/max macro definition,
       // Use hardcoded int max value
       if (exponent > (2147483647/10)) { // 2147483647 = std::numeric_limits<int>::max()
         // Integer overflow
@@ -2939,7 +2939,7 @@ bool LoadObj(attrib_t *attrib, std::vector<shape_t> *shapes,
         ss << names[1];
 
         // tinyobjloader does not support multiple groups for a primitive.
-        // Currently we concatinate multiple group names with a space to get
+        // Currently we concatenate multiple group names with a space to get
         // single group name.
 
         for (size_t i = 2; i < names.size(); i++) {

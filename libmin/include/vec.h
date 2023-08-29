@@ -730,6 +730,7 @@
 		Matrix4F& InvScale(const Vector3DF& vec);			
 
 		Matrix4F &Scale (double sx, double sy, double sz);
+		Matrix4F &RotateYZX (const Vector3DF& angs);		// roll,pitch,yaw when Y-axis is up
 		Matrix4F &RotateZYX ( const Vector3DF& angs );
 		Matrix4F &RotateZYXT (const Vector3DF& angs, const Vector3DF& t);
 		Matrix4F &RotateTZYX (const Vector3DF& angs, const Vector3DF& t);
@@ -742,7 +743,8 @@
 		Matrix4F &PreTranslate (const Vector3DF& t);
 		Matrix4F &PostTranslate (const Vector3DF& t);
 		Matrix4F &SetTranslate(const Vector3DF& t);		
-		Matrix4F &TRST(Vector3DF pos, Quaternion r, Vector3DF s, Vector3DF piv);	// shape transform
+		Matrix4F &TRST(Vector3DF pos, Quaternion r, Vector3DF s, Vector3DF piv);	// shape transform		
+		Vector3DF getTranslation ()		{ return Vector3DF(data[12], data[13], data[14]); }
 		
 		void Print ();
 		std::string WriteToStr ();
@@ -776,6 +778,9 @@
 		Matrix4F& makeLookAt ( Vector3DF eye, Vector3DF target, Vector3DF up, Vector3DF& xaxis, Vector3DF& yaxis, Vector3DF& zaxis);
 		Matrix4F& makeOrtho (float left, float right, float bottom, float top, float minz, float maxz);
 		Matrix4F& makeOrthogonalInverse (Matrix4F& src);
+		Matrix4F& makeInverse3x3 (Matrix4F& s );
+		Matrix4F& makeRotationMtx (Matrix4F& s );
+		Matrix4F& makeRotationInv (Matrix4F& s );
 		
 		Matrix4F Inverse(Matrix4F& m );				// inverse of the matrix
 		Matrix4F Transpose(Matrix4F& m );				// transpose of the matrix

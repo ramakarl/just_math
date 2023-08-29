@@ -371,8 +371,26 @@ Quaternion& Quaternion::fromDirectionAndUp ( Vector3DF fwd, Vector3DF up )
 	fwd.Normalize();
 	side = fwd.Cross(up); side.Normalize();
 	up = side.Cross(fwd); up.Normalize();	
-	fromBasis (fwd, up, side);
-	normalize();		
+	fromBasis (fwd, up, side);	
+	return *this;
+}
+
+
+Quaternion& Quaternion::fromDirectionAndRoll ( Vector3DF fwd, float roll )
+{
+	Vector3DF side, up;
+	
+	fwd.Normalize();
+	side = fwd.Cross(Vector3DF(0,1,0)); side.Normalize();
+	up = side.Cross ( fwd ); up.Normalize();
+	
+	Matrix4F local;
+	local.SRT ( side, up, fwd, Vector3DF(0,0,0), 1.0 );
+	up.Set ( sin(roll*DEGtoRAD), cos(roll*DEGtoRAD), 0 );
+	up *= local;
+	side = fwd.Cross ( up ); side.Normalize ();
+
+	fromBasis ( fwd, up, side );	
 	return *this;
 }
 

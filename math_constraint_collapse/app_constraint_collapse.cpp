@@ -75,18 +75,11 @@ public:
   
   void      Restart();
 
+  int       experiments ( std::string outexpr, std::string outrun );
   int       write_tiled_json ( ConstraintCollapse & cc );
 
   ConstraintCollapse cc;
 
-  bool m_run_cc;
-  int m_X, m_Y, m_Z, m_D;
-  int64_t m_it;
-  std::string   m_name_fn;
-  std::string   m_rule_fn;
-  std::string   m_tilemap_fn;
-  std::string   m_constraint_fn;
-  std::string   m_tileset_fn;
   std::vector< std::string > m_tile_name;
   std::vector< std::vector<float> > m_tile_rule;
   
@@ -105,25 +98,17 @@ public:
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
   
-  int       m_tileset_width, m_tileset_height;
-  int       m_tileset_stride_x, m_tileset_stride_y;
-
   int       mouse_down;  
-  bool      m_run;
-  bool      m_run_cuda;
+  int       m_vis;
+  bool      m_run;  
   bool      m_save;
-  float     m_frame;
-  int       m_peak_iter;
-  int       m_show;
+  float     m_frame;    
  
 };
 Sample obj;
 
 Sample::Sample()
-{
-    // default values
-    m_name_fn = "";
-    m_tilemap_fn = "out.json";
+{ 
 }
 
 void Sample::on_arg(int i, std::string arg, std::string optarg )
@@ -138,53 +123,60 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
     char ch = arg.at(1);
     
     if ( dash=='-' ) {
-    switch (ch) {      
-      case 'd':
-       // debug_print = 1;
-        break;        
-      case 'N':
-        m_name_fn = optarg;
-        break;
-      case 'R':
-        m_rule_fn = optarg;
-        break;
-      case 'C':
-        m_constraint_fn = optarg;
-        break;
-      case 'M':
-        m_tilemap_fn = optarg;
-        break;
-      case 'Q':
-        m_tileset_fn = optarg;
-        break;
+    switch (ch) {                 
       case 'S':
         seed = strToI(optarg);
-        cc.m_seed = seed;
+        cc.op.seed = seed;
+        break; 
+      case 'd':
+        cc.op.decay = strToF(optarg);
         break;
-      case 's':
-        m_tileset_stride_x = strToI(optarg);
-        m_tileset_stride_y = m_tileset_stride_x;
+      case 'b':
+        cc.op.border_r = strToF(optarg);
+        break;
+      case 'n':
+        cc.op.noise_r = strToF(optarg);
+        break;
+      case 'f':
+        cc.op.noise_flip = strToF(optarg);
+        break;
+      case 'D': {
+        int D = strToI(optarg);
+        cc.op.res.Set ( D, D, D );
+        } break;
+      case 'X':
+        cc.op.res.x = strToI(optarg);
+        break;
+      case 'Y':
+        cc.op.res.y = strToI(optarg);
+        break;
+      case 'Z':
+        cc.op.res.z = strToI(optarg);
+        break;
+
+      case 'N':
+        cc.op.name_fn = optarg;
+        break;
+      case 'R':
+        cc.op.rule_fn = optarg;
+        break;
+      case 'C':
+        cc.op.constraint_fn = optarg;
+        break;
+      case 'M':
+        cc.op.tilemap_fn = optarg;
+        break;
+      case 'Q':
+        cc.op.tileset_fn = optarg;
+        break;
+
+     case 's':
+        cc.op.tileset_stride_x = strToI(optarg);
+        cc.op.tileset_stride_y = cc.op.tileset_stride_x;
         break;
       case 'T':
         test_num = strToI(optarg);
         break;
-      case 'D':
-        m_D = strToI(optarg);
-        m_X = m_Y = m_Z = m_D;
-        break;
-      case 'X':
-        m_X = strToI(optarg);
-        break;
-      case 'Y':
-        m_Y = strToI(optarg);
-        break;
-      case 'Z':
-        m_Z = strToI(optarg);
-        break;
-
-      case 'W':
-        wfc_flag = 1;
-        break;    
     }
     }
 }
@@ -193,7 +185,7 @@ void Sample::AllocVolume (int id, Vector3DI res, int chan)    // volume alloc
 {
   uint64_t cnt = res.x*res.y*res.z;
   uint64_t sz = cnt * chan * sizeof(float);
-  int flags = m_run_cuda ? (DT_CPU | DT_CUMEM) : DT_CPU;
+  int flags = DT_CPU;
   m_vol[id].Resize( chan*sizeof(float), cnt, 0x0, flags );
   memset( (void *) (m_vol[id].getPtr(0)), 0, sz );
 }
@@ -235,6 +227,7 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
 {
   FILE *fp;
   int i, j, n, tileset_size;
+  int t;
   int64_t vtx;
 
   int sy, ey_inc;
@@ -243,13 +236,17 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
   tilecount--;
 
   //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
-  int tileset_width = ceil( sqrt( (double) tilecount ) );
-  int tileset_height = m_tileset_width;
+  cc.op.tileset_width = ceil( sqrt( (double) tilecount ) );
+  cc.op.tileset_height = cc.op.tileset_width;
 
-  m_tileset_width *= m_tileset_stride_x;
-  m_tileset_height *= m_tileset_stride_y;
+  cc.op.tileset_width *= cc.op.tileset_stride_x;
+  cc.op.tileset_height *= cc.op.tileset_stride_y;
 
-  fp = fopen( m_tilemap_fn.c_str(), "w");
+  char fname[1024];
+  sprintf (fname, "%s_%03d_%03d.json", cc.op.tilemap_fn.c_str(), cc.op.res.x, cc.op.cur_run );
+
+  fp = fopen( fname, "w");
+
   if (!fp) { 
       printf ( "ERROR: Unable to create tilemap .json\n");
       return -1; 
@@ -257,8 +254,8 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
 
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
-  fprintf(fp, "  \"height\": %i,\n", (int) cc.m_res.y);
-  fprintf(fp, "  \"width\": %i,\n", (int) cc.m_res.x);
+  fprintf(fp, "  \"height\": %i,\n", (int) cc.op.res.y);
+  fprintf(fp, "  \"width\": %i,\n", (int) cc.op.res.x);
   fprintf(fp, "  \"layers\": [{\n");
 
   fprintf(fp, "    \"data\": [");
@@ -268,11 +265,15 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
   //
   if ( 0 ) {
     // reversed y
-    for (i=(int)( cc.m_res.y-1); i>=0; i--) {
-      for (j=0; j<(int) cc.m_res.x; j++) {
+    for (i=(int)( cc.op.res.y-1); i>=0; i--) {
+      for (j=0; j<(int) cc.op.res.x; j++) {
+
         vtx = cc.getVertex(j, i, 0);
-        fprintf(fp, " %i", (int) cc.getVal ( BUF_T, vtx ));
-        if ((i==0) && (j==(cc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+
+        t = cc.getValI ( BUF_T, vtx );
+
+        fprintf(fp, " %i", (int) t );
+        if ((i==0) && (j==(cc.op.res.x-1))) { fprintf(fp, "%s",  ""); }
         else                                { fprintf(fp, "%s", ","); }
       }
       fprintf(fp, "\n  ");
@@ -280,11 +281,15 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
 
   } else {
     // standard y
-    for (i=0; i<(int)( cc.m_res.y); i++) {
-      for (j=0; j<(int) cc.m_res.x; j++) {
+    for (i=0; i<(int)( cc.op.res.y); i++) {
+      for (j=0; j<(int) cc.op.res.x; j++) {
+        
         vtx = cc.getVertex(j, i, 0);
-        fprintf(fp, " %i", (int) cc.getVal ( BUF_T, vtx ));
-        if ((i==(cc.m_res.y-1)) && (j==(cc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
+        
+        t = cc.getValI ( BUF_T, vtx );
+        
+        fprintf(fp, " %i", (int) t); 
+        if ((i==(cc.op.res.y-1)) && (j==(cc.op.res.x-1))) { fprintf(fp, "%s",  ""); }
         else                                { fprintf(fp, "%s", ","); }
       }
       fprintf(fp, "\n  ");
@@ -296,8 +301,8 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
   fprintf(fp, "    \"opacity\":1,\n");
   fprintf(fp, "    \"type\":\"tilelayer\",\n");
   fprintf(fp, "    \"visible\":true,\n");
-  fprintf(fp, "    \"width\": %i,\n", (int) cc.m_res.x);
-  fprintf(fp, "    \"height\": %i,\n", (int) cc.m_res.y);
+  fprintf(fp, "    \"width\": %i,\n", (int) cc.op.res.x);
+  fprintf(fp, "    \"height\": %i,\n", (int) cc.op.res.y);
   fprintf(fp, "    \"x\":0,\n");
   fprintf(fp, "    \"y\":0\n");
 
@@ -308,19 +313,19 @@ int Sample::write_tiled_json ( ConstraintCollapse & cc )
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
   fprintf(fp, "  \"properties\": [ ],\n");
   fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
-  fprintf(fp, "  \"tileheight\": %i,\n", (int) m_tileset_stride_y);
-  fprintf(fp, "  \"tilewidth\": %i,\n", (int) m_tileset_stride_x);
+  fprintf(fp, "  \"tileheight\": %i,\n", (int) cc.op.tileset_stride_y);
+  fprintf(fp, "  \"tilewidth\": %i,\n", (int) cc.op.tileset_stride_x);
   fprintf(fp, "  \"tilesets\": [{\n");
 
   fprintf(fp, "    \"firstgid\": %i,\n", 1);
-  fprintf(fp, "    \"columns\": %i,\n", (int) cc.m_res.x);
+  fprintf(fp, "    \"columns\": %i,\n", (int) cc.op.res.x);
   fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
-  fprintf(fp, "    \"image\": \"%s\",\n", m_tileset_fn.c_str());
-  fprintf(fp, "    \"imageheight\": %i,\n", (int) m_tileset_height);
-  fprintf(fp, "    \"imagewidth\": %i,\n", (int) m_tileset_width);
+  fprintf(fp, "    \"image\": \"%s\",\n", cc.op.tileset_fn.c_str());
+  fprintf(fp, "    \"imageheight\": %i,\n", (int) cc.op.tileset_height);
+  fprintf(fp, "    \"imagewidth\": %i,\n", (int) cc.op.tileset_width);
   fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
-  fprintf(fp, "    \"tileheight\": %i,\n", (int) m_tileset_stride_y);
-  fprintf(fp, "    \"tilewidth\": %i\n", (int) m_tileset_stride_x);
+  fprintf(fp, "    \"tileheight\": %i,\n", (int) cc.op.tileset_stride_y);
+  fprintf(fp, "    \"tilewidth\": %i\n", (int) cc.op.tileset_stride_x);
 
   fprintf(fp, "  }],\n");
   fprintf(fp, "  \"version\": %i\n", 1);
@@ -406,23 +411,21 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
-  m_run_cc = true;
-  m_show = BUF_T;
+  m_vis = BUF_T;
   
   // Render volume  
-  m_vres.Set ( m_X, m_Y, m_Z );         // match BP res
+  m_vres.Set ( cc.op.res.x, cc.op.res.y, cc.op.res.z );         // match BP res
   AllocVolume ( BUF_VOL, m_vres, 4 );
   
   // App Options
   //
   m_frame     = 0;  
   m_run       = false;   // must start out false until all other init is done
-  m_run_cuda  = false;  // run cuda pathway   
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
   m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
   m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
+  m_img->ResizeImage ( getWidth()/2, getHeight()/2, ImageOp::RGB8 );
   
   printf("Init done\n"); 
   fflush(stdout);
@@ -439,34 +442,174 @@ bool Sample::init()
     }
   #endif
 
-  // Initiate Belief Propagation
-  m_constraint_fn = "";
-  std::string name_path, rule_path, constraint_path;
+  cc.expr.num_expr = 30;
+  cc.expr.num_run = 40;
+  cc.expr.grid_min.Set (6, 6,  1);
+  cc.expr.grid_max.Set (36,36, 1);  
 
-  getFileLocation ( m_name_fn, name_path );
-  getFileLocation ( m_rule_fn, rule_path );
-  getFileLocation ( m_constraint_fn, constraint_path );
+  experiments ( "expr.csv", "run.csv" );
+
+  exit (-12);
+
+  // initialize
+  std::string name_path, rule_path;
+  getFileLocation ( cc.op.name_fn, name_path );
+  getFileLocation ( cc.op.rule_fn, rule_path );  
+  ret = cc.init (cc.op.res.x, cc.op.res.y, cc.op.res.z, name_path, rule_path );
+  if (ret<0) {
+    fprintf(stderr, "bpc error loading CSV\n");
+    exit(-1);
+  }  
+  // start belief prop
+  cc.start ();   
  
-  if (m_run_cc) {
-      // init belief prop
-      ret = cc.init (m_X, m_Y, m_Z, name_path, rule_path );
-      if (ret<0) {
-        fprintf(stderr, "bpc error loading CSV\n");
-        exit(-1);
-      }
-      // constrain belief prop      
-      if (!m_constraint_fn.empty()) {
-        cc.read_constraints ( constraint_path );        
-      }
-      // start belief prop
-      cc.start (); 
-  }
-  
-  m_it = 0;
-
-  m_run = false;
+  m_run = true;
 
   return true;
+}
+
+// Experiments
+// - experiments consist of multiple runs over a change in state variables
+// - the state variables are stored in bpc.expr struct
+// - set the desired min/max state variables prior to calling this func
+//
+int Sample::experiments ( std::string outexpr, std::string outrun ) 
+{
+  int ret, runret;
+  int run;
+  std::string csv;
+
+  // open experiment file  
+  FILE* fpe = fopen ( outexpr.c_str(), "w" );
+  if ( fpe==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outexpr.c_str() ); exit(-7); }  
+  fprintf (fpe,"reset\n");
+  fclose (fpe);
+  fpe = fopen ( outexpr.c_str(), "a" );   // append
+  fprintf ( fpe, "gx, gy, gz, tiles, # runs, success, %%, fail_constr, total_time, success_time, fail_tile, max_tile, start seed\n" );
+
+  // open run file  
+  FILE* fpr = fopen ( outrun.c_str(), "w" );
+  if ( fpr==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outrun.c_str() ); exit(-7); }  
+  fprintf (fpr,"reset\n");
+  fclose (fpr);
+  fpr = fopen ( outrun.c_str(), "a" );   // append  
+  fprintf ( fpr, "status, run, max_run, step, gx,gy,gz, time, maxtime, time%%, constr, constr%%, temp, stuck, seed\n" );
+
+  // platform-specific, find name & rule files
+  std::string name_path, rule_path;
+  #ifdef _WIN32
+    getFileLocation ( cc.op.name_fn, name_path );
+    getFileLocation ( cc.op.rule_fn, rule_path );
+  #else
+    name_path = bpc.op.name_fn;
+    rule_path = bpc.op.rule_fn;
+  #endif
+
+  int num_experiments = cc.expr.num_expr;
+  int num_runs = cc.expr.num_run;
+
+  Vector3DF dgrid = Vector3DF(cc.expr.grid_max - cc.expr.grid_min) / num_experiments;  
+  Vector3DF grid = cc.expr.grid_min;  
+
+  int success = 0;
+  int fail = 0;
+  float fail_constr = 0;
+  float total_time = 0;
+
+  for (int e=0; e < num_experiments; e++) {
+
+    // reset bp
+    cc.reset ();
+
+    // setup options
+    cc.op.res = grid;    
+    cc.op.max_run = cc.expr.num_run;
+    cc.op.success_time = 0;
+    cc.op.fail_time = 0;    
+
+    // initialize
+    std::string name_path, rule_path;
+    getFileLocation ( cc.op.name_fn, name_path );
+    getFileLocation ( cc.op.rule_fn, rule_path );  
+     
+    ret = cc.init (cc.op.res.x, cc.op.res.y, cc.op.res.z, name_path, rule_path );
+    if (ret<0) { fprintf(stderr, "error loading CSV\n"); exit(-1); }  
+  
+    // start 
+    cc.start ();   
+
+    success = 0;
+    fail = 0;
+
+    // run    
+    cc.op.cur_run = 0;    
+    for ( run=0; run < cc.op.max_run; ) {
+
+        ret = 1;
+        for (int iter=0; iter < 20 && ret==1; iter++)
+            ret = cc.step ();    
+
+        // printf ( "%s\n", cc.getStatMsg().c_str() );
+
+        if (ret==0 || ret==-1) {
+            // DONE!
+            write_tiled_json ( cc );  
+
+            printf ( "  %s\n", cc.getStatMsg().c_str() );
+
+            if (ret==0) {
+                success++;
+                cc.op.success_time += cc.op.elapsed_time;
+            } else {
+                fail++;
+                fail_constr += cc.op.constrained_cnt;
+                cc.op.fail_time += cc.op.elapsed_time;
+            }
+            total_time += cc.op.elapsed_time;
+
+            cc.start();
+            run++;
+
+            csv = cc.getStatCSV();
+            fprintf ( fpr, "%s\n", csv.c_str() );
+            fclose ( fpr );
+            fpr = fopen ( outrun.c_str(), "a" );            
+        }          
+    }    
+
+    float ave_time = total_time / cc.op.max_run;
+    cc.op.success_time /= success;
+    cc.op.fail_time /= fail;
+    fail_constr /= cc.op.max_run;
+
+    //if ( bpc.op.verbose >= VB_EXPERIMENT ) {
+      printf ( "GRID: %d,%d,%d, tiles:%d, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f / %f / %f / %f, sseed: %d\n",
+          (int) cc.op.res.x, (int) cc.op.res.y, (int) cc.op.res.z,
+          (int) cc.m_num_values, 
+          (int) cc.op.max_run, success,
+          100*float(success)/cc.op.max_run,
+          fail_constr,
+          total_time/60.0, cc.op.success_time/60.0, cc.op.fail_time/60.0, cc.op.max_time/60.0, cc.op.seed );
+    //}
+
+    fprintf ( fpe, "%d,%d,%d, %d, %d, %d, %4.1f%%, %f, %f, %f, %f, %f, %d\n",
+          (int) cc.op.res.x, (int) cc.op.res.y, (int) cc.op.res.z,
+          (int) cc.m_num_values, 
+          (int) cc.op.max_run, success, 100*float(success)/cc.op.max_run,
+          fail_constr,
+          total_time/60.0, cc.op.success_time/60.0, cc.op.fail_time/60.0, cc.op.max_time/60.0, cc.op.seed );
+    
+    fclose ( fpe );
+    fpe = fopen ( outexpr.c_str(), "a" ); 
+
+    // next experiment
+    grid += dgrid;    
+  }
+
+  fclose ( fpe );
+  fclose ( fpr );
+
+  return 0;
 }
 
 
@@ -482,34 +625,28 @@ void Sample::display()
   // Run Belief Propagation  
   //
   if (m_run) {
-     //m_run = false;  // single step
-    
-    if ( m_run_cc ) {
 
-      for (int iter=0; iter < 10; iter++) {
-          int cnt = cc.single_step();
-          if (cnt==0) {
-              // DONE!
-              write_tiled_json ( cc );
-              printf ( "DONE!\n");
-              m_run = false;      
-          }
-      }
-      cc.info();      
-
+    int ret = 1;
+    for (int iter=0; iter < 10 && ret==1; iter++) {
+        ret = cc.step();        
     }
 
-    m_it++;
-    fflush(stdout);
+    printf ( "%s\n", cc.getStatMsg().c_str() );
+
+    if (ret==0 || ret==-1) {
+        // DONE!
+        write_tiled_json ( cc );
+        
+        cc.start();
+    }
+    
   }
   
   // Raycast  
   ClearImg (m_img);
   
-  if ( m_run_cc ) {     
-      Visualize ( cc, m_show, BUF_VOL );
-      RaycastCPU ( m_cam, BUF_VOL, m_img, Vector3DF(0,0,0), Vector3DF(m_vres) );      // raycast volume
-  }  
+  Visualize ( cc, m_vis, BUF_VOL );
+  RaycastCPU ( m_cam, BUF_VOL, m_img, Vector3DF(0,0,0), Vector3DF(m_vres) );      // raycast volume  
 
   // optional write to disk
   if ( m_save ) {    
@@ -603,8 +740,8 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   case 'w':  write_tiled_json ( cc ); break;
   case ' ':  m_run = !m_run;  break;
   case 'g':  printf("??\n"); fflush(stdout); Restart();  break;
-  case '.':  m_show++; if (m_show>3) m_show=0; break;
-  case ',':  m_show--; if (m_show<0) m_show=3; break;
+  case '.':  m_vis++; if (m_vis>3) m_vis=0; break;
+  case ',':  m_vis--; if (m_vis<0) m_vis=3; break;
   };
 }
 

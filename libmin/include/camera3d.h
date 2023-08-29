@@ -93,30 +93,36 @@
 
 		void draw_gl();
 
-		// Camera settings
-		void setAspect ( float asp )					{ mAspect = asp;			updateMatricies(); }
-		void setPos ( float x, float y, float z )		{ from_pos.Set(x,y,z);		updateMatricies(); }
-		void setToPos ( float x, float y, float z )		{ to_pos.Set(x,y,z);		updateMatricies(); }
-		void setFov (float fov)							{ mFov = fov;				updateMatricies(); }
-		void setNearFar (float n, float f )				{ mNear = n; mFar = f;		updateMatricies(); }
-		void setDolly ( float d )						{ mDolly = d;				updateMatricies(); }
-		void setDist ( float d )						{ mOrbitDist = d;			updateMatricies(); }
-		void setTile ( float x1, float y1, float x2, float y2 )		{ mTile.Set ( x1, y1, x2, y2 );		updateMatricies(); }
-		void setSize ( float w, float h )		{ mXres=w; mYres=h; }
-		void setProjection (eProjection proj_type);
-		void setModelMatrix ( float* mtx );
-		void setViewMatrix ( float* mtx, float* invmtx );
-		void setProjMatrix ( float* mtx, float* invmtx );
-		void setMatrices (const float* view_mtx, const float* proj_mtx, Vector3DF model_pos );
-		void setDOF ( Vector3DF dof )		{ mDOF = dof; }
-		
 		// Camera motion
-		void setOrbit  ( float ax, float ay, float az, Vector3DF tp, float dist, float dolly );
-		void setOrbit  ( Vector3DF angs, Vector3DF tp, float dist, float dolly );
-		void setAngles ( float ax, float ay, float az );
+		void LookAt ();
+		void SetOrientation ( Vector3DF angs, Vector3DF pos );		// roll, pitch, yaw
+		void SetMatrices (const float* view_mtx, const float* proj_mtx, Vector3DF model_pos );
+		void SetOrbit  ( float ax, float ay, float az, Vector3DF tp, float dist, float dolly );		
+		void SetOrbit  ( Vector3DF angs, Vector3DF tp, float dist, float dolly );
+
+		// Camera settings		
+		void setPos ( float x, float y, float z )		{ from_pos.Set(x,y,z);		updateView(); }
+		void setToPos ( float x, float y, float z )		{ to_pos.Set(x,y,z);		updateView(); }
+		void setAspect ( float asp )					{ mAspect = asp;			updateProj(); }
+		void setFov (float fov)							{ mFov = fov;				updateProj(); }
+		void setNearFar (float n, float f )				{ mNear = n; mFar = f;		updateProj(); }
+		void setProjection (eProjection proj_type)		{ mProjType = proj_type;	updateProj(); }
+		void setTile ( float x1, float y1, float x2, float y2 )		{ mTile.Set ( x1, y1, x2, y2 );		updateProj(); }
+
+		void setDOF ( Vector3DF dof )					{ mDOF = dof; }
+		void setDolly ( float d )						{ mDolly = d; }
+		void setDist ( float d )						{ mOrbitDist = d; }		
+		void setSize ( float w, float h )				{ mXres=w; mYres=h; }
+		
+		void setModelMatrix ( float* mtx );
+		void setViewMatrix ( float* mtx );
+		void setProjMatrix ( float* mtx );	
+
+		void setAngles ( float ax, float ay, float az );		// ONLY pitch, yaw
+		void setDirection ( Vector3DF from, Vector3DF to, float roll=0.0 );
 		void moveOrbit ( float ax, float ay, float az, float dist );		
 		void moveToPos ( float tx, float ty, float tz );		
-		void moveRelative ( float dx, float dy, float dz );
+		void moveRelative ( float dx, float dy, float dz );		
 
 		// Frustum testing
 		bool pointInFrustum ( float x, float y, float z );
@@ -124,16 +130,18 @@
 		float calculateLOD ( Vector3DF pnt, float minlod, float maxlod, float maxdist );
 
 		// Utility functions
-		void updateMatricies (bool view=false);	// Updates camera axes and projection matricies
-		void updateFrustum ();					// Updates frustum planes
-		void getBounds(Vector2DF cmin, Vector2DF cmax, float dst, Vector3DF& min, Vector3DF& max);
+		void updateProj ();				// rebuild proj_matrix, tileproj
+		void updateView ();				// rebuild view_matrix, invview
+		void updateFrustum ();			// updates frustum planes
+		void updateAll ();
+		void getBounds ( Vector2DF cmin, Vector2DF cmax, float dst, Vector3DF& min, Vector3DF& max);
+		void getBounds ( float dst, Vector3DF& min, Vector3DF& max );
 		Vector3DF inverseRay ( float x, float y, float xres, float yres, float z=1.0 );
 		Vector3DF inverseRayProj ( float x, float y, float z );
 		Vector4DF project ( Vector3DF& p );
 		Vector4DF project ( Vector3DF& p, Matrix4F& vm );		// Project point - override view matrix
 
-		void getVectors ( Vector3DF& dir, Vector3DF& up, Vector3DF& side )	{ dir = dir_vec; up = up_vec; side = side_vec; }
-		void getBounds ( float dst, Vector3DF& min, Vector3DF& max );
+		void getVectors ( Vector3DF& dir, Vector3DF& up, Vector3DF& side )	{ dir = dir_vec; up = up_vec; side = side_vec; }		
 		Vector3DF getNearFar()			{ return Vector3DF(mNear, mFar, mFov); }
 		float getNear ()				{ return mNear; }
 		float getFar ()					{ return mFar; }
@@ -143,24 +151,20 @@
 		Vector3DF& getUpDir ()			{ return up_dir; }
 		Vector4DF& getTile ()			{ return mTile; }
 		Vector3DF& getDOF ()			{ return mDOF; }
+		float getAspect ()				{ return mAspect; }
 
 		// new interface
-		Matrix4F& getViewMtx()			{ return view_matrix; }
-		Matrix4F  getViewInv();
-
-		// legacy functions - will replace in future
-		Matrix4F& getInvViewProjMatrix () { return invviewproj_matrix; }
-		Matrix4F& getViewMatrix ()		{ return view_matrix; }
-		Matrix4F& getInvView ()			{ return invrot_matrix; }
-		Matrix4F& getRotateMatrix ()	{ return rotate_matrix; }
+		Matrix4F& getViewMatrix()		{ return view_matrix; }
 		Matrix4F& getProjMatrix ()		{ return tileproj_matrix; }	
 		Matrix4F& getFullProjMatrix ()	{ return proj_matrix; }
-		Matrix4F& getModelMatrix()		{ return model_matrix; }
-		Matrix4F& getMVMatrix()			{ return mv_matrix; }
-
-		Matrix4F getUVWMatrix();
+		Matrix4F& getModelMatrix()		{ return model_matrix; }		
+		Matrix4F  getViewInv()			{ Matrix4F m; return m.makeOrthogonalInverse (view_matrix); }
+		Matrix4F  getRotateMtx()		{ Matrix4F m; return m.makeRotationMtx (view_matrix); }
+		Matrix4F  getRotateInv()		{ Matrix4F m; return m.makeRotationInv (view_matrix); }		
+		Matrix4F  getProjInv()			{ Matrix4F m; return m.InverseProj ( tileproj_matrix.GetDataF() ); }		
+		Matrix4F  getViewProjInv();
+		Matrix4F  getUVWMatrix();
 		
-		float getAspect ()				{ return mAspect; }
 		Vector3DF getU ();
 		Vector3DF getV ();
 		Vector3DF getW ();
@@ -182,26 +186,21 @@
 		Vector4DF		mTile;
 		Vector3DF		mDOF;
 		
-		// Transform Matricies
-		Matrix4F		invviewproj_matrix;
-		Matrix4F		rotate_matrix;							// Vr matrix (rotation only)
+		// Transform Matricies		
 		Matrix4F		view_matrix;							// V matrix	(rotation + translation)
-		Matrix4F		proj_matrix;							// P matrix
-		Matrix4F		invrot_matrix;							// Vr^-1 matrix
-		Matrix4F		invproj_matrix;
+		Matrix4F		proj_matrix;							// P matrix		
 		Matrix4F		tileproj_matrix;						// tiled projection matrix
-		Matrix4F		model_matrix;
-		Matrix4F		mv_matrix;
+		Matrix4F		model_matrix;		
 		float			frustum[6][4];							// frustum plane equations
 
 		bool			mOps[8];
 		int				mWire;
 		
-		Vector3DF	origRayWorld;
-		Vector4DF   tlRayWorld;
-    	Vector4DF   trRayWorld;
-    	Vector4DF   blRayWorld;
-    	Vector4DF   brRayWorld;
+		Vector3DF		origRayWorld;
+		Vector4DF		tlRayWorld;
+    	Vector4DF		trRayWorld;
+    	Vector4DF		blRayWorld;
+    	Vector4DF		brRayWorld;
 	};
 
 	typedef Camera3D		Light;

@@ -23,13 +23,13 @@
  * This file provides a utility classes for 2D Drawing and GUIs
  * Functionality in this file:
  *  - nvMesh: Construct, load, and render meshes. PLY format supported
- *  - nvImg: Cosntruct, load, and render images. PNG and TGA format supported
+ *  - nvImg: Construct, load, and render images. PNG and TGA format supported
  *  - nvDraw: A lightweight, efficient, 2D drawing API. Uses VBOs to render
  *     lines, circles, triangles, and text. Allows for both static and dynamic 
  *     groups (rewrite per frame), and immediate style (out-of-order) calling.
  *  - nvGui: A lightweight class for creating on-screen GUIs. Currently only checkboxes
  *    or sliders supported. Relies on nvDraw to render.
- * Useage: 
+ * Usage: 
  *    1. Main programs implement the functions required by app_opengl/directx.
  *    2. During display(), first do any rendering desired by your demo or application.
  *    3. Then call drawGui to render GUI items to the 2D layer.
@@ -331,7 +331,8 @@ void nvImg::UpdateTex ()
 	void setdepth3D(bool z) { g_2D->setOrder3D(z); }
 	void setText ( float scale, float kern )	{ g_2D->setText(scale,kern); }
 	void drawPnt ( float x, float y, Vector4DF clr)													{ g_2D->drawPnt (x,y,clr ); }
-	void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawLine(x1,y1,x2,y2,r,g,b,a); }
+	void drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawLine( Vector3DF(x1,y1,0), Vector3DF(x2,y2,0), Vector4DF(r,g,b,a) ); }
+	void drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr )										{ g_2D->drawLine( a, b, clr ); }
 	void drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawRect(x1,y1,x2,y2,r,g,b,a); }
 	void drawImg ( int img_glid,  float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawImg ( img_glid, x1,y1,x2,y2,r,g,b,a ); }
 	void drawFill ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )	{ g_2D->drawFill(x1,y1,x2,y2,r,g,b,a); }
@@ -882,7 +883,7 @@ void nvImg::UpdateTex ()
 		v->x = x; v->y = y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	v++;
 	}
 
-	void nvDraw::drawLine ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )
+	void nvDraw::drawLine ( Vector3DF a, Vector3DF b, Vector4DF clr )
 	{
 	#ifdef DEBUG_UTIL
 		dbgprintf  ( "Draw line.\n" );
@@ -890,8 +891,8 @@ void nvImg::UpdateTex ()
 		int ndx;
 		nvVert* v = allocGeom ( 2, GRP_LINES, mCurrSet, ndx );
 
-		v->x = x1; v->y = y1; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v++;
-		v->x = x2; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	
+		v->x = a.x; v->y = a.y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	v++;
+		v->x = b.x; v->y = b.y; v->z = 0; v->r = clr.x; v->g = clr.y; v->b = clr.z; v->a = clr.w; v->tx = 0; v->ty = 0;	
 	}
 	void nvDraw::drawRect ( float x1, float y1, float x2, float y2, float r, float g, float b, float a )
 	{
@@ -1673,8 +1674,8 @@ void nvImg::UpdateTex ()
 	void nvDraw::setPreciseEye (int s, Camera3D* cam )
 	{
 		Vector3DF hi,lo;
-		cam->getPreciseEye ( hi, lo );
-		glUniformMatrix4fv ( mView[s],  1, GL_FALSE, cam->getRotateMatrix().GetDataF() );	// use rotate instead of view matrix (no translate)
+		cam->getPreciseEye ( hi, lo );		
+		glUniformMatrix4fv ( mView[s],  1, GL_FALSE, cam->getRotateMtx().GetDataF() );	// use rotate instead of view matrix (no translate)
 		glUniform4f ( mEyeHi[s], hi.x, hi.y, hi.z, 0 );
 		glUniform4f ( mEyeLo[s], lo.x, lo.y, lo.z, 0 );
 	}
@@ -2014,7 +2015,7 @@ void nvImg::UpdateTex ()
 			glVertexAttribPointer (localNorm, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*) 36);
 			
 			// bind instances						
-			// a single instance is two verticies wide, so use stride of sizeof(nvVert)*2
+			// a single instance is two vertices wide, so use stride of sizeof(nvVert)*2
 			glBindBuffer ( GL_ARRAY_BUFFER, s.mVBO[GRP_BOX] );				
 			glEnableVertexAttribArray ( attrPos );
 			glVertexAttribPointer( attrPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert)*2, 0 );

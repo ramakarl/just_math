@@ -1060,19 +1060,14 @@ int main(int argc, char **argv) {
 
     ret = bpc.RealizePre();
     if (ret < 0) {
-      fprintf(stderr, "RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
-      fprintf(stdout, "RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
+      printf("RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
       break;
     }
-
-    printf("it: cp.1\n");
 
     ret = 1;
     while (ret>0) {
       ret = bpc.RealizeStep();
     }
-
-    printf("it: cp.2\n");
 
     ret = bpc.RealizePost();
     if (ret <= 0) { break; }
@@ -1081,8 +1076,6 @@ int main(int argc, char **argv) {
       printf("success!\n");
       bpc.debugPrintTerse();
     }
-
-    printf("it: cp.3\n");
 
     if ( raycast )  {
 

@@ -447,7 +447,7 @@ void Sample::drawLinearSlerp (float dt)
 		k = FindKey( t, u );	
 
 		// Linear Slerp 
-		// def. Linear interlopation for position, Spherical linear for rotation
+		// def. Linear interpolation for position, Spherical linear for rotation
 		// SPLIT(q,t) = {SLERP(q0,q1,m), LERP(t0,t1,u)}     see Haarbach, 2018, eqn. 25
 		//
 		p = mKeyPnt[k] + (mKeyPnt[k + 1] - mKeyPnt[k]) * u;	// linear translation
@@ -477,7 +477,7 @@ void Sample::drawBSplineSlerp (float dt)
 		k = FindKey( t, u );
 
 		// B-Spline Slerp
-		// def. B-Spline interlopation for position, Spherical linear for rotation
+		// def. B-Spline interpolation for position, Spherical linear for rotation
 		
 		p = BSpline(k, u, mKeyPnt, mNumKeys, m_knots, m_ktmp, m_degree);		// B-spline translation
 
@@ -513,7 +513,7 @@ void Sample::drawCatmullRomSlerp(float dt)
 		k = FindKey( t, u );
 
 		// Catmull-Rom Slerp
-		// def. Catmull-Rom interlopation for position, Spherical linear for rotation
+		// def. Catmull-Rom interrogation for position, Spherical linear for rotation
 
 		p = CatmullRom (k, u, mKeyPnt, mNumKeys, m_mids );			// catmull-rom translation
 
@@ -577,7 +577,7 @@ Quaternion Sample::Squad (int k, float u, Quaternion* keys, int num_keys, int st
 	if (stride==0) stride = sizeof(Quaternion);
 
 	// SQUAD
-	// Implemented by R.C.Hoetzlein (c) 2021, CC-BY
+	// Implemented by R.C.Hoetzlein (c) 2021, MIT License
 	// Based on paper: eqn 15, 2018, Harrbach et.al, Survey of Higher Order Rigid Body Motion Interpolation Methods for Keyframe Animation and Continuous-Time Trajectory Estimation	
 	// *NOTE* In order for this to work, your Quaternion class must have the 
 	// correct implementations of slerp, log, exp and inverse. No normalization is needed except the last one.

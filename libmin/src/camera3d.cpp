@@ -46,7 +46,6 @@
 
 Camera3D::Camera3D ()
 {	
-	
 	mProjType = Perspective;
 	mWire = 0;
 	mXres = 0; mYres = 0;
@@ -66,8 +65,8 @@ Camera3D::Camera3D ()
 //	mOps[0] = true;		
 //	mOps[1] = true;
 
-	setOrbit ( 0, 45, 0, Vector3DF(0,0,0), 120.0, 1.0 );
-	updateMatricies (true);
+	SetOrbit ( 0, 45, 0, Vector3DF(0,0,0), 120.0, 1.0 );
+	LookAt ();
 }
 
 void Camera3D::getBounds (Vector2DF cmin, Vector2DF cmax, float dst, Vector3DF& min, Vector3DF& max)
@@ -91,6 +90,487 @@ void Camera3D::getBounds (Vector2DF cmin, Vector2DF cmax, float dst, Vector3DF& 
 	if ( c.y > max.y)  max.y = c.y;
 	if ( c.z > max.z)  max.z = c.z;
 }
+
+
+bool Camera3D::pointInFrustum ( float x, float y, float z )
+{
+	int p;
+	for ( p = 0; p < 6; p++ )
+		if( frustum[p][0] * x + frustum[p][1] * y + frustum[p][2] * z + frustum[p][3] <= 0 )
+			return false;
+	return true;
+}
+
+bool Camera3D::boxInFrustum ( Vector3DF bmin, Vector3DF bmax)
+{
+	Vector3DF vmin, vmax;
+	int p;
+	bool ret = true;	
+	for ( p = 0; p < 6; p++ ) {
+		vmin.x = ( frustum[p][0] > 0 ) ? bmin.x : bmax.x;		// Determine nearest and farthest point to plane
+		vmax.x = ( frustum[p][0] > 0 ) ? bmax.x : bmin.x;		
+		vmin.y = ( frustum[p][1] > 0 ) ? bmin.y : bmax.y;
+		vmax.y = ( frustum[p][1] > 0 ) ? bmax.y : bmin.y;
+		vmin.z = ( frustum[p][2] > 0 ) ? bmin.z : bmax.z;
+		vmax.z = ( frustum[p][2] > 0 ) ? bmax.z : bmin.z;
+		if ( frustum[p][0]*vmax.x + frustum[p][1]*vmax.y + frustum[p][2]*vmax.z + frustum[p][3] <= 0 ) return false;		// If nearest point is outside, Box is outside
+		else if ( frustum[p][0]*vmin.x + frustum[p][1]*vmin.y + frustum[p][2]*vmin.z + frustum[p][3] <= 0 ) ret = true;		// If nearest inside and farthest point is outside, Box intersects
+	}
+	return ret;			// No points found outside. Box must be inside.
+	
+	/* --- Original method - Slow yet simpler.
+	int p;
+	for ( p = 0; p < 6; p++ ) {
+		if( frustum[p][0] * bmin.x + frustum[p][1] * bmin.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmax.x + frustum[p][1] * bmin.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmax.x + frustum[p][1] * bmin.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmin.x + frustum[p][1] * bmin.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmin.x + frustum[p][1] * bmax.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmax.x + frustum[p][1] * bmax.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmax.x + frustum[p][1] * bmax.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
+		if( frustum[p][0] * bmin.x + frustum[p][1] * bmax.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
+		return false;
+	}
+	return true;*/
+}
+
+void Camera3D::SetOrbit  ( Vector3DF angs, Vector3DF tp, float dist, float dolly )
+{
+	SetOrbit ( angs.x, angs.y, angs.z, tp, dist, dolly );
+}
+
+void Camera3D::SetOrbit ( float ax, float ay, float az, Vector3DF tp, float dist, float dolly )
+{
+	up_dir = Vector3DF(0,1,0);
+
+	ang_euler.Set ( ax, ay, az );
+	mOrbitDist = dist;
+	mDolly = dolly;
+	double dx, dy, dz;
+	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
+	dy = sin ( ang_euler.y * DEGtoRAD );
+	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
+	from_pos.x = tp.x + (float) dx * mOrbitDist;
+	from_pos.y = tp.y + (float) dy * mOrbitDist;
+	from_pos.z = tp.z + (float) dz * mOrbitDist;
+	to_pos = tp;
+	//to_pos.x = from_pos.x - (float) dx * mDolly;
+	//to_pos.y = from_pos.y - (float) dy * mDolly;
+	//to_pos.z = from_pos.z - (float) dz * mDolly;	
+
+	LookAt ();
+}
+
+// setAngles - this is only a yaw/pitch rotation
+// NOTE: roll (az) is not used here!
+// 
+void Camera3D::setAngles ( float ax, float ay, float az )
+{
+	ang_euler = Vector3DF(ax,ay,az);
+	to_pos.x = from_pos.x - (float) (cos ( ay * DEGtoRAD ) * sin ( ax * DEGtoRAD ) * mOrbitDist);
+	to_pos.y = from_pos.y - (float) (sin ( ay * DEGtoRAD ) * mOrbitDist);
+	to_pos.z = from_pos.z - (float) (cos ( ay * DEGtoRAD ) * cos ( ax * DEGtoRAD ) * mOrbitDist);
+	LookAt ();
+}
+
+void Camera3D::setDirection ( Vector3DF from, Vector3DF to, float roll )
+{
+	from_pos = from;
+	to_pos = to;
+	Vector3DF del = from_pos - to_pos;	
+	float r = sqrt(del.x*del.x + del.z*del.z);
+	
+	// update angles
+	ang_euler.x = atan2 ( del.x, del.z ) * RADtoDEG;
+	ang_euler.y = asin ( del.y / r ) * RADtoDEG;
+	ang_euler.z = roll;
+
+	// up vector
+	Matrix4F local; 	
+	Vector3DF xaxis, yaxis, zaxis;
+	xaxis = from - to;						xaxis.Normalize();	
+	zaxis = xaxis.Cross(Vector3DF(0,1,0));	zaxis.Normalize();
+	yaxis = zaxis.Cross(xaxis);				yaxis.Normalize();
+	local.toBasis(xaxis, yaxis, zaxis);	
+
+	up_dir.Set ( 0, cos(roll*DEGtoRAD), sin(roll*DEGtoRAD) );
+	up_dir *= local; 
+
+	LookAt();
+}
+
+void Camera3D::moveRelative ( float dx, float dy, float dz )
+{
+	Vector3DF vec ( dx, dy, dz );
+	vec *= getRotateInv();
+	to_pos += vec;
+	from_pos += vec;
+	LookAt ();
+}
+
+void Camera3D::moveOrbit ( float ax, float ay, float az, float dd )
+{
+	ang_euler += Vector3DF(ax,ay,az);
+	mOrbitDist += dd;
+	
+	double dx, dy, dz;
+	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
+	dy = sin ( ang_euler.y * DEGtoRAD );
+	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
+	from_pos.x = to_pos.x + (float) dx * mOrbitDist;
+	from_pos.y = to_pos.y + (float) dy * mOrbitDist;
+	from_pos.z = to_pos.z + (float) dz * mOrbitDist;
+	LookAt ();
+}
+
+void Camera3D::moveToPos ( float tx, float ty, float tz )
+{
+	to_pos += Vector3DF(tx,ty,tz);
+
+	double dx, dy, dz;
+	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
+	dy = sin ( ang_euler.y * DEGtoRAD );
+	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
+	from_pos.x = to_pos.x + (float) dx * mOrbitDist;
+	from_pos.y = to_pos.y + (float) dy * mOrbitDist;
+	from_pos.z = to_pos.z + (float) dz * mOrbitDist;
+	LookAt ();
+}
+
+void Camera3D::Copy ( Camera3D& op )
+{
+	mDolly = op.mDolly;
+	mOrbitDist = op.mOrbitDist;
+	from_pos = op.from_pos;
+	to_pos = op.to_pos;
+	ang_euler = op.ang_euler; 
+	mProjType = op.mProjType;
+	mAspect = op.mAspect;
+	mFov = op.mFov;
+	mNear = op.mNear;
+	mFar = op.mFar;
+	LookAt ();
+}
+
+void Camera3D::LookAt ()
+{
+	// look matrix (orientation w/o translation). Matches OpenGL's gluLookAt	
+	view_matrix.makeLookAt ( from_pos, to_pos, up_dir, side_vec, up_vec, dir_vec );
+	view_matrix.PreTranslate ( Vector3DF(-from_pos.x, -from_pos.y, -from_pos.z ) );		// rotation /w view translate
+
+	updateAll ();
+}
+
+void Camera3D::SetOrientation ( Vector3DF angs, Vector3DF pos )
+{
+	from_pos = pos;
+
+	// roll, pitch, yaw;	
+	view_matrix.RotateYZX ( angs );		// X=roll, Z=pitch, Y=yaw
+	view_matrix.PreTranslate ( Vector3DF(-from_pos.x, -from_pos.y, -from_pos.z ) );		// rotation /w view translate
+	
+	updateAll ();
+}
+
+
+void Camera3D::SetMatrices (const float* view_mtx, const float* proj_mtx, Vector3DF model_pos )
+{
+	// Assign the matrices we have
+	//  p = Tc V P M p		
+	view_matrix = Matrix4F(view_mtx);
+	proj_matrix = Matrix4F(proj_mtx);
+	tileproj_matrix = proj_matrix;
+
+	// From position
+	from_pos = view_matrix.getTranslation();
+
+	// Compute mFov, mAspect, mNear, mFar
+	mNear = double(proj_matrix(2, 3)) / double(proj_matrix(2, 2) - 1.0f );
+	mFar  = double(proj_matrix(2, 3)) / double(proj_matrix(2, 2) + 1.0f );
+	double sx = 2.0f * mNear / proj_matrix(0, 0);
+	double sy = 2.0f * mNear / proj_matrix(1, 1);
+	mAspect = sx / sy;
+	mFov = 2.0f * atan(sx / mNear) / DEGtoRAD;
+
+	updateAll ();
+}
+
+void Camera3D::updateProj ()
+{
+	// construct projection matrix  --- MATCHES OpenGL's gluPerspective function (DO NOT MODIFY)
+	float sx = (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear;
+	float sy = sx / mAspect;
+	proj_matrix = 0.0f;
+	proj_matrix(0,0) = 2.0f*mNear / sx;				// matches OpenGL definition
+	proj_matrix(1,1) = 2.0f*mNear / sy;
+	proj_matrix(2,2) = -(mFar + mNear)/(mFar - mNear);			// C
+	proj_matrix(2,3) = -(2.0f*mFar * mNear)/(mFar - mNear);		// D
+	proj_matrix(3,2) = -1.0f;
+
+	// construct tile projection matrix --- MATCHES OpenGL's glFrustum function (DO NOT MODIFY) 
+	/*float l, r, t, b;
+	l = -sx + 2.0f*sx*mTile.x;						// Tile is in range 0 <= x,y <= 1
+	r = -sx + 2.0f*sx*mTile.z;
+	t =  sy - 2.0f*sy*mTile.y;
+	b =  sy - 2.0f*sy*mTile.w;
+	tileproj_matrix = 0.0f;
+	tileproj_matrix(0,0) = 2.0f*mNear / (r - l);
+	tileproj_matrix(1,1) = 2.0f*mNear / (t - b);
+	tileproj_matrix(0,2) = (r + l) / (r - l);		// A
+	tileproj_matrix(1,2) = (t + b) / (t - b);		// B
+	tileproj_matrix(2,2) = proj_matrix(2,2);		// C
+	tileproj_matrix(2,3) = proj_matrix(2,3);		// D
+	tileproj_matrix(3,2) = -1.0f; */
+	tileproj_matrix = proj_matrix;	
+}
+
+void Camera3D::updateView ()
+{	
+	origRayWorld = from_pos;
+}
+
+void Camera3D::updateAll ()
+{
+	updateProj();
+	updateView();
+	updateFrustum ();
+}
+
+Matrix4F Camera3D::getViewProjInv ()
+{
+	Matrix4F iv, ip;
+	iv.makeRotationInv ( view_matrix );
+	ip.InverseProj ( tileproj_matrix.GetDataF() );
+	iv *= ip;
+	return iv;	
+}
+
+void Camera3D::setModelMatrix ( float* mtx )
+{
+	memcpy ( model_matrix.GetDataF(), mtx, sizeof(float)*16 );
+}
+
+void Camera3D::setViewMatrix ( float* mtx )
+{
+	view_matrix = Matrix4F(mtx);
+	from_pos = view_matrix.getTranslation();
+	
+	updateView ();
+	updateFrustum ();
+}
+
+void Camera3D::setProjMatrix ( float* mtx )
+{
+	// Compute mFov, mAspect, mNear, mFar
+	proj_matrix = Matrix4F(mtx);
+	mNear = double( proj_matrix(2, 3)) / double(proj_matrix(2, 2) - 1.0f );
+	mFar  = double( proj_matrix(2, 3)) / double(proj_matrix(2, 2) + 1.0f );
+	double sx = 2.0f * mNear / proj_matrix(0, 0);
+	double sy = 2.0f * mNear / proj_matrix(1, 1);
+	mAspect = sx / sy;
+	mFov = 2.0f * atan(sx / mNear) / DEGtoRAD;
+
+	updateProj ();
+}
+
+void Camera3D::updateFrustum ()
+{
+	Matrix4F mv;
+	mv = tileproj_matrix;					// Compute the model-view-projection matrix
+	mv *= view_matrix;
+	float* mvm = mv.GetDataF();
+	float t;
+
+	// Right plane
+   frustum[0][0] = mvm[ 3] - mvm[ 0];
+   frustum[0][1] = mvm[ 7] - mvm[ 4];
+   frustum[0][2] = mvm[11] - mvm[ 8];
+   frustum[0][3] = mvm[15] - mvm[12];
+   t = sqrt( frustum[0][0] * frustum[0][0] + frustum[0][1] * frustum[0][1] + frustum[0][2] * frustum[0][2] );
+   frustum[0][0] /= t; frustum[0][1] /= t; frustum[0][2] /= t; frustum[0][3] /= t;
+	// Left plane
+   frustum[1][0] = mvm[ 3] + mvm[ 0];
+   frustum[1][1] = mvm[ 7] + mvm[ 4];
+   frustum[1][2] = mvm[11] + mvm[ 8];
+   frustum[1][3] = mvm[15] + mvm[12];
+   t = sqrt( frustum[1][0] * frustum[1][0] + frustum[1][1] * frustum[1][1] + frustum[1][2]    * frustum[1][2] );
+   frustum[1][0] /= t; frustum[1][1] /= t; frustum[1][2] /= t; frustum[1][3] /= t;
+	// Bottom plane
+   frustum[2][0] = mvm[ 3] + mvm[ 1];
+   frustum[2][1] = mvm[ 7] + mvm[ 5];
+   frustum[2][2] = mvm[11] + mvm[ 9];
+   frustum[2][3] = mvm[15] + mvm[13];
+   t = sqrt( frustum[2][0] * frustum[2][0] + frustum[2][1] * frustum[2][1] + frustum[2][2]    * frustum[2][2] );
+   frustum[2][0] /= t; frustum[2][1] /= t; frustum[2][2] /= t; frustum[2][3] /= t;
+	// Top plane
+   frustum[3][0] = mvm[ 3] - mvm[ 1];
+   frustum[3][1] = mvm[ 7] - mvm[ 5];
+   frustum[3][2] = mvm[11] - mvm[ 9];
+   frustum[3][3] = mvm[15] - mvm[13];
+   t = sqrt( frustum[3][0] * frustum[3][0] + frustum[3][1] * frustum[3][1] + frustum[3][2]    * frustum[3][2] );
+   frustum[3][0] /= t; frustum[3][1] /= t; frustum[3][2] /= t; frustum[3][3] /= t;
+	// Far plane
+   frustum[4][0] = mvm[ 3] - mvm[ 2];
+   frustum[4][1] = mvm[ 7] - mvm[ 6];
+   frustum[4][2] = mvm[11] - mvm[10];
+   frustum[4][3] = mvm[15] - mvm[14];
+   t = sqrt( frustum[4][0] * frustum[4][0] + frustum[4][1] * frustum[4][1] + frustum[4][2]    * frustum[4][2] );
+   frustum[4][0] /= t; frustum[4][1] /= t; frustum[4][2] /= t; frustum[4][3] /= t;
+	// Near plane
+   frustum[5][0] = mvm[ 3] + mvm[ 2];
+   frustum[5][1] = mvm[ 7] + mvm[ 6];
+   frustum[5][2] = mvm[11] + mvm[10];
+   frustum[5][3] = mvm[15] + mvm[14];
+   t = sqrt( frustum[5][0] * frustum[5][0] + frustum[5][1] * frustum[5][1] + frustum[5][2]    * frustum[5][2] );
+   frustum[5][0] /= t; frustum[5][1] /= t; frustum[5][2] /= t; frustum[5][3] /= t;
+
+   tlRayWorld = inverseRayProj(-1.0f,  1.0f, 1.0f);
+   trRayWorld = inverseRayProj(1.0f, 1.0f, 1.0f);
+   blRayWorld = inverseRayProj(-1.0f, -1.0f, 1.0f);
+   brRayWorld = inverseRayProj(1.0f, -1.0f, 1.0f);
+}
+
+float Camera3D::calculateLOD ( Vector3DF pnt, float minlod, float maxlod, float maxdist )
+{
+	Vector3DF vec = pnt;
+	vec -= from_pos;
+	float lod = minlod + ((float) vec.Length() * (maxlod-minlod) / maxdist );	
+	lod = (lod < minlod) ? minlod : lod;
+	lod = (lod > maxlod) ? maxlod : lod;
+	return lod;
+}
+
+float Camera3D::getDu ()
+{
+	return (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear;
+}
+float Camera3D::getDv ()
+{
+	return (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear / mAspect;
+}
+
+Vector3DF Camera3D::getU ()
+{
+	return side_vec;
+}
+Vector3DF Camera3D::getV ()
+{
+	return up_vec;
+}
+Vector3DF Camera3D::getW ()
+{
+	return dir_vec;
+}
+Matrix4F Camera3D::getUVWMatrix()
+{
+	Matrix4F uvw;
+	uvw.toBasis ( side_vec, up_vec, dir_vec);
+	
+	//toBasisInv(xaxis, yaxis, zaxis);
+
+	return uvw;
+}
+
+
+/*void Camera3D::setModelMatrix ()
+{
+	glGetFloatv ( GL_MODELVIEW_MATRIX, model_matrix.GetDataF() );
+}
+void Camera3D::setModelMatrix ( Matrix4F& model )
+{
+	model_matrix = model;
+	mv_matrix = model;
+	mv_matrix *= view_matrix;
+	#ifdef USE_DX
+
+	#else
+		glLoadMatrixf ( mv_matrix.GetDataF() );
+	#endif
+}
+*/
+
+Vector3DF Camera3D::inverseRayProj(float x, float y, float z)
+{
+	Vector4DF p(x, y, z, 1.0f);
+
+	// inverse view-projection matrix
+	Matrix4F ivp = getViewProjInv();
+
+	Vector4DF wp(0.0f, 0.0f, 0.0f, 0.0f);
+	wp.x = ivp.data[0] * p.x + ivp.data[4] * p.y + ivp.data[8] * p.z + ivp.data[12];
+	wp.y = ivp.data[1] * p.x + ivp.data[5] * p.y + ivp.data[9] * p.z + ivp.data[13];
+	wp.z = ivp.data[2] * p.x + ivp.data[6] * p.y + ivp.data[10] * p.z + ivp.data[14];
+	wp.w = ivp.data[3] * p.x + ivp.data[7] * p.y + ivp.data[11] * p.z + ivp.data[15];
+
+	return Vector3DF(wp.x / wp.w, wp.y / wp.w, wp.z / wp.w);
+}
+
+Vector3DF Camera3D::inverseRay (float x, float y, float xres, float yres, float z)
+{	
+	float sx = (float) tan ( mFov * DEGtoRAD/2.0f);
+	float sy = sx * yres / xres;
+	float tu, tv;
+	tu = mTile.x + x * (mTile.z-mTile.x) / xres;		// *NOTE*. If mXres=0 you must call cam.setSize(w,h) with screen res.
+	tv = mTile.y + y * (mTile.w-mTile.y) / yres;
+	Vector4DF pnt ( (tu-0.5f)*sx , (0.5f-tv)*sy, -z, 1 );
+	// x = 2*near/sx
+	// y = 2*near/sy;
+
+	Matrix4F ir = getRotateInv ();
+	pnt *= ir;
+	pnt.Normalize ();
+
+	return pnt;
+}
+
+
+Vector4DF Camera3D::project ( Vector3DF& p, Matrix4F& vm )
+{
+	Vector4DF q = p;								// World coordinates
+	q.w = 1.0;
+	
+	q *= vm;										// Eye coordinates
+	
+	q *= tileproj_matrix;								// Projection 
+
+	q /= q.w;										// Normalized Device Coordinates (w-divide)
+	
+	q.x = (q.x*0.5f+0.5f) / mXres;
+	q.y = (q.y*0.5f+0.5f) / mYres;
+	q.z = q.z*0.5f + 0.5f;							// Stored depth buffer value
+		
+	return q;
+}
+
+
+Vector4DF Camera3D::project ( Vector3DF& p )
+{
+	Vector4DF q = p;								// World coordinates
+	q.w = 1.0;
+	q *= view_matrix;								// Eye coordinates
+
+	q *= tileproj_matrix;								// Clip coordinates
+	
+	q /= q.w;										// Normalized Device Coordinates (w-divide)
+
+	q.x = (q.x*0.5f+0.5f)*mXres;
+	q.y = (0.5f-q.y*0.5f)*mYres;
+	q.z = q.z*0.5f + 0.5f;							// Stored depth buffer value
+		
+	return q;
+}
+
+void PivotX::setPivot ( float x, float y, float z, float rx, float ry, float rz )
+{
+	from_pos.Set ( x,y,z);
+	ang_euler.Set ( rx,ry,rz );
+}
+
+void PivotX::updateTform ()
+{
+	trans.RotateZYXT ( ang_euler, from_pos );
+}
+
 
 /*void Camera3D::draw_gl ()
 {
@@ -313,455 +793,3 @@ void Camera3D::getBounds (Vector2DF cmin, Vector2DF cmax, float dst, Vector3DF& 
 }
 */
 
-bool Camera3D::pointInFrustum ( float x, float y, float z )
-{
-	int p;
-	for ( p = 0; p < 6; p++ )
-		if( frustum[p][0] * x + frustum[p][1] * y + frustum[p][2] * z + frustum[p][3] <= 0 )
-			return false;
-	return true;
-}
-
-bool Camera3D::boxInFrustum ( Vector3DF bmin, Vector3DF bmax)
-{
-	Vector3DF vmin, vmax;
-	int p;
-	bool ret = true;	
-	for ( p = 0; p < 6; p++ ) {
-		vmin.x = ( frustum[p][0] > 0 ) ? bmin.x : bmax.x;		// Determine nearest and farthest point to plane
-		vmax.x = ( frustum[p][0] > 0 ) ? bmax.x : bmin.x;		
-		vmin.y = ( frustum[p][1] > 0 ) ? bmin.y : bmax.y;
-		vmax.y = ( frustum[p][1] > 0 ) ? bmax.y : bmin.y;
-		vmin.z = ( frustum[p][2] > 0 ) ? bmin.z : bmax.z;
-		vmax.z = ( frustum[p][2] > 0 ) ? bmax.z : bmin.z;
-		if ( frustum[p][0]*vmax.x + frustum[p][1]*vmax.y + frustum[p][2]*vmax.z + frustum[p][3] <= 0 ) return false;		// If nearest point is outside, Box is outside
-		else if ( frustum[p][0]*vmin.x + frustum[p][1]*vmin.y + frustum[p][2]*vmin.z + frustum[p][3] <= 0 ) ret = true;		// If nearest inside and farthest point is outside, Box intersects
-	}
-	return ret;			// No points found outside. Box must be inside.
-	
-	/* --- Original method - Slow yet simpler.
-	int p;
-	for ( p = 0; p < 6; p++ ) {
-		if( frustum[p][0] * bmin.x + frustum[p][1] * bmin.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmax.x + frustum[p][1] * bmin.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmax.x + frustum[p][1] * bmin.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmin.x + frustum[p][1] * bmin.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmin.x + frustum[p][1] * bmax.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmax.x + frustum[p][1] * bmax.y + frustum[p][2] * bmin.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmax.x + frustum[p][1] * bmax.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
-		if( frustum[p][0] * bmin.x + frustum[p][1] * bmax.y + frustum[p][2] * bmax.z + frustum[p][3] > 0 ) continue;
-		return false;
-	}
-	return true;*/
-}
-
-void Camera3D::setOrbit  ( Vector3DF angs, Vector3DF tp, float dist, float dolly )
-{
-	setOrbit ( angs.x, angs.y, angs.z, tp, dist, dolly );
-}
-
-void Camera3D::setOrbit ( float ax, float ay, float az, Vector3DF tp, float dist, float dolly )
-{
-	ang_euler.Set ( ax, ay, az );
-	mOrbitDist = dist;
-	mDolly = dolly;
-	double dx, dy, dz;
-	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
-	dy = sin ( ang_euler.y * DEGtoRAD );
-	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
-	from_pos.x = tp.x + (float) dx * mOrbitDist;
-	from_pos.y = tp.y + (float) dy * mOrbitDist;
-	from_pos.z = tp.z + (float) dz * mOrbitDist;
-	to_pos = tp;
-	//to_pos.x = from_pos.x - (float) dx * mDolly;
-	//to_pos.y = from_pos.y - (float) dy * mDolly;
-	//to_pos.z = from_pos.z - (float) dz * mDolly;
-	updateMatricies (true);
-}
-
-void Camera3D::moveOrbit ( float ax, float ay, float az, float dd )
-{
-	ang_euler += Vector3DF(ax,ay,az);
-	mOrbitDist += dd;
-	
-	double dx, dy, dz;
-	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
-	dy = sin ( ang_euler.y * DEGtoRAD );
-	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
-	from_pos.x = to_pos.x + (float) dx * mOrbitDist;
-	from_pos.y = to_pos.y + (float) dy * mOrbitDist;
-	from_pos.z = to_pos.z + (float) dz * mOrbitDist;
-	updateMatricies(true);
-}
-
-void Camera3D::moveToPos ( float tx, float ty, float tz )
-{
-	to_pos += Vector3DF(tx,ty,tz);
-
-	double dx, dy, dz;
-	dx = cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) ;
-	dy = sin ( ang_euler.y * DEGtoRAD );
-	dz = cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD );
-	from_pos.x = to_pos.x + (float) dx * mOrbitDist;
-	from_pos.y = to_pos.y + (float) dy * mOrbitDist;
-	from_pos.z = to_pos.z + (float) dz * mOrbitDist;
-	updateMatricies (true);
-}
-
-void Camera3D::Copy ( Camera3D& op )
-{
-	mDolly = op.mDolly;
-	mOrbitDist = op.mOrbitDist;
-	from_pos = op.from_pos;
-	to_pos = op.to_pos;
-	ang_euler = op.ang_euler; 
-	mProjType = op.mProjType;
-	mAspect = op.mAspect;
-	mFov = op.mFov;
-	mNear = op.mNear;
-	mFar = op.mFar;
-	updateMatricies (true);
-}
-
-void Camera3D::setAngles ( float ax, float ay, float az )
-{
-	ang_euler = Vector3DF(ax,ay,az);
-	to_pos.x = from_pos.x - (float) (cos ( ang_euler.y * DEGtoRAD ) * sin ( ang_euler.x * DEGtoRAD ) * mOrbitDist);
-	to_pos.y = from_pos.y - (float) (sin ( ang_euler.y * DEGtoRAD ) * mOrbitDist);
-	to_pos.z = from_pos.z - (float) (cos ( ang_euler.y * DEGtoRAD ) * cos ( ang_euler.x * DEGtoRAD ) * mOrbitDist);
-	updateMatricies (true);
-}
-
-
-void Camera3D::moveRelative ( float dx, float dy, float dz )
-{
-	Vector3DF vec ( dx, dy, dz );
-	vec *= invrot_matrix;
-	to_pos += vec;
-	from_pos += vec;
-	updateMatricies (true);
-}
-
-void Camera3D::setProjection (eProjection proj_type)
-{
-	mProjType = proj_type;
-}
-
-void Camera3D::updateMatricies (bool compute_view)
-{
-	// THIS NEEDS TO HANDLE THE CASE WHEN THE OBJECT HAS ONLY BEEN CALLED BY setMatricies
-	Matrix4F basis;
-	Vector3DF temp;	
-	
-	if (compute_view) {
-		
-		// look matrix (orientation w/o translation). Matches OpenGL's gluLookAt
-		rotate_matrix.makeLookAt ( from_pos, to_pos, up_dir, side_vec, up_vec, dir_vec );
-
-		// construct projection matrix  --- MATCHES OpenGL's gluPerspective function (DO NOT MODIFY)
-		float sx = (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear;
-		float sy = sx / mAspect;
-		proj_matrix = 0.0f;
-		proj_matrix(0,0) = 2.0f*mNear / sx;				// matches OpenGL definition
-		proj_matrix(1,1) = 2.0f*mNear / sy;
-		proj_matrix(2,2) = -(mFar + mNear)/(mFar - mNear);			// C
-		proj_matrix(2,3) = -(2.0f*mFar * mNear)/(mFar - mNear);		// D
-		proj_matrix(3,2) = -1.0f;
-	}
-
-
-	// construct tile projection matrix --- MATCHES OpenGL's glFrustum function (DO NOT MODIFY) 
-	/*float l, r, t, b;
-	l = -sx + 2.0f*sx*mTile.x;						// Tile is in range 0 <= x,y <= 1
-	r = -sx + 2.0f*sx*mTile.z;
-	t =  sy - 2.0f*sy*mTile.y;
-	b =  sy - 2.0f*sy*mTile.w;
-	tileproj_matrix = 0.0f;
-	tileproj_matrix(0,0) = 2.0f*mNear / (r - l);
-	tileproj_matrix(1,1) = 2.0f*mNear / (t - b);
-	tileproj_matrix(0,2) = (r + l) / (r - l);		// A
-	tileproj_matrix(1,2) = (t + b) / (t - b);		// B
-	tileproj_matrix(2,2) = proj_matrix(2,2);		// C
-	tileproj_matrix(2,3) = proj_matrix(2,3);		// D
-	tileproj_matrix(3,2) = -1.0f; */
-	tileproj_matrix = proj_matrix;
-
-	// construct inverse rotate and inverse projection matrix
-	Vector3DF tvz(0, 0, 0);
-	invrot_matrix.InverseView ( rotate_matrix.GetDataF(), tvz );		// Computed using rule: "Inverse of a basis rotation matrix is its transpose." (So long as translation is taken out)
-	invproj_matrix.InverseProj ( tileproj_matrix.GetDataF() );		
-
-	invviewproj_matrix = invrot_matrix;				// faster way to get inverse view proj
-	invviewproj_matrix *= invproj_matrix;
-
-	if (compute_view) {
-		// translation is included in view matrix
-		view_matrix = rotate_matrix;														// rotation only
-		view_matrix.PreTranslate ( Vector3DF(-from_pos.x, -from_pos.y, -from_pos.z ) );		// rotation /w view translate
-	}
-
-	origRayWorld = from_pos;
-	updateFrustum();
-}
-
-Matrix4F Camera3D::getViewInv()
-{	
-	Matrix4F m;
-	return m.makeOrthogonalInverse ( view_matrix );
-}
-
-void Camera3D::setModelMatrix ( float* mtx )
-{
-	memcpy ( model_matrix.GetDataF(), mtx, sizeof(float)*16 );
-}
-
-void Camera3D::setMatrices (const float* view_mtx, const float* proj_mtx, Vector3DF model_pos )
-{
-	// Assign the matrices we have
-	//  p = Tc V P M p		
-	view_matrix = Matrix4F(view_mtx);
-	proj_matrix = Matrix4F(proj_mtx);
-	tileproj_matrix = proj_matrix;
-
-	// From position
-	Matrix4F tmp( view_mtx );
-	tmp.InvertTRS ();
-	Vector3DF from ( tmp(0,3), tmp(1,3), tmp(2,3) );
-	from_pos = from;
-
-	// Construct inverse matrices
-    Vector3DF zero(0, 0, 0);
-	invrot_matrix.InverseView ( view_matrix.GetDataF(), zero );		// Computed using rule: "Inverse of a basis rotation matrix is its transpose." (So long as translation is taken out)
-	invproj_matrix.InverseProj ( tileproj_matrix.GetDataF() );		
-
-	Matrix4F view_matrix_notranslation = view_matrix;
-	view_matrix_notranslation(12) = 0.0f;
-	view_matrix_notranslation(13) = 0.0f;
-	view_matrix_notranslation(14) = 0.0f;
-
-	invviewproj_matrix = tileproj_matrix;					// Used for GVDB raytracing
-	invviewproj_matrix *= view_matrix_notranslation;			
-	invviewproj_matrix.InvertTRS();			
-
-	// Compute mFov, mAspect, mNear, mFar
-	mNear = double(proj_matrix(2, 3)) / double(proj_matrix(2, 2) - 1.0f );
-	mFar  = double(proj_matrix(2, 3)) / double(proj_matrix(2, 2) + 1.0f );
-	double sx = 2.0f * mNear / proj_matrix(0, 0);
-	double sy = 2.0f * mNear / proj_matrix(1, 1);
-	mAspect = sx / sy;
-	mFov = 2.0f * atan(sx / mNear) / DEGtoRAD;
-
-	origRayWorld = from - model_pos;
-	updateFrustum();								// DO NOT call updateMatrices here. We have just set them.
-}
-
-void Camera3D::setViewMatrix ( float* mtx, float* invmtx )
-{
-	memcpy ( view_matrix.GetDataF(), mtx, sizeof(float)*16 );
-	memcpy ( invrot_matrix.GetDataF(), invmtx, sizeof(float)*16 );
-	Matrix4F tmp( mtx );
-	tmp.InvertTRS ();
-	Vector3DF from ( tmp(0,3), tmp(1,3), tmp(2,3) );
-	from_pos = from;
-	origRayWorld = from_pos;	// Used by GVDB render
-}
-void Camera3D::setProjMatrix ( float* mtx, float* invmtx )
-{
-	memcpy ( proj_matrix.GetDataF(), mtx, sizeof(float)*16 );
-	memcpy ( tileproj_matrix.GetDataF(), mtx, sizeof(float)*16 );
-	memcpy ( invproj_matrix.GetDataF(), invmtx, sizeof(float)*16 );
-}
-
-void Camera3D::updateFrustum ()
-{
-	Matrix4F mv;
-	mv = tileproj_matrix;					// Compute the model-view-projection matrix
-	mv *= view_matrix;
-	float* mvm = mv.GetDataF();
-	float t;
-
-	// Right plane
-   frustum[0][0] = mvm[ 3] - mvm[ 0];
-   frustum[0][1] = mvm[ 7] - mvm[ 4];
-   frustum[0][2] = mvm[11] - mvm[ 8];
-   frustum[0][3] = mvm[15] - mvm[12];
-   t = sqrt( frustum[0][0] * frustum[0][0] + frustum[0][1] * frustum[0][1] + frustum[0][2] * frustum[0][2] );
-   frustum[0][0] /= t; frustum[0][1] /= t; frustum[0][2] /= t; frustum[0][3] /= t;
-	// Left plane
-   frustum[1][0] = mvm[ 3] + mvm[ 0];
-   frustum[1][1] = mvm[ 7] + mvm[ 4];
-   frustum[1][2] = mvm[11] + mvm[ 8];
-   frustum[1][3] = mvm[15] + mvm[12];
-   t = sqrt( frustum[1][0] * frustum[1][0] + frustum[1][1] * frustum[1][1] + frustum[1][2]    * frustum[1][2] );
-   frustum[1][0] /= t; frustum[1][1] /= t; frustum[1][2] /= t; frustum[1][3] /= t;
-	// Bottom plane
-   frustum[2][0] = mvm[ 3] + mvm[ 1];
-   frustum[2][1] = mvm[ 7] + mvm[ 5];
-   frustum[2][2] = mvm[11] + mvm[ 9];
-   frustum[2][3] = mvm[15] + mvm[13];
-   t = sqrt( frustum[2][0] * frustum[2][0] + frustum[2][1] * frustum[2][1] + frustum[2][2]    * frustum[2][2] );
-   frustum[2][0] /= t; frustum[2][1] /= t; frustum[2][2] /= t; frustum[2][3] /= t;
-	// Top plane
-   frustum[3][0] = mvm[ 3] - mvm[ 1];
-   frustum[3][1] = mvm[ 7] - mvm[ 5];
-   frustum[3][2] = mvm[11] - mvm[ 9];
-   frustum[3][3] = mvm[15] - mvm[13];
-   t = sqrt( frustum[3][0] * frustum[3][0] + frustum[3][1] * frustum[3][1] + frustum[3][2]    * frustum[3][2] );
-   frustum[3][0] /= t; frustum[3][1] /= t; frustum[3][2] /= t; frustum[3][3] /= t;
-	// Far plane
-   frustum[4][0] = mvm[ 3] - mvm[ 2];
-   frustum[4][1] = mvm[ 7] - mvm[ 6];
-   frustum[4][2] = mvm[11] - mvm[10];
-   frustum[4][3] = mvm[15] - mvm[14];
-   t = sqrt( frustum[4][0] * frustum[4][0] + frustum[4][1] * frustum[4][1] + frustum[4][2]    * frustum[4][2] );
-   frustum[4][0] /= t; frustum[4][1] /= t; frustum[4][2] /= t; frustum[4][3] /= t;
-	// Near plane
-   frustum[5][0] = mvm[ 3] + mvm[ 2];
-   frustum[5][1] = mvm[ 7] + mvm[ 6];
-   frustum[5][2] = mvm[11] + mvm[10];
-   frustum[5][3] = mvm[15] + mvm[14];
-   t = sqrt( frustum[5][0] * frustum[5][0] + frustum[5][1] * frustum[5][1] + frustum[5][2]    * frustum[5][2] );
-   frustum[5][0] /= t; frustum[5][1] /= t; frustum[5][2] /= t; frustum[5][3] /= t;
-
-   tlRayWorld = inverseRayProj(-1.0f,  1.0f, 1.0f);
-   trRayWorld = inverseRayProj(1.0f, 1.0f, 1.0f);
-   blRayWorld = inverseRayProj(-1.0f, -1.0f, 1.0f);
-   brRayWorld = inverseRayProj(1.0f, -1.0f, 1.0f);
-}
-
-float Camera3D::calculateLOD ( Vector3DF pnt, float minlod, float maxlod, float maxdist )
-{
-	Vector3DF vec = pnt;
-	vec -= from_pos;
-	float lod = minlod + ((float) vec.Length() * (maxlod-minlod) / maxdist );	
-	lod = (lod < minlod) ? minlod : lod;
-	lod = (lod > maxlod) ? maxlod : lod;
-	return lod;
-}
-
-float Camera3D::getDu ()
-{
-	return (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear;
-}
-float Camera3D::getDv ()
-{
-	return (float) tan ( mFov * DEGtoRAD/2.0f ) * mNear / mAspect;
-}
-
-Vector3DF Camera3D::getU ()
-{
-	return side_vec;
-}
-Vector3DF Camera3D::getV ()
-{
-	return up_vec;
-}
-Vector3DF Camera3D::getW ()
-{
-	return dir_vec;
-}
-Matrix4F Camera3D::getUVWMatrix()
-{
-	Matrix4F uvw;
-	uvw.toBasis ( side_vec, up_vec, dir_vec);
-	
-	//toBasisInv(xaxis, yaxis, zaxis);
-
-	return uvw;
-}
-
-
-/*void Camera3D::setModelMatrix ()
-{
-	glGetFloatv ( GL_MODELVIEW_MATRIX, model_matrix.GetDataF() );
-}
-void Camera3D::setModelMatrix ( Matrix4F& model )
-{
-	model_matrix = model;
-	mv_matrix = model;
-	mv_matrix *= view_matrix;
-	#ifdef USE_DX
-
-	#else
-		glLoadMatrixf ( mv_matrix.GetDataF() );
-	#endif
-}
-*/
-
-Vector3DF Camera3D::inverseRayProj(float x, float y, float z)
-{
-	Vector4DF p(x, y, z, 1.0f);
-
-	Vector4DF wp(0.0f, 0.0f, 0.0f, 0.0f);
-	wp.x = invviewproj_matrix.data[0] * p.x + invviewproj_matrix.data[4] * p.y + invviewproj_matrix.data[8] * p.z + invviewproj_matrix.data[12];
-	wp.y = invviewproj_matrix.data[1] * p.x + invviewproj_matrix.data[5] * p.y + invviewproj_matrix.data[9] * p.z + invviewproj_matrix.data[13];
-	wp.z = invviewproj_matrix.data[2] * p.x + invviewproj_matrix.data[6] * p.y + invviewproj_matrix.data[10] * p.z + invviewproj_matrix.data[14];
-	wp.w = invviewproj_matrix.data[3] * p.x + invviewproj_matrix.data[7] * p.y + invviewproj_matrix.data[11] * p.z + invviewproj_matrix.data[15];
-
-	return Vector3DF(wp.x / wp.w, wp.y / wp.w, wp.z / wp.w);
-}
-
-Vector3DF Camera3D::inverseRay (float x, float y, float xres, float yres, float z)
-{	
-	float sx = (float) tan ( mFov * DEGtoRAD/2.0f);
-	float sy = sx * yres / xres;
-	float tu, tv;
-	tu = mTile.x + x * (mTile.z-mTile.x) / xres;		// *NOTE*. If mXres=0 you must call cam.setSize(w,h) with screen res.
-	tv = mTile.y + y * (mTile.w-mTile.y) / yres;
-	Vector4DF pnt ( (tu-0.5f)*sx , (0.5f-tv)*sy, -z, 1 );
-	// x = 2*near/sx
-	// y = 2*near/sy;
-
-	pnt *= invrot_matrix;
-	pnt.Normalize ();
-
-	return pnt;
-}
-
-
-Vector4DF Camera3D::project ( Vector3DF& p, Matrix4F& vm )
-{
-	Vector4DF q = p;								// World coordinates
-	q.w = 1.0;
-	
-	q *= vm;										// Eye coordinates
-	
-	q *= tileproj_matrix;								// Projection 
-
-	q /= q.w;										// Normalized Device Coordinates (w-divide)
-	
-	q.x = (q.x*0.5f+0.5f) / mXres;
-	q.y = (q.y*0.5f+0.5f) / mYres;
-	q.z = q.z*0.5f + 0.5f;							// Stored depth buffer value
-		
-	return q;
-}
-
-
-Vector4DF Camera3D::project ( Vector3DF& p )
-{
-	Vector4DF q = p;								// World coordinates
-	q.w = 1.0;
-	q *= view_matrix;								// Eye coordinates
-
-	q *= tileproj_matrix;								// Clip coordinates
-	
-	q /= q.w;										// Normalized Device Coordinates (w-divide)
-
-	q.x = (q.x*0.5f+0.5f)*mXres;
-	q.y = (0.5f-q.y*0.5f)*mYres;
-	q.z = q.z*0.5f + 0.5f;							// Stored depth buffer value
-		
-	return q;
-}
-
-void PivotX::setPivot ( float x, float y, float z, float rx, float ry, float rz )
-{
-	from_pos.Set ( x,y,z);
-	ang_euler.Set ( rx,ry,rz );
-}
-
-void PivotX::updateTform ()
-{
-	trans.RotateZYXT ( ang_euler, from_pos );
-}

@@ -58,6 +58,7 @@
 		void ChangeFormat (ImageOp::Format eFormat) 	{ (this->*m_ReformatFunc) ( eFormat); } // Change pixel format of data
 		void DeleteBuffers ();
 		void CopyIntoBuffer ( DataPtr& dest, DataPtr& src, int bpp, int w, int h );
+		void FlipY ();
 
 		// GPU
 		void SetUsage ( uchar use_flags );
@@ -84,15 +85,21 @@
 		void CopyAlpha ( Image* new_alpha );		
 
 		// Float pixels
-		inline void SetPixelF ( int x, int y, float v )	{ * (float*) (GetData()  + (y*getInfo()->mXres+x) * getInfo()->GetBytesPerPix()) = v; }
-		inline float GetPixelF ( int x, int y )			{ return *(float*) (GetData()  + (y*getInfo()->mXres+x) * getInfo()->GetBytesPerPix()); }
+		inline void SetPixelF ( int x, int y, float v )			{ *			(((float*) m_Pix.mCpu) + (y*m_Info.mXres+x)) = v; }
+		inline float GetPixelF ( int x, int y )					{ return *	(((float*) m_Pix.mCpu) + (y*m_Info.mXres+x)); }
+
+		inline void		SetPixel16 ( int x, int y, uint16_t v ) { *			(((uint16_t*) m_Pix.mCpu) + (y*m_Info.mXres+x)) = v; }
+		inline uint16_t	GetPixel16 ( int x, int y )				{ return *	(((uint16_t*) m_Pix.mCpu) + (y*m_Info.mXres+x)); }
 
 		// Image Operations
-		Vector4DF	GetPixelFilteredUV (float x, float y);
-		float		GetPixelFilteredUV16 (float x, float y);
+		Vector4DF		GetPixelFilteredUV (float x, float y);
+		float			GetPixelFilteredUV16 (float x, float y);
+		inline float	GetPixelUV16 ( float u, float v );
+
+		inline float	GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }
+
 		inline Vector4DF GetPixelUV (float x, float y)	{ XBYTE r,g,b,a; (this->*m_GetPixelFunc) ( (int) (x*(getInfo()->mXres-1)), (int) (y*(getInfo()->mYres-1)),r,g,b,a); return Vector4DF(r/255.0f,g/255.0f,b/255.0f,a/255.0f); }
-		inline float GetPixelUV16 ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) (r+(g/255.0f))/255.0f; }
-		inline float GetPixelValUV ( float u, float v )							{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) ( int(u)*(getInfo()->mXres-1), int(v)*(getInfo()->mYres-1), r,g,b,a); return (float) r/255.0f; }		
+		
 		inline Vector3DF GetPixel ( int x, int y )								{ XBYTE r,g,b,a;(this->*m_GetPixelFunc) (x,y,r,g,b,a); return Vector3DF(r,g,b); }
 
 		void GetPixel (int x, int y, XBYTE& i)									{ XBYTE g,b,a;	(this->*m_GetPixelFunc) (x, y, i, g, b, a); }

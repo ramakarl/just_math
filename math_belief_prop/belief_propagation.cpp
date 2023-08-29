@@ -606,7 +606,7 @@ float BeliefPropagation::MaxDiffMU ()  {
 
     if ( op.alg_accel==ALG_ACCEL_WAVE) {
       // store the dmu in BUF_MU_NXT temporarily 
-      //  (will be overwriten on next bp step)
+      //  (will be overwritten on next bp step)
       SetValF ( BUF_MU_NXT, vert_maxdiff, 0, 0, j );
     }
 
@@ -818,7 +818,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     s = Vector4DF(f,f,f,f);
     break;
   
-  case VIZ_TILECOUNT:
+  case VIZ_TILECOUNT: {
     // 1. compute maxbelief and outputs json
     // 2. visualizes 1/TILE_NDX_N as alpha (eg. 1=opaque=fully resolved)
     // 3. visualizes green-red as maxbelief # constraints/cell (eg. 0=green, 6=all faces of cell)
@@ -835,6 +835,13 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     if ( f==1 ) s = Vector4DF(1,1,1,1);              // white = resolved to 1 tile
     if ( b >= st.max_belief - beps ) s = Vector4DF(1,0,1,1);  // purple = current max belief vertex
 
+    } break;
+
+  case VIZ_CONSTRAINT:
+    
+    c = getValI ( BUF_C, v ) / 6.0f;   // constraints
+    
+    s = Vector4DF( c, c, c, c );
     break;
   }
 
@@ -1840,6 +1847,8 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
           anch_tile_idx_n,
           anch_tile ;
 
+  float belief_eps = 0.05;
+
   anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
   if (anch_tile_idx_n==0) { return -1; }
   //if (anch_tile_idx_n==1) { continue; }
@@ -1853,8 +1862,12 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
       printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
           f, max_p, (int) anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
+    
+    //---- attempt at more randomness in maps
+    //float u = 1.0 - float(op.cur_iter) / op.max_iter;    
+    //if ( f >= max_p - belief_eps*u && m_rand.randF(0,1) > 0.5f*u ) {
 
-    if ( max_p < f ) {
+    if ( f >= max_p ) {
       max_p = f;
       *max_cell = anch_cell;
       *max_tile = anch_tile;
@@ -3080,9 +3093,9 @@ int BeliefPropagation::init(
   if (op.use_svd) {
 
     // m_num_values x m_num_values is an upper bound
-    // ont he matrix size. The dimensions used will
+    // on the matrix size. The dimensions used will
     // be m_num_values x d and d x m_num_values for
-    // U and V respectivley.
+    // U and V respectively.
     //
     ConstructSVDBufs ();
 
@@ -3454,14 +3467,14 @@ int BeliefPropagation::RealizePre(void) {
     // first do a whole sweep, updating MU_NXT and keeping
     // the values there. An initial pass has to be done (step(1))
     // to make sure boundary conditions are populated and transferred
-    // over correcly.
+    // over correctly.
     //
     // populate the indexHeap: priority queue with maximum
-    // difference of MU and MU_NXT as heap key in additon
-    // to keeping the "mu index" (position in MU buffer)
+    // difference of MU and MU_NXT as heap key in addition
+    // to keep the "mu index" (position in MU buffer)
     //
     // From this point forward, updates to BUF_MU or BUF_MU_NXT
-    // will need a corresponding bookeeping call to indexXHeap
+    // will need a corresponding bookkeeping call to indexXHeap
     // to keep track of the maximum difference between
     // the two buffers and corresponding cell index information.
     //
@@ -4074,7 +4087,12 @@ int BeliefPropagation::RealizePost(void) {
     //-------------------------------
     //-------------------------------
     //-------------------------------
-
+    
+    
+    //-- complete timing
+    //
+    clock_t t2 = clock();
+    st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
 
 
     if (st.enabled) {
@@ -4174,7 +4192,7 @@ int BeliefPropagation::RealizeIter (void) {
   return ret;
 }
 
-// 0 - aconverged
+// 0 - converged
 // 1 - not converged yet
 //
 int BeliefPropagation::RealizeStep(void) {
@@ -4196,7 +4214,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   // start timing
   //
-  clock_t m_t1 = clock();
+  clock_t t1 = clock();
 
   // get linear interpolation eps
   //
@@ -4414,8 +4432,8 @@ int BeliefPropagation::RealizeStep(void) {
 
   // complete timing
   //
-  clock_t m_t2 = clock();
-  st.elapsed_time += ((((double) m_t2-m_t1) / CLOCKS_PER_SEC) * 1000);
+  clock_t t2 = clock();
+  st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
 
   // ret 1 is a 'continue' state, so if we haven't finished,
   // make sure we don't loop forever by incrementing cur_step
@@ -4572,7 +4590,7 @@ float BeliefPropagation::step (int update_mu) {
 
   clock_t t1, t2;
 
-  // initial boundary condiitions
+  // initial boundary conditions
   //
   #ifdef OPT_MUBOUND
     if (st.instr) t1 = clock();
@@ -5437,7 +5455,7 @@ int BeliefPropagation::CullBoundary() {
 // To speed up the 'collapse' propagation, two
 // auxiliary data structures are stored, one a copy
 // of the grid x dim that holds a 'note' about whether
-// it's been accessed or not, and a list of verticies
+// it's been accessed or not, and a list of vertices
 // to process.
 //
 // This is an alternative to a 'map' by allowing set
@@ -5562,7 +5580,7 @@ int BeliefPropagation::removeTileIdx (int64_t anch_cell, int32_t anch_tile_idx) 
 // plane of BUF_NOTE is reset (m_note_n[plane]=0) and the BUF_VISITED
 // vector is unwound.
 // A note about unwinding the BUF_VISITED, this is done by walking
-// the current BUF_NOTE plane as this holds all verticies that were
+// the current BUF_NOTE plane as this holds all vertices that were
 // touched, alleviating the need to touch every entry of BUF_VISITED.
 //
 // There are two major tests to see if a tile can be removed from the
@@ -5884,7 +5902,7 @@ int BeliefPropagation::btUnwind(int64_t bt_cur_stack_idx) {
   return 0;
 }
 
-// fix tile_val at cell and propgate constraints.
+// fix tile_val at cell and propagate constraints.
 // BUF_TILE_IDX might get shuffled as a result
 // but should hold the same values as it did
 // before the call.

@@ -841,15 +841,15 @@ void MeshX::AddPlyProperty ( char typ, std::string name )
 
 #include <map>
 
-xlong pair ( int a, int b )
+xlong tripleFunc ( int a, int b, int c )
 {
-	return (a<<16) + b;
+	return (a<<32) + (b<<16) + c;
 }
 
 bool MeshX::LoadObj ( const char* fname, float scal )
 {	
 	std::vector<std::string>	fargs;
-	std::map< xlong, int >		vnpairs;
+	std::map< xlong, int >		vntmap;		// xlong = encoding of vert,norm,tex IDs using tripleFunc.. map vert/norm/tex -> unique id
 	std::vector<Vector3DF>		nlist;
 	std::vector<Vector3DF>		tlist;
 	std::vector<Vector3DF>		vlist;
@@ -949,28 +949,37 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 			} */
 
 			// convert face-normals pairs into independent vertex groups			
+			// - both the normal and texture coords are included in the mapping
+			// - normals: allow two verts with same pos to have diff normals -> creases
+			// - texuvs:  allow two verts with same pos to have diff uvs -> seams			
+			// vntmap = map from vert/norm/tex to fv, vert index list (unique verts)
+			// vlist  = master vert list
+			// nlist  = master norm list
+			// tlist  = master uv list
+			// fv     = vert index list, this face
+			// v      = current verts, this face
+			// n      = current norms, this face
+			// t      = current uvs, this face
+
 			for (int j=0; j < 3; j++ ) {
-				if ( vnpairs.find (pair(v[j],n[j]) ) == vnpairs.end() ) {
+								
+				if ( vntmap.find ( tripleFunc( v[j], n[j], t[j] ) ) == vntmap.end() ) {
 					
 					fv[j] = AddVert ( vlist[v[j]] );			// vertex position
 
-					// vertex normals (optional)
-					if ( !bNeedNormals )
-						AddVertNorm(nlist[n[j]]);					
+					AddVertNorm( nlist[n[j]] );					// vertex normal
 					
-					// vertex color (optional)
-					AddVertClr( Vector4DF(1, 1, 1, 1) );		
-					
-					// vertex texcoord (optional)
+					AddVertClr( Vector4DF(1, 1, 1, 1) );		// vertex color (optional)
 					if ( t[0] >= 0 ) 
-						AddVertTex ( tlist[t[j]] );				
+						AddVertTex ( tlist[t[j]] );				// vertex texcoord (optional)
 
-					vnpairs[ pair(v[j],n[j]) ] = fv[j];
-
+					vntmap[ tripleFunc( v[j], n[j], t[j] ) ] = fv[j];
+				
 				}  else {
-					fv[j] = vnpairs[ pair(v[j],n[j]) ];
-				}				
+					fv[j] = vntmap[ tripleFunc( v[j], n[j], t[j] ) ];						
+				}
 			}
+
 
 			// add face				
 			AddFaceFast ( fv[0], fv[1], fv[2] );	

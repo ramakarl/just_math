@@ -848,6 +848,35 @@ Matrix4F &Matrix4F::Identity ()
 	return *this;
 }
 
+// rotation for roll,pitch,yaw if the coordinate system is Y+ up.
+// X-axis = roll
+// Z-axis = pitch
+// Y-axis = yaw
+Matrix4F &Matrix4F::RotateYZX (const Vector3DF& angs)
+{	
+	float cx,sx,cy,sy,cz,sz;
+	cx = (float) cos(angs.x * 3.141592/180); sx = (float) sin(angs.x * 3.141592/180);	
+	cy = (float) cos(angs.y * 3.141592/180); sy = (float) sin(angs.y * 3.141592/180);	
+	cz = (float) cos(angs.z * 3.141592/180); sz = (float) sin(angs.z * 3.141592/180);	
+	data[0] = (VTYPE) cy * cz;
+	data[1] = (VTYPE) sz;
+	data[2] = (VTYPE) -sy * cz;
+	data[3] = (VTYPE) 0;
+	data[4] = (VTYPE) -cy * sz * cx + sy*sx;
+	data[5] = (VTYPE) cz * cx;
+	data[6] = (VTYPE)  sy * sz * cx + cy*sx;
+	data[7] = (VTYPE) 0;
+	data[8] = (VTYPE)  cy * sz * sx + sy*cx;
+	data[9] = (VTYPE)  cz * -sx;
+	data[10] =(VTYPE) -sy * sz * sx + cy*cx;
+	data[11] = 0;
+	data[12] = 0;
+	data[13] = 0;
+	data[14] = 0;
+	data[15] = 1;
+	return *this;
+}
+
 // Pre-multiply (left side multiply ZYX) = Euler rotation about X, then Y, then Z
 //
 Matrix4F &Matrix4F::RotateZYX (const Vector3DF& angs)
@@ -861,7 +890,7 @@ Matrix4F &Matrix4F::RotateZYX (const Vector3DF& angs)
 	data[2] = (VTYPE)-sy;
 	data[3] = (VTYPE)0;
 	data[4] = (VTYPE)-sz * cx + cz * sy * sx;
-	data[5] = (VTYPE)cz * cx + sz * sy * sz;
+	data[5] = (VTYPE)cz * cx + sz * sy * sx;
 	data[6] = (VTYPE)cy * sx;
 	data[7] = (VTYPE)0;
 	data[8] = (VTYPE)sz * sx + cz * sy * cx;
@@ -1347,7 +1376,7 @@ Matrix4F& Matrix4F::makeLookAt(Vector3DF eye, Vector3DF target, Vector3DF up)
 // equivalent to gluLookAt (this one returns the orientation vectors)
 Matrix4F& Matrix4F::makeLookAt(Vector3DF eye, Vector3DF target, Vector3DF up, Vector3DF& xaxis, Vector3DF& yaxis, Vector3DF& zaxis)
 {
-	zaxis = eye - target;			zaxis.Normalize();		// 'forward' vector
+	zaxis = eye - target;		zaxis.Normalize();		// 'forward' vector
 	xaxis = up.Cross(zaxis);	xaxis.Normalize();		// 'side' vector
 	yaxis = zaxis.Cross(xaxis); yaxis.Normalize();		// 'up' vector
 	toBasisInv(xaxis, yaxis, zaxis);
@@ -1366,6 +1395,58 @@ Matrix4F& Matrix4F::makeOrthogonalInverse (Matrix4F& s )
 	data[14] = -(s.data[12] * s.data[8]) - (s.data[13] * s.data[9]) - (s.data[14] * s.data[10]);
 	data[15] = 1.0f;
 	
+	return (*this);
+}
+
+Matrix4F& Matrix4F::makeInverse3x3 (Matrix4F& m )
+{
+	// computes the inverse of a 3x3 matrix m
+	double det = m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) -
+				 m(0, 1) * (m(1, 0) * m(2, 2) - m(1, 2) * m(2, 0)) +
+				 m(0, 2) * (m(1, 0) * m(2, 1) - m(1, 1) * m(2, 0));
+
+	double invdet = 1 / det;
+
+	data[0] = (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) * invdet;
+	data[1] = (m(0, 2) * m(2, 1) - m(0, 1) * m(2, 2)) * invdet;
+	data[2] = (m(0, 1) * m(1, 2) - m(0, 2) * m(1, 1)) * invdet;
+	data[3] = 0.0;
+
+	data[4] = (m(1, 2) * m(2, 0) - m(1, 0) * m(2, 2)) * invdet;
+	data[5] = (m(0, 0) * m(2, 2) - m(0, 2) * m(2, 0)) * invdet;
+	data[6] = (m(1, 0) * m(0, 2) - m(0, 0) * m(1, 2)) * invdet;
+	data[7] = 0.0;
+	
+	data[8] = (m(1, 0) * m(2, 1) - m(2, 0) * m(1, 1)) * invdet;
+	data[9] = (m(2, 0) * m(0, 1) - m(0, 0) * m(2, 1)) * invdet;
+	data[10] = (m(0, 0) * m(1, 1) - m(1, 0) * m(0, 1)) * invdet;	
+	data[11] = 0.0f;
+
+	data[12] = 0.0f;
+	data[13] = 0.0f;
+	data[14] = 0.0f;
+	data[15] = 1.0f;
+
+	return (*this);
+}
+
+// get 3x3 sub-matrix for rotation only
+Matrix4F& Matrix4F::makeRotationMtx (Matrix4F& s )
+{
+	data[0] = s.data[0]; data[1] = s.data[1]; data[2] = s.data[2]; data[3] = 0.0f;
+	data[4] = s.data[4]; data[5] = s.data[5]; data[6] = s.data[6]; data[7] = 0.0f;
+	data[8] = s.data[8]; data[9] = s.data[9]; data[10] = s.data[10]; data[11] = 0.0f;
+	data[12] = 0; data[13] = 0; data[14] = 0; data[15] = 1.0f;	
+	return (*this);
+}
+
+// get 3x3 sub-matrix for inverse rotation (R^-1 = Rt)
+Matrix4F& Matrix4F::makeRotationInv (Matrix4F& s)
+{
+	data[0] = s.data[0]; data[1] = s.data[4]; data[2] = s.data[8]; data[3] = 0.0f;
+	data[4] = s.data[1]; data[5] = s.data[5]; data[6] = s.data[9]; data[7] = 0.0f;
+	data[8] = s.data[2]; data[9] = s.data[6]; data[10] = s.data[10]; data[11] = 0.0f;
+	data[12] = 0; data[13] = 0; data[14] = 0; data[15] = 1.0f;	
 	return (*this);
 }
 
@@ -1646,7 +1727,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
         if (cols!=op.rows)					debug.Print (DEBUG_MATRIX, "MatrixF::m*=op: Matricies not compatible (m.cols != op.rows)\n");
     #endif
 	if (cols==op.rows) {
-		VTYPE *newdata, *n, *ne, *a, *as;		// Pointers into A and new A matricies
+		VTYPE *newdata, *n, *ne, *a, *as;		// Pointers into A and new A matrices
 		float *b, *bs, *bce, *be;				// Pointers into B matrix
 		int newr = rows, newc = op.cols;		// Set new rows and columns
 		int newlen = newr * newc;				// Determine new matrix size
@@ -1656,7 +1737,7 @@ MatrixF &MatrixF::operator+= (const MatrixF &op)		{
 		int bskip = op.cols;					// Calculate row increment for B matrix	
 		bce = op.data + bskip;					// Calculate end of first row in B matrix
 		be = op.data + op.rows*op.cols;			// Calculate end of B matrix	
-		as = data; bs = op.data;				// Goto start of A and B matricies
+		as = data; bs = op.data;				// Goto start of A and B matrices
 		for (n=newdata ;n<ne;) {				// Compute C = A*B		
 			a = as; b = bs;						// Goto beginning of row in A, top of col in B
 			*n = (VTYPE) 0;						// Initialize n element in C

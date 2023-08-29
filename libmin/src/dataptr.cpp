@@ -196,7 +196,7 @@ int DataPtr::Append ( int stride, uint64_t added_cnt, char* dat, uchar dest_flag
           cuCheck ( cuGraphicsMapResources(1, &mGrsc, 0), "DataPtr::Append", "cuGraphicsMapResources", "", false);
           cuCheck ( cuGraphicsSubResourceGetMappedArray( &mGarray, mGrsc, 0, 0), "DataPtr::Append", "cuGraphicsSubResourceGetMappedArray", "", false );
 
-          // CUDA texture/surface interop - resource descripion
+          // CUDA texture/surface interop - resource description
           CUDA_RESOURCE_DESC resDesc;
           memset ( &resDesc, 0, sizeof(resDesc) );
           resDesc.resType = CU_RESOURCE_TYPE_ARRAY;
