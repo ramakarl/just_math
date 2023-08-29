@@ -114,7 +114,7 @@ If so, they suggest injecting Gaussian noise (noise injection BP or NIBP) to hel
 Alternatively, Knoll et all suggest introducing a weighting factor that dampens the considered
 residual to schedule updates that have occurred more often less (weight damped belief propagation or WDBP).
 That is, instead of sorting by residual, sort by residual divided by number
-times updates ($\frac{ r _ { i, j } }{ \text{ # times chosen } }$).
+times updates ($\frac{ r _ { i, j } }{  \\# \text{ times chosen } }$).
 
 Note that the convergence rate for RBP, NIBP or WDBP is higher than the "vanilla" BP case ("asynchronous BP" (ABP) or
 "round robin BP"), the quality might suffer.
@@ -189,3 +189,17 @@ References
   - [WFC Explained](https://www.boristhebrave.com/2020/04/13/wave-function-collapse-explained/)
 * ["Message Scheduling Methods for Belief Propagation" by Knoll et all](https://github.com/abetusk/papers/blob/release/ComputerScience/BeliefPropagation/message-sched-for-bp_sknoll-rath-tschiatschek-pernkopf.pdf)
 * [Constraint-Based 2D Tile GAme Blending with Sturgeon](https://www.youtube.com/watch?v=4abT8yKh-AQ)
+* [WFC tutorial](https://medium.com/swlh/wave-function-collapse-tutorial-with-a-basic-exmaple-implementation-in-python-152d83d5cdb1)
+* [procjam WFC](https://www.procjam.com/tutorials/wfc/)
+* [WFC very clearly](https://robertheaton.com/2018/12/17/wavefunction-collapse-algorithm/)
+* [WFC OverlappingModel.cs](https://github.com/mxgmn/WaveFunctionCollapse/blob/master/OverlappingModel.cs)
+* [Tilings and Projection Set Algorithms](https://gvarnavides.com/musings/tilings-and-projection-set-algorithms/)
+* [Quantogram](https://zaratustra.itch.io/quantogram?width=32&height=32&image=demo_pacman.png)
+* [Paul Merrell](https://paulmerrell.org/model-synthesis/)
+  - [Model Synthesis](https://paulmerrell.org/model-synthesis/)
+  - [Model Synthesis on GitHub](https://github.com/merrell42/model-synthesis)
+  - [Comparison Model Synthesis and WFC](https://paulmerrell.org/wp-content/uploads/2021/07/comparison.pdf)
+  - [Boris the Brave on Model Synthesis](https://www.boristhebrave.com/2021/10/26/model-synthesis-and-modifying-in-blocks/)
+* [Boris the Brave on 'backjumping'](https://twitter.com/boris_brave/status/1485006264119799811)
+* [Maxim Gumin on twitter](https://twitter.com/ExUtumno/status/895684431477747715)
+

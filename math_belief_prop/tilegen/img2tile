@@ -42,6 +42,7 @@ info = {
     "tile_weight": "inversesqrt", #"linear", # 1, sqrt, linear, inverse, inversesqrt
 
     "barf_supertile": False, #True,
+    "barf_supertile_dir": ".img",
 
     #"neighbor_type": 0,
     "debug": False
@@ -154,7 +155,7 @@ def parse_param_2_1(a):
   return [x,y]
 
 try:
-  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:w:t:", ["help", "version"])
+  opts, args = getopt.getopt(sys.argv[1:], "hvVi:s:o:M:S:Dd:N:R:w:t:Q:", ["help", "version"])
 except getopt.GetoptError as err:
   print(err)
   usage(sys.stderr)
@@ -212,6 +213,10 @@ for o,a in opts:
   elif o == "-N":
     info["tilename"]["fn"] = a
     info["tilename"]["realize"] = True
+
+  elif o == "-Q":
+    info["opt"]["barf_supertile"] = True
+    info["opt"]["barf_supertile_dir"] = a
 
   elif o == "-t":
     _t = int(a)
@@ -860,12 +865,15 @@ def dedup_block(data):
   data["src_id_dedup_id_map"] = src_id_dedup_id_map
   data["dedup_id_block_map"] = dedup_id_block_map
 
-  #DEBUG
   _opt = data["info"]["opt"]
   if _opt["barf_supertile"]:
-    print("BARFING individual block tile pngs to '.img/' directory")
+    barf_dir = _opt["barf_supertile_dir"]
+    os.makedirs(barf_dir, exist_ok=True)
+
+    print("BARFING individual block tile pngs to", barf_dir, "directory")
+
     for idx in range(n_dedup_id):
-      barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], ".img/" + str(idx) + ".png")
+      barf_supertile( dedup_id_block_map[idx], window[row_idx], window[col_idx], os.path.join(barf_dir, str(idx)+".png") )
 
 
 def debug_print_rule(data):

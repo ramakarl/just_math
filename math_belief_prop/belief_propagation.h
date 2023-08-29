@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.6.0"
+#define BELIEF_PROPAGATION_VERSION "0.8.0"
 
 #define VB_NONE         0
 #define VB_ERROR        0
@@ -75,8 +75,14 @@
 #define OPT_FH
 #define OPT_MUBOUND
 
+#define OPT_BLOCK_RANDOM              0
+#define OPT_BLOCK_RANDOM_1            1
+#define OPT_BLOCK_SEQUENTIAL          2
+#define OPT_BLOCK_MIN_ENTROPY         3
+#define OPT_BLOCK_NOISY_MIN_ENTROPY   4
+
 #define MU_NOCOPY 0
-#define MU_COPY 1
+#define MU_COPY   1
 
 #define VIZ_NONE        0
 #define VIZ_MU          1
@@ -89,15 +95,19 @@
 #define VIZ_RESPICK     8
 
 #define ALG_CELL_WFC            31
-#define ALG_CELL_ANY            32
-#define ALG_CELL_MIN_ENTROPY    33
+#define ALG_CELL_BLOCK_WFC      32
+#define ALG_CELL_ANY            33
+#define ALG_CELL_MIN_ENTROPY    34
+#define ALG_CELL_BREAKOUT       35
 
-#define ALG_TILE_MAX_BELIEF     34
+#define ALG_TILE_MAX_BELIEF     36
 
-#define ALG_RUN_VANILLA         35
-#define ALG_RUN_RESIDUAL        36
-#define ALG_RUN_WFC             37
-#define ALG_RUN_BACKTRACK       38
+#define ALG_RUN_VANILLA         37
+#define ALG_RUN_RESIDUAL        38
+#define ALG_RUN_WFC             39
+#define ALG_RUN_BLOCK_WFC       40
+#define ALG_RUN_BACKTRACK       41
+#define ALG_RUN_BREAKOUT        42
 
 #define ALG_ACCEL_NONE          0
 #define ALG_ACCEL_WAVE          1
@@ -153,6 +163,21 @@
 #define BUF_BT                    22    // <2*B*num_vert, 1, 1>
 #define BUF_BT_IDX                23    // <B*num_vert, 1, 1>
 
+#define BUF_BLOCK                 24    //                                                                               // <num_vert, 1, 1>
+
+//--
+//
+// prefatory state for breakout model synthesis
+//
+#define BUF_PREFATORY_TILE_IDX    25    // <B, num_vert, 1>
+#define BUF_PREFATORY_TILE_IDX_N  26    // <num_vert, 1, 1>
+
+#define BUF_SAVE_TILE_IDX         27    // <B, num_vert, 1>
+#define BUF_SAVE_TILE_IDX_N       28    // <num_vert, 1, 1>
+//--
+
+
+
 #define BUF_MAX         30      // this is buffer count limit. increase if more needed.
 
 
@@ -207,6 +232,7 @@ typedef struct _bp_opt_t {
   int32_t   cur_iter;
   int32_t   max_iter;
 
+
   int32_t   cur_step;
   int32_t   max_step;
 
@@ -223,6 +249,9 @@ typedef struct _bp_opt_t {
   int       use_checkerboard;
 
   int       use_lookahead;
+
+  //int64_t   block_size[3];
+  int32_t   block_schedule;
 
   // As a general rule of thumb, the verbosity is:
   //
@@ -340,10 +369,32 @@ typedef struct _bp_expr_type {
 class BeliefPropagation {
 public:
   BeliefPropagation() {
+    int i,j;
 
     op.verbose = VB_NONE;
 
     default_opts();
+
+    m_return = 0;
+
+    m_sub_block[0] = 0;
+    m_sub_block[1] = 0;
+    m_sub_block[2] = 0;
+    m_block_size[0] = 0;
+    m_block_size[1] = 0;
+    m_block_size[2] = 0;
+    m_block_idx[0] = 0;
+    m_block_idx[1] = 0;
+    m_block_idx[2] = 0;
+
+    m_breakout_block_fail_count = 0;
+    m_breakout_soften_limit = 2;
+
+    for (i=0; i<3; i++) {
+      for (j=0; j<2; j++) {
+        m_sub_block_range[i][j] = 0;
+      }
+    }
 
   };
 
@@ -371,6 +422,11 @@ public:
   int       CheckConstraints ();
 
   void      SetVis (int viz_opt);
+
+  //----
+  void _saveTileIdx(void);
+  void _restoreTileIdx(void);
+
 
   //------------------------ belief propagation, mid-level API
 
@@ -440,6 +496,8 @@ public:
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
+  int   chooseMinEntropyBlock(std::vector<int64_t> &block_bound, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
+
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
   void  InitializeDMU (int buf_id=BUF_MU_NXT);
@@ -458,6 +516,7 @@ public:
   int32_t tileName2ID (char *);
 
   // used for visualization
+  //
   void  ComputeDiffMUField ();
   void  ComputeBeliefField ();
   int   ComputeTilecountField ();
@@ -467,8 +526,8 @@ public:
   //
   int   CullBoundary();
   int   cellConstraintPropagate();
-  void  cellFillVisited(uint64_t vtx, int32_t note_idx);
-  int   cellFillSingle(uint64_t vtx, int32_t note_idx);
+  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx);
+  int   cellFillVisitedSingle(uint64_t vtx, int32_t note_idx);
 
   int   tileIdxCollapse(uint64_t pos, int32_t tile_idx);
   int   tileIdxRemove(uint64_t pos, int32_t tile_idx);
@@ -480,17 +539,19 @@ public:
   int   sanityAccessed();
 
   //----------------------- visualization
+
   Vector4DF getVisSample ( int64_t v );
-
-
 
   //------------------------ memory management
 
-  void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );     // new function
+  void          AllocBuf (int id, char dt, uint64_t cntx=1, uint64_t cnty=1, uint64_t cntz=1 );
   void          ZeroBuf (int id);
 
-  int64_t       getNeighbor(uint64_t j, int nbr);        // 3D spatial neighbor function
-  int64_t       getNeighbor(uint64_t j, Vector3DI jp, int nbr);        // 3D spatial neighbor function
+  // 3D spatial neighbor functions
+  //
+  int64_t       getNeighbor(uint64_t j, int nbr);
+  int64_t       getNeighbor(uint64_t j, Vector3DI jp, int nbr);
+
   Vector3DI     getVertexPos(int64_t j);
   int64_t       getVertex(int x, int y, int z);
   int           getTilesAtVertex ( int64_t vtx );
@@ -498,7 +559,9 @@ public:
 
   //----------------------- new accessor functions
 
-  inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}     // caller does type casting
+  // caller does type casting
+  //
+  inline void*  getPtr(int id, int x=0, int y=0, int z=0)     {return (void*) m_buf[id].getPtr (x, y, z);}
 
   inline int32_t getValI(int id, int x=0, int y=0, int z=0)            {return *(int32_t*) m_buf[id].getPtr (x, y, z);}
   inline int64_t getValL(int id, int x=0, int y=0, int z=0)            {return *(int64_t*) m_buf[id].getPtr (x, y, z);}
@@ -509,7 +572,6 @@ public:
   inline void   SetValF(int id, float val, int x, int y=0, int z=0)     {*(float*)   m_buf[id].getPtr(x, y, z) = val;}
 
   inline int    getNumNeighbors(int j)        {return (m_bpres.z==1) ? 4 : 6;}
-  // inline int    getNumNeighbors(int j)        {return 6;}
 
   inline int    getNumValues(int j)          {return m_num_values;}
   inline int    getNumVerts()            {return m_num_verts;}
@@ -531,37 +593,16 @@ public:
   float         getElapsedTime()       { return st.elapsed_time; }
   void          setConverge ( bp_opt_t* op, float c );
 
-  //----------------------- LEGACY accessor functions
-
-  //  belief prop residue access functions (int64_t)
-  //  index heap - ih
-  //
-  /* inline int64_t* getPtr_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return  (int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline int64_t  getVal_ih(int32_t id, int32_t n, int64_t j, int32_t a)                { return *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ); }
-  inline void     SetVal_ih(int32_t id, int32_t n, int64_t j, int32_t a, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( uint64_t(n*m_num_verts + j)*m_num_values + a ) = val; }
-
-  inline int64_t* getPtr_ih(int32_t id, int64_t idx)                { return  (int64_t*) m_buf[id].getPtr ( idx ); }
-  inline int64_t  getVal_ih(int32_t id, int64_t idx)                { return *(int64_t*) m_buf[id].getPtr ( idx ); }
-  inline void     SetVal_ih(int32_t id, int64_t idx, int64_t val )  { *(int64_t*) m_buf[id].getPtr ( idx ) = val; }
-
-  inline float* getPtr_ihf(int32_t id, int64_t idx)             { return  (float*) m_buf[id].getPtr ( idx ); }
-  inline float  getVal_ihf(int32_t id, int64_t idx)             { return *(float*) m_buf[id].getPtr ( idx ); }
-  inline void   SetVal_ihf(int32_t id, int64_t idx, float val ) { *(float*) m_buf[id].getPtr ( idx ) = val; } */
-
-/* inline int32_t getValNote(int id, int i, int a)                { return *(int32_t *) m_buf[id].getPtr ( uint64_t(i*m_num_verts+ a) ); }
-   inline void    SetValNote(int id, int i, int a, int32_t val)   { *(int32_t*) m_buf[id].getPtr ( (i*m_num_verts + a) ) = val; }  */
-
-
   //-------------------------- wave function collapse
   int   wfc();
   int   wfc_start();
   int   wfc_step(int64_t it);
 
-  //-------------------------- backtracking
+  //-------------------------- backtracking (wip)
+
   int cellConstraintPropagate_lookahead(int64_t, int32_t);
   int btPush(int64_t, int64_t, int64_t);
   int btUnwind(int64_t);
-
 
 
   //-------------------------- debugging functions
@@ -569,6 +610,7 @@ public:
   // helper arrays and functions for ease of testing and simple use
   //
   void  debugPrint();
+  void  debugPrintTerse();
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
@@ -582,9 +624,11 @@ public:
   //------------------------- member variables
 
   // primary data stored in buffers
+  //
   DataPtr       m_buf[ BUF_MAX ];
 
   // problem size
+  //
   int64_t       m_num_verts;    // Xi = 0..X (graph domain)
   int64_t       m_num_values;   //  B = 0..Bm-1 (value domain)
   Vector3DI     m_bpres;        // 3D spatial belief prop res
@@ -604,13 +648,30 @@ public:
 
   Mersenne      m_rand;
 
+  int32_t       m_return;
+
+  int32_t       m_sub_block[3],
+                m_block_size[3],
+                m_block_idx[3],
+                m_sub_block_range[3][2];
+
+  std::vector< int32_t > m_block_admissible_tile;
+
+  // unused right now...
+  //
+  int64_t       m_breakout_block_fail_count,
+                m_breakout_soften_limit;
+
   // parameters/options
+  //
   bp_opt_t      op;
 
   // statistics
+  //
   bp_stat_t     st;
 
   // experiments
+  //
   bp_expr_t     expr;
 
 };

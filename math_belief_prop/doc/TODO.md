@@ -1,20 +1,40 @@
 TODO
 ===
 
-###### 2023-03-20
+###### 2023-07-25
 
+* block WFC
+* Tiled has the option for multiple layers, so we can shove 3d tiles on multiple layers
+  or have multiple layers for 2d realizations that have failed (to see other options)
+
+###### 2023-04-02
+
+* add 'escheresque' tilset:
+  - https://github.com/merrell42/model-synthesis/blob/master/samples/escheresque.txt
+* investigate block based approach from model synthesis
+  - https://www.boristhebrave.com/2021/10/26/model-synthesis-and-modifying-in-blocks/
+
+
+###### 2023-03-25
+
+* implement 'fixing frames'
+  - force certain constrained tiles/cells and make sure
+    algorithm doesn't touch them afterwards.
+  - will allow us to set up smaller, potentially constrained
+    problems, to test the different algorithms on
 * implement backtracking algorithm
   - consider 'look ahead' algorithm to try and
     cull tiles that we know will lead to contradiction
-    if they're fixed
-* ~2d tileset png~
+    if they're fixed (sort of done, needs some validation
+    and work)
 * statistics for knowing where in the cluster (chain of
   implication after a tile has been chosen/forced) that
-  leads to a contradiction
+  leads to a contradiction (low priority, not sure how to progress)
   - the idea is that there might be information if the
     contradiction happens with high frequency at the end
     of a long 10 chain instead of near the start of the
     implication chain
+* ~2d tileset png~
 
 ###### 2023-03-12
 

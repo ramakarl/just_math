@@ -440,23 +440,30 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
   fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
+  fprintf(fp, "  -j <range> set range of admissible tiles for block wfc\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
+  fprintf(fp, "  -i <#>   set max iteration (default to #cell * #tile)\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
   fprintf(fp, "  -Y <#>   set Y\n");
   fprintf(fp, "  -Z <#>   set Z\n");
   fprintf(fp, "  -T <#>   run test number\n");
   fprintf(fp, "  -S <#>   seed\n");
-  fprintf(fp, "  -G <#>   algorithm choice\n");
-  fprintf(fp, "   -1      'wave function collapse'\n");
+  fprintf(fp, "  -G <#>   Algorithm/BP decimation policy\n");
   fprintf(fp, "    0      fix maximum belief tile (default)\n");
   fprintf(fp, "    1      (unused)\n");
   fprintf(fp, "    2      after convergence, pick minimum entropy cell, maximum belief tile value\n");
   fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
+  fprintf(fp, "    -1     'wave function collapse'\n");
+  fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
+  fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
+  fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
+  fprintf(fp, "    -5     breakout model synthesis\n");
+  fprintf(fp, "  -b <#>   block size (for use in block wfc and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -483,7 +490,7 @@ void show_version(FILE *fp) {
 
 int main(int argc, char **argv) {
   int i, j, k, idx, ret=0;
-  char ch;
+  char ch = -1;
 
   char *name_fn = NULL, *rule_fn = NULL, *constraint_fn = NULL;
   std::string name_fn_str,
@@ -510,12 +517,22 @@ int main(int argc, char **argv) {
   std::string _eps_str;
   std::vector<float> eps_range;
 
-  int max_iter = -1, it, n_it;
+  int max_iter = -1,
+      it = -1,
+      n_it = -1;
+
+  int64_t cell=-1;
+  int32_t n_idx=-1,
+          tile=-1,
+          tile_idx=-1 ;
 
   std::vector< std::vector< int32_t > > constraint_list;
 
   std::string constraint_commands;
   std::vector< constraint_op_t > constraint_op_list;
+
+  std::string block_admissible_tile_range;
+  std::vector< int32_t > block_admissible_tile_list;
 
   std::vector< std::vector< float > > tri_shape_lib;
 
@@ -529,7 +546,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:l")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -590,6 +607,7 @@ int main(int argc, char **argv) {
           bpc.op.eps_zero = eps_zero;
         }
         break;
+
       case 'I':
         max_iter = atoi(optarg);
         if (max_iter > 0) {
@@ -597,6 +615,10 @@ int main(int argc, char **argv) {
           bpc.op.max_step = (int64_t)max_iter;
         }
         break;
+      case 'i':
+        n_it = atoi(optarg);
+        break;
+
       case 'w':
         step_factor = atof(optarg);
         if (step_factor > 0.0) {
@@ -640,6 +662,9 @@ int main(int argc, char **argv) {
         Z = atoi(optarg);
         break;
 
+      case 'j':
+        block_admissible_tile_range = optarg;
+        break;
       case 'J':
         constraint_commands = optarg;
         break;
@@ -669,6 +694,19 @@ int main(int argc, char **argv) {
         break;
       case 'u':
         bpc.op.tiled_reverse_y = 1;
+        break;
+
+      case 'b':
+        bpc.m_block_size[0] = atoi(optarg);
+        bpc.m_block_size[1] = atoi(optarg);
+        bpc.m_block_size[2] = atoi(optarg);
+
+        bpc.m_sub_block_range[0][0] = 1;
+        bpc.m_sub_block_range[1][0] = 1;
+        bpc.m_sub_block_range[2][0] = 1;
+        bpc.m_sub_block_range[0][1] = bpc.m_block_size[0];
+        bpc.m_sub_block_range[1][1] = bpc.m_block_size[1];
+        bpc.m_sub_block_range[2][1] = bpc.m_block_size[2];
         break;
 
       default:
@@ -715,6 +753,12 @@ int main(int argc, char **argv) {
     fflush(stdout);
   }
 
+  // clamp block size
+  //
+  if (X < bpc.m_block_size[0]) { bpc.m_block_size[0] = X; }
+  if (Y < bpc.m_block_size[1]) { bpc.m_block_size[1] = Y; }
+  if (Z < bpc.m_block_size[2]) { bpc.m_block_size[2] = Z; }
+
   ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
   if (ret<0) {
@@ -733,6 +777,26 @@ int main(int argc, char **argv) {
       fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
       exit(-1);
     }
+
+  }
+
+  if (block_admissible_tile_range.size() > 0) {
+    std::vector<int> tile_range, tile_dim;
+
+    tile_dim.push_back(bpc.m_num_values);
+    ret = parse_range(tile_range, block_admissible_tile_range, tile_dim);
+    if (ret<0) {
+      fprintf(stderr, "could not parse admissbile block tile range, ignoring\n");
+    }
+    else {
+
+      block_admissible_tile_list.clear();
+      for (tile=tile_range[0]; tile < tile_range[1]; tile++) {
+        block_admissible_tile_list.push_back(tile);
+      }
+
+    }
+
 
   }
 
@@ -789,6 +853,46 @@ int main(int argc, char **argv) {
     bpc.op.alg_accel    = ALG_ACCEL_NONE;
     bpc.op.alg_run_opt  = ALG_RUN_WFC;
     bpc.op.alg_cell_opt = ALG_CELL_WFC;
+  }
+
+  // block wfc
+  //
+  else if (bpc.op.alg_idx == -2) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_SEQUENTIAL;
+  }
+
+  // block wfc
+  //
+  else if (bpc.op.alg_idx == -3) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
+  }
+
+  // block wfc
+  //
+  else if (bpc.op.alg_idx == -4) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM_1;
+  }
+
+  // breakout model synthesis
+  //
+  else if (bpc.op.alg_idx == -5) {
+    bpc.op.alg_accel    = ALG_ACCEL_NONE;
+    bpc.op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    bpc.op.alg_cell_opt = ALG_CELL_BREAKOUT;
+
+    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
   }
 
   else if (bpc.op.alg_idx == 1) {
@@ -862,25 +966,116 @@ int main(int argc, char **argv) {
 
   }
 
+
+  if (bpc.op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+    for (cell=0; cell<bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+
+      // for block wfc to work, we assume 'ground state'
+      // of configuration is chosen, so return an
+      // error here if that assumption is invalid.
+      //
+      if (n_idx != 1) {
+        fprintf(stderr, "block wfc requires valid ground state\n");
+        exit(-1);
+      }
+
+    }
+
+    // Allow only certain tiles when fuzzing block
+    //
+    if (block_admissible_tile_list.size() > 0) {
+      bpc.m_block_admissible_tile = block_admissible_tile_list;
+    }
+
+    if (bpc.op.verbose >= VB_RUN) {
+      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
+      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
+        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
+      }
+      printf("\n");
+    }
+
+  }
+
+  else if (bpc.op.alg_run_opt == ALG_RUN_BREAKOUT) {
+
+    // Save "prefatory" state.
+    // We assume initial constraints have been propagated, including
+    // boundary condition constraints and any user specified constraints.
+    // The prefatory state will be used in the "soften" stage, should a block
+    // choice fail, the prefatory state will be used to fill in the failed
+    // block and its neighbors.
+    //
+    for (cell=0; cell<bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, n_idx, cell );
+
+      for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+        tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
+        bpc.SetValI( BUF_PREFATORY_TILE_IDX, tile, tile_idx, cell );
+      }
+
+    }
+
+    // Allow only certain tiles when fuzzing blocks.
+    // Maybe not needed for breakout?
+    //
+    if (block_admissible_tile_list.size() > 0) {
+      bpc.m_block_admissible_tile = block_admissible_tile_list;
+    }
+
+    if (bpc.op.verbose >= VB_RUN) {
+      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
+      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
+        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
+      }
+      printf("\n");
+    }
+
+  }
+
+
+
   //----
   //----
   //----
 
-  n_it = bpc.m_num_verts * bpc.m_num_values;
+  // set default if not specified on command line
+  //
+  if (n_it <= 0) {
+    n_it = bpc.m_num_verts * bpc.m_num_values;
+  }
+
+  //DEBUG
+  //
+  printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
+  bpc.debugPrintTerse();
+  //
+  //DEBUG
 
   for (it=0; it < n_it; it++) {
 
     ret = bpc.RealizePre();
-    if (ret < 0) { break; }
+    if (ret < 0) {
+      printf("RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
+      break;
+    }
 
     ret = 1;
     while (ret>0) {
       ret = bpc.RealizeStep();
     }
-    //if (ret<0) { break; }
 
     ret = bpc.RealizePost();
     if (ret <= 0) { break; }
+
+    if (bpc.m_return == 0) {
+      printf("success!\n");
+      bpc.debugPrintTerse();
+    }
 
     if ( raycast )  {
 
@@ -905,7 +1100,7 @@ int main(int argc, char **argv) {
     printf("# bp realize got: %i\n", ret);
 
     printf("####################### DEBUG PRINT\n" );
-    bpc.debugPrint();
+    bpc.debugPrintTerse();
   }
 
   //----
