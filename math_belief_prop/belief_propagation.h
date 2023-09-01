@@ -557,6 +557,14 @@ public:
   int   removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int   sanityAccessed();
 
+  // sanity functions to help debug breakout model synthesis
+  //
+  int sanityBreakoutRealizedBlock(std::vector<int32_t> &block);
+  int sanityBreakoutSavedTileGrid(void);
+  int sanityBreakoutStatBlock(std::vector<int32_t> &_debug_stat, int32_t *_bounds);
+  int sanityGroundState(void);
+
+
   //----------------------- visualization
 
   Vector4DF getVisSample ( int64_t v );

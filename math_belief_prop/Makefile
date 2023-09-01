@@ -89,4 +89,4 @@ bpc: lib/*.o main_belief_propagation.cpp
 	g++ -O3 -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $^ -lm -o bpc
 
 bpc.debug: lib.debug/*.o main_belief_propagation.cpp
-	g++ -g -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $? -lm -o bpc.debug
+	g++ -g -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $^  -lm -o bpc.debug
