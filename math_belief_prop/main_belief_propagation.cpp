@@ -836,112 +836,17 @@ int main(int argc, char **argv) {
   }
 
   //-------------------
-  //-------------------
-  // Algorithm profiles
-  //-------------------
+  // Algorithm profile
   //-------------------
 
-  if (bpc.op.alg_idx == 0) {
-    bpc.op.alg_cell_opt = ALG_CELL_ANY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-  }
-
-  // wfc...
-  //
-  else if (bpc.op.alg_idx == -1) {
-    bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_WFC;
-    bpc.op.alg_cell_opt = ALG_CELL_WFC;
-  }
-
-  // block wfc
-  //
-  else if (bpc.op.alg_idx == -2) {
-    bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-
-    bpc.op.block_schedule = OPT_BLOCK_SEQUENTIAL;
-  }
-
-  // block wfc
-  //
-  else if (bpc.op.alg_idx == -3) {
-    bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-
-    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
-  }
-
-  // block wfc
-  //
-  else if (bpc.op.alg_idx == -4) {
-    bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-    bpc.op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-
-    bpc.op.block_schedule = OPT_BLOCK_RANDOM_1;
-  }
-
-  // breakout model synthesis
-  //
-  else if (bpc.op.alg_idx == -5) {
-    bpc.op.alg_accel    = ALG_ACCEL_NONE;
-    bpc.op.alg_run_opt  = ALG_RUN_BREAKOUT;
-    bpc.op.alg_cell_opt = ALG_CELL_BREAKOUT;
-
-    bpc.op.block_schedule = OPT_BLOCK_RANDOM;
-  }
-
-  else if (bpc.op.alg_idx == 1) {
-    
-    // unused
-
-    printf("## alg_idx == 1 specified, using default\n");
-
-    bpc.op.alg_cell_opt = ALG_CELL_ANY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-  }
-
-  else if (bpc.op.alg_idx == 2) {
-    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-  }
-
-  else if (bpc.op.alg_idx == 3) {
-    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-    bpc.op.alg_accel    = ALG_ACCEL_WAVE;
-  }
-
-  else if (bpc.op.alg_idx == 4) {
-    bpc.op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_RESIDUAL;
-  }
-
-  // default
-  //
-  else {
-    printf("## alg_idx oob, using default\n");
-
-    bpc.op.alg_cell_opt = ALG_CELL_ANY;
-    bpc.op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-    bpc.op.alg_run_opt  = ALG_RUN_VANILLA;
-  }
-
-
-  //----
-  //----
-  //----
+  bpc.SelectAlgorithm ( bpc.op.alg_idx );
 
 
   //if (bpc.op.verbose > 0) { printf ( "bpc realize.\n" ); }
+
+  //------------ NOTE 
+  // should replace bpc.start() with bp_restart()
+  // to avoid duplicate code in bp_helper
 
   ret = bpc.start();
   if (ret < 0) {
@@ -968,6 +873,7 @@ int main(int argc, char **argv) {
 
 
   if (bpc.op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+
     for (cell=0; cell<bpc.m_num_verts; cell++) {
 
       n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);

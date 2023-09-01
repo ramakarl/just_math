@@ -36,6 +36,7 @@
 #include "tiny_obj_loader.h"
 
 int bp_restart ( BeliefPropagation& bpc ) {
+
   int ret;
 
   // dynamic restart
@@ -45,31 +46,128 @@ int bp_restart ( BeliefPropagation& bpc ) {
 
   bp_opt_t* op = bpc.get_opt();
 
-  // apply dsl constraints
-  if (op->constraint_cmd.size() > 0) {
+  ret = bp_apply_constraints ( bpc );
 
-    std::vector< int > dim;
-    dim.push_back( op->X );
-    dim.push_back( op->Y );
-    dim.push_back( op->Z );
-    std::vector< constraint_op_t > constraint_op_list;
+  if ( op->alg_run_opt == ALG_RUN_BLOCK_WFC )
+      ret = bp_assign_groundstate ( bpc );
 
-    ret = parse_constraint_dsl ( constraint_op_list, op->constraint_cmd, dim, bpc.m_tile_name);
-    if (ret < 0) {
-      fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
-      exit(-1);
-    }
-
-    ret = constrain_bp ( bpc, constraint_op_list);
-    if (ret < 0) {
-      fprintf(stderr, "constrain_bp failure\n");
-      exit(-1);
-    }
-  }
+  if ( op->alg_run_opt == ALG_RUN_BREAKOUT )
+      ret = bp_save_prefatorystate ( bpc );      
 
   ret = bpc.RealizePre ();
 
   return ret;
+}
+
+int bp_apply_constraints ( BeliefPropagation& bpc )
+{
+    int ret = 1;
+    bp_opt_t* op = bpc.get_opt();
+    
+    if (op->constraint_cmd.size() > 0) {
+
+        std::vector< int > dim;
+        dim.push_back( op->X );
+        dim.push_back( op->Y );
+        dim.push_back( op->Z );
+        std::vector< constraint_op_t > constraint_op_list;
+
+        ret = parse_constraint_dsl ( constraint_op_list, op->constraint_cmd, dim, bpc.m_tile_name);
+        if (ret < 0) {
+          fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
+          exit(-1);
+        }
+        ret = constrain_bp ( bpc, constraint_op_list);
+        if (ret < 0) {
+          fprintf(stderr, "constrain_bp failure\n");
+          exit(-1);
+        }
+    }
+    return ret;
+}
+
+int bp_assign_groundstate ( BeliefPropagation& bpc )
+{
+   int64_t cell=-1;
+   int32_t n_idx=-1,
+          tile=-1,
+          tile_idx=-1 ;
+
+   for (cell=0; cell < bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+
+      // for block wfc to work, we assume 'ground state'
+      // of configuration is chosen, so return an
+      // error here if that assumption is invalid.
+      //
+      if (n_idx != 1) {
+        fprintf(stderr, "block wfc requires valid ground state\n");
+        exit(-1);
+        return 0;
+      }
+    }
+
+    // Allow only certain tiles when fuzzing block
+    //
+    std::string block_admissible_tile_range;
+    std::vector< int32_t > block_admissible_tile_list;
+
+    if (block_admissible_tile_range.size() > 0) {
+        std::vector<int> tile_range, tile_dim;
+
+        tile_dim.push_back(bpc.m_num_values);
+        int ret = parse_range(tile_range, block_admissible_tile_range, tile_dim);
+        if (ret<0) {
+          fprintf(stderr, "could not parse admissbile block tile range, ignoring\n");
+        } else {
+          block_admissible_tile_list.clear();
+          for (tile=tile_range[0]; tile < tile_range[1]; tile++) {
+            block_admissible_tile_list.push_back(tile);
+          }
+        }
+    }
+    // assign admissable list to BPC
+    if (block_admissible_tile_list.size() > 0) {
+       bpc.m_block_admissible_tile = block_admissible_tile_list;
+    }
+    if (bpc.op.verbose >= VB_RUN) {
+      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
+      for (int idx=0; idx < bpc.m_block_admissible_tile.size(); idx++) {
+        printf(" %i", (int) bpc.m_block_admissible_tile[idx]);
+      }
+      printf("\n");
+    }
+    
+    return 1;
+}
+
+int bp_save_prefatorystate ( BeliefPropagation& bpc )
+{
+    int64_t cell=-1;
+    int32_t n_idx=-1,
+          tile=-1,
+         tile_idx=-1 ;
+
+
+    // Save "prefatory" state.
+    // We assume initial constraints have been propagated, including
+    // boundary condition constraints and any user specified constraints.
+    // The prefatory state will be used in the "soften" stage, should a block
+    // choice fail, the prefatory state will be used to fill in the failed
+    // block and its neighbors.
+    //
+    for (cell=0; cell<bpc.m_num_verts; cell++) {
+
+      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
+      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, n_idx, cell );
+
+      for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+        tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
+        bpc.SetValI( BUF_PREFATORY_TILE_IDX, tile, tile_idx, cell );
+      }
+    }
+    return 1;
 }
 
 // *NOTE*: Multirun can be used in place to bp_init.

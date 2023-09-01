@@ -172,7 +172,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         op->tileset_stride_x = strToI(optarg);
         op->tileset_stride_y = op->tileset_stride_x;
         break;
-      case 'G':
+      case 'G':     // algorithm selection
         op->alg_idx = strToI(optarg);
         break;
       case 'S':
@@ -358,7 +358,7 @@ bool Sample::init()
   m_run       = false;  // must start out false until all other init is done
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
-  m_cam->setOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
+  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
   m_img = new Image;
   m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
 
@@ -383,9 +383,8 @@ bool Sample::init()
     // stairs:
     // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
 
-  //-- Experiments
-  
-  bpc.expr.num_expr = 5;
+  //-- Experiments  
+  /* bpc.expr.num_expr = 5;
   bpc.expr.num_run = 20;
   bpc.expr.grid_min.Set (100, 100, 1);
   bpc.expr.grid_max.Set (150, 150, 1);
@@ -395,22 +394,16 @@ bool Sample::init()
   bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .0001;
   bpc.expr.eps_max = .0001;
-
   bpc.st.instr = 0;
 
-
-  printf ("WAVEFRONT: %d\n", int(bpc.op.alg_accel) );
-
-  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); 
-  
-  
-
+  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); */
+    
   //-- Multirun testing  
   /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
   
   exit(-5); */
     
-  // Initiate Belief Propagation   
+  // Initiate Algorithm
   
   // find name & rule files
   std::string name_path, rule_path;
@@ -435,10 +428,11 @@ bool Sample::init()
     }
   }
 
-  // start belief prop
-  //
+  // Select algorithm
+  bpc.SelectAlgorithm ( bpc.op.alg_idx );
+  
+  // Restart
   bp_restart ( bpc ); 
-
 
   // start viz
   m_viz = VIZ_CONSTRAINT ;
@@ -593,7 +587,7 @@ void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
     Vector3DF angs = m_cam->getAng();
     angs.x += dx * 0.2f * fine;
     angs.y -= dy * 0.2f * fine;
-    m_cam->setOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
+    m_cam->SetOrbit(angs, m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
     appPostRedisplay();  // Update display
   } break;
   }
@@ -615,7 +609,7 @@ void Sample::mousewheel(int delta)
   float zoom = (dist - dolly) * 0.001f;
   dist -= delta * zoom * zoomamt;
 
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
+  m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
 }
 
 
@@ -659,8 +653,7 @@ void Sample::reshape(int w, int h)
 
   m_cam->setSize( w, h );
   m_cam->setAspect(float(w) / float(h));
-  m_cam->setOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());
-  m_cam->updateMatricies();
+  m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());  
 
   m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8 );
 

@@ -52,6 +52,13 @@ int bp_multirun ( BeliefPropagation& bp, int runs, std::string outfile );
 
 int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string outrun );
 
+int bp_apply_constraints ( BeliefPropagation& bpc );
+
+int bp_assign_groundstate ( BeliefPropagation& bpc );
+
+int bp_save_prefatorystate ( BeliefPropagation& bpc );
+
+
 //---------------------- secondary helpers
 
 int parse_range(std::vector<int> &range, std::string &s, std::vector<int> &dim);

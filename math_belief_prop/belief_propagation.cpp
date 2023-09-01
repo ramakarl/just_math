@@ -162,6 +162,67 @@ int BeliefPropagation::default_opts () {
   return 0;
 }
 
+void BeliefPropagation::SelectAlgorithm ( int alg_idx )
+{
+    op.alg_idx = alg_idx;
+    switch (alg_idx) {
+    case ALG_BP:                                // BP
+        op.alg_cell_opt = ALG_CELL_ANY;
+        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+        op.alg_run_opt  = ALG_RUN_VANILLA;
+        break;
+    case ALG_WFC:                               // WFC        
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_WFC;
+        op.alg_cell_opt = ALG_CELL_WFC;
+        break;
+    case ALG_WFC_BLOCK_SEQ:                     // WFC_BLOCK_SEQ
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+        op.block_schedule = OPT_BLOCK_SEQUENTIAL;
+        break;
+    case ALG_WFC_BLOCK_RAND1:                   // WFC_BLOCK_RAND1
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+        op.block_schedule = OPT_BLOCK_RANDOM;
+        break;
+    case ALG_WFC_BLOCK_RAND2:                   // WFC_BLOCK_RAND2
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
+        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
+        op.block_schedule = OPT_BLOCK_RANDOM_1;
+        break;
+    case ALG_BMS:                               // BMS, Breakout Model Synth
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BREAKOUT;
+        op.alg_cell_opt = ALG_CELL_BREAKOUT;    
+        op.block_schedule = OPT_BLOCK_RANDOM;
+        break;
+    case ALG_BP_MIN:                            // BP, Min Entropy
+        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+        op.alg_run_opt  = ALG_RUN_VANILLA;
+        break;
+    case ALG_BP_MIN_WAVE:                       // BP, Min Entropy, Wavefront
+        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+        op.alg_run_opt  = ALG_RUN_VANILLA;
+        op.alg_accel    = ALG_ACCEL_WAVE;
+        break;
+    case ALG_BP_MIN_RESIDUAL:                   // BP, Min Entropy, Residual
+        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+        op.alg_run_opt  = ALG_RUN_RESIDUAL;
+        break;
+    default:        // unspecified, BP default
+        op.alg_cell_opt = ALG_CELL_ANY;
+        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+        op.alg_run_opt  = ALG_RUN_VANILLA;
+        break;
+    };
+}
 
 // AllocBuf -- new allocation function
 //
@@ -4384,9 +4445,11 @@ int BeliefPropagation::RealizeStep(void) {
         // and count number resolved (only 1 tile val remain)
         //
         _ret = cellConstraintPropagate();
+      
+        // prep vis
+        PrepareVisualization();
 
       }
-
       // collapse failed
       //
       else {
@@ -4585,6 +4648,29 @@ void BeliefPropagation::gp_state_print() {
 }
 
 
+void BeliefPropagation::PrepareVisualization ()
+{
+  // visualization prep
+  // call this *before* updateMU
+  //
+  clock_t t1;
+  if (st.instr) t1 = clock();
+  if ( op.viz_opt == VIZ_DMU ) {
+    ComputeDiffMUField ();
+  }
+  if ( op.viz_opt == VIZ_BELIEF ) {    
+    ComputeBeliefField ();
+  }
+  if ( op.viz_opt == VIZ_CONSTRAINT || op.viz_opt == VIZ_TILECOUNT ) {
+    
+    // ComputesBeliefField first. see CheckConstraints
+    CheckConstraints ();   
+    ComputeTilecountField ();
+  }
+  if (st.instr) {st.time_viz += clock()-t1;}
+}
+
+
 float BeliefPropagation::step (int update_mu) {
   
   float max_diff = -1.0;
@@ -4619,24 +4705,7 @@ float BeliefPropagation::step (int update_mu) {
   //
   NormalizeMU( BUF_MU_NXT );
 
-  // visualize before updateMU
-  //
-  if (st.instr) t1 = clock();
-  if ( op.viz_opt == VIZ_DMU ) {
-    ComputeDiffMUField ();
-  }
-
-  if ( op.viz_opt == VIZ_BELIEF ) {    
-    ComputeBeliefField ();
-  }
-  if ( op.viz_opt == VIZ_CONSTRAINT || op.viz_opt == VIZ_TILECOUNT ) {
-    
-    // ComputesBeliefField first. see CheckConstraints
-    CheckConstraints ();   
-    ComputeTilecountField ();
-  }
-  if (st.instr) {st.time_viz += clock()-t1;}
-
+  PrepareVisualization();  
 
   // calculate the difference between
   // BUF_MU_NXT and BUF_MU

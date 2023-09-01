@@ -94,6 +94,18 @@
 #define VIZ_CHANGE      7
 #define VIZ_RESPICK     8
 
+// primary algorithm selector
+#define ALG_BP                  0
+#define ALG_BP_MIN              1
+#define ALG_BP_MIN_WAVE         2
+#define ALG_BP_MIN_RESIDUAL     3
+#define ALG_WFC                 -1
+#define ALG_WFC_BLOCK_SEQ       -2
+#define ALG_WFC_BLOCK_RAND1     -3
+#define ALG_WFC_BLOCK_RAND2     -4
+#define ALG_BMS                 -5
+
+// algorithm settings
 #define ALG_CELL_WFC            31
 #define ALG_CELL_BLOCK_WFC      32
 #define ALG_CELL_ANY            33
@@ -400,6 +412,8 @@ public:
 
   //------------------------ high level API
 
+  void      SelectAlgorithm ( int alg_idx );
+
   int       default_opts ();
 
   void      reset ();
@@ -517,6 +531,7 @@ public:
 
   // used for visualization
   //
+  void  PrepareVisualization ();
   void  ComputeDiffMUField ();
   void  ComputeBeliefField ();
   int   ComputeTilecountField ();
