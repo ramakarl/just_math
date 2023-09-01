@@ -2869,18 +2869,18 @@ int BeliefPropagation::start () {
 
   // clip block parameters (if needed)
   //
-  m_block_size[0] = ( (m_block_size[0] < m_bpres.x) ? m_block_size[0] : m_bpres.x );
-  m_block_size[1] = ( (m_block_size[1] < m_bpres.y) ? m_block_size[1] : m_bpres.y );
-  m_block_size[2] = ( (m_block_size[2] < m_bpres.z) ? m_block_size[2] : m_bpres.z );
+  op.block_size[0] = ( (op.block_size[0] < m_bpres.x) ? op.block_size[0] : m_bpres.x );
+  op.block_size[1] = ( (op.block_size[1] < m_bpres.y) ? op.block_size[1] : m_bpres.y );
+  op.block_size[2] = ( (op.block_size[2] < m_bpres.z) ? op.block_size[2] : m_bpres.z );
 
-  m_sub_block_range[0][0] = ( (m_sub_block_range[0][0] < m_bpres.x) ? m_sub_block_range[0][0] : m_bpres.x );
-  m_sub_block_range[0][1] = ( (m_sub_block_range[0][1] < m_bpres.x) ? m_sub_block_range[0][1] : m_bpres.x );
+  op.sub_block_range[0][0] = ( (op.sub_block_range[0][0] < m_bpres.x) ? op.sub_block_range[0][0] : m_bpres.x );
+  op.sub_block_range[0][1] = ( (op.sub_block_range[0][1] < m_bpres.x) ? op.sub_block_range[0][1] : m_bpres.x );
 
-  m_sub_block_range[1][0] = ( (m_sub_block_range[1][0] < m_bpres.y) ? m_sub_block_range[1][0] : m_bpres.y );
-  m_sub_block_range[1][1] = ( (m_sub_block_range[1][1] < m_bpres.y) ? m_sub_block_range[1][1] : m_bpres.y );
+  op.sub_block_range[1][0] = ( (op.sub_block_range[1][0] < m_bpres.y) ? op.sub_block_range[1][0] : m_bpres.y );
+  op.sub_block_range[1][1] = ( (op.sub_block_range[1][1] < m_bpres.y) ? op.sub_block_range[1][1] : m_bpres.y );
 
-  m_sub_block_range[2][0] = ( (m_sub_block_range[2][0] < m_bpres.z) ? m_sub_block_range[2][0] : m_bpres.z );
-  m_sub_block_range[2][1] = ( (m_sub_block_range[2][1] < m_bpres.z) ? m_sub_block_range[2][1] : m_bpres.z );
+  op.sub_block_range[2][0] = ( (op.sub_block_range[2][0] < m_bpres.z) ? op.sub_block_range[2][0] : m_bpres.z );
+  op.sub_block_range[2][1] = ( (op.sub_block_range[2][1] < m_bpres.z) ? op.sub_block_range[2][1] : m_bpres.z );
 
   m_block_admissible_tile.clear();
   for (n_idx=0; n_idx<m_num_values; n_idx++) {
@@ -2889,41 +2889,41 @@ int BeliefPropagation::start () {
 
   // calculate block index bounds.
   //
-  m_block_idx[0] = 0;
-  m_block_idx[1] = 0;
-  m_block_idx[2] = 0;
+  op.block_idx[0] = 0;
+  op.block_idx[1] = 0;
+  op.block_idx[2] = 0;
 
-  block_odd_dx = m_block_size[0] / 2;
-  block_odd_dy = m_block_size[1] / 2;
-  block_odd_dz = m_block_size[2] / 2;
+  block_odd_dx = op.block_size[0] / 2;
+  block_odd_dy = op.block_size[1] / 2;
+  block_odd_dz = op.block_size[2] / 2;
 
-  end_x = m_bpres.x - m_block_size[0];
+  end_x = m_bpres.x - op.block_size[0];
   for (ix=0,x=0; ix<m_bpres.x; ix++) {
-    m_block_idx[0]++;
+    op.block_idx[0]++;
 
     if (x >= end_x) { break; }
     if ((ix%2)==0) { x += block_odd_dx; }
-    else { x = ((ix+1)/2) * m_block_size[0]; }
+    else { x = ((ix+1)/2) * op.block_size[0]; }
     if (x > end_x) { x = end_x; }
   }
 
-  end_y = m_bpres.y - m_block_size[1];
+  end_y = m_bpres.y - op.block_size[1];
   for (iy=0,y=0; iy<m_bpres.y; iy++) {
-    m_block_idx[1]++;
+    op.block_idx[1]++;
 
     if (y >= end_y) { break; }
     if ((iy%2)==0) { y += block_odd_dy; }
-    else { y = ((iy+1)/2) * m_block_size[1]; }
+    else { y = ((iy+1)/2) * op.block_size[1]; }
     if (y > end_y) { y = end_y; }
   }
 
-  end_z = m_bpres.z - m_block_size[2];
+  end_z = m_bpres.z - op.block_size[2];
   for (iz=0,z=0; iz<m_bpres.z; iz++) {
-    m_block_idx[2]++;
+    op.block_idx[2]++;
 
     if (z >= end_z) { break; }
     if ((iz%2)==0) { z += block_odd_dz; }
-    else { z = ((iz+1)/2) * m_block_size[2]; }
+    else { z = ((iz+1)/2) * op.block_size[2]; }
     if (z > end_z) { z = end_z; }
   }
   //
@@ -3171,13 +3171,13 @@ int BeliefPropagation::init(
 
   // block init
   //
-  if (m_block_size[0] == 0) { m_block_size[0] = 16; }
-  if (m_block_size[1] == 0) { m_block_size[1] = 16; }
-  if (m_block_size[2] == 0) { m_block_size[2] = 16; }
+  if (op.block_size[0] == 0) { op.block_size[0] = 16; }
+  if (op.block_size[1] == 0) { op.block_size[1] = 16; }
+  if (op.block_size[2] == 0) { op.block_size[2] = 16; }
 
-  m_sub_block[0] = 0;
-  m_sub_block[1] = 0;
-  m_sub_block[2] = 0;
+  op.sub_block[0] = 0;
+  op.sub_block[1] = 0;
+  op.sub_block[2] = 0;
 
   return 0;
 }
@@ -3405,15 +3405,15 @@ int BeliefPropagation::RealizePre(void) {
   //
   if (op.block_schedule == OPT_BLOCK_RANDOM) {
 
-    m_sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
-    m_sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
-    m_sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
+    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
+    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
+    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
 
     if (op.verbose >= VB_INTRASTEP) {
       printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)m_sub_block[0], (int)m_block_size[0],
-          (int)m_sub_block[1], (int)m_block_size[1],
-          (int)m_sub_block[2], (int)m_block_size[2]);
+          (int)op.sub_block[0], (int)op.block_size[0],
+          (int)op.sub_block[1], (int)op.block_size[1],
+          (int)op.sub_block[2], (int)op.block_size[2]);
     }
 
   }
@@ -3422,22 +3422,22 @@ int BeliefPropagation::RealizePre(void) {
   //
   else if (op.block_schedule == OPT_BLOCK_RANDOM_1) {
 
-    m_block_size[0] = ( m_sub_block_range[0][0] +
-                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[0][1] - m_sub_block_range[0][0]) ) );
-    m_block_size[1] = ( m_sub_block_range[1][0] +
-                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[1][1] - m_sub_block_range[1][0]) ) );
-    m_block_size[2] = ( m_sub_block_range[2][0] +
-                        (int32_t)( m_rand.randF() * (float)(m_sub_block_range[2][1] - m_sub_block_range[2][0]) ) );
+    op.block_size[0] = ( op.sub_block_range[0][0] +
+                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[0][1] - op.sub_block_range[0][0]) ) );
+    op.block_size[1] = ( op.sub_block_range[1][0] +
+                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[1][1] - op.sub_block_range[1][0]) ) );
+    op.block_size[2] = ( op.sub_block_range[2][0] +
+                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[2][1] - op.sub_block_range[2][0]) ) );
 
-    m_sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - m_block_size[0]));
-    m_sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - m_block_size[1]));
-    m_sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - m_block_size[2]));
+    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
+    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
+    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
 
     if (op.verbose >= VB_INTRASTEP) {
       printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)m_sub_block[0], (int)m_block_size[0],
-          (int)m_sub_block[1], (int)m_block_size[1],
-          (int)m_sub_block[2], (int)m_block_size[2]);
+          (int)op.sub_block[0], (int)op.block_size[0],
+          (int)op.sub_block[1], (int)op.block_size[1],
+          (int)op.sub_block[2], (int)op.block_size[2]);
     }
 
   }
@@ -3446,33 +3446,33 @@ int BeliefPropagation::RealizePre(void) {
   //
   else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
 
-    end_s[0] = m_bpres.x - m_block_size[0];
-    end_s[1] = m_bpres.y - m_block_size[1];
-    end_s[2] = m_bpres.z - m_block_size[2];
+    end_s[0] = m_bpres.x - op.block_size[0];
+    end_s[1] = m_bpres.y - op.block_size[1];
+    end_s[2] = m_bpres.z - op.block_size[2];
 
-    iz = op.cur_iter / (m_block_idx[0] * m_block_idx[1]);
-    iy = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) ) / (m_block_idx[0]) ;
-    ix = ( op.cur_iter - (iz * m_block_idx[0] * m_block_idx[1]) - (iy * m_block_idx[0]) );
+    iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
+    iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
+    ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
 
-    ix %= m_block_idx[0];
-    iy %= m_block_idx[1];
-    iz %= m_block_idx[2];
+    ix %= op.block_idx[0];
+    iy %= op.block_idx[1];
+    iz %= op.block_idx[2];
 
-    x = (ix/2) * m_block_size[0];
-    if ((ix%2)==1) { x += (m_block_size[0]/2); }
-    if (ix == (m_block_idx[0]-1)) { x = end_s[0]; }
+    x = (ix/2) * op.block_size[0];
+    if ((ix%2)==1) { x += (op.block_size[0]/2); }
+    if (ix == (op.block_idx[0]-1)) { x = end_s[0]; }
 
-    y = (iy/2) * m_block_size[1];
-    if ((iy%2)==1) { y += (m_block_size[1]/2); }
-    if (iy == (m_block_idx[1]-1)) { y = end_s[1]; }
+    y = (iy/2) * op.block_size[1];
+    if ((iy%2)==1) { y += (op.block_size[1]/2); }
+    if (iy == (op.block_idx[1]-1)) { y = end_s[1]; }
 
-    z = (iz/2) * m_block_size[2];
-    if ((iz%2)==1) { z += (m_block_size[2]/2); }
-    if (iz == (m_block_idx[2]-1)) { z = end_s[2]; }
+    z = (iz/2) * op.block_size[2];
+    if ((iz%2)==1) { z += (op.block_size[2]/2); }
+    if (iz == (op.block_idx[2]-1)) { z = end_s[2]; }
 
-    m_sub_block[0] = x;
-    m_sub_block[1] = y;
-    m_sub_block[2] = z;
+    op.sub_block[0] = x;
+    op.sub_block[1] = y;
+    op.sub_block[2] = z;
   }
 
   else if (op.block_schedule == OPT_BLOCK_MIN_ENTROPY) {
@@ -3557,9 +3557,9 @@ int BeliefPropagation::RealizePre(void) {
 
     if (op.verbose >= VB_INTRASTEP) {
       printf("BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)m_sub_block[0], (int)m_block_size[0],
-          (int)m_sub_block[1], (int)m_block_size[1],
-          (int)m_sub_block[2], (int)m_block_size[2]);
+          (int)op.sub_block[0], (int)op.block_size[0],
+          (int)op.sub_block[1], (int)op.block_size[1],
+          (int)op.sub_block[2], (int)op.block_size[2]);
     }
 
 
@@ -3574,9 +3574,9 @@ int BeliefPropagation::RealizePre(void) {
     m_note_n[ m_note_plane ] = 0;
     m_note_n[ 1 - m_note_plane  ] = 0;
 
-    for (x=m_sub_block[0]; x<(m_sub_block[0]+m_block_size[0]); x++) {
-      for (y=m_sub_block[1]; y<(m_sub_block[1]+m_block_size[1]); y++) {
-        for (z=m_sub_block[2]; z<(m_sub_block[2]+m_block_size[2]); z++) {
+    for (x=op.sub_block[0]; x<(op.sub_block[0]+op.block_size[0]); x++) {
+      for (y=op.sub_block[1]; y<(op.sub_block[1]+op.block_size[1]); y++) {
+        for (z=op.sub_block[2]; z<(op.sub_block[2]+op.block_size[2]); z++) {
 
           n_idx=0;
           cell = getVertex(x,y,z);
@@ -3666,9 +3666,9 @@ int BeliefPropagation::RealizePre(void) {
     m_note_n[ m_note_plane ] = 0;
     m_note_n[ 1 - m_note_plane  ] = 0;
 
-    for (x=m_sub_block[0]; x<(m_sub_block[0]+m_block_size[0]); x++) {
-      for (y=m_sub_block[1]; y<(m_sub_block[1]+m_block_size[1]); y++) {
-        for (z=m_sub_block[2]; z<(m_sub_block[2]+m_block_size[2]); z++) {
+    for (x=op.sub_block[0]; x<(op.sub_block[0]+op.block_size[0]); x++) {
+      for (y=op.sub_block[1]; y<(op.sub_block[1]+op.block_size[1]); y++) {
+        for (z=op.sub_block[2]; z<(op.sub_block[2]+op.block_size[2]); z++) {
 
           n_idx=0;
           cell = getVertex(x,y,z);
@@ -3780,9 +3780,9 @@ int BeliefPropagation::RealizePost(void) {
 
         if (op.verbose >= VB_INTRASTEP) {
           printf("BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
-              (int)m_sub_block[0], (int)m_block_size[0],
-              (int)m_sub_block[1], (int)m_block_size[1],
-              (int)m_sub_block[2], (int)m_block_size[2],
+              (int)op.sub_block[0], (int)op.block_size[0],
+              (int)op.sub_block[1], (int)op.block_size[1],
+              (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_breakout_block_fail_count,
               (int)m_breakout_soften_limit );
         }
@@ -3797,9 +3797,9 @@ int BeliefPropagation::RealizePost(void) {
 
         if (op.verbose >= VB_INTRASTEP) {
           printf("BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
-              (int)m_sub_block[0], (int)m_block_size[0],
-              (int)m_sub_block[1], (int)m_block_size[1],
-              (int)m_sub_block[2], (int)m_block_size[2],
+              (int)op.sub_block[0], (int)op.block_size[0],
+              (int)op.sub_block[1], (int)op.block_size[1],
+              (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_breakout_block_fail_count,
               (int)m_breakout_soften_limit );
         }
@@ -3816,22 +3816,22 @@ int BeliefPropagation::RealizePost(void) {
 
           if (op.verbose >= VB_INTRASTEP) {
             printf("BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
-                (int)m_sub_block[0], (int)m_block_size[0],
-                (int)m_sub_block[1], (int)m_block_size[1],
-                (int)m_sub_block[2], (int)m_block_size[2]);
+                (int)op.sub_block[0], (int)op.block_size[0],
+                (int)op.sub_block[1], (int)op.block_size[1],
+                (int)op.sub_block[2], (int)op.block_size[2]);
           }
 
           // assume neighbor blocks to soften are same size as center block that was
           // attempting to be fixed
           //
-          _soften_bounds[0] = m_sub_block[0] - m_block_size[0];
-          _soften_bounds[1] = m_sub_block[0] + (2*m_block_size[0]);
+          _soften_bounds[0] = op.sub_block[0] - op.block_size[0];
+          _soften_bounds[1] = op.sub_block[0] + (2*op.block_size[0]);
 
-          _soften_bounds[2] = m_sub_block[1] - m_block_size[1];
-          _soften_bounds[3] = m_sub_block[1] + (2*m_block_size[1]);
+          _soften_bounds[2] = op.sub_block[1] - op.block_size[1];
+          _soften_bounds[3] = op.sub_block[1] + (2*op.block_size[1]);
 
-          _soften_bounds[4] = m_sub_block[2] - m_block_size[2];
-          _soften_bounds[5] = m_sub_block[2] + (2*m_block_size[2]);
+          _soften_bounds[4] = op.sub_block[2] - op.block_size[2];
+          _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);
 
           if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
           if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
@@ -3938,14 +3938,14 @@ int BeliefPropagation::RealizePost(void) {
 
         if (op.verbose >= VB_INTRASTEP) {
           printf("BLOCK backup ([%i+%i][%i+%i][%i+%i] (wfc block fail)\n",
-              (int)m_sub_block[0], (int)m_block_size[0],
-              (int)m_sub_block[1], (int)m_block_size[1],
-              (int)m_sub_block[2], (int)m_block_size[2]);
+              (int)op.sub_block[0], (int)op.block_size[0],
+              (int)op.sub_block[1], (int)op.block_size[1],
+              (int)op.sub_block[2], (int)op.block_size[2]);
         }
 
-        for (x=m_sub_block[0]; x<(m_sub_block[0] + m_block_size[0]); x++) {
-          for (y=m_sub_block[1]; y<(m_sub_block[1] + m_block_size[1]); y++) {
-            for (z=m_sub_block[2]; z<(m_sub_block[2] + m_block_size[2]); z++) {
+        for (x=op.sub_block[0]; x<(op.sub_block[0] + op.block_size[0]); x++) {
+          for (y=op.sub_block[1]; y<(op.sub_block[1] + op.block_size[1]); y++) {
+            for (z=op.sub_block[2]; z<(op.sub_block[2] + op.block_size[2]); z++) {
 
               cell = getVertex(x,y,z);
               orig_tile = getValI( BUF_BLOCK, cell );
@@ -3960,9 +3960,9 @@ int BeliefPropagation::RealizePost(void) {
 
         if (op.verbose >= VB_INTRASTEP) {
           printf("BLOCK accept ([%i+%i][%i+%i][%i+%i]\n",
-              (int)m_sub_block[0], (int)m_block_size[0],
-              (int)m_sub_block[1], (int)m_block_size[1],
-              (int)m_sub_block[2], (int)m_block_size[2]);
+              (int)op.sub_block[0], (int)op.block_size[0],
+              (int)op.sub_block[1], (int)op.block_size[1],
+              (int)op.sub_block[2], (int)op.block_size[2]);
         }
         
 
@@ -4398,14 +4398,14 @@ int BeliefPropagation::RealizeStep(void) {
     // here we run WFC on the block we've fuzzed
     //
 
-    _block_bound.push_back( m_sub_block[0] );
-    _block_bound.push_back( m_block_size[0] );
+    _block_bound.push_back( op.sub_block[0] );
+    _block_bound.push_back( op.block_size[0] );
 
-    _block_bound.push_back( m_sub_block[1] );
-    _block_bound.push_back( m_block_size[1] );
+    _block_bound.push_back( op.sub_block[1] );
+    _block_bound.push_back( op.block_size[1] );
 
-    _block_bound.push_back( m_sub_block[2] );
-    _block_bound.push_back( m_block_size[2] );
+    _block_bound.push_back( op.sub_block[2] );
+    _block_bound.push_back( op.block_size[2] );
 
     ret = chooseMinEntropyBlock( _block_bound, &cell, &tile, &tile_idx, &belief);
     m_return = ret;

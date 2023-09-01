@@ -232,6 +232,11 @@ typedef struct _bp_opt_t {
             eps_converge_end,
             eps_zero;
 
+  int32_t   sub_block[3],
+            block_size[3],
+            block_idx[3],
+            sub_block_range[3][2];
+
   int64_t   step_cb;
   float     state_info_d;
   int64_t   state_info_iter;
@@ -243,7 +248,6 @@ typedef struct _bp_opt_t {
 
   int32_t   cur_iter;
   int32_t   max_iter;
-
 
   int32_t   cur_step;
   int32_t   max_step;
@@ -389,22 +393,22 @@ public:
 
     m_return = 0;
 
-    m_sub_block[0] = 0;
-    m_sub_block[1] = 0;
-    m_sub_block[2] = 0;
-    m_block_size[0] = 0;
-    m_block_size[1] = 0;
-    m_block_size[2] = 0;
-    m_block_idx[0] = 0;
-    m_block_idx[1] = 0;
-    m_block_idx[2] = 0;
+    op.sub_block[0] = 0;
+    op.sub_block[1] = 0;
+    op.sub_block[2] = 0;
+    op.block_size[0] = 0;
+    op.block_size[1] = 0;
+    op.block_size[2] = 0;
+    op.block_idx[0] = 0;
+    op.block_idx[1] = 0;
+    op.block_idx[2] = 0;
 
     m_breakout_block_fail_count = 0;
     m_breakout_soften_limit = 2;
 
     for (i=0; i<3; i++) {
       for (j=0; j<2; j++) {
-        m_sub_block_range[i][j] = 0;
+        op.sub_block_range[i][j] = 0;
       }
     }
 
@@ -664,11 +668,6 @@ public:
   Mersenne      m_rand;
 
   int32_t       m_return;
-
-  int32_t       m_sub_block[3],
-                m_block_size[3],
-                m_block_idx[3],
-                m_sub_block_range[3][2];
 
   std::vector< int32_t > m_block_admissible_tile;
 

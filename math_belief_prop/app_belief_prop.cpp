@@ -175,6 +175,18 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       case 'G':     // algorithm selection
         op->alg_idx = strToI(optarg);
         break;
+      case 'b':
+        op->block_size[0] = strToI(optarg);
+        op->block_size[1] = strToI(optarg);
+        op->block_size[2] = strToI(optarg);
+
+        op->sub_block_range[0][0] = 1;
+        op->sub_block_range[1][0] = 1;
+        op->sub_block_range[2][0] = 1;
+        op->sub_block_range[0][1] = op->block_size[0];
+        op->sub_block_range[1][1] = op->block_size[1];
+        op->sub_block_range[2][1] = op->block_size[2];
+        break;
       case 'S':
         seed = strToI(optarg);
         op->seed = seed;
