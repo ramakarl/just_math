@@ -1,9 +1,24 @@
 TODO
 ===
 
+###### 2023-09-01
+
+* Breakout Model Synthesis
+  - further debugging (Rama noticed some buggy behavior during visualization)
+  - choice of block
+    + based on block entropy
+    + add random component
+  - global constraints (occupancy, connectivity, etc.)
+* statistics to calculate correlation length or cluster size (or their analogs
+  in this domain)
+* differnet boundary conditions
+  - mirror, loop/modular, arbitrary
+
+
+
 ###### 2023-07-25
 
-* block WFC
+* ~block WFC~ (done)
 * Tiled has the option for multiple layers, so we can shove 3d tiles on multiple layers
   or have multiple layers for 2d realizations that have failed (to see other options)
 
@@ -11,7 +26,7 @@ TODO
 
 * add 'escheresque' tilset:
   - https://github.com/merrell42/model-synthesis/blob/master/samples/escheresque.txt
-* investigate block based approach from model synthesis
+* ~investigate block based approach from model synthesis~
   - https://www.boristhebrave.com/2021/10/26/model-synthesis-and-modifying-in-blocks/
 
 
@@ -22,11 +37,11 @@ TODO
     algorithm doesn't touch them afterwards.
   - will allow us to set up smaller, potentially constrained
     problems, to test the different algorithms on
-* implement backtracking algorithm
+* ~implement backtracking algorithm~ (done?)
   - consider 'look ahead' algorithm to try and
     cull tiles that we know will lead to contradiction
     if they're fixed (sort of done, needs some validation
-    and work)
+    and work) (done)
 * statistics for knowing where in the cluster (chain of
   implication after a tile has been chosen/forced) that
   leads to a contradiction (low priority, not sure how to progress)

@@ -131,6 +131,34 @@ BMS assumes tractable instances take the form of of having only local, finite ef
 Should this local constraint assumption be violated, there is the potential for BMS to get trapped in a configuration
 basin that could be improbable to escape from.
 
+Miscellaneous Notes
+---
+
+Fundamental to the functioning of this idea is that the correlation length, however it's measured, is finite
+for generic tile sets and configurations.
+A finite correlation length means choosing a big enough block size, and 'soften' length, wil be able to resolve a
+section independent of the surrounding configuration.
+
+The question comes up on how to measure the various quantities analogous to correlation length and cluster
+size in use for percolation, the Ising model, etc.
+
+Here are some suggestions:
+
+* Create a large grid and do constraint propagation so that it's in an arc consistent state (AC3)
+  - Choose corners, boundaries and the center, then fix one 'center' tile to see how far the constraint
+    propagation filters out
+  - Choose larger bundles of cells to fix the tiles therein and measure how far the constraints propagate
+* Generate a large set of resolved configurations and for each configuration:
+  - Choose corners, boundaries and the center
+  - Remove a block, potentially with non linear/planar boundaries, and make each cell wildcard
+  - Run constraint propagation on the fuzzed wildcard area
+  - Collect statistics on feasability of finding a solution for every tile value in the center of the removed area
+
+
+
+
+
+
 ---
 
 All content, unless specifically stated otherwise, is licensed under CC0 license.
