@@ -156,7 +156,7 @@ int BeliefPropagation::default_opts () {
   //op.block_size[2] = 8;
 
   //op.block_schedule = 0;
-  //op.block_schedule = OPT_BLOCK_RANDOM;
+  //op.block_schedule = OPT_BLOCK_RANDOM_POS;
   op.block_schedule = OPT_BLOCK_SEQUENTIAL;
 
   return 0;
@@ -186,19 +186,19 @@ void BeliefPropagation::SelectAlgorithm ( int alg_idx )
         op.alg_accel    = ALG_ACCEL_NONE;
         op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
         op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-        op.block_schedule = OPT_BLOCK_RANDOM;
+        op.block_schedule = OPT_BLOCK_RANDOM_POS;
         break;
     case ALG_WFC_BLOCK_RAND2:                   // WFC_BLOCK_RAND2
         op.alg_accel    = ALG_ACCEL_NONE;
         op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
         op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-        op.block_schedule = OPT_BLOCK_RANDOM_1;
+        op.block_schedule = OPT_BLOCK_RANDOM_POS_SIZE;
         break;
     case ALG_BMS:                               // BMS, Breakout Model Synth
         op.alg_accel    = ALG_ACCEL_NONE;
         op.alg_run_opt  = ALG_RUN_BREAKOUT;
-        op.alg_cell_opt = ALG_CELL_BREAKOUT;    
-        op.block_schedule = OPT_BLOCK_RANDOM;
+        op.alg_cell_opt = ALG_CELL_BREAKOUT;
+        op.block_schedule = OPT_BLOCK_RANDOM_POS;
         break;
     case ALG_BP_MIN:                            // BP, Min Entropy
         op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
@@ -3405,24 +3405,55 @@ int BeliefPropagation::RealizePre(void) {
 
   // random position, fixed size
   //
-  if (op.block_schedule == OPT_BLOCK_RANDOM) {
+  if (op.block_schedule == OPT_BLOCK_RANDOM_POS) {
 
-    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
-    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
-    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
+    // If fail count is non zero, it means we've failed to find a block
+    // but haven't hit the soften step, so we re-use the  block we've
+    // previously chosen.
+    // Otherwise, choose a new block.
+    //
+    if (m_breakout_block_fail_count==0) {
 
-    if (op.verbose >= VB_INTRASTEP) {
-      printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
+      op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
+      op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
+      op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
+
+      if (op.verbose >= VB_INTRASTEP) {
+        printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
+            (int)op.sub_block[0], (int)op.block_size[0],
+            (int)op.sub_block[1], (int)op.block_size[1],
+            (int)op.sub_block[2], (int)op.block_size[2]);
+      }
+
+      //DEBUG
+      //
+      printf("## breakout-realizepre: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
+            (int)op.sub_block[0], (int)op.block_size[0],
+            (int)op.sub_block[1], (int)op.block_size[1],
+            (int)op.sub_block[2], (int)op.block_size[2]);
+      //
+      //DEBUG
+
+
+    }
+    else {
+
+      //DEBUG
+      //
+      printf("## breakout-realizepre: keeping block ([%i+%i][%i+%i][%i+%i])\n",
+            (int)op.sub_block[0], (int)op.block_size[0],
+            (int)op.sub_block[1], (int)op.block_size[1],
+            (int)op.sub_block[2], (int)op.block_size[2]);
+      //
+      //DEBUG
+
     }
 
   }
 
   // random position, random size
   //
-  else if (op.block_schedule == OPT_BLOCK_RANDOM_1) {
+  else if (op.block_schedule == OPT_BLOCK_RANDOM_POS_SIZE) {
 
     op.block_size[0] = ( op.sub_block_range[0][0] +
                         (int32_t)( m_rand.randF() * (float)(op.sub_block_range[0][1] - op.sub_block_range[0][0]) ) );
@@ -3883,6 +3914,20 @@ int BeliefPropagation::sanityGroundState(void) {
   return count;
 }
 
+// inefficient fucntion to count number of fixed tiles
+//
+int64_t BeliefPropagation::numFixed(void) {
+  int64_t cell, count=0;
+  int32_t n_idx;
+
+  for (cell=0; cell<m_num_verts; cell++) {
+    n_idx = getValI(BUF_TILE_IDX_N, cell);
+    if (n_idx == 1) { count++; }
+  }
+
+  return count;
+}
+
 //  0 - success and finish
 //  1 - continuation
 // -1 - error
@@ -3908,6 +3953,8 @@ int BeliefPropagation::RealizePost(void) {
 
   clock_t t1 = clock();
 
+  int64_t fixed_count = 0;
+
   //DEBU
   //
   std::vector<int32_t> _sub_block;
@@ -3929,7 +3976,11 @@ int BeliefPropagation::RealizePost(void) {
       //WIP
       //EXPERIMENTAL
 
+      //DEBUG
+      //
       printf("## breakout-realizepost m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
+      //
+      //DEBUG
 
       if (m_return == 0) {
 
@@ -4108,6 +4159,13 @@ int BeliefPropagation::RealizePost(void) {
       //
 
       op.cur_iter++;
+
+      // slow way to check to see if we've converged
+      //
+      if (numFixed() == m_num_verts) {
+        ret = 0;
+        return 0;
+      }
 
       ret = 1;
       return 1;
