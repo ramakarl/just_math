@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.8.0"
+#define BELIEF_PROPAGATION_VERSION "0.8.1"
 
 #define VB_NONE         0
 #define VB_ERROR        0
@@ -75,8 +75,8 @@
 #define OPT_FH
 #define OPT_MUBOUND
 
-#define OPT_BLOCK_RANDOM              0
-#define OPT_BLOCK_RANDOM_1            1
+#define OPT_BLOCK_RANDOM_POS          0
+#define OPT_BLOCK_RANDOM_POS_SIZE     1
 #define OPT_BLOCK_SEQUENTIAL          2
 #define OPT_BLOCK_MIN_ENTROPY         3
 #define OPT_BLOCK_NOISY_MIN_ENTROPY   4
@@ -404,7 +404,7 @@ public:
     op.block_idx[2] = 0;
 
     m_breakout_block_fail_count = 0;
-    m_breakout_soften_limit = 2;
+    m_breakout_soften_limit = 10;
 
     for (i=0; i<3; i++) {
       for (j=0; j<2; j++) {
@@ -556,6 +556,18 @@ public:
   void  unfillVisited(int32_t note_idx);
   int   removeTileIdx(int64_t anch_cell, int32_t anch_tile_idx);
   int   sanityAccessed();
+
+  // sanity functions to help debug breakout model synthesis
+  //
+  int sanityBreakoutRealizedBlock(std::vector<int32_t> &block);
+  int sanityBreakoutSavedTileGrid(void);
+  int sanityBreakoutStatBlock(std::vector<int32_t> &_debug_stat, int32_t *_bounds);
+  int sanityGroundState(void);
+
+
+  // number of fixed tiles (only 1 tile in cell)
+  //
+  int64_t numFixed();
 
   //----------------------- visualization
 

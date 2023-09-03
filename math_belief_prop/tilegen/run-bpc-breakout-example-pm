@@ -66,6 +66,23 @@ stride=8
 
 echo "running 'pm' breakout model synthesis, producing '$tileset_fn'"
 
+valgrind ../bpc.debug \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -X 32 -Y 32 -Z 1 \
+  -s 8 \
+  -b 8 \
+  -G -5 \
+  -j '1:' \
+  -J 'd 0' \
+  -i 100 \
+  -S 1234 \
+  -V 1 > log/pm_breakout.log
+
+exit
+
 $bpc_bin \
   -N $name_fn \
   -R $rule_fn \
@@ -77,8 +94,7 @@ $bpc_bin \
   -G -5 \
   -j '1:' \
   -J 'd 0' \
-  -I 100000 \
-  -i 1000 \
+  -i 3000 \
   -S 1234 \
   -V 1 > log/pm_breakout.log
 

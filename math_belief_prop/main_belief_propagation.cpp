@@ -697,16 +697,16 @@ int main(int argc, char **argv) {
         break;
 
       case 'b':
-        bpc.m_block_size[0] = atoi(optarg);
-        bpc.m_block_size[1] = atoi(optarg);
-        bpc.m_block_size[2] = atoi(optarg);
+        bpc.op.block_size[0] = atoi(optarg);
+        bpc.op.block_size[1] = atoi(optarg);
+        bpc.op.block_size[2] = atoi(optarg);
 
-        bpc.m_sub_block_range[0][0] = 1;
-        bpc.m_sub_block_range[1][0] = 1;
-        bpc.m_sub_block_range[2][0] = 1;
-        bpc.m_sub_block_range[0][1] = bpc.m_block_size[0];
-        bpc.m_sub_block_range[1][1] = bpc.m_block_size[1];
-        bpc.m_sub_block_range[2][1] = bpc.m_block_size[2];
+        bpc.op.sub_block_range[0][0] = 1;
+        bpc.op.sub_block_range[1][0] = 1;
+        bpc.op.sub_block_range[2][0] = 1;
+        bpc.op.sub_block_range[0][1] = bpc.op.block_size[0];
+        bpc.op.sub_block_range[1][1] = bpc.op.block_size[1];
+        bpc.op.sub_block_range[2][1] = bpc.op.block_size[2];
         break;
 
       default:
@@ -755,11 +755,15 @@ int main(int argc, char **argv) {
 
   // clamp block size
   //
-  if (X < bpc.m_block_size[0]) { bpc.m_block_size[0] = X; }
-  if (Y < bpc.m_block_size[1]) { bpc.m_block_size[1] = Y; }
-  if (Z < bpc.m_block_size[2]) { bpc.m_block_size[2] = Z; }
+  if (X < bpc.op.block_size[0]) { bpc.op.block_size[0] = X; }
+  if (Y < bpc.op.block_size[1]) { bpc.op.block_size[1] = Y; }
+  if (Z < bpc.op.block_size[2]) { bpc.op.block_size[2] = Z; }
 
   ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
+
+  //DEBUG
+  fprintf(stderr, "bp_init_CSV: %i\n", ret);
+  fflush(stderr);
 
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
@@ -818,7 +822,7 @@ int main(int argc, char **argv) {
     }
     alloc_img (iresx, iresy);
     alloc_volume (VIZ_VOL, vres, 4);
-    cam.setOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
+    cam.SetOrbit ( 30, 20, 0, vres/2.0f, 50, 1 );
 
     if (bpc.op.verbose > 0) {
       printf ( "prepare raycast done. vol: %d,%d,%d  img: %d,%d\n", vres.x, vres.y, vres.z, iresx, iresy );
@@ -828,7 +832,7 @@ int main(int argc, char **argv) {
     m_vres.y = Y;
     m_vres.z = Z;
 
-    m_cam.setOrbit( 30, 20, 0, m_vres/2.0f, 50, 1 );
+    m_cam.SetOrbit( 30, 20, 0, m_vres/2.0f, 50, 1 );
 
     m_iresx = iresx;
     m_iresy = iresy;
@@ -980,7 +984,11 @@ int main(int argc, char **argv) {
 
     if (bpc.m_return == 0) {
       printf("success!\n");
-      bpc.debugPrintTerse();
+      //bpc.debugPrintTerse();
+    }
+    else {
+      printf("FAIL\n");
+      //bpc.debugPrintTerse();
     }
 
     if ( raycast )  {
@@ -1017,13 +1025,18 @@ int main(int argc, char **argv) {
 
     if (bpc.op.verbose > 1) {
       printf("writing tilemap (%s)\n", bpc.op.tilemap_fn.c_str());
+      fflush(stdout);
     }
 
     if (bpc.op.tileobj_fn.size() > 0) {
+      printf("writing stl\n");
+      fflush(stdout);
       bpc.op.outstl_fn = bpc.op.tilemap_fn;
       write_bp_stl( bpc, tri_shape_lib );
     }
     else {
+      printf("writing tiled json\n");
+      fflush(stdout);
       write_tiled_json( bpc );
     }
   }
@@ -1032,9 +1045,13 @@ int main(int argc, char **argv) {
   //----
   //----
 
+  printf("finishing\n"); fflush(stdout);
+
   if (name_fn) { free(name_fn); }
   if (rule_fn) { free(rule_fn); }
   if (constraint_fn) { free(constraint_fn); }
+
+  printf("...\n"); fflush(stdout);
 
   return 0;
 }

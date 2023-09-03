@@ -62,7 +62,7 @@ lib/vec.o: ../libmin/src/vec.cpp
 lib/tests_belief_propagation.o: tests_belief_propagation.cpp
 	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC tests_belief_propagation.cpp -o lib/tests_belief_propagation.o
 
-lib/belief_propagation.o: belief_propagation.cpp
+lib/belief_propagation.o: belief_propagation.cpp belief_propagation.h
 	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation.cpp -o lib/belief_propagation.o
 
 lib/bp_helper.o: bp_helper.cpp
@@ -75,7 +75,7 @@ lib/belief_propagation_residue.o: belief_propagation_residue.cpp
 lib.debug/tests_belief_propagation.o: tests_belief_propagation.cpp
 	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC tests_belief_propagation.cpp -o lib.debug/tests_belief_propagation.o
 
-lib.debug/belief_propagation.o: belief_propagation.cpp
+lib.debug/belief_propagation.o: belief_propagation.cpp belief_propagation.h
 	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation.cpp -o lib.debug/belief_propagation.o
 
 lib.debug/bp_helper.o: bp_helper.cpp
@@ -89,4 +89,4 @@ bpc: lib/*.o main_belief_propagation.cpp
 	g++ -O3 -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $^ -lm -o bpc
 
 bpc.debug: lib.debug/*.o main_belief_propagation.cpp
-	g++ -g -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $? -lm -o bpc.debug
+	g++ -g -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC -I/usr/include/eigen3 -I../libmin/mains $^  -lm -o bpc.debug
