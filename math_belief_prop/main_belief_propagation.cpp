@@ -422,6 +422,36 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 }
 
+void _debug_constraint_op_list( std::vector< constraint_op_t > &constraint_op_list) {
+	int i, j;
+	printf("constraint_op_list: %i\n", (int)constraint_op_list.size());
+	for (i=0; i<(int)constraint_op_list.size(); i++) {
+		printf("  [%i] op:%c [%i]{", (int)i, constraint_op_list[i].op, (int)constraint_op_list[i].dim_range.size());
+		for (j=0; j<constraint_op_list[i].dim_range.size(); j++) {
+			if (j>0) { printf(","); }
+			printf("%i", constraint_op_list[i].dim_range[j]);
+		}
+		printf("} [%i]{", (int)constraint_op_list[i].tile_range.size());
+		for (j=0; j<constraint_op_list[i].tile_range.size(); j++) {
+			if (j>0) { printf(","); }
+			printf("%i", constraint_op_list[i].tile_range[j]);
+		}
+		printf("}\n");
+	}
+
+}
+
+void _debug_block_admissible_tile_list( std::vector< int32_t > &block_admissible_tile_list ) {
+  int i, j;
+  printf("admissible_tile_list[%i]:", (int)block_admissible_tile_list.size());
+  for (i=0; i<(int)block_admissible_tile_list.size(); i++) {
+    printf(" %i", (int)block_admissible_tile_list[i]);
+  }
+  printf("\n");
+}
+
+
+
 //-------------------------------------------------//
 //                      _             _       _    //
 //   ___ ___  _ __  ___| |_ _ __ __ _(_)_ __ | |_  //
@@ -865,6 +895,11 @@ int main(int argc, char **argv) {
 
     exit(-1);
   }
+
+  //DEBUG
+  _debug_constraint_op_list(constraint_op_list);
+  _debug_block_admissible_tile_list(block_admissible_tile_list);
+  //DEBUG
 
   // updating constrints has to happen after start()
   //
