@@ -471,7 +471,8 @@ void Sample::display()
   // Run Belief Propagation
   //
   if (m_run) {
-
+    
+    //m_run = false;          // single step (set run false here)
 
     int ret = bpc.RealizeStep ();
 
@@ -633,10 +634,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   case 'w':  
 
       write_tiled_json( bpc ); 
-
       break;
 
-  case ' ':  m_run = !m_run;  break;
+  case ' ':        
+      m_run = !m_run;  
+      write_tiled_json( bpc ); 
+      break;
   
   case 'g':  
       Restart ();    // false = dynamic init

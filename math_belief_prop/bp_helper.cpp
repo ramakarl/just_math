@@ -46,13 +46,17 @@ int bp_restart ( BeliefPropagation& bpc ) {
 
   bp_opt_t* op = bpc.get_opt();
 
+  // preprocessing - shared by all algorithms
   ret = bp_apply_constraints ( bpc );
 
-  if ( op->alg_run_opt == ALG_RUN_BLOCK_WFC )
+  ret = bp_set_admissable ( bpc );
+
+  // preprocessing - algorithm-specific
+  if ( op->alg_run_opt == ALG_RUN_BLOCK_WFC ) 
       ret = bp_assign_groundstate ( bpc );
 
-  if ( op->alg_run_opt == ALG_RUN_BREAKOUT )
-      ret = bp_save_prefatorystate ( bpc );      
+  if ( op->alg_run_opt == ALG_RUN_BREAKOUT )       
+      ret = bp_save_prefatorystate ( bpc );  
 
   ret = bpc.RealizePre ();
 
@@ -107,10 +111,19 @@ int bp_assign_groundstate ( BeliefPropagation& bpc )
         return 0;
       }
     }
+    
+    return 1;
+}
+
+int bp_set_admissable ( BeliefPropagation& bpc )
+{
+    int32_t tile=-1;
 
     // Allow only certain tiles when fuzzing block
-    //
-    std::string block_admissible_tile_range;
+    //   
+    // default, do not allow 0 tile
+    std::string block_admissible_tile_range = "1:";     
+
     std::vector< int32_t > block_admissible_tile_list;
 
     if (block_admissible_tile_range.size() > 0) {
@@ -138,7 +151,6 @@ int bp_assign_groundstate ( BeliefPropagation& bpc )
       }
       printf("\n");
     }
-    
     return 1;
 }
 
