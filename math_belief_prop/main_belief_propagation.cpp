@@ -463,6 +463,8 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
   fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
   fprintf(fp, "    -5     breakout model synthesis\n");
+  fprintf(fp, "    -6     breakout model synthesis, min entorpy block choice\n");
+  fprintf(fp, "    -7     breakout model synthesis, min entropy block + noise choice\n");
   fprintf(fp, "  -b <#>   block size (for use in block wfc and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");

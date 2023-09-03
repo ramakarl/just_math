@@ -194,12 +194,27 @@ void BeliefPropagation::SelectAlgorithm ( int alg_idx )
         op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
         op.block_schedule = OPT_BLOCK_RANDOM_POS_SIZE;
         break;
+
     case ALG_BMS:                               // BMS, Breakout Model Synth
         op.alg_accel    = ALG_ACCEL_NONE;
         op.alg_run_opt  = ALG_RUN_BREAKOUT;
         op.alg_cell_opt = ALG_CELL_BREAKOUT;
         op.block_schedule = OPT_BLOCK_RANDOM_POS;
         break;
+
+    case ALG_BMS_MIN:                           // BMS, Breakout Model Synth, min block entropy
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BREAKOUT;
+        op.alg_cell_opt = ALG_CELL_BREAKOUT;
+        op.block_schedule = OPT_BLOCK_MIN_ENTROPY;
+        break;
+    case ALG_BMS_MIN_NOISE:                     // BMS, Breakout Model Synth, min block entropy + noise
+        op.alg_accel    = ALG_ACCEL_NONE;
+        op.alg_run_opt  = ALG_RUN_BREAKOUT;
+        op.alg_cell_opt = ALG_CELL_BREAKOUT;
+        op.block_schedule = OPT_BLOCK_NOISY_MIN_ENTROPY;
+        break;
+
     case ALG_BP_MIN:                            // BP, Min Entropy
         op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
         op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
@@ -3371,6 +3386,128 @@ void BeliefPropagation::_restoreTileIdx(void) {
 
 }
 
+int BeliefPropagation::pickEntropyNoiseBlock(void) {
+
+  //DEBUG
+  printf("## cp op.block_schedule:%i\n", (int)op.block_schedule);
+  fflush(stdout);
+
+  double _block_entropy = 0.0,
+         _cell_entropy = 0.0,
+         _min_block_entropy = 0.0,
+         _cell_renorm = 0.0,
+         lg2 = log(2.0);
+  float _f;
+
+  int32_t _block_choice[3] = {0,0,0};
+
+  int32_t _start_block[3] = {0,0,0};
+  int32_t _end_block_pos[3] = {0};
+  int32_t _sx, _sy, _sz,
+          _x, _y, _z;
+  int64_t _cell;
+  int32_t _tile_idx, _tile, _n_idx;
+
+  int32_t _unfixed_cell_count = 0,
+          _blocks_considered=0;
+
+  _end_block_pos[0] = m_bpres.x - op.block_size[0] + 1;
+  _end_block_pos[1] = m_bpres.y - op.block_size[1] + 1;
+  _end_block_pos[2] = m_bpres.z - op.block_size[2] + 1;
+
+  // very ineffient, testing idea out
+  //
+  for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
+    for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
+      for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
+
+        _unfixed_cell_count = 0;
+        _block_entropy = 0.0;
+        for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
+          for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
+            for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+
+              _cell_entropy = 0.0;
+              _cell_renorm = 0.0;
+
+              _cell = getVertex((int)_x, (int)_y, (int)_z);
+              _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+
+              if (_n_idx <= 1) { continue; }
+              for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+
+                _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+
+                _f = getValF( BUF_G, _tile );
+                _cell_renorm += (double)_f;
+
+                _cell_entropy += (_f * log(_f) / lg2);
+
+              }
+              _cell_entropy /= _cell_renorm;
+              _cell_entropy -= (log(_cell_renorm) / lg2);
+              _cell_entropy = -_cell_entropy;
+
+              _block_entropy += _cell_entropy;
+
+              _unfixed_cell_count++;
+
+            }
+          }
+        }
+
+        if (_unfixed_cell_count==0) { continue; }
+
+        if (_blocks_considered == 0) {
+          _min_block_entropy = _block_entropy;
+          _block_choice[0] = _sx;
+          _block_choice[1] = _sy;
+          _block_choice[2] = _sz;
+        }
+
+        if ( _block_entropy < _min_block_entropy ) {
+          _min_block_entropy = _block_entropy;
+          _block_choice[0] = _sx;
+          _block_choice[1] = _sy;
+          _block_choice[2] = _sz;
+        }
+
+        _blocks_considered++;
+
+        //DEBUG
+        //
+        /*
+        printf("## breakout-min_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_min_block_entropy:%3.4f {%i,%i,%i})\n",
+            (int)_sx, (int)op.block_size[0],
+            (int)_sy, (int)op.block_size[1],
+            (int)_sz, (int)op.block_size[2],
+            (float)_block_entropy,
+            (float)_min_block_entropy,
+            (int)_block_choice[0],
+            (int)_block_choice[1],
+            (int)_block_choice[2]);
+            */
+
+
+      }
+    }
+  }
+
+  printf("## pickEntropyNoiseBlock _min_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
+      (float)_min_block_entropy,
+      (int)_block_choice[0],
+      (int)_block_choice[1],
+      (int)_block_choice[2],
+      (int)_blocks_considered);
+
+
+  op.sub_block[0] = _block_choice[0];
+  op.sub_block[1] = _block_choice[1];
+  op.sub_block[2] = _block_choice[2];
+
+  return (int)_unfixed_cell_count;
+}
+
 //  0 - success
 // -1 - error
 //
@@ -3508,7 +3645,8 @@ int BeliefPropagation::RealizePre(void) {
     op.sub_block[2] = z;
   }
 
-  else if (op.block_schedule == OPT_BLOCK_MIN_ENTROPY) {
+  else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
+           (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
     //WIP
     //EXPERIMENTAL
 
@@ -3516,18 +3654,137 @@ int BeliefPropagation::RealizePre(void) {
     //
     // $\sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
     //
-  }
-
-  else if (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY) {
-    //WIP
-    //EXPERIMENTAL
 
     // choose block with minimum (average) entropy (?)
     // and add a noise factor to allow for some randomness in choice
     //
     // $\text(rand)() + \sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
     //
+
+    pickEntropyNoiseBlock();
+
+    //DEBUG
+    //
+    printf("## realizepre-block_min_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
+          (int)op.sub_block[0], (int)op.block_size[0],
+          (int)op.sub_block[1], (int)op.block_size[1],
+          (int)op.sub_block[2], (int)op.block_size[2]);
+    //
+    //DEBUG
+
+
+    /*
+    //DEBUG
+    printf("## cp op.block_schedule:%i\n", (int)op.block_schedule);
+    fflush(stdout);
+
+    double _block_entropy = 0.0,
+           _cell_entropy = 0.0,
+           _min_block_entropy = 0.0,
+           _cell_renorm = 0.0,
+           lg2 = log(2.0);
+    float _f;
+
+    int32_t _block_choice[3] = {0,0,0};
+
+    int32_t _start_block[3] = {0,0,0};
+    int32_t _end_block_pos[3] = {0};
+    int32_t _sx, _sy, _sz,
+            _x, _y, _z;
+    int64_t _cell;
+    int32_t _tile_idx, _tile, _n_idx;
+
+    int32_t _unfixed_cell_count = 0,
+            _blocks_considered=0;
+
+    _end_block_pos[0] = m_bpres.x - op.block_size[0];
+    _end_block_pos[1] = m_bpres.y - op.block_size[1];
+    _end_block_pos[2] = m_bpres.z - op.block_size[2];
+
+    // very ineffient, testing idea out
+    //
+    for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
+      for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
+        for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
+
+          _unfixed_cell_count = 0;
+          _block_entropy = 0.0;
+          for (_z=_sx; _z<(_sx+op.block_size[2]); _z++) {
+            for (_y=_sx; _y<(_sx+op.block_size[1]); _y++) {
+              for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+
+                _cell_entropy = 0.0;
+                _cell_renorm = 0.0;
+
+                _cell = getVertex((int)_x, (int)_y, (int)_z);
+                _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+
+                if (_n_idx <= 1) { continue; }
+                for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+
+                  _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+
+                  _f = getValF( BUF_G, _tile );
+                  _cell_renorm += (double)_f;
+
+                  _cell_entropy += (_f * log(_f) / lg2);
+
+                }
+                _cell_entropy -= (((double)_n_idx) * log(_cell_renorm) / lg2);
+                _cell_entropy /= _cell_renorm;
+
+                _cell_entropy = -_cell_entropy;
+
+                _unfixed_cell_count++;
+
+              }
+            }
+          }
+
+          if (_unfixed_cell_count==0) { continue; }
+
+          if (_blocks_considered == 0) {
+            _min_block_entropy = _block_entropy;
+            _block_choice[0] = _sx;
+            _block_choice[1] = _sy;
+            _block_choice[2] = _sz;
+          }
+
+          if ( _block_entropy < _min_block_entropy ) {
+            _min_block_entropy = _block_entropy;
+            _block_choice[0] = _sx;
+            _block_choice[1] = _sy;
+            _block_choice[2] = _sz;
+          }
+
+          //DEBUG
+          //
+          printf("## breakout-min_entropy [%i+%i][%i+%i][%i+%i] _cell_entropy:%3.4f (_min_block_entropy:%3.4f {%i,%i,%i})\n",
+              (int)_sx, (int)op.block_size[0],
+              (int)_sy, (int)op.block_size[1],
+              (int)_sz, (int)op.block_size[2],
+              (float)_cell_entropy,
+              (float)_min_block_entropy,
+              (int)_block_choice[0],
+              (int)_block_choice[1],
+              (int)_block_choice[2]);
+
+
+        }
+      }
+    }
+
+    op.sub_block[0] = _block_choice[0];
+    op.sub_block[1] = _block_choice[1];
+    op.sub_block[2] = _block_choice[2];
+    */
+
   }
+
+  else {
+    //error?
+  }
+
 
   //---
 
