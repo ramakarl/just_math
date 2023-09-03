@@ -54,6 +54,8 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
 
 int bp_apply_constraints ( BeliefPropagation& bpc );
 
+int bp_set_admissable ( BeliefPropagation& bpc );
+
 int bp_assign_groundstate ( BeliefPropagation& bpc );
 
 int bp_save_prefatorystate ( BeliefPropagation& bpc );
