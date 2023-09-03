@@ -285,7 +285,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   Vector4DF val;
   int iter;
   float alpha;
-  float pStep = 0.1;          // volume quality   - lower=better (0.01), higher=worse (0.1)
+  float pStep = 0.2;          // volume quality   - lower=better (0.01), higher=worse (0.1)
   float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
   float kWidth = 4.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
@@ -447,7 +447,7 @@ bool Sample::init()
   bp_restart ( bpc ); 
 
   // start viz
-  m_viz = VIZ_CONSTRAINT ;
+  m_viz = VIZ_TILECOUNT;
   bpc.SetVis ( m_viz );
 
   // start running
@@ -481,16 +481,15 @@ void Sample::display()
         // write_tiled_json( bpc );  
     }
 
-    if (ret == 0 || ret == -2) {
-        // step complete
+    // check for step complete (0)
+    if (ret <= 0) {
 
-        if (ret==-2) {
-            //printf ( "Warning: Hit max iter.\n" );
-        }   
-            
+        // *NOTE*: right now RealizeStep ret error (<0) is ignored.
+
+        // step complete
         // finish this iteration
         ret = bpc.RealizePost();
-            
+
         if ( ret > 0) {
 
             // iteration complete (all steps)
@@ -498,7 +497,8 @@ void Sample::display()
             bpc.RealizePre();
             
         } else if ( ret==0 ) {
-                
+             
+            // post complete. fully done.
             // write json output            
             if (bpc.op.tileobj_fn.size() > 0) {
               bpc.op.outstl_fn = bpc.op.tilemap_fn;
@@ -515,7 +515,7 @@ void Sample::display()
 
         } else {
 
-            // error condition
+            // post error condition
             switch (ret) {                
             case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
             case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;

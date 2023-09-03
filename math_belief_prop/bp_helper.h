@@ -52,11 +52,11 @@ int bp_multirun ( BeliefPropagation& bp, int runs, std::string outfile );
 
 int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string outrun );
 
-int bp_apply_constraints ( BeliefPropagation& bpc );
+int bp_parse_constraints ( BeliefPropagation& bpc, std::vector< constraint_op_t >& constraint_op_list );
 
-int bp_set_admissable ( BeliefPropagation& bpc );
+int bp_parse_admissable ( BeliefPropagation& bpc, std::vector< int32_t >& block_admissible_tile_list );
 
-int bp_assign_groundstate ( BeliefPropagation& bpc );
+int bp_check_groundstate ( BeliefPropagation& bpc );
 
 int bp_save_prefatorystate ( BeliefPropagation& bpc );
 

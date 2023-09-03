@@ -777,13 +777,11 @@ int main(int argc, char **argv) {
     dim.push_back(X);
     dim.push_back(Y);
     dim.push_back(Z);
-
     ret = parse_constraint_dsl(constraint_op_list, constraint_commands, dim, bpc.m_tile_name);
     if (ret < 0) {
       fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
       exit(-1);
     }
-
   }
 
   if (block_admissible_tile_range.size() > 0) {
@@ -874,7 +872,6 @@ int main(int argc, char **argv) {
       fprintf(stderr, "constrain_bp failure\n");
       exit(-1);
     }
-
   }
 
 
