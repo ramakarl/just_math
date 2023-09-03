@@ -80,6 +80,7 @@
 #define OPT_BLOCK_SEQUENTIAL          2
 #define OPT_BLOCK_MIN_ENTROPY         3
 #define OPT_BLOCK_NOISY_MIN_ENTROPY   4
+#define OPT_BLOCK_NOISY_MAX_ENTROPY   5
 
 #define MU_NOCOPY 0
 #define MU_COPY   1
@@ -106,6 +107,7 @@
 #define ALG_BMS                 -5
 #define ALG_BMS_MIN             -6
 #define ALG_BMS_MIN_NOISE       -7
+#define ALG_BMS_MAX_NOISE       -8
 
 // algorithm settings
 #define ALG_CELL_WFC            31
@@ -571,6 +573,7 @@ public:
   //
   int64_t numFixed();
   int pickEntropyNoiseBlock(void);
+  int pickMaxEntropyNoiseBlock(void);
 
   //----------------------- visualization
 
