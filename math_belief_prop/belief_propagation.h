@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.8.1"
+#define BELIEF_PROPAGATION_VERSION "0.8.2"
 
 #define VB_NONE         0
 #define VB_ERROR        0
@@ -104,6 +104,8 @@
 #define ALG_WFC_BLOCK_RAND1     -3
 #define ALG_WFC_BLOCK_RAND2     -4
 #define ALG_BMS                 -5
+#define ALG_BMS_MIN             -6
+#define ALG_BMS_MIN_NOISE       -7
 
 // algorithm settings
 #define ALG_CELL_WFC            31
@@ -568,6 +570,7 @@ public:
   // number of fixed tiles (only 1 tile in cell)
   //
   int64_t numFixed();
+  int pickEntropyNoiseBlock(void);
 
   //----------------------- visualization
 
