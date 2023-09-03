@@ -38,43 +38,79 @@
 int bp_restart ( BeliefPropagation& bpc ) {
 
   int ret;
-
-  // dynamic restart
-  // (not needed if this is first init)
-  //
-  ret = bpc.start ();
+  std::vector< constraint_op_t > constraint_op_list;
+  std::vector< int32_t > block_admissible_tile_list;
 
   bp_opt_t* op = bpc.get_opt();
+  
+  // parse & record constraints before start
+  ret = bp_parse_constraints ( bpc, constraint_op_list );  
 
-  // preprocessing - shared by all algorithms
-  ret = bp_apply_constraints ( bpc );
+  // parse admissible before start
+  ret = bp_parse_admissable ( bpc, block_admissible_tile_list );
 
-  ret = bp_set_admissable ( bpc );
+  // dynamic start
+  // (not needed if this is first init)
+  //
+  if (bpc.op.verbose >= VB_RUN) 
+      printf ( "bpc start() called\n");
 
-  // preprocessing - algorithm-specific
+  ret = bpc.start ();
+
+  // updating constraints has to happen after start()
+  //
+  if (constraint_op_list.size() > 0) {
+    if (bpc.op.verbose >= VB_RUN) {
+       printf ( "constraining bp.." );
+    }
+    ret = constrain_bp( bpc, constraint_op_list);
+    if (ret < 0) {
+      fprintf(stderr, "constrain_bp failure\n");
+      exit(-1);
+    }
+    if (bpc.op.verbose >= VB_RUN) {
+       printf ( "done.\n" );
+    }
+  }
+
+  // assign admissable list to BPC
+  if (block_admissible_tile_list.size() > 0) {
+     bpc.m_block_admissible_tile = block_admissible_tile_list;
+  }  
+
+  // preprocessing 
   if ( op->alg_run_opt == ALG_RUN_BLOCK_WFC ) 
-      ret = bp_assign_groundstate ( bpc );
+      ret = bp_check_groundstate ( bpc );
 
   if ( op->alg_run_opt == ALG_RUN_BREAKOUT )       
       ret = bp_save_prefatorystate ( bpc );  
 
+  // debug checks
+  if (bpc.op.verbose >= VB_INTRASTEP) 
+      bpc.debugPrintTerse ();
+
+  if (bpc.op.verbose >= VB_RUN) {
+     printf ( "bpc RealizePre.. starting iteration\n" );
+  }
   ret = bpc.RealizePre ();
 
   return ret;
 }
 
-int bp_apply_constraints ( BeliefPropagation& bpc )
+int bp_parse_constraints ( BeliefPropagation& bpc, std::vector< constraint_op_t >& constraint_op_list )
 {
     int ret = 1;
     bp_opt_t* op = bpc.get_opt();
     
     if (op->constraint_cmd.size() > 0) {
 
+        if (bpc.op.verbose >= VB_RUN) 
+            printf ( "parsing constraints %s..", op->constraint_cmd.c_str());
+        
         std::vector< int > dim;
         dim.push_back( op->X );
         dim.push_back( op->Y );
         dim.push_back( op->Z );
-        std::vector< constraint_op_t > constraint_op_list;
 
         ret = parse_constraint_dsl ( constraint_op_list, op->constraint_cmd, dim, bpc.m_tile_name);
         if (ret < 0) {
@@ -86,17 +122,23 @@ int bp_apply_constraints ( BeliefPropagation& bpc )
           fprintf(stderr, "constrain_bp failure\n");
           exit(-1);
         }
+        if (bpc.op.verbose >= VB_RUN) 
+            printf ( "done.\n" );
+        
     }
     return ret;
 }
 
-int bp_assign_groundstate ( BeliefPropagation& bpc )
+int bp_check_groundstate ( BeliefPropagation& bpc )
 {
    int64_t cell=-1;
    int32_t n_idx=-1,
           tile=-1,
           tile_idx=-1 ;
 
+   if (bpc.op.verbose >= VB_RUN) 
+     printf ( "checking ground state.\n" );
+  
    for (cell=0; cell < bpc.m_num_verts; cell++) {
 
       n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
@@ -115,16 +157,18 @@ int bp_assign_groundstate ( BeliefPropagation& bpc )
     return 1;
 }
 
-int bp_set_admissable ( BeliefPropagation& bpc )
+int bp_parse_admissable ( BeliefPropagation& bpc, std::vector< int32_t >& block_admissible_tile_list)
 {
     int32_t tile=-1;
+
+    if (bpc.op.verbose >= VB_RUN) 
+       printf ( "parsing admissable..");
+   
 
     // Allow only certain tiles when fuzzing block
     //   
     // default, do not allow 0 tile
     std::string block_admissible_tile_range = "1:";     
-
-    std::vector< int32_t > block_admissible_tile_list;
 
     if (block_admissible_tile_range.size() > 0) {
         std::vector<int> tile_range, tile_dim;
@@ -139,15 +183,11 @@ int bp_set_admissable ( BeliefPropagation& bpc )
             block_admissible_tile_list.push_back(tile);
           }
         }
-    }
-    // assign admissable list to BPC
-    if (block_admissible_tile_list.size() > 0) {
-       bpc.m_block_admissible_tile = block_admissible_tile_list;
-    }
+    } 
     if (bpc.op.verbose >= VB_RUN) {
-      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
-      for (int idx=0; idx < bpc.m_block_admissible_tile.size(); idx++) {
-        printf(" %i", (int) bpc.m_block_admissible_tile[idx]);
+      printf("done. block_admissible_tile[%i]:", (int) block_admissible_tile_list.size());
+      for (int idx=0; idx < block_admissible_tile_list.size(); idx++) {
+        printf(" %i", (int) block_admissible_tile_list[idx]);
       }
       printf("\n");
     }
@@ -161,6 +201,8 @@ int bp_save_prefatorystate ( BeliefPropagation& bpc )
           tile=-1,
          tile_idx=-1 ;
 
+   if (bpc.op.verbose >= VB_RUN)
+     printf ( "saving prefatory state.\n" );  
 
     // Save "prefatory" state.
     // We assume initial constraints have been propagated, including

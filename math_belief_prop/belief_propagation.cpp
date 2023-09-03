@@ -2912,6 +2912,9 @@ int BeliefPropagation::start () {
   block_odd_dy = op.block_size[1] / 2;
   block_odd_dz = op.block_size[2] / 2;
 
+  if (op.verbose >= VB_RUN) 
+      printf ("calc block index bounds.\n");
+
   end_x = m_bpres.x - op.block_size[0];
   for (ix=0,x=0; ix<m_bpres.x; ix++) {
     op.block_idx[0]++;
@@ -2951,6 +2954,8 @@ int BeliefPropagation::start () {
 
   // rebuild dynamic bufs
   //
+   if (op.verbose >= VB_RUN) 
+      printf ("rebuild dynamic bufs.\n");
   ConstructDynamicBufs ();
 
   RandomizeMU ();
@@ -2959,6 +2964,9 @@ int BeliefPropagation::start () {
 
   // cull boundary
   //
+  if (op.verbose >= VB_RUN) 
+      printf ("cull boundary..\n");
+
   ret = CullBoundary();
   if (ret < 0) { return ret; }
 
@@ -4836,7 +4844,7 @@ int BeliefPropagation::RealizeStep(void) {
 
     // all computation for WFC happens in RelaizePost.
     // In some sense, running WFC is like running BP
-    // with 0 iterations.
+    // with 0 steps.
     //
 
     // make sure to indicate that wfc should 'stop'
@@ -5179,10 +5187,11 @@ void BeliefPropagation::PrepareVisualization ()
   if ( op.viz_opt == VIZ_BELIEF ) {    
     ComputeBeliefField ();
   }
-  if ( op.viz_opt == VIZ_CONSTRAINT || op.viz_opt == VIZ_TILECOUNT ) {
-    
-    // ComputesBeliefField first. see CheckConstraints
+  if ( op.viz_opt == VIZ_CONSTRAINT ) {
     CheckConstraints ();   
+    ComputeTilecountField ();
+  }
+  if ( op.viz_opt == VIZ_TILECOUNT ) {
     ComputeTilecountField ();
   }
   if (st.instr) {st.time_viz += clock()-t1;}
