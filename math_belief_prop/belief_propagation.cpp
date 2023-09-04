@@ -3401,11 +3401,140 @@ void BeliefPropagation::_restoreTileIdx(void) {
 
 }
 
+// simpler (but still inefficient) version that just coints
+// the number of unfixed tiles in a cell instead of a full
+// entropy calculation.
+//
+int BeliefPropagation::pickMaxEntropyNoiseBlockSimple(void) {
+  double _block_entropy = 0.0,
+         _cell_entropy = 0.0,
+         _max_block_entropy = 0.0,
+         _cell_renorm = 0.0,
+         lg2 = log(2.0);
+  float _f;
+
+  int32_t _block_choice[3] = {0,0,0};
+
+  int32_t _start_block[3] = {0,0,0};
+  int32_t _end_block_pos[3] = {0};
+  int32_t _sx, _sy, _sz,
+          _x, _y, _z;
+  int64_t _cell;
+  int32_t _tile_idx, _tile, _n_idx;
+
+  int32_t _unfixed_cell_count = 0,
+          _blocks_considered=0;
+
+
+
+  _end_block_pos[0] = m_bpres.x - op.block_size[0] + 1;
+  _end_block_pos[1] = m_bpres.y - op.block_size[1] + 1;
+  _end_block_pos[2] = m_bpres.z - op.block_size[2] + 1;
+
+  // very ineffient, testing idea out
+  //
+  for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
+    for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
+      for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
+
+        if (_sx == 0) {
+          _unfixed_cell_count = 0;
+          _block_entropy = 0.0;
+
+          for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
+            for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
+              for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+
+                _cell_entropy = 0.0;
+                _cell_renorm = 0.0;
+
+                _cell = getVertex((int)_x, (int)_y, (int)_z);
+                _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+
+                if (_n_idx <= 1) { continue; }
+                for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+
+                  _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+
+                  _f = getValF( BUF_G, _tile );
+                  _cell_renorm += (double)_f;
+
+                  _cell_entropy += (_f * log(_f) / lg2);
+
+                }
+                _cell_entropy /= _cell_renorm;
+                _cell_entropy -= (log(_cell_renorm) / lg2);
+                _cell_entropy = -_cell_entropy;
+
+                _block_entropy += _cell_entropy;
+
+                _unfixed_cell_count++;
+
+              }
+            }
+          }
+        }
+
+        else {
+
+        }
+
+        if (_unfixed_cell_count==0) { continue; }
+
+        if (_blocks_considered == 0) {
+          _max_block_entropy = _block_entropy;
+          _block_choice[0] = _sx;
+          _block_choice[1] = _sy;
+          _block_choice[2] = _sz;
+        }
+
+        if ( _block_entropy > _max_block_entropy ) {
+          _max_block_entropy = _block_entropy;
+          _block_choice[0] = _sx;
+          _block_choice[1] = _sy;
+          _block_choice[2] = _sz;
+        }
+
+        _blocks_considered++;
+
+        //DEBUG
+        //
+        /*
+        printf("## breakout-max_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_max_block_entropy:%3.4f {%i,%i,%i})\n",
+            (int)_sx, (int)op.block_size[0],
+            (int)_sy, (int)op.block_size[1],
+            (int)_sz, (int)op.block_size[2],
+            (float)_block_entropy,
+            (float)_max_block_entropy,
+            (int)_block_choice[0],
+            (int)_block_choice[1],
+            (int)_block_choice[2]);
+            */
+
+
+      }
+    }
+  }
+
+  printf("## pickEntropyNoiseBlock _max_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
+      (float)_max_block_entropy,
+      (int)_block_choice[0],
+      (int)_block_choice[1],
+      (int)_block_choice[2],
+      (int)_blocks_considered);
+
+
+  op.sub_block[0] = _block_choice[0];
+  op.sub_block[1] = _block_choice[1];
+  op.sub_block[2] = _block_choice[2];
+
+  return (int)_unfixed_cell_count;
+
+
+}
+
 int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   //DEBUG
-  printf("## cp op.block_schedule:%i\n", (int)op.block_schedule);
-  fflush(stdout);
-
   double _block_entropy = 0.0,
          _cell_entropy = 0.0,
          _max_block_entropy = 0.0,
@@ -3435,39 +3564,46 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
     for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
       for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
 
-        _unfixed_cell_count = 0;
-        _block_entropy = 0.0;
-        for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
-          for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
-            for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+        if (_sx == 0) {
+          _unfixed_cell_count = 0;
+          _block_entropy = 0.0;
 
-              _cell_entropy = 0.0;
-              _cell_renorm = 0.0;
+          for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
+            for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
+              for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
 
-              _cell = getVertex((int)_x, (int)_y, (int)_z);
-              _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+                _cell_entropy = 0.0;
+                _cell_renorm = 0.0;
 
-              if (_n_idx <= 1) { continue; }
-              for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+                _cell = getVertex((int)_x, (int)_y, (int)_z);
+                _n_idx = getValI( BUF_TILE_IDX_N, _cell );
 
-                _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+                if (_n_idx <= 1) { continue; }
+                for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
 
-                _f = getValF( BUF_G, _tile );
-                _cell_renorm += (double)_f;
+                  _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
 
-                _cell_entropy += (_f * log(_f) / lg2);
+                  _f = getValF( BUF_G, _tile );
+                  _cell_renorm += (double)_f;
+
+                  _cell_entropy += (_f * log(_f) / lg2);
+
+                }
+                _cell_entropy /= _cell_renorm;
+                _cell_entropy -= (log(_cell_renorm) / lg2);
+                _cell_entropy = -_cell_entropy;
+
+                _block_entropy += _cell_entropy;
+
+                _unfixed_cell_count++;
 
               }
-              _cell_entropy /= _cell_renorm;
-              _cell_entropy -= (log(_cell_renorm) / lg2);
-              _cell_entropy = -_cell_entropy;
-
-              _block_entropy += _cell_entropy;
-
-              _unfixed_cell_count++;
-
             }
           }
+        }
+
+        else {
+
         }
 
         if (_unfixed_cell_count==0) { continue; }
