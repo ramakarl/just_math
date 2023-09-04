@@ -334,7 +334,8 @@ typedef struct _bp_stat_type {
 
   float   elapsed_time;
 
-  int64_t constraints;
+  int64_t constraints; 
+  bool    success;
 
   bool    instr;
   float   time_boundary,
@@ -440,6 +441,7 @@ public:
   int       RealizePost();
   int       Realize();
 
+  int       CollapseAndPropagate (int64_t& cell, int32_t& tile, int32_t& tile_idx );
   int       CheckConstraints ( int64_t p );
   int       CheckConstraints ();
 

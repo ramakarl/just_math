@@ -3811,7 +3811,9 @@ int BeliefPropagation::RealizePre(void) {
     printf("RealizePre cp.0\n");
   }
 
+  clock_t t1 = clock();
 
+  //----------- REALIZEPRE - BLOCK SCHEDULE SECTION
 
   // random position, fixed size
   //
@@ -3966,11 +3968,11 @@ int BeliefPropagation::RealizePre(void) {
     //error?
   }
 
+  //----------- REALIZEPRE - ALG SECTION
 
   //---
-
-  if (op.alg_run_opt == ALG_RUN_VANILLA) {
-
+  switch (op.alg_run_opt) {
+  case ALG_RUN_VANILLA:
     // after we've propagated constraints, BUF_MU
     // needs to be renormalized
     //
@@ -3982,10 +3984,9 @@ int BeliefPropagation::RealizePre(void) {
           (float) _eps, (int) op.cur_iter, (int) op.max_iter,
           (float) op.eps_converge_beg, (float) op.eps_converge_end);
     }
+    break;
 
-  }
-
-  else if (op.alg_run_opt == ALG_RUN_RESIDUAL) {
+  case ALG_RUN_RESIDUAL:
 
     // after we've propagated constraints, BUF_MU
     // needs to be renormalized
@@ -4014,17 +4015,16 @@ int BeliefPropagation::RealizePre(void) {
     d = step(0);
     indexHeap_init();
 
-  }
+    break;
 
-  else if (op.alg_run_opt == ALG_RUN_WFC) {
+  case ALG_RUN_WFC:
 
     // Nothing to be done.
     // All relevant code is in RealizeStep and RealizePost
     //
+    break;
 
-  }
-
-  else if (op.alg_run_opt == ALG_RUN_BREAKOUT) {
+  case ALG_RUN_BREAKOUT:
 
     if (op.verbose >= VB_INTRASTEP) {
       printf("BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
@@ -4046,7 +4046,6 @@ int BeliefPropagation::RealizePre(void) {
     printf("## breakout-choose (sanity:%i)\n", (int)sanity);
     //
     //DEBUG
-
 
     // fuzz out a block
     //
@@ -4120,7 +4119,8 @@ int BeliefPropagation::RealizePre(void) {
     ret = CullBoundary();
     if (ret < 0) {
       m_return = -1;
-      return 0;
+      ret = 0;
+      break;
     }
 
     // reset for cull boundary
@@ -4133,12 +4133,12 @@ int BeliefPropagation::RealizePre(void) {
     ret = cellConstraintPropagate();
     if (ret < 0) {
       m_return = -1;
-      return 0;
+      ret = 0;
+      break;
     }
+    break;
 
-  }
-
-  else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+  case ALG_RUN_BLOCK_WFC:
 
     // fuzz out a block
     //
@@ -4183,7 +4183,9 @@ int BeliefPropagation::RealizePre(void) {
     // and count number resolved (only 1 tile val remain)
     //
     ret = cellConstraintPropagate();
-    if (ret < 0) { return ret; }
+    if (ret < 0) {
+        break;
+    }
 
     // reset for cull boundary
     //
@@ -4196,8 +4198,7 @@ int BeliefPropagation::RealizePre(void) {
     if (ret < 0) {
 
       fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
-
-      return ret;
+      break;
     }
 
     // reset for cull boundary
@@ -4207,10 +4208,14 @@ int BeliefPropagation::RealizePre(void) {
 
     // paranoia
     //
-    ret = cellConstraintPropagate();
-    if (ret < 0) { return ret; }
-
+    ret = cellConstraintPropagate();   
+    
+    break;
   }
+  
+  // measure elapsed time
+  clock_t t2 = clock();
+  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
 
   return ret;
 }
@@ -4366,6 +4371,69 @@ int64_t BeliefPropagation::numFixed(void) {
   return count;
 }
 
+// CollapseAndPropagate
+//  1: continue to next pre/step
+//  0: never returns zero
+// <0: error
+int BeliefPropagation::CollapseAndPropagate (int64_t& cell, int32_t& tile, int32_t& tile_idx ) {
+
+    int32_t n_idx=-1;
+    Vector3DI vp;
+
+    // 1 = continue condition.
+    // display chosen cell
+    //
+    if (op.verbose >= VB_INTRASTEP ) {
+      vp = getVertexPos(cell);
+      n_idx = getValI ( BUF_TILE_IDX_N, cell );
+      printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, tile_idx:%i / %i [rp]\n",
+          (int) op.cur_iter,
+          (int) cell,
+          (int) vp.x, (int)vp.y, (int)vp.z,
+          (int) tile, (int)tile_idx, (int)n_idx);
+    }
+
+    // reset iter resolved and advance total
+    //
+    st.iter_resolved = 1;
+    st.total_resolved++;
+
+    // assume continue
+    //
+    int ret = 1;
+
+    // collapse
+    //
+    int c_ret = tileIdxCollapse( cell, tile_idx );
+
+    if (c_ret >=0 ) {
+      m_note_n[ m_note_plane ] = 0;
+      m_note_n[ 1 - m_note_plane  ] = 0;
+
+      cellFillVisitedNeighbor ( cell, m_note_plane );
+      unfillVisited( m_note_plane  );
+
+      // propagate constraints to remove neighbor tiles,
+      // and count number resolved (only 1 tile val remain)
+      //
+      c_ret = cellConstraintPropagate();
+      //  0: success
+      // <0: contradiction found
+
+      // error. constraint prop failed
+      //
+      if (c_ret < 0) { ret = -3; }
+
+    }
+    // error. collapse failed
+    //
+    else {
+      ret = -2; 
+    }
+    return ret;
+}
+
+
 //  0 - success and finish
 //  1 - continuation
 // -1 - error
@@ -4389,8 +4457,6 @@ int BeliefPropagation::RealizePost(void) {
 
   Vector3DI vp;
 
-  clock_t t1 = clock();
-
   int64_t fixed_count = 0;
 
   //DEBU
@@ -4401,12 +4467,25 @@ int BeliefPropagation::RealizePost(void) {
   //
   //DEBU
 
+  // measure elapsed time
+  clock_t t1 = clock();
+
+  // resolved = all tiles complete (1 tile), and arc-consistent state  
+  // arc-consistent = ac3. 
+  // 
+
   // choose the cell and propagate choice
   //
   switch (op.alg_cell_opt) {
     case ALG_CELL_WFC:
 
       ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+      //  0: SOLVED GRID. assuming arc consistent. all cells collapsed to single tileid.
+      //>=1: One or more tiles ready to collapse (ie. the cell).
+
+      if ( ret >= 1 ) {
+        ret = CollapseAndPropagate (cell, tile, tile_idx);        
+      }
       break;
 
     case ALG_CELL_BREAKOUT:
@@ -4583,30 +4662,32 @@ int BeliefPropagation::RealizePost(void) {
           ret = cellConstraintPropagate();
           if (ret < 0) {
             op.cur_iter++;
-            return ret;
           }
 
         }
 
       }
 
-      // Whether we've softened or accepted the block, we're finished.
-      // We're taking control away from the code at the bottom
-      // since we're not resolving a single cell/tile now,
-      // so we need to do some housekeeping ourselves.
-      //
+      if ( ret >= 0 ) {
+          // no error..
 
-      op.cur_iter++;
+          // Whether we've softened or accepted the block, we're finished.
+          // We're taking control away from the code at the bottom
+          // since we're not resolving a single cell/tile now,
+          // so we need to do some housekeeping ourselves.
+          //
 
-      // slow way to check to see if we've converged
-      //
-      if (numFixed() == m_num_verts) {
-        ret = 0;
-        return 0;
+          op.cur_iter++;
+
+          // slow way to check to see if we've converged
+          //
+          if (numFixed() == m_num_verts) {
+            ret = 0;
+          
+          } else {
+            ret = 1;
+          }
       }
-
-      ret = 1;
-      return 1;
 
       break;
 
@@ -4675,85 +4756,71 @@ int BeliefPropagation::RealizePost(void) {
       op.cur_iter++;
 
       ret = 1;
-      return 1;
+
       break;
 
     case ALG_CELL_ANY:
 
       ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
+      
+      if ( ret >= 1 ) {
+        ret = CollapseAndPropagate (cell, tile, tile_idx);
+      }
       break;
 
     case ALG_CELL_MIN_ENTROPY:
 
       ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
+      
+      if ( ret >= 1 ) {
+        ret = CollapseAndPropagate (cell, tile, tile_idx);
+      }
       break;
 
     default:
-
-      return -1;
+      // no alg
+      ret = -1;
       break;
 
   }
 
-  // result of choose..
+  //-- complete timing
+  // **NOTE**: Should not need to CheckConstraints here. Each algorithm should be able
+  // to determine when it succeeds. Use to confirm success, should result in constraints=0.
   //
-  if ( ret >= 1 ) {
-
-    // 1 = continue condition.
-    // display chosen cell
-    //
-    if (op.verbose >= VB_INTRASTEP ) {
-      vp = getVertexPos(cell);
-      n_idx = getValI ( BUF_TILE_IDX_N, cell );
-      printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rp]\n",
-          (int)op.cur_iter,
-          (int)cell,
-          (int)vp.x, (int)vp.y, (int)vp.z,
-          (int)tile, (float)belief, (int)tile_idx, (int)n_idx);
-    }
-
-    // assume continue
-    //
-    post_ret = 1;
-
-    // reset iter resolved and advance total
-    //
-    st.iter_resolved = 1;
-    st.total_resolved++;
-
-    // collapse
-    //
-    ret = tileIdxCollapse( cell, tile_idx );
-    if (ret >=0 ) {
-      m_note_n[ m_note_plane ] = 0;
-      m_note_n[ 1 - m_note_plane  ] = 0;
-
-      cellFillVisitedNeighbor ( cell, m_note_plane );
-      unfillVisited( m_note_plane  );
-
-      // propagate constraints to remove neighbor tiles,
-      // and count number resolved (only 1 tile val remain)
-      //
-      ret = cellConstraintPropagate();
-
-      // constraint prop failed
-      //
-      if (ret < 0) { post_ret = -3; }
-
-    }
-
-    // collapse failed
-    //
-    else { post_ret = -2; }
-
+  if (st.enabled) {
+      // check constraints
+      printf ( "  checking constraints (warning: slow)\n");
+      st.constraints = CheckConstraints ();
   }
 
-  // 0 = success condition.
-  // -1 = failure of MaxBelief
-  //
-  else if ( ret == 0 ) { post_ret = 0; }
-  else if ( ret < 0)   { post_ret = -1; }
+  st.eps_curr = getLinearEps();
+  st.post = ret;
 
+  clock_t t2 = clock();
+  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
+
+  // print iter stats
+  //
+  if (ret==1 && op.verbose >= VB_STEP ) {
+    printf ("%s", getStatMessage().c_str() );
+  }
+  // print run completion
+  if (ret<=0 && op.verbose >= VB_RUN ) {
+
+    st.success = (ret==0);    
+    
+    printf ("%s", getStatMessage().c_str() );
+  }
+    
+  op.cur_iter++;
+  
+
+  return ret;
+}
+
+
+/*
   // iteration or overall complete
   //
   if (post_ret >= 0) {
@@ -4849,36 +4916,9 @@ int BeliefPropagation::RealizePost(void) {
     //-------------------------------
     //-------------------------------
     //-------------------------------
-    
-    
-    //-- complete timing
-    //
-    clock_t t2 = clock();
-    st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
+*/
 
 
-    if (st.enabled) {
-      // check constraints
-      st.constraints = CheckConstraints ();
-    }
-    st.eps_curr = getLinearEps();
-    st.post = post_ret;
-
-    // print iter stats
-    //
-    if (post_ret==1 && op.verbose >= VB_STEP ) {
-      printf ("%s", getStatMessage().c_str() );
-    }
-    // print run completion
-    if (post_ret==0 && op.verbose >= VB_RUN ) {
-      printf ("%s", getStatMessage().c_str() );
-    }
-    
-    op.cur_iter++;
-  }
-
-  return post_ret;
-}
 
 std::string BeliefPropagation::getStatMessage () {
 
@@ -4887,7 +4927,7 @@ std::string BeliefPropagation::getStatMessage () {
   snprintf ( msg, 1024, 
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f\n",
               ((st.post==1) ? "RUN" :
-                ((st.constraints==0) ? "RUN_SUCCESS" : "RUN_FAIL")),
+              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),              
               op.cur_run, op.max_run, op.cur_iter, 
               st.elapsed_time, (int)st.constraints, 
               st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
@@ -4974,7 +5014,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   std::vector< int64_t > _block_bound;
 
-  // start timing
+  // measure elapsed time
   //
   clock_t t1 = clock();
 
@@ -5197,7 +5237,7 @@ int BeliefPropagation::RealizeStep(void) {
   // complete timing
   //
   clock_t t2 = clock();
-  st.elapsed_time += ((((double) t2 - t1) / CLOCKS_PER_SEC) * 1000);
+  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
 
   // ret 1 is a 'continue' state, so if we haven't finished,
   // make sure we don't loop forever by incrementing cur_step

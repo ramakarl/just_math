@@ -496,31 +496,31 @@ void Sample::display()
             // start new iteration
             bpc.RealizePre();
             
-        } else if ( ret==0 ) {
+        } 
+        // complete..
+        if ( ret <= 0 ) {
              
-            // post complete. fully done.
-            // write json output            
+            // write json output (failed or success)
             if (bpc.op.tileobj_fn.size() > 0) {
               bpc.op.outstl_fn = bpc.op.tilemap_fn;
               write_bp_stl( bpc, tri_shape_lib );
             } else {
               write_tiled_json( bpc );
             }
-
-            // hit completion
-            printf ( "DONE.\n" );
-
+            if ( ret==0 ) {
+                // success. complete.
+                printf ( "DONE (SUCCESS).\n" );
+            } else {
+               // post error condition
+               switch (ret) {                
+               case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
+               case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
+               case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
+               };                
+               printf ( "DONE (FAIL).\n" );
+            }            
             // stop
             m_run = false;
-
-        } else {
-
-            // post error condition
-            switch (ret) {                
-            case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-            case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-            case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-            };                
         }
 
     } 
@@ -535,12 +535,12 @@ void Sample::display()
   // Raycast
   ClearImg (m_img);
 
-  if ( bpc.getStep() % 5 == 0) { 
+  /*if ( bpc.getStep() % 5 == 0) { 
 
       Visualize ( bpc, BUF_VOL );
 
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-  }
+  }*/
 
   // optional write to disk
   if ( m_save ) {
