@@ -431,7 +431,7 @@ public:
               std::vector< std::vector < float > >  rule_list );
 
   int       start();
-  int       finish();
+  int       finish( int final_ret );
 
   int       RealizePre();
   int       RealizeIter();

@@ -84,7 +84,7 @@ int BeliefPropagation::default_opts () {
   st.iter_resolved = 0;
   st.total_resolved=0;
   st.elapsed_time = 0.0;
-  st.constraints = 0;
+  st.constraints = -1;
 
   st.instr = 0;
 
@@ -419,13 +419,6 @@ void BeliefPropagation::ConstructDynamicBufs () {
   //
   AllocBuf ( BUF_VISITED, 'l', m_num_verts );
 
-  //-- Construct note
-  //
-  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
-  m_note_n[0] = 0;
-  m_note_n[1] = 0;
-  m_note_plane = 0;
-
   //-- Construct Residual BP buffers
   //
   AllocBuf ( BUF_RESIDUE_HEAP,          'f', 6 * m_num_verts * m_num_values );
@@ -435,7 +428,14 @@ void BeliefPropagation::ConstructDynamicBufs () {
   AllocBuf ( BUF_BT,     'l', 2 * m_num_verts * m_num_values );
   AllocBuf ( BUF_BT_IDX, 'l',     m_num_verts * m_num_values );
 
+  //-- Construct note
+  //
+  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );  
+  m_note_n[0] = 0;
+  m_note_n[1] = 0;
+  m_note_plane = 0;
 
+  //-- Randomize MU
   RandomizeMU ();
 
 }
@@ -2913,7 +2913,7 @@ int BeliefPropagation::start () {
   block_odd_dz = op.block_size[2] / 2;
 
   if (op.verbose >= VB_RUN) 
-      printf ("calc block index bounds.\n");
+      printf ("  calc block index bounds.\n");
 
   end_x = m_bpres.x - op.block_size[0];
   for (ix=0,x=0; ix<m_bpres.x; ix++) {
@@ -2947,15 +2947,13 @@ int BeliefPropagation::start () {
   //
   // BLOCK WFC
 
-  op.seed++;
-
   // reset stats (must do first)
   ResetStats ();
 
   // rebuild dynamic bufs
   //
    if (op.verbose >= VB_RUN) 
-      printf ("rebuild dynamic bufs.\n");
+      printf ("  rebuild dynamic bufs.\n");
   ConstructDynamicBufs ();
 
   RandomizeMU ();
@@ -2965,7 +2963,7 @@ int BeliefPropagation::start () {
   // cull boundary
   //
   if (op.verbose >= VB_RUN) 
-      printf ("cull boundary..\n");
+      printf ("  cull boundary..\n");
 
   ret = CullBoundary();
   if (ret < 0) { return ret; }
@@ -2981,6 +2979,27 @@ int BeliefPropagation::start () {
   // caller should remove constrained tiles
   // right after this func
   //
+  return ret;
+}
+
+int BeliefPropagation::finish (int ret) {
+
+  if ( ret==0 ) {
+    // success. complete.
+    printf ( "  DONE (SUCCESS).\n" );
+  } else {
+    // post error condition
+    switch (ret) {                
+    case -1: printf ( "ERROR: chooseMaxBelief.\n" ); break;
+    case -2: printf ( "ERROR: tileIdxCollapse.\n" ); break;
+    case -3: printf ( "ERROR: cellConstraintPropagate.\n" ); break;
+    };                
+    printf ( "  DONE (FAIL).\n" );
+  }           
+  
+  // advance seed
+  op.seed++;
+
   return ret;
 }
 
@@ -4615,11 +4634,11 @@ int BeliefPropagation::RealizePost(void) {
   // **NOTE**: Should not need to CheckConstraints here. Each algorithm should be able
   // to determine when it succeeds. Use to confirm success, should result in constraints=0.
   //
-  if (st.enabled) {
+  /*if (st.enabled) {
       // check constraints
       printf ( "  checking constraints (warning: slow)\n");
       st.constraints = CheckConstraints ();
-  }
+  }*/
 
   st.eps_curr = getLinearEps();
   st.post = ret;
@@ -4752,6 +4771,17 @@ std::string BeliefPropagation::getStatMessage () {
   char msg[1024] = {0};
 
   snprintf ( msg, 1024, 
+             "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), Grid:%d,%d,%d, Seed: %d\n",
+              ((st.post==1) ? "RUN" :
+              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),              
+              op.cur_run, op.max_run, op.cur_iter, 
+              st.elapsed_time, (int)st.constraints, 
+              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+              op.X, op.Y, op.Z, op.seed ); 
+
+  
+  //-- belief prop stats
+  /* snprintf ( msg, 1024, 
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f\n",
               ((st.post==1) ? "RUN" :
               ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),              
@@ -4759,7 +4789,7 @@ std::string BeliefPropagation::getStatMessage () {
               st.elapsed_time, (int)st.constraints, 
               st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
               op.cur_step, op.max_step, 
-              st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu );
+              st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu ); */
   
   // b:%f, n:%f, bp:%f, v:%f, md:%f, u:%f
   // st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );
@@ -4771,15 +4801,18 @@ std::string BeliefPropagation::getStatCSV (int mode) {
 
   char msg[1024] = {0};
   int status;
-  status = (st.post==1) ? 0 : (st.constraints==0) ? 1 : -1;
+  status = (st.post==1) ? 0 : (st.success==1) ? 1 : -1;
 
   snprintf ( msg, 1024, 
-      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f",  
+      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %d, %d",  
       op.cur_run, status, op.cur_iter, st.elapsed_time,
-      (int)st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
-      op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
-      st.ave_mu, st.ave_dmu,
-      st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
+      (int) st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+      op.X, op.Y, op.Z, op.seed );
+      
+      
+ //     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
+ //     st.ave_mu, st.ave_dmu,
+ //     st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
 
   return msg;
 }
