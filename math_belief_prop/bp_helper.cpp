@@ -378,7 +378,9 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
   float steprate = bpc.expr.steprate_min;
   float eps = bpc.expr.eps_min;
 
-  for (int e=0; e < num_experiments; e++) {
+  bpc.SelectAlgorithm ( bpc.op.alg_idx );
+
+  for (int e=0; e <= num_experiments; e++) {
 
     // reset bp
     bpc.reset ();

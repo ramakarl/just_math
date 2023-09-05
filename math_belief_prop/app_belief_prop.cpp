@@ -397,9 +397,9 @@ bool Sample::init()
 
   //-- Experiments  
   bpc.expr.num_expr = 20;
-  bpc.expr.num_run = 100;
-  bpc.expr.grid_min.Set (20, 20, 1);
-  bpc.expr.grid_max.Set (220, 220, 1);
+  bpc.expr.num_run = 50;
+  bpc.expr.grid_min.Set (10, 10, 1);
+  bpc.expr.grid_max.Set (210, 210, 1);
   bpc.expr.maxstep_min = 1;
   bpc.expr.maxstep_max = 1;
   bpc.expr.steprate_min = 0.98;
