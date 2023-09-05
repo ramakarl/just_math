@@ -396,19 +396,20 @@ bool Sample::init()
     // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
 
   //-- Experiments  
-  /* bpc.expr.num_expr = 5;
-  bpc.expr.num_run = 20;
-  bpc.expr.grid_min.Set (100, 100, 1);
-  bpc.expr.grid_max.Set (150, 150, 1);
-  bpc.expr.maxstep_min = 50;
-  bpc.expr.maxstep_max = 50;
+  bpc.expr.num_expr = 20;
+  bpc.expr.num_run = 100;
+  bpc.expr.grid_min.Set (20, 20, 1);
+  bpc.expr.grid_max.Set (220, 220, 1);
+  bpc.expr.maxstep_min = 1;
+  bpc.expr.maxstep_max = 1;
   bpc.expr.steprate_min = 0.98;
   bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .0001;
   bpc.expr.eps_max = .0001;
   bpc.st.instr = 0;
 
-  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" ); */
+  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" );
+  exit(-6);
     
   //-- Multirun testing  
   /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
@@ -496,9 +497,7 @@ void Sample::display()
             // start new iteration
             bpc.RealizePre();
             
-        } 
-        // complete..
-        if ( ret <= 0 ) {
+        } else if ( ret <= 0 ) {
              
             // write json output (failed or success)
             if (bpc.op.tileobj_fn.size() > 0) {
@@ -507,18 +506,9 @@ void Sample::display()
             } else {
               write_tiled_json( bpc );
             }
-            if ( ret==0 ) {
-                // success. complete.
-                printf ( "DONE (SUCCESS).\n" );
-            } else {
-               // post error condition
-               switch (ret) {                
-               case -1: printf ( "bpc chooseMaxBelief error.\n" ); break;
-               case -2: printf ( "bpc tileIdxCollapse error.\n" ); break;
-               case -3: printf ( "bpc cellConstraintPropagate error.\n" ); break;
-               };                
-               printf ( "DONE (FAIL).\n" );
-            }            
+            // finish
+            bpc.finish (ret);
+
             // stop
             m_run = false;
         }

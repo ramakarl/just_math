@@ -41,6 +41,9 @@ int bp_restart ( BeliefPropagation& bpc ) {
   std::vector< constraint_op_t > constraint_op_list;
   std::vector< int32_t > block_admissible_tile_list;
 
+  if (bpc.op.verbose >= VB_RUN) 
+      printf ( "bp_restart:\n");
+
   bp_opt_t* op = bpc.get_opt();
   
   // parse & record constraints before start
@@ -53,7 +56,7 @@ int bp_restart ( BeliefPropagation& bpc ) {
   // (not needed if this is first init)
   //
   if (bpc.op.verbose >= VB_RUN) 
-      printf ( "bpc start() called\n");
+      printf ( "  bpc start() called\n");
 
   ret = bpc.start ();
 
@@ -61,11 +64,11 @@ int bp_restart ( BeliefPropagation& bpc ) {
   //
   if (constraint_op_list.size() > 0) {
     if (bpc.op.verbose >= VB_RUN) {
-       printf ( "constraining bp.." );
+       printf ( "  constraining bp.." );
     }
     ret = constrain_bp( bpc, constraint_op_list);
     if (ret < 0) {
-      fprintf(stderr, "constrain_bp failure\n");
+      fprintf(stderr, "  constrain_bp failure\n");
       exit(-1);
     }
     if (bpc.op.verbose >= VB_RUN) {
@@ -90,7 +93,7 @@ int bp_restart ( BeliefPropagation& bpc ) {
       bpc.debugPrintTerse ();
 
   if (bpc.op.verbose >= VB_RUN) {
-     printf ( "bpc RealizePre.. starting iteration\n" );
+     printf ( "  bpc RealizePre.. starting iteration\n" );
   }
   ret = bpc.RealizePre ();
 
@@ -105,7 +108,7 @@ int bp_parse_constraints ( BeliefPropagation& bpc, std::vector< constraint_op_t 
     if (op->constraint_cmd.size() > 0) {
 
         if (bpc.op.verbose >= VB_RUN) 
-            printf ( "parsing constraints %s..", op->constraint_cmd.c_str());
+            printf ( "  parsing constraints %s..", op->constraint_cmd.c_str());
         
         std::vector< int > dim;
         dim.push_back( op->X );
@@ -116,12 +119,7 @@ int bp_parse_constraints ( BeliefPropagation& bpc, std::vector< constraint_op_t 
         if (ret < 0) {
           fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
           exit(-1);
-        }
-        ret = constrain_bp ( bpc, constraint_op_list);
-        if (ret < 0) {
-          fprintf(stderr, "constrain_bp failure\n");
-          exit(-1);
-        }
+        }        
         if (bpc.op.verbose >= VB_RUN) 
             printf ( "done.\n" );
         
@@ -137,7 +135,7 @@ int bp_check_groundstate ( BeliefPropagation& bpc )
           tile_idx=-1 ;
 
    if (bpc.op.verbose >= VB_RUN) 
-     printf ( "checking ground state.\n" );
+     printf ( "  checking ground state.\n" );
   
    for (cell=0; cell < bpc.m_num_verts; cell++) {
 
@@ -148,7 +146,7 @@ int bp_check_groundstate ( BeliefPropagation& bpc )
       // error here if that assumption is invalid.
       //
       if (n_idx != 1) {
-        fprintf(stderr, "block wfc requires valid ground state\n");
+        fprintf(stderr, "ERROR: block wfc requires valid ground state\n");
         exit(-1);
         return 0;
       }
@@ -162,7 +160,7 @@ int bp_parse_admissable ( BeliefPropagation& bpc, std::vector< int32_t >& block_
     int32_t tile=-1;
 
     if (bpc.op.verbose >= VB_RUN) 
-       printf ( "parsing admissable..");
+       printf ( "  parsing admissable..");
    
 
     // Allow only certain tiles when fuzzing block
@@ -176,7 +174,7 @@ int bp_parse_admissable ( BeliefPropagation& bpc, std::vector< int32_t >& block_
         tile_dim.push_back(bpc.m_num_values);
         int ret = parse_range(tile_range, block_admissible_tile_range, tile_dim);
         if (ret<0) {
-          fprintf(stderr, "could not parse admissbile block tile range, ignoring\n");
+          fprintf(stderr, "WARNING: could not parse admissbile block tile range, ignoring\n");
         } else {
           block_admissible_tile_list.clear();
           for (tile=tile_range[0]; tile < tile_range[1]; tile++) {
@@ -280,30 +278,34 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
 
       ret = bpc.RealizeStep ();
 
-      if (ret == 0 || ret == -2) {
+      if (ret <= 0 ) {
+        // step complete
         // finish this iteration
         ret = bpc.RealizePost();
 
-        if ( ret > 0) {
-          // iteration complete (all steps), start new iteration
+        if ( ret > 0 ) {
+          // iteration complete (all steps)
+          // start new iteration
           bpc.RealizePre();
           runret = 1;
-
+          
           // append csv iteration
           fprintf ( fp, "%s\n", bpc.getStatCSV().c_str() );  fflush ( fp );
 
-        } else if (ret == 0) {
-          // this run DONE!
-          runret = 0;
+        } else if (ret <= 0 ) {         
 
-          // append csv run done
-          fprintf ( fp, "%s\n", bpc.getStatCSV( 1 ).c_str() );  fflush ( fp );
-          fprintf ( fp, "%s\n", bpc.getStatCSV( 2 ).c_str() );  fflush ( fp );
-        }
+          // append csv run completion
+          if ( ret <= 0 ) {              
+             fprintf ( fp, "%s\n", bpc.getStatCSV( 1 ).c_str() );  fflush ( fp );
+             fprintf ( fp, "%s\n", bpc.getStatCSV( 2 ).c_str() );  fflush ( fp );
+             // write json output
+             // write_tiled_json( bpc );
 
-        // write json output
-        // write_tiled_json( bpc );
-
+             // finish
+             bpc.finish ( ret );
+             runret = 0;
+          }                
+        }    
       } else {
         // error condition
         switch (ret) {
@@ -414,18 +416,18 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
       runret = 1;
       while ( runret >= 1 ) {
         ret = bpc.RealizeStep ();
-        if (ret == 0 || ret == -2) {
+        if (ret <= 0) {
           // finish this iteration
           ret = bpc.RealizePost();
           if ( ret > 0) {
             // iteration complete (all steps), start new iteration
             bpc.RealizePre();
             runret = 1;
-          } else if (ret == 0) {
+          } else if (ret <= 0) {
             // done!
-            runret = 0;
-            
+            runret = 0;            
             write_tiled_json ( bpc );
+            bpc.finish ( ret );
           }
           fprintf ( fpr, "%s\n", bpc.getStatCSV().c_str() ); 
           
@@ -435,10 +437,11 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
         }
       }
       // run completion
-      if (bpc.st.constraints==0) {
+      if (bpc.st.success) {
         success++;
       } else {
-        fail_constr += bpc.st.constraints;
+        if (bpc.st.constraints >= 0)
+          fail_constr += bpc.st.constraints;
       }
       total_time += bpc.st.elapsed_time;
 
