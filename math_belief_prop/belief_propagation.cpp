@@ -3422,6 +3422,14 @@ void BeliefPropagation::_restoreTileIdx(void) {
 
 }
 
+// Compute individual cell entropies, using the BUF_G
+// buffer to determine the individual tile probabilities.
+// Cell entries with only 1 tile have 0 entropy.
+// 
+// return:
+// 0  - success
+// !0 - failure (currently can't happen)
+//
 int BeliefPropagation::ComputeCellEntropy(void) {
   int32_t x, y, z,
           bx, by, bz,
@@ -3445,16 +3453,18 @@ int BeliefPropagation::ComputeCellEntropy(void) {
 
         cell = getVertex(x,y,z);
         n_tile = getValI( BUF_TILE_IDX_N, cell );
-        for (tile_idx=0; tile_idx<n_tile; tile_idx++) {
-          tile = getValI( BUF_TILE_IDX, tile_idx, cell );
-          f = getValF( BUF_G, tile );
-          cell_renorm += f;
+        if (n_tile > 0) {
+          for (tile_idx=0; tile_idx<n_tile; tile_idx++) {
+            tile = getValI( BUF_TILE_IDX, tile_idx, cell );
+            f = getValF( BUF_G, tile );
+            cell_renorm += f;
 
-          cell_entropy += (f * log(f) / lg2 );
+            cell_entropy += (f * log(f) / lg2 );
+          }
+          cell_entropy /= cell_renorm;
+          cell_entropy -= log(cell_renorm) / lg2;
+          cell_entropy = -cell_entropy;
         }
-        cell_entropy /= cell_renorm;
-        cell_entropy -= log(cell_renorm) / lg2;
-        cell_entropy = -cell_entropy;
 
         SetValF( BUF_CELL_ENTROPY, cell_entropy, cell );
 
@@ -3465,6 +3475,34 @@ int BeliefPropagation::ComputeCellEntropy(void) {
   return 0;
 }
 
+// Compute a block sum of entropies in BUF_CELL_ENTROPY
+// and store in BUF_BLOCK_ENTROPY.
+//
+// if `reuse_cell_entropy` is non zero, don't recalculate
+// the cell entropies. Otherwise, populate the cell entropies
+// (BUF_CELL_ENTROPY).
+//
+// Block size is stored in op.block_size[].
+// Uses a dynamic programming method to re-use partially
+// constructed answers. This might suffer from some roundoff
+// issues but is significantly faster than doing it the naive way.
+//
+// The algorithm proceeds in phases:
+// * first calculate the B[0,0,0] block entropy
+// * calculate the block entropy in each of the principle directions
+//   (B[x,0,0], B[0,y,0], B[0,0,z]) subtracting off the receding plane 
+//   and adding the incoming plane from BUF_CELL_ENTROPY
+// * calculate the xy, xz, yz corner planes (B[x,y,0], B[x,0,z], B[0,y,z])
+//   by subtracting off the receding line from BUF_CELL_ENTROPY
+//   and adding in the incoming line from BUF_CELL_ENTROPY
+// * finally, do the 'bulk' middle section (B[1:,1:,1:]) by re-using
+//   already calculated sum block entries and adding/subtracting the
+//   appropriate 
+//
+// return:
+// 0  - success
+// !0 - failure (currently can't happen)
+//
 int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
   int32_t x, y, z,
           xx, yy, zz,
@@ -3697,128 +3735,83 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
 
 }
 
-/*
-// simpler (but still inefficient) version that just coints
-// the number of unfixed tiles in a cell instead of a full
-// entropy calculation.
+// Pick the maximum entropy block.
+// Entropy blocks are calculated from the simple sum of
+// cell entropies.
+// call ComputeBlockEntropy to populate BUF_BLOCK_ENTROPY
+// and BUF_CELL_ENTROPY, then do a sweep to find the maximum.
 //
-int BeliefPropagation::pickMaxEntropyNoiseBlockSimple(void) {
-  double _block_entropy = 0.0,
-         _cell_entropy = 0.0,
-         _max_block_entropy = 0.0,
-         _cell_renorm = 0.0,
-         lg2 = log(2.0);
-  float _f;
+// stores chosen block in:
+//
+//  op.sub_block[]
+//
+// 
+// return:
+// >=0  - success, number of maximum entropy blocks
+// <0   - failure (currently can't happen)
+//
+int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
+  int32_t x,y,z;
 
-  int32_t _block_choice[3] = {0,0,0};
-
-  int32_t _start_block[3] = {0,0,0};
-  int32_t _end_block_pos[3] = {0};
-  int32_t _sx, _sy, _sz,
-          _x, _y, _z;
-  int64_t _cell;
-  int32_t _tile_idx, _tile, _n_idx;
-
-  int32_t _unfixed_cell_count = 0,
-          _blocks_considered=0;
-
-
-
-  _end_block_pos[0] = m_bpres.x - op.block_size[0] + 1;
-  _end_block_pos[1] = m_bpres.y - op.block_size[1] + 1;
-  _end_block_pos[2] = m_bpres.z - op.block_size[2] + 1;
-
-  // very ineffient, testing idea out
+  // block buffer size: (X,Y,Z) - blocksize(x,y,z)
   //
-  for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
-    for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
-      for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
+  int32_t n_b[3] = {0,0,0};
 
-        if (_sx == 0) {
-          _unfixed_cell_count = 0;
-          _block_entropy = 0.0;
+  float max_entropy = -1, cur_entropy;
+  int32_t max_x=0, max_y=0, max_z=0;
+  int64_t cell;
 
-          for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
-            for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
-              for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+  int32_t equal_entropy_count=0;
 
-                _cell_entropy = 0.0;
-                _cell_renorm = 0.0;
+  n_b[0] = m_res.x - op.block_size[0];
+  n_b[1] = m_res.y - op.block_size[1];
+  n_b[2] = m_res.z - op.block_size[2];
 
-                _cell = getVertex((int)_x, (int)_y, (int)_z);
-                _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+  printf(">>> n_b[%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
 
-                if (_n_idx <= 1) { continue; }
-                for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+  ComputeBlockEntropy();
 
-                  _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
 
-                  _f = getValF( BUF_G, _tile );
-                  _cell_renorm += (double)_f;
+        cell = getVertex(x,y,z);
+        cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
-                  _cell_entropy += (_f * log(_f) / lg2);
+        if ((max_entropy < 0.0) ||
+            ( (cur_entropy - max_entropy) > op.eps_zero )) {
 
-                }
-                _cell_entropy /= _cell_renorm;
-                _cell_entropy -= (log(_cell_renorm) / lg2);
-                _cell_entropy = -_cell_entropy;
+          // if we have a choice between blocks of equal entropy,
+          // choose one from the list at random.
+          //
+          if (fabs(cur_entropy - max_entropy) < op.eps_zero) {
+            equal_entropy_count++;
+          }
+          else {
+            equal_entropy_count = 1;
+          }
 
-                _block_entropy += _cell_entropy;
-
-                _unfixed_cell_count++;
-
-              }
-            }
+          if (m_rand.randF() <= (1.0/(float)equal_entropy_count)) {
+            max_entropy = cur_entropy;
+            max_x = x;
+            max_y = y;
+            max_z = z;
           }
         }
-
-        else {
-
-        }
-
-        if (_unfixed_cell_count==0) { continue; }
-
-        if (_blocks_considered == 0) {
-          _max_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        if ( _block_entropy > _max_block_entropy ) {
-          _max_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        _blocks_considered++;
-
 
       }
     }
   }
 
-  printf("## pickEntropyNoiseBlock _max_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
-      (float)_max_block_entropy,
-      (int)_block_choice[0],
-      (int)_block_choice[1],
-      (int)_block_choice[2],
-      (int)_blocks_considered);
+  op.sub_block[0] = max_x;
+  op.sub_block[1] = max_y;
+  op.sub_block[2] = max_z;
 
-
-  op.sub_block[0] = _block_choice[0];
-  op.sub_block[1] = _block_choice[1];
-  op.sub_block[2] = _block_choice[2];
-
-  return (int)_unfixed_cell_count;
-
-
+  return (int)equal_entropy_count;
 }
-*/
 
+/*
 int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
-  //DEBUG
   double _block_entropy = 0.0,
          _cell_entropy = 0.0,
          _max_block_entropy = 0.0,
@@ -3910,18 +3903,16 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
         //DEBUG
         //
-        /*
-        printf("## breakout-max_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_max_block_entropy:%3.4f {%i,%i,%i})\n",
-            (int)_sx, (int)op.block_size[0],
-            (int)_sy, (int)op.block_size[1],
-            (int)_sz, (int)op.block_size[2],
-            (float)_block_entropy,
-            (float)_max_block_entropy,
-            (int)_block_choice[0],
-            (int)_block_choice[1],
-            (int)_block_choice[2]);
-            */
-
+//        printf("## breakout-max_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_max_block_entropy:%3.4f {%i,%i,%i})\n",
+//            (int)_sx, (int)op.block_size[0],
+//            (int)_sy, (int)op.block_size[1],
+//            (int)_sz, (int)op.block_size[2],
+//            (float)_block_entropy,
+//            (float)_max_block_entropy,
+//            (int)_block_choice[0],
+//            (int)_block_choice[1],
+//            (int)_block_choice[2]);
+//
 
       }
     }
@@ -3942,6 +3933,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   return (int)_unfixed_cell_count;
 
 }
+*/
 
 int BeliefPropagation::pickEntropyNoiseBlock(void) {
 
