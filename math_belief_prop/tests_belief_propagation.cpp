@@ -2718,8 +2718,6 @@ int test_breakout_block_entropy(BeliefPropagation &_bp) {
 
   bp.op.verbose = VB_DEBUG;
 
-  for (
-
   printf("...\n");
 
 
