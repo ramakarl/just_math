@@ -28,6 +28,7 @@ void Image::FillRGB8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
 {
 	// Temporary fill buffer
 	assert ( getInfo()->GetBytesPerRow() <= 16384 );
+
 	for (uint x=0; x < getInfo()->GetBytesPerRow();) {
 		fillbuf[x++] = r; 
 		fillbuf[x++] = g; 
@@ -36,6 +37,11 @@ void Image::FillRGB8 (XBYTE r, XBYTE g, XBYTE b, XBYTE a)
     
     XBYTE *dest_pix, *dest_pix_stop;
 	dest_pix = (XBYTE*) GetData();
+	if ( dest_pix == 0x0 ) {
+		dbgprintf ( "ERROR: Fill image /w no CPU buffer. Did you forget DT_CPU usage flag.\n" );
+		assert ( dest_pix != 0x0 );
+	}
+
 	dest_pix_stop = dest_pix + getInfo()->GetSize();
 	for (; dest_pix < dest_pix_stop;) {
 		memcpy (dest_pix, fillbuf, getInfo()->GetBytesPerRow());

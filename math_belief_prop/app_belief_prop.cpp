@@ -335,7 +335,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 
   #ifdef USE_OPENGL
     //commit image to OpenGL (hardware gl texture) for on-screen display
-    img->Commit ( DT_GLTEX );
+    img->Commit ( DT_CPU | DT_GLTEX );
   #endif
 }
 
@@ -370,7 +370,7 @@ bool Sample::init()
   m_run       = false;  // must start out false until all other init is done
   m_save      = false;  // save to disk
   m_cam = new Camera3D;
-  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
+  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 250, 1 );
   m_img = new Image;
   m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
 
@@ -396,7 +396,7 @@ bool Sample::init()
     // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
 
   //-- Experiments  
-  bpc.expr.num_expr = 20;
+  /* bpc.expr.num_expr = 20;
   bpc.expr.num_run = 50;
   bpc.expr.grid_min.Set (10, 10, 1);
   bpc.expr.grid_max.Set (210, 210, 1);
@@ -409,7 +409,7 @@ bool Sample::init()
   bpc.st.instr = 0;
 
   bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" );
-  exit(-6);
+  exit(-6); */
     
   //-- Multirun testing  
   /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
@@ -525,12 +525,12 @@ void Sample::display()
   // Raycast
   ClearImg (m_img);
 
-  /*if ( bpc.getStep() % 5 == 0) { 
+  if ( bpc.getStep() % 5 == 0) { 
 
       Visualize ( bpc, BUF_VOL );
 
       RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-  }*/
+  }
 
   // optional write to disk
   if ( m_save ) {
@@ -631,18 +631,27 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       write_tiled_json( bpc ); 
       break;
   
-  case 'g':  
-      Restart ();    // false = dynamic init
+  case 'r':  
+      // restart with same seed
+      bpc.finish(-77);
+      Restart ();   
+      break;
+
+   case 'g':  
+      // regenerate with new seed
+      bpc.finish(-77);   // -77 = stopped by user
+      bpc.advance_seed();
+      Restart (); 
       break;
 
   case ',':  
       m_viz--; 
-      if (m_viz < VIZ_DMU) m_viz = VIZ_TILECOUNT;  
+      if (m_viz < 1) m_viz = 3;
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > VIZ_TILECOUNT ) m_viz = VIZ_DMU;  
+      if (m_viz > 3) m_viz = 1;  
       bpc.SetVis ( m_viz );
       break;
 
@@ -660,7 +669,7 @@ void Sample::reshape(int w, int h)
   m_cam->setAspect(float(w) / float(h));
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());  
 
-  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8 );
+  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8, DT_CPU | DT_GLTEX );  
 
   appPostRedisplay();
 }

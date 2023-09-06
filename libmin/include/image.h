@@ -52,8 +52,8 @@
 		void Create ();
 		void Create ( int xr, int yr, ImageOp::Format eFormat );		// Create image		
 		void ResizeImage ( int xr, int yr );
-		void ResizeImage ( int xr, int yr, ImageOp::Format eFormat );		
-		void ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat );		
+		void ResizeImage ( int xr, int yr, ImageOp::Format eFormat, uchar use_flags=0 );
+		void ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat, uchar use_flags=0 );
 		void AddChannel ( std::string name, int xr, int yr, ImageOp::Format eFormat );		
 		void ChangeFormat (ImageOp::Format eFormat) 	{ (this->*m_ReformatFunc) ( eFormat); } // Change pixel format of data
 		void DeleteBuffers ();
