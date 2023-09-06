@@ -2775,7 +2775,7 @@ int test_breakout_block_entropy(BeliefPropagation &_bp) {
   return 0;
 }
 
-int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
+int test_breakout_cell_entropy(BeliefPropagation &_bp) {
   int ret;
   int i;
   int iter, max_iter=10;
@@ -2790,6 +2790,8 @@ int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
   int32_t x,y,z,xx,yy,zz;
   int32_t n_b[3];
 
+  float _eps = (1.0/(1024.0));
+
   bp.op.block_size[0] = 3;
   bp.op.block_size[1] = 3;
   bp.op.block_size[2] = 3;
@@ -2801,23 +2803,20 @@ int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
   ret = bp_init_CSV( bp, X,Y,Z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
-  bp.op.verbose = VB_DEBUG;
+  //bp.op.verbose = VB_DEBUG;
 
-  srand(123);
-
-  for (z=0; z<bp.m_res.z; z++) {
-    for (y=0; y<bp.m_res.y; y++) {
-      for (x=0; x<bp.m_res.x; x++) {
-        cell = bp.getVertex(x,y,z);
-        bp.SetValF( BUF_CELL_ENTROPY, (float)(rand()%100), cell );
-      }
-    }
-  }
-
-  bp.ComputeBlockEntropy(1);
+  bp.CullBoundary();
+  bp.ComputeBlockEntropy();
 
   //bp.debugPrintCellEntropy();
-  //printf("---\n");
+  //bp.debugPrintBlockEntropy();
+
+  /*
+  for (z=0; z<Z; z++) { for (y=0; y<Y; y++) { for (x=0; x<X; x++) {
+    printf("[%i,%i,%i] n:%i\n",
+        x,y,z, bp.getValI( BUF_TILE_IDX_N, bp.getVertex(x,y,z) ) );
+  } } }
+  */
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
@@ -2834,7 +2833,7 @@ int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
           }
         }
 
-        if (fabs( block_entropy - bp.getValF(BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z)) ) > 0.5) {
+        if (fabs( block_entropy - bp.getValF(BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z)) ) > _eps) {
           return -1;
         }
 
@@ -2842,8 +2841,6 @@ int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
       }
     }
   }
-
-  //bp.debugPrintBlockEntropy();
 
   return 0;
 }
@@ -2969,7 +2966,7 @@ int run_test(BeliefPropagation &bp, int test_num) {
       break;
 
     case 34:
-      ret = test_breakout_block_entropy_1(bp);
+      ret = test_breakout_cell_entropy(bp);
       break;
 
     default:

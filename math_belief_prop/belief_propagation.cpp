@@ -3507,7 +3507,11 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
   bs[1] = op.block_size[1];
   bs[2] = op.block_size[2];
 
-  if (reuse_cell_entropy) {
+  // reuse_cell_entropy != 0
+  // ===> reuse and don't recompute the cell
+  //      entropy buffer (BUF_CELL_ENTROPY)
+  //
+  if (reuse_cell_entropy==0) {
     ComputeCellEntropy();
   }
 
