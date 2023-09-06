@@ -592,6 +592,9 @@ void Sample::DrawTileMap ()
     float num_tiles = bpc.getNumValues(0);
     float alpha;
 
+    // draw fog box
+    drawFill ( 0, 0, bpc.op.X*tw, bpc.op.Y*th, .8,.8,.8,1 );
+
     // draw tiles
     for (int y=0; y < bpc.op.Y; y++) {
         for (int x=0; x < bpc.op.X; x++) {        
@@ -599,19 +602,11 @@ void Sample::DrawTileMap ()
             // get voxel value (2D) containing tile ID
             val = getVoxel4 ( BUF_VOL, x, y, 0 );   
             tile = val.x - 1;
-            alpha = val.w / num_tiles;
-            drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, 1-alpha );            
+            alpha = 1.0 / sqrt(val.w);
+            drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );            
         }
     }
-    // draw fog boxes
-    for (int y=0; y < bpc.op.Y; y++) {
-        for (int x=0; x < bpc.op.X; x++) {        
-            // get voxel value (2D) containing tile ID
-            val = getVoxel4 ( BUF_VOL, x, y, 0 );   
-            alpha = val.w / num_tiles;
-            drawFill ( x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );
-        }
-    }
+    
     end2D();
 }
 
@@ -697,7 +692,7 @@ void Sample::display()
       // 3D raycast on CPU
       ClearImg (m_img);
 
-      if ( bpc.getStep() % 5 == 0) { 
+      if ( bpc.getStep() % 2 == 0) { 
 
           Visualize ( bpc, BUF_VOL );
 
