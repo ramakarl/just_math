@@ -473,6 +473,11 @@ void BeliefPropagation::ConstructTempBufs () {
   //
   AllocBuf ( BUF_BLOCK, 'i', m_num_verts );
 
+  //-- for breakout model synth
+  //
+  AllocBuf ( BUF_CELL_ENTROPY, 'f', m_num_verts );
+  AllocBuf ( BUF_BLOCK_ENTROPY, 'f', m_num_verts );
+
 }
 
 void BeliefPropagation::ConstructSVDBufs () {
@@ -705,11 +710,9 @@ float BeliefPropagation::MaxDiffMU ()  {
 
 void BeliefPropagation::InitializeDMU (int buf_id) {
 
-     for (int j=0; j < m_num_verts; j++) {
-
-         SetValF ( BUF_MU_NXT, 1.0, 0, 0, j );
-
-     }
+  for (int j=0; j < m_num_verts; j++) {
+    SetValF ( BUF_MU_NXT, 1.0, 0, 0, j );
+  }
 }
 
 
@@ -2959,11 +2962,11 @@ int BeliefPropagation::start () {
 
   // rebuild dynamic bufs
   //
-   if (op.verbose >= VB_RUN) 
-      printf ("  rebuild dynamic bufs.\n");
+  if (op.verbose >= VB_RUN) { printf ("  rebuild dynamic bufs.\n"); }
   ConstructDynamicBufs ();
 
-  RandomizeMU ();
+  // taken care of in constructdyanmicbufs
+  //RandomizeMU ();
 
   // debugInspect (Vector3DI(1,1,0), 0 );
 
@@ -2978,7 +2981,6 @@ int BeliefPropagation::start () {
   // requires tileidx filled (in DynamicBufs)
   //
   NormalizeMU ();
-
   if ( op.alg_accel==ALG_ACCEL_WAVE) {
     InitializeDMU ();
   }
@@ -3194,7 +3196,7 @@ int BeliefPropagation::init(
   // rebuild dynamic bufs
   //
   ConstructDynamicBufs ();
-  RandomizeMU ();
+  //RandomizeMU (); // taken care of in constructdynamicbufs
 
   // options
   //
@@ -3420,6 +3422,249 @@ void BeliefPropagation::_restoreTileIdx(void) {
 
 }
 
+int BeliefPropagation::ComputeCellEntropy(void) {
+  int32_t x, y, z,
+          bx, by, bz,
+          mx, my, mz;
+  int64_t cell;
+  int32_t tile, tile_idx, n_tile;
+
+  float cell_entropy = 0.0,
+        cell_renorm = 0.0,
+        f = 0.0,
+        lg2 = 0.0;
+
+  lg2 = log(2.0);
+
+  for (z=0; z<m_res.z; z++) {
+    for (y=0; y<m_res.y; y++) {
+      for (x=0; x<m_res.x; x++) {
+
+        cell_renorm = 0.0;
+        cell_entropy = 0.0;
+
+        cell = getVertex(x,y,z);
+        n_tile = getValI( BUF_TILE_IDX_N, cell );
+        for (tile_idx=0; tile_idx<n_tile; tile_idx++) {
+          tile = getValI( BUF_TILE_IDX, tile_idx, cell );
+          f = getValF( BUF_G, tile );
+          cell_renorm += f;
+
+          cell_entropy += (f * log(f) / lg2 );
+        }
+        cell_entropy /= cell_renorm;
+        cell_entropy -= log(cell_renorm) / lg2;
+        cell_entropy = -cell_entropy;
+
+        SetValF( BUF_CELL_ENTROPY, cell_entropy, cell );
+
+      }
+    }
+  }
+
+  return 0;
+}
+
+int BeliefPropagation::ComputeBlockEntropy(void) {
+  int32_t x, y, z,
+          xx, yy, zz,
+          bx, by, bz,
+          mx, my, mz;
+  int64_t cell,
+          cell_a, cell_b,
+          cell_00, cell_01, cell_10, cell_11,
+          be_cell,
+          te_cell;
+  int32_t tile, tile_idx, n_tile,
+          c_idx;
+
+  float f,
+        block_entropy;
+
+  //                  0  1  2  3  4  5  6  7
+  //                  +  -  -  +  -  +  +  -
+  int32_t coef[8] = { 1,-1,-1, 1,-1, 1, 1,-1 };
+
+  int32_t d_idx[8][3] = {
+    { -1, -1, -1 },
+    { -1, -1,  0 },
+    { -1,  0, -1 },
+    { -1,  0,  0 },
+    {  0, -1, -1 },
+    {  0, -1,  0 },
+    {  0,  0, -1 },
+    {  0,  0,  0 }
+  };
+
+  int32_t n_b[3] = { 0, 0, 0 };
+
+  n_b[0] = m_res.x - op.block_size[0];
+  n_b[1] = m_res.y - op.block_size[1];
+  n_b[2] = m_res.z - op.block_size[2];
+
+  ComputeCellEntropy();
+
+
+  // init B[0,0,0]
+  // O( s * s * s )
+  //
+  block_entropy = 0.0;
+  for (z=0; z<op.block_size[2]; z++) {
+    for (y=0; y<op.block_size[1]; y++) {
+      for (x=0; x<op.block_size[0]; x++) {
+        cell = getVertex(x,y,z);
+        block_entropy += getValF( BUF_CELL_ENTROPY, cell );
+      }
+    }
+  }
+  SetValF( BUF_BLOCK_ENTROPY, block_entropy, 0 );
+
+  // B[0,0,z]
+  // O( s * s * (Z-s) )
+  //
+  x=0; y=0;
+  for (z=1; z<n_b[2]; z++) {
+    cell = getVertex(x,y,z-1);
+    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
+    for (yy=0; yy<n_b[1]; yy++) {
+      for (xx=0; xx<n_b[0]; xx++) {
+        cell_a = getVertex( xx, yy, (z+n_b[2]-1) );
+        cell_b = getVertex( xx, yy, (z-1) );
+        block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
+      }
+    }
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+  }
+
+  // B[0,y,0]
+  // O( s * (Y-s) * s )
+  //
+  x=0; z=0;
+  for (y=1; y<n_b[1]; y++) {
+    cell = getVertex(x, y-1, z);
+    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
+    for (zz=0; zz<n_b[2]; zz++) {
+      for (xx=0; xx<n_b[0]; xx++) {
+        cell_a = getVertex( xx, (y+n_b[1]-1), zz );
+        cell_b = getVertex( xx, (y-1), zz );
+        block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
+      }
+    }
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+  }
+
+  // B[x,0,0]
+  // O( (X-s) * s * s )
+  //
+  y=0; z=0;
+  for (x=1; x<n_b[0]; x++) {
+    cell = getVertex(x-1, y, z);
+    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
+    for (zz=0; zz<n_b[2]; zz++) {
+      for (yy=0; yy<n_b[1]; yy++) {
+        cell_a = getVertex( (x+n_b[0]-1), yy, zz );
+        cell_b = getVertex( (x-1), yy, zz);
+        block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
+      }
+    }
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+  }
+
+  // B[x,y,0]
+  // O( (X-s) * (Y-s) * s )
+  //
+  z=0;
+  for (y=1; y<n_b[1]; y++) {
+    for (x=1; x<n_b[0]; x++) {
+      block_entropy =
+          getValF( BUF_BLOCK_ENTROPY, getVertex(x,    y-1,  z) )
+        + getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,    z) )
+        - getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y-1,  z) );
+      for (zz=0; zz<n_b[2]; zz++) {
+        block_entropy +=
+            getValF( BUF_CELL_ENTROPY, getVertex( x-1,        y-1,        zz ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        y+n_b[1]-1, zz ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, y-1,        zz ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, y+n_b[1]-1, zz ) );
+      }
+      SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
+    }
+  }
+
+  // B[x,0,z]
+  // O( (X-s) * (Y-s) * s )
+  //
+  y=0;
+  for (z=1; z<n_b[2]; z++) {
+    for (x=1; x<n_b[0]; x++) {
+      block_entropy =
+          getValF( BUF_BLOCK_ENTROPY, getVertex(x,    y,  z-1) )
+        + getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,  z  ) )
+        - getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,  z-1) );
+      for (yy=0; yy<n_b[1]; yy++) {
+        block_entropy +=
+            getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, zz-1        ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, zz-n_b[2]-1 ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, yy, zz-1        ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, yy, zz-n_b[2]-1 ) );
+      }
+      SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
+    }
+  }
+
+  // B[0,y,z]
+  // O( s * (Y-s) * (Z-s) )
+  //
+  x=0;
+  for (z=1; z<n_b[2]; z++) {
+    for (y=1; y<n_b[1]; y++) {
+      block_entropy =
+          getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y,    z-1) )
+        + getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y-1,  z  ) )
+        - getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y-1,  z-1) );
+      for (xx=0; xx<n_b[0]; xx++) {
+        block_entropy +=
+            getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        zz-1        ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        zz-n_b[2]-1 ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y+n_b[1]-1, zz-1        ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( xx, y+n_b[1]-1, zz-n_b[2]-1 ) );
+      }
+      SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
+    }
+  }
+
+  for (z=1; z<n_b[2]; z++) {
+    for (y=1; y<n_b[1]; y++) {
+      for (x=1; x<n_b[0]; x++) {
+
+        block_entropy = 0.0;
+        for (c_idx=0; c_idx<8; c_idx++) {
+          bx = x + d_idx[c_idx][0];
+          by = y + d_idx[c_idx][1];
+          bz = z + d_idx[c_idx][2];
+
+          if (c_idx<7) {
+            block_entropy += coef[c_idx] * getValF( BUF_BLOCK_ENTROPY, getVertex( bx, by, bz ) );
+          }
+
+          xx = x - 1 + n_b[0]*(d_idx[c_idx][0]+1);
+          yy = y - 1 + n_b[1]*(d_idx[c_idx][1]+1);
+          zz = z - 1 + n_b[2]*(d_idx[c_idx][2]+1);
+
+          block_entropy += -coef[c_idx] * getValF( BUF_CELL_ENTROPY, getVertex( xx, yy, zz ) );
+        }
+
+        SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
+
+      }
+    }
+  }
+
+  return 0;
+
+}
+
+/*
 // simpler (but still inefficient) version that just coints
 // the number of unfixed tiles in a cell instead of a full
 // entropy calculation.
@@ -3516,20 +3761,6 @@ int BeliefPropagation::pickMaxEntropyNoiseBlockSimple(void) {
 
         _blocks_considered++;
 
-        //DEBUG
-        //
-        /*
-        printf("## breakout-max_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_max_block_entropy:%3.4f {%i,%i,%i})\n",
-            (int)_sx, (int)op.block_size[0],
-            (int)_sy, (int)op.block_size[1],
-            (int)_sz, (int)op.block_size[2],
-            (float)_block_entropy,
-            (float)_max_block_entropy,
-            (int)_block_choice[0],
-            (int)_block_choice[1],
-            (int)_block_choice[2]);
-            */
-
 
       }
     }
@@ -3551,6 +3782,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlockSimple(void) {
 
 
 }
+*/
 
 int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   //DEBUG
@@ -3573,9 +3805,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   int32_t _unfixed_cell_count = 0,
           _blocks_considered=0;
 
-  _end_block_pos[0] = m_bpres.x - op.block_size[0] + 1;
-  _end_block_pos[1] = m_bpres.y - op.block_size[1] + 1;
-  _end_block_pos[2] = m_bpres.z - op.block_size[2] + 1;
+  _end_block_pos[0] = m_res.x - op.block_size[0] + 1;
+  _end_block_pos[1] = m_res.y - op.block_size[1] + 1;
+  _end_block_pos[2] = m_res.z - op.block_size[2] + 1;
 
   // very ineffient, testing idea out
   //
@@ -3703,9 +3935,9 @@ int BeliefPropagation::pickEntropyNoiseBlock(void) {
   int32_t _unfixed_cell_count = 0,
           _blocks_considered=0;
 
-  _end_block_pos[0] = m_bpres.x - op.block_size[0] + 1;
-  _end_block_pos[1] = m_bpres.y - op.block_size[1] + 1;
-  _end_block_pos[2] = m_bpres.z - op.block_size[2] + 1;
+  _end_block_pos[0] = m_res.x - op.block_size[0] + 1;
+  _end_block_pos[1] = m_res.y - op.block_size[1] + 1;
+  _end_block_pos[2] = m_res.z - op.block_size[2] + 1;
 
   // very ineffient, testing idea out
   //
@@ -3845,9 +4077,9 @@ int BeliefPropagation::RealizePre(void) {
     //
     if (m_breakout_block_fail_count==0) {
 
-      op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
-      op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
-      op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
+      op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
+      op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
+      op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
 
       if (op.verbose >= VB_INTRASTEP) {
         printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
@@ -3893,9 +4125,9 @@ int BeliefPropagation::RealizePre(void) {
     op.block_size[2] = ( op.sub_block_range[2][0] +
                         (int32_t)( m_rand.randF() * (float)(op.sub_block_range[2][1] - op.sub_block_range[2][0]) ) );
 
-    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_bpres.x - op.block_size[0]));
-    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_bpres.y - op.block_size[1]));
-    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_bpres.z - op.block_size[2]));
+    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
+    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
+    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
 
     if (op.verbose >= VB_INTRASTEP) {
       printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
@@ -5443,7 +5675,8 @@ void BeliefPropagation::PrepareVisualization ()
   if (st.instr) {st.time_viz += clock()-t1;}
 }
 
-
+// deprecated?
+//
 float BeliefPropagation::step (int update_mu) {
   
   float max_diff = -1.0;
@@ -6997,7 +7230,6 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
 
       if (contradiction) { break; }
     }
-
 
     unfillVisited (1 - m_note_plane );
 

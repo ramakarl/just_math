@@ -176,25 +176,27 @@
 #define BUF_RESIDUE_HEAP_CELL_BP  20    //                                                                               // <6*B*num_vert, 1, 1>
 #define BUF_RESIDUE_CELL_HEAP     21    //                                                                               // <6*B*num_vert, 1, 1>
 
-#define BUF_BT                    22    // <2*B*num_vert, 1, 1>
-#define BUF_BT_IDX                23    // <B*num_vert, 1, 1>
+#define BUF_BT                    22    // backtrack list,      val list, interleaved cell/tile val - backtrack wfc     // <2*B*num_vert, 1, 1>
+#define BUF_BT_IDX                23    // backtrack stack ptr, val list, index pointer into BUF_BT - backtrack wfc     // <B*num_vert, 1, 1>
 
-#define BUF_BLOCK                 24    //                                                                               // <num_vert, 1, 1>
+#define BUF_BLOCK                 24    // saved block tile,    1x int,   all verts (?) - block wfc                     // <num_vert, 1, 1>
 
 //--
 //
 // prefatory state for breakout model synthesis
 //
-#define BUF_PREFATORY_TILE_IDX    25    // <B, num_vert, 1>
-#define BUF_PREFATORY_TILE_IDX_N  26    // <num_vert, 1, 1>
+#define BUF_PREFATORY_TILE_IDX    25    // soften tile idxs,    val list, all verts (?) - breakout model synth    // <B, num_vert, 1>
+#define BUF_PREFATORY_TILE_IDX_N  26    // # soften tile idxs,  1x int,   all verts (?) - breakout model synth    // <num_vert, 1, 1>
 
-#define BUF_SAVE_TILE_IDX         27    // <B, num_vert, 1>
-#define BUF_SAVE_TILE_IDX_N       28    // <num_vert, 1, 1>
+#define BUF_SAVE_TILE_IDX         27    // save tile idxss,     val list, all verts (?) - breakout model synth    // <B, num_vert, 1>
+#define BUF_SAVE_TILE_IDX_N       28    // # save tile idxs,    1x int,   all verts (?) - breakout model synth    // <num_vert, 1, 1>
 //--
 
+#define BUF_CELL_ENTROPY          29    // cell entropy buf,    1x float, all verts (?) - breakout model synth    // <num_vert, 1, 1>
+#define BUF_BLOCK_ENTROPY         30    // block entropy buf,   1x float, all verts (?) - breakout model synth    // <num_vert, 1, 1>
 
 
-#define BUF_MAX         30      // this is buffer count limit. increase if more needed.
+#define BUF_MAX         32      // this is buffer count limit. increase if more needed.
 
 
 #define NOUT        -134217728
@@ -545,6 +547,11 @@ public:
   void  ComputeDiffMUField ();
   void  ComputeBeliefField ();
   int   ComputeTilecountField ();
+
+
+  int   ComputeCellEntropy();
+  int   ComputeBlockEntropy();
+
 
 
   // non "strict" bp functions but helpful still

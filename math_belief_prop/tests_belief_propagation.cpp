@@ -2634,7 +2634,6 @@ int test_lookahead0(BeliefPropagation &_bp) {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
-
   int x = 3, y = 3, z = 1;
 
   ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
@@ -2699,6 +2698,30 @@ int test_lookahead0(BeliefPropagation &_bp) {
   ret = bp.cellConstraintPropagate();
 
   bp.debugPrint();
+
+  return 0;
+}
+
+int test_breakout_block_entropy(BeliefPropagation &_bp) {
+  int ret;
+  int i;
+  int iter, max_iter=10;
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+
+  int32_t x = 10, y = 10, z = 10;
+  int64_t cell;
+
+  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+
+  bp.op.verbose = VB_DEBUG;
+
+  for (
+
+  printf("...\n");
+
 
   return 0;
 }
@@ -2817,6 +2840,10 @@ int run_test(BeliefPropagation &bp, int test_num) {
 
     case 32:
       ret = test_block_wfc(bp);
+      break;
+
+    case 33:
+      ret = test_breakout_block_entropy(bp);
       break;
 
     default:

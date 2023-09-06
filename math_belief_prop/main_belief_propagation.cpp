@@ -794,10 +794,6 @@ int main(int argc, char **argv) {
 
   ret = bp_init_CSV( bpc, X,Y,Z, name_fn_str, rule_fn_str );
 
-  //DEBUG
-  fprintf(stderr, "bp_init_CSV: %i\n", ret);
-  fflush(stderr);
-
   if (ret<0) {
     fprintf(stderr, "error loading CSV\n"); fflush(stderr);
     exit(-1);
