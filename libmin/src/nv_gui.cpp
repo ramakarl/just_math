@@ -965,15 +965,15 @@ void nvImg::UpdateTex ()
 
 		// repeat first for jump
 		v->x = x2; v->y = y1; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v++;
-
+		
 		// two triangles (as strip, must start top right)
 		v->x = x2; v->y = y1; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v++;
 		v->x = x2; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 1; v->ty = 0; 	v++;
 		v->x = x1; v->y = y1; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 1;	v++;
 		v->x = x1; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 1; v->ty = 1;	v++;	
-
+		
 		// repeat last for jump
-		v->x = x1; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 1; v->ty = 1;	v++;	
+		v->x = x1; v->y = y2; v->z = 0; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 1; v->ty = 1;	v++;
 
 		*i++ = ndx++; *i++ = ndx++; *i++ = ndx++; *i++ = ndx++; *i++ = ndx++; *i++ = ndx++; 
 	}

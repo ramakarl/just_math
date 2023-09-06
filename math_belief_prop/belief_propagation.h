@@ -85,13 +85,14 @@
 #define MU_COPY   1
 
 #define VIZ_NONE        0
-#define VIZ_TILE0       1       // simple viz. no overhead. visualized resolved tile 0. similar to json output.
-#define VIZ_TILECOUNT   2       // simple viz. no overhead. number of tiles available per cell.
-#define VIZ_CONSTRAINT  3       // visualize remaining constraints. high overhead.
-#define VIZ_BP_BELIEF   4       // BP only. max belief among available tiles. some overhead.
-#define VIZ_BP_ENTROPY  5       // BP only
-#define VIZ_BP_MU       6       // BP only
-#define VIZ_BP_DMU      7       // BP only
+#define VIZ_TILES_2D    1
+#define VIZ_TILE0       2       // simple viz. no overhead. visualized resolved tile 0. similar to json output.
+#define VIZ_TILECOUNT   3       // simple viz. no overhead. number of tiles available per cell.
+#define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead.
+#define VIZ_BP_BELIEF   5       // BP only. max belief among available tiles. some overhead.
+#define VIZ_BP_ENTROPY  6       // BP only
+#define VIZ_BP_MU       7       // BP only
+#define VIZ_BP_DMU      8       // BP only
 
 // primary algorithm selector
 #define ALG_BP                  0

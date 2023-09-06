@@ -865,9 +865,10 @@ void BeliefPropagation::SetVis (int vopt) {
 
   std::string msg;
   switch ( vopt ) {
-  case VIZ_TILE0:         msg = "VIZ_TILE0"; break;
-  case VIZ_TILECOUNT:     msg = "VIZ_TILECOUNT"; break;
-  case VIZ_CONSTRAINT:    msg = "VIZ_CONSTRAINT"; break;
+  case VIZ_TILES_2D:         msg = "VIZ_TILES_2D"; break;
+  case VIZ_TILE0:            msg = "VIZ_TILE0"; break;
+  case VIZ_TILECOUNT:        msg = "VIZ_TILECOUNT"; break;
+  case VIZ_CONSTRAINT:       msg = "VIZ_CONSTRAINT"; break;
   case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
   case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
   case VIZ_BP_MU:            msg = "VIZ_BP_MU"; break;
@@ -931,9 +932,15 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
   float vmax = op.eps_converge * 10.0;
 
   switch (op.viz_opt) {
+  case VIZ_TILES_2D:
+    // tiles for 2D render. get literal tile value & count
+    i = getValI ( BUF_TILE_IDX, 0, v);
+    f = getValI ( BUF_TILE_IDX_N, v );
+    s = Vector4DF( i, i, i, f );
+    break;
   case VIZ_TILE0: 
     // readily available. no prepare needed.
-    // get tile ID. max is 
+    // get tile ID normalized to num tiles
     i = getValI ( BUF_TILE_IDX, 0, v );
     r = float(int(i*327) % 255) / 255.0f;
     b = float(int(i*67125) % 255) / 255.0f;
