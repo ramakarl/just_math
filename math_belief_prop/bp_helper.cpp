@@ -1029,9 +1029,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
   bp.unfillVisited (bp.m_note_plane);
   ret = bp.cellConstraintPropagate();
   if (ret == 0) {
-    if (bp.op.use_belief_prop_buf) {
-      bp.NormalizeMU();
-    }
+    bp.NormalizeMU();
   }
 
   return ret;

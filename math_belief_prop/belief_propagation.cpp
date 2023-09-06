@@ -3537,9 +3537,9 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
   int32_t n_b[3] = { 0, 0, 0 };
   int32_t bs[3] = { 0, 0, 0 };
 
-  n_b[0] = m_res.x - op.block_size[0];
-  n_b[1] = m_res.y - op.block_size[1];
-  n_b[2] = m_res.z - op.block_size[2];
+  n_b[0] = m_res.x - op.block_size[0] + 1;
+  n_b[1] = m_res.y - op.block_size[1] + 1;
+  n_b[2] = m_res.z - op.block_size[2] + 1;
 
   bs[0] = op.block_size[0];
   bs[1] = op.block_size[1];
@@ -3763,9 +3763,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
   int32_t equal_entropy_count=0;
 
-  n_b[0] = m_res.x - op.block_size[0];
-  n_b[1] = m_res.y - op.block_size[1];
-  n_b[2] = m_res.z - op.block_size[2];
+  n_b[0] = m_res.x - op.block_size[0]+1;
+  n_b[1] = m_res.y - op.block_size[1]+1;
+  n_b[2] = m_res.z - op.block_size[2]+1;
 
   printf(">>> n_b[%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
 
