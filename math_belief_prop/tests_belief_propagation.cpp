@@ -2709,17 +2709,141 @@ int test_breakout_block_entropy(BeliefPropagation &_bp) {
   std::vector<int32_t> keep_list;
   BeliefPropagation bp;
 
+  float block_entropy;
 
-  int32_t x = 10, y = 10, z = 10;
+  int32_t X = 8, Y = 7, Z = 6;
   int64_t cell;
 
-  ret = bp_init_CSV( bp, x,y,z, _bp.op.name_fn, _bp.op.rule_fn );
+  int32_t x,y,z,xx,yy,zz;
+  int32_t n_b[3];
+
+  bp.op.block_size[0] = 3;
+  bp.op.block_size[1] = 3;
+  bp.op.block_size[2] = 3;
+
+  n_b[0] = X - bp.op.block_size[0];
+  n_b[1] = Y - bp.op.block_size[1];
+  n_b[2] = Z - bp.op.block_size[2];
+
+  ret = bp_init_CSV( bp, X,Y,Z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
   bp.op.verbose = VB_DEBUG;
 
-  printf("...\n");
+  srand(123);
 
+  for (z=0; z<bp.m_res.z; z++) {
+    for (y=0; y<bp.m_res.y; y++) {
+      for (x=0; x<bp.m_res.x; x++) {
+        cell = bp.getVertex(x,y,z);
+        bp.SetValF( BUF_CELL_ENTROPY, (float)(rand()%100), cell );
+      }
+    }
+  }
+
+  bp.ComputeBlockEntropy(1);
+
+  //bp.debugPrintCellEntropy();
+  //printf("---\n");
+
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
+
+        block_entropy = 0.0;
+        for (zz=z; zz<(z+bp.op.block_size[2]); zz++) {
+          for (yy=y; yy<(y+bp.op.block_size[1]); yy++) {
+            for (xx=x; xx<(x+bp.op.block_size[0]); xx++) {
+              cell = bp.getVertex(xx,yy,zz);
+              block_entropy += 
+              bp.getValF( BUF_CELL_ENTROPY, cell );
+            }
+          }
+        }
+
+        if (fabs( block_entropy - bp.getValF(BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z)) ) > 0.5) {
+          return -1;
+        }
+
+
+      }
+    }
+  }
+
+  //bp.debugPrintBlockEntropy();
+
+  return 0;
+}
+
+int test_breakout_block_entropy_1(BeliefPropagation &_bp) {
+  int ret;
+  int i;
+  int iter, max_iter=10;
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  float block_entropy;
+
+  int32_t X = 8, Y = 7, Z = 6;
+  int64_t cell;
+
+  int32_t x,y,z,xx,yy,zz;
+  int32_t n_b[3];
+
+  bp.op.block_size[0] = 3;
+  bp.op.block_size[1] = 3;
+  bp.op.block_size[2] = 3;
+
+  n_b[0] = X - bp.op.block_size[0];
+  n_b[1] = Y - bp.op.block_size[1];
+  n_b[2] = Z - bp.op.block_size[2];
+
+  ret = bp_init_CSV( bp, X,Y,Z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+
+  bp.op.verbose = VB_DEBUG;
+
+  srand(123);
+
+  for (z=0; z<bp.m_res.z; z++) {
+    for (y=0; y<bp.m_res.y; y++) {
+      for (x=0; x<bp.m_res.x; x++) {
+        cell = bp.getVertex(x,y,z);
+        bp.SetValF( BUF_CELL_ENTROPY, (float)(rand()%100), cell );
+      }
+    }
+  }
+
+  bp.ComputeBlockEntropy(1);
+
+  //bp.debugPrintCellEntropy();
+  //printf("---\n");
+
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
+
+        block_entropy = 0.0;
+        for (zz=z; zz<(z+bp.op.block_size[2]); zz++) {
+          for (yy=y; yy<(y+bp.op.block_size[1]); yy++) {
+            for (xx=x; xx<(x+bp.op.block_size[0]); xx++) {
+              cell = bp.getVertex(xx,yy,zz);
+              block_entropy += 
+              bp.getValF( BUF_CELL_ENTROPY, cell );
+            }
+          }
+        }
+
+        if (fabs( block_entropy - bp.getValF(BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z)) ) > 0.5) {
+          return -1;
+        }
+
+
+      }
+    }
+  }
+
+  //bp.debugPrintBlockEntropy();
 
   return 0;
 }
@@ -2842,6 +2966,10 @@ int run_test(BeliefPropagation &bp, int test_num) {
 
     case 33:
       ret = test_breakout_block_entropy(bp);
+      break;
+
+    case 34:
+      ret = test_breakout_block_entropy_1(bp);
       break;
 
     default:

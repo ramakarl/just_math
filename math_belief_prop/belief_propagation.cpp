@@ -3465,7 +3465,7 @@ int BeliefPropagation::ComputeCellEntropy(void) {
   return 0;
 }
 
-int BeliefPropagation::ComputeBlockEntropy(void) {
+int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
   int32_t x, y, z,
           xx, yy, zz,
           bx, by, bz,
@@ -3497,21 +3497,28 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
   };
 
   int32_t n_b[3] = { 0, 0, 0 };
+  int32_t bs[3] = { 0, 0, 0 };
 
   n_b[0] = m_res.x - op.block_size[0];
   n_b[1] = m_res.y - op.block_size[1];
   n_b[2] = m_res.z - op.block_size[2];
 
-  ComputeCellEntropy();
+  bs[0] = op.block_size[0];
+  bs[1] = op.block_size[1];
+  bs[2] = op.block_size[2];
+
+  if (reuse_cell_entropy) {
+    ComputeCellEntropy();
+  }
 
 
   // init B[0,0,0]
   // O( s * s * s )
   //
   block_entropy = 0.0;
-  for (z=0; z<op.block_size[2]; z++) {
-    for (y=0; y<op.block_size[1]; y++) {
-      for (x=0; x<op.block_size[0]; x++) {
+  for (z=0; z<bs[2]; z++) {
+    for (y=0; y<bs[1]; y++) {
+      for (x=0; x<bs[0]; x++) {
         cell = getVertex(x,y,z);
         block_entropy += getValF( BUF_CELL_ENTROPY, cell );
       }
@@ -3519,38 +3526,55 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
   }
   SetValF( BUF_BLOCK_ENTROPY, block_entropy, 0 );
 
+
   // B[0,0,z]
   // O( s * s * (Z-s) )
   //
   x=0; y=0;
   for (z=1; z<n_b[2]; z++) {
-    cell = getVertex(x,y,z-1);
-    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
-    for (yy=0; yy<n_b[1]; yy++) {
-      for (xx=0; xx<n_b[0]; xx++) {
-        cell_a = getVertex( xx, yy, (z+n_b[2]-1) );
+    block_entropy = getValF( BUF_BLOCK_ENTROPY, getVertex(x,y,z-1) );
+    for (yy=0; yy<bs[1]; yy++) {
+      for (xx=0; xx<bs[0]; xx++) {
+        cell_a = getVertex( xx, yy, (z+bs[2]-1) );
         cell_b = getVertex( xx, yy, (z-1) );
         block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
       }
     }
-    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
   }
+
 
   // B[0,y,0]
   // O( s * (Y-s) * s )
   //
   x=0; z=0;
   for (y=1; y<n_b[1]; y++) {
-    cell = getVertex(x, y-1, z);
-    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
-    for (zz=0; zz<n_b[2]; zz++) {
-      for (xx=0; xx<n_b[0]; xx++) {
-        cell_a = getVertex( xx, (y+n_b[1]-1), zz );
+
+    //DEBUG
+    //printf("getting block entropy for (%i,%i,%i):%f\n",
+    //    x, y-1, z, (double)getValF( BUF_BLOCK_ENTROPY, getVertex(x,y-1,z) ) );
+
+    block_entropy = getValF( BUF_BLOCK_ENTROPY, getVertex(x,y-1,z) );
+    for (zz=0; zz<bs[2]; zz++) {
+      for (xx=0; xx<bs[0]; xx++) {
+        cell_a = getVertex( xx, (y+bs[1]-1), zz );
         cell_b = getVertex( xx, (y-1), zz );
-        block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
+
+        /*
+        printf("  ce[%i,%i,%i]:%f - ce[%i,%i,%i]:%f (cur:%f)\n",
+            xx, y+bs[1]-1, zz, (double)getValF( BUF_CELL_ENTROPY, getVertex( xx, (y+bs[1]-1), zz ) ),
+            xx, y-1, zz,        (double)getValF( BUF_CELL_ENTROPY, getVertex( xx, (y-1), zz ) ),
+            (double)block_entropy );
+            */
+
+        block_entropy +=
+            getValF( BUF_CELL_ENTROPY, getVertex( xx, (y+bs[1]-1), zz ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( xx, (y-1),        zz ) );
       }
     }
-    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+    //printf(">>> %f\n", (double)block_entropy);
+
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
   }
 
   // B[x,0,0]
@@ -3558,17 +3582,18 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
   //
   y=0; z=0;
   for (x=1; x<n_b[0]; x++) {
-    cell = getVertex(x-1, y, z);
-    block_entropy = getValF( BUF_CELL_ENTROPY, cell );
-    for (zz=0; zz<n_b[2]; zz++) {
-      for (yy=0; yy<n_b[1]; yy++) {
-        cell_a = getVertex( (x+n_b[0]-1), yy, zz );
+    block_entropy = getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,y,z) );
+    for (zz=0; zz<bs[2]; zz++) {
+      for (yy=0; yy<bs[1]; yy++) {
+        cell_a = getVertex( (x+bs[0]-1), yy, zz );
         cell_b = getVertex( (x-1), yy, zz);
         block_entropy += getValF( BUF_CELL_ENTROPY, cell_a ) - getValF( BUF_CELL_ENTROPY, cell_b );
       }
     }
-    SetValF( BUF_BLOCK_ENTROPY, block_entropy, cell );
+    SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
   }
+
+
 
   // B[x,y,0]
   // O( (X-s) * (Y-s) * s )
@@ -3580,12 +3605,12 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
           getValF( BUF_BLOCK_ENTROPY, getVertex(x,    y-1,  z) )
         + getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,    z) )
         - getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y-1,  z) );
-      for (zz=0; zz<n_b[2]; zz++) {
+      for (zz=0; zz<bs[2]; zz++) {
         block_entropy +=
             getValF( BUF_CELL_ENTROPY, getVertex( x-1,        y-1,        zz ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        y+n_b[1]-1, zz ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, y-1,        zz ) )
-          + getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, y+n_b[1]-1, zz ) );
+          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        y+bs[1]-1,  zz ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x+bs[0]-1,  y-1,        zz ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( x+bs[0]-1,  y+bs[1]-1,  zz ) );
       }
       SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
     }
@@ -3601,12 +3626,12 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
           getValF( BUF_BLOCK_ENTROPY, getVertex(x,    y,  z-1) )
         + getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,  z  ) )
         - getValF( BUF_BLOCK_ENTROPY, getVertex(x-1,  y,  z-1) );
-      for (yy=0; yy<n_b[1]; yy++) {
+      for (yy=0; yy<bs[1]; yy++) {
         block_entropy +=
-            getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, zz-1        ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, zz-n_b[2]-1 ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, yy, zz-1        ) )
-          + getValF( BUF_CELL_ENTROPY, getVertex( x+n_b[0]-1, yy, zz-n_b[2]-1 ) );
+            getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, z-1        ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x-1,        yy, z+bs[2]-1 ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( x+bs[0]-1,  yy, z-1        ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( x+bs[0]-1,  yy, z+bs[2]-1 ) );
       }
       SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
     }
@@ -3622,16 +3647,20 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
           getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y,    z-1) )
         + getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y-1,  z  ) )
         - getValF( BUF_BLOCK_ENTROPY, getVertex(x,  y-1,  z-1) );
-      for (xx=0; xx<n_b[0]; xx++) {
+      for (xx=0; xx<bs[0]; xx++) {
         block_entropy +=
-            getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        zz-1        ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        zz-n_b[2]-1 ) )
-          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y+n_b[1]-1, zz-1        ) )
-          + getValF( BUF_CELL_ENTROPY, getVertex( xx, y+n_b[1]-1, zz-n_b[2]-1 ) );
+            getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        z-1        ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y-1,        z+bs[2]-1 ) )
+          - getValF( BUF_CELL_ENTROPY, getVertex( xx, y+bs[1]-1,  z-1        ) )
+          + getValF( BUF_CELL_ENTROPY, getVertex( xx, y+bs[1]-1,  z+bs[2]-1 ) );
       }
       SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
     }
   }
+
+  // B[1:,1:,1:]
+  // O( (X -s) * (Y -s) * (Z -s ) )
+  //
 
   for (z=1; z<n_b[2]; z++) {
     for (y=1; y<n_b[1]; y++) {
@@ -3647,9 +3676,9 @@ int BeliefPropagation::ComputeBlockEntropy(void) {
             block_entropy += coef[c_idx] * getValF( BUF_BLOCK_ENTROPY, getVertex( bx, by, bz ) );
           }
 
-          xx = x - 1 + n_b[0]*(d_idx[c_idx][0]+1);
-          yy = y - 1 + n_b[1]*(d_idx[c_idx][1]+1);
-          zz = z - 1 + n_b[2]*(d_idx[c_idx][2]+1);
+          xx = x - 1 + bs[0]*(d_idx[c_idx][0]+1);
+          yy = y - 1 + bs[1]*(d_idx[c_idx][1]+1);
+          zz = z - 1 + bs[2]*(d_idx[c_idx][2]+1);
 
           block_entropy += -coef[c_idx] * getValF( BUF_CELL_ENTROPY, getVertex( xx, yy, zz ) );
         }
@@ -6012,6 +6041,43 @@ void BeliefPropagation::debugPrintS() {
     }
     printf("---\n");
   }
+
+}
+
+void BeliefPropagation::debugPrintCellEntropy() {
+  int32_t x,y,z;
+
+  for (z=0; z<m_res.z; z++) {
+    for (y=0; y<m_res.y; y++) {
+      for (x=0; x<m_res.x; x++) {
+        printf(" %2.3f", getValF( BUF_CELL_ENTROPY, getVertex(x,y,z)) );
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
+
+}
+
+void BeliefPropagation::debugPrintBlockEntropy() {
+  int32_t x,y,z;
+  int32_t n_b[3];
+
+  n_b[0] = m_res.x - op.block_size[0];
+  n_b[1] = m_res.y - op.block_size[1];
+  n_b[2] = m_res.z - op.block_size[2];
+
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
+        printf(" %2.3f", getValF( BUF_BLOCK_ENTROPY, getVertex(x,y,z)) );
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
 
 }
 

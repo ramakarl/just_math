@@ -550,7 +550,7 @@ public:
 
 
   int   ComputeCellEntropy();
-  int   ComputeBlockEntropy();
+  int   ComputeBlockEntropy(int32_t reuse_cell_entropy=0);
 
 
 
@@ -660,6 +660,10 @@ public:
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
+
+  void  debugPrintCellEntropy();
+  void  debugPrintBlockEntropy();
+
   void  debugInspect (Vector3DI pos, int tile);
 
   // run time statistics and other information
