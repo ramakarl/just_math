@@ -798,8 +798,8 @@ void Sample::mousewheel(int delta)
 
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
 
-  m_scaling_2D += (delta > 0) ? 0.5 : -0.5;
-  if (m_scaling_2D < 0.5 ) m_scaling_2D = 0.5;
+  m_scaling_2D += (delta > 0) ? 0.25 : -0.25;
+  if (m_scaling_2D < 0.25 ) m_scaling_2D = 0.25;
 }
 
 

@@ -3261,7 +3261,7 @@ int BeliefPropagation::init(
 
 
   // Neighbor lookups
-  if ( m_bpres.x > 512 || m_bpres.y > 512 || m_bpres.z > 512 ) {
+  if ( m_bpres.x > 1024 || m_bpres.y > 1024 || m_bpres.z > 1024 ) {
       printf ( "ERROR: Neighbor lookup limit. Must also modify NOUT.\n" );
       exit(-17);
   }

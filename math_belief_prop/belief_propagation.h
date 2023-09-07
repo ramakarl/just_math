@@ -200,7 +200,8 @@
 #define BUF_MAX         32      // this is buffer count limit. increase if more needed.
 
 
-#define NOUT        -134217728
+// #define NOUT        -134217728       // 512x512x512 limit
+#define NOUT        -1073741824
 
 // Belief propagation - options
 
