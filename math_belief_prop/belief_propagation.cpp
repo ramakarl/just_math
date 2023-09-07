@@ -3510,6 +3510,8 @@ void BeliefPropagation::_saveTileIdx(void) {
           tile_idx=-1,
           n_idx=-1;
 
+  PERF_PUSH( "_saveTileIdx" );
+
   for (cell=0; cell<m_num_verts; cell++) {
     n_idx = getValI( BUF_TILE_IDX_N, cell );
     SetValI( BUF_SAVE_TILE_IDX_N, n_idx, cell );
@@ -3518,7 +3520,7 @@ void BeliefPropagation::_saveTileIdx(void) {
       SetValI( BUF_SAVE_TILE_IDX, tile, tile_idx, cell );
     }
   }
-
+  PERF_POP();
 }
 
 void BeliefPropagation::_restoreTileIdx(void) {
@@ -3526,6 +3528,8 @@ void BeliefPropagation::_restoreTileIdx(void) {
   int32_t tile=-1,
           tile_idx=-1,
           n_idx=-1;
+
+  PERF_PUSH( "_restoreTileIdx" );
 
   for (cell=0; cell<m_num_verts; cell++) {
     n_idx = getValI( BUF_SAVE_TILE_IDX_N, cell );
@@ -3535,6 +3539,8 @@ void BeliefPropagation::_restoreTileIdx(void) {
       SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
     }
   }
+
+  PERF_POP();
 
 }
 
@@ -4492,42 +4498,14 @@ int BeliefPropagation::RealizePre(void) {
     // propagate constraints to remove neighbor tiles,
     // and count number resolved (only 1 tile val remain)
     //
-    ret = cellConstraintPropagate();
-    if (ret < 0) {
-      m_return = -1;
-      return 0;
-    }
-
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // Cull boundary.
-    // If this fails, we have no hope of any iteration
-    // of breakout succeeding in RealizeStep, so
-    // return.
-    //
-    /* ret = CullBoundary();
-    if (ret < 0) {
-      m_return = -1;
-      ret = 0;
-      break;
-    }  */
-
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // paranoia
-    //
+    
+    // keep this. necessary here after fuzzing
     ret = cellConstraintPropagate();
     if (ret < 0) {
       m_return = -1;
       ret = 0;
-      break;
     }
+
     break;
 
   case ALG_RUN_BLOCK_WFC:
