@@ -448,6 +448,7 @@ bool Sample::init()
   m_scaling_2D = 2;
 
   m_cam = new Camera3D;
+  m_cam->setNearFar ( 1, 2000 );
   m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 250, 1 );
   m_img = new Image;
   m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
@@ -602,7 +603,7 @@ void Sample::DrawTileMap ()
             // get voxel value (2D) containing tile ID
             val = getVoxel4 ( BUF_VOL, x, y, 0 );   
             tile = val.x - 1;
-            alpha = 1.0 / sqrt(val.w);
+            alpha = 1.0 / sqrt(val.w);      // uncertainty = tile count per cell
             drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );            
         }
     }
@@ -836,12 +837,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   case ',':  
       m_viz--; 
-      if (m_viz < 1) m_viz = 4;
+      if (m_viz < 1) m_viz = 5;
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > 4) m_viz = 1;  
+      if (m_viz > 5) m_viz = 1;  
       bpc.SetVis ( m_viz );
       break;
 
@@ -866,7 +867,7 @@ void Sample::reshape(int w, int h)
 
 void Sample::startup()
 {
-  int w = 1400, h = 1200;
+  int w = 1400, h = 1300;
   appStart( "BMS / WFC / BP", "Breakout Model Synth", w, h, 4, 2, 16, false);
 }
 
