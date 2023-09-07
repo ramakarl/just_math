@@ -4318,8 +4318,8 @@ int BeliefPropagation::RealizePre(void) {
 
     //DEBUG
     //
-    sanity = sanityBreakoutSavedTileGrid();
-    printf("## breakout-choose (sanity:%i)\n", (int)sanity);
+    //sanity = sanityBreakoutSavedTileGrid();
+    //printf("## breakout-choose (sanity:%i)\n", (int)sanity);
     //
     //DEBUG
 
@@ -4790,23 +4790,30 @@ int BeliefPropagation::RealizePost(void) {
 
         //DEBUG
         //
-        _sub_block.push_back(op.sub_block[0]);
-        _sub_block.push_back(op.block_size[0]);
-
-        _sub_block.push_back(op.sub_block[1]);
-        _sub_block.push_back(op.block_size[1]);
-
-        _sub_block.push_back(op.sub_block[2]);
-        _sub_block.push_back(op.block_size[2]);
-
-        sanity = sanityBreakoutRealizedBlock(_sub_block);
-
-        printf("## breakout-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
+        printf("## breakout-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
             (int)op.sub_block[2], (int)op.block_size[2],
             (int)m_breakout_block_fail_count,
-            (int)m_breakout_soften_limit, (int)sanity );
+            (int)m_breakout_soften_limit );
+
+        //_sub_block.push_back(op.sub_block[0]);
+        //_sub_block.push_back(op.block_size[0]);
+
+        //_sub_block.push_back(op.sub_block[1]);
+        //_sub_block.push_back(op.block_size[1]);
+
+        //_sub_block.push_back(op.sub_block[2]);
+        //_sub_block.push_back(op.block_size[2]);
+
+        //sanity = sanityBreakoutRealizedBlock(_sub_block);
+
+        //printf("## breakout-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
+        //    (int)op.sub_block[0], (int)op.block_size[0],
+        //    (int)op.sub_block[1], (int)op.block_size[1],
+        //    (int)op.sub_block[2], (int)op.block_size[2],
+        //    (int)m_breakout_block_fail_count,
+        //    (int)m_breakout_soften_limit, (int)sanity );
         //
         //DEBUG
 
@@ -4833,13 +4840,20 @@ int BeliefPropagation::RealizePost(void) {
 
         //DEBUG
         //
-        sanity = sanityBreakoutSavedTileGrid();
-        printf("## breakout-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
+        printf("## breakout-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
             (int)op.sub_block[2], (int)op.block_size[2],
             (int)m_breakout_block_fail_count,
-            (int)m_breakout_soften_limit, (int)sanity );
+            (int)m_breakout_soften_limit );
+
+        //sanity = sanityBreakoutSavedTileGrid();
+        //printf("## breakout-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
+        //    (int)op.sub_block[0], (int)op.block_size[0],
+        //    (int)op.sub_block[1], (int)op.block_size[1],
+        //    (int)op.sub_block[2], (int)op.block_size[2],
+        //    (int)m_breakout_block_fail_count,
+        //    (int)m_breakout_soften_limit, (int)sanity );
         //
         //DEBUG
 
@@ -4908,13 +4922,19 @@ int BeliefPropagation::RealizePost(void) {
 
           //DEBUG
           //
-          sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
-          printf("## breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+          printf("## breakout-soften ([%i:%i][%i:%i][%i:%i]\n",
                 (int)_soften_bounds[0], (int)_soften_bounds[1],
                 (int)_soften_bounds[2], (int)_soften_bounds[3],
-                (int)_soften_bounds[4], (int)_soften_bounds[5],
-                (int)_debug_stat[0], (int)_debug_stat[1]
-                );
+                (int)_soften_bounds[4], (int)_soften_bounds[5] );
+
+
+          //sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
+          //printf("## breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+          //      (int)_soften_bounds[0], (int)_soften_bounds[1],
+          //      (int)_soften_bounds[2], (int)_soften_bounds[3],
+          //      (int)_soften_bounds[4], (int)_soften_bounds[5],
+          //      (int)_debug_stat[0], (int)_debug_stat[1]
+          //      );
           //
           //DEBUG
 
