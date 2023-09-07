@@ -26,7 +26,7 @@ _REQUIRE_MAIN()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Zi" CACHE STRING "" FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF" CACHE STRING "" FORCE)
 
-
+# add_definitions(-DUSE_PERF)
 
 #####################################################################################
 # Include LIBMIN

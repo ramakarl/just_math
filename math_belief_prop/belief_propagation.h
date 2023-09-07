@@ -565,7 +565,8 @@ public:
   //
   int   CullBoundary();
   int   cellConstraintPropagate();
-  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx);
+  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx); 
+  void  cellFillVisitedNeighborFast (Vector3DI jp, uint64_t vtx,  int32_t note_idx); 
   int   cellFillVisitedSingle(uint64_t vtx, int32_t note_idx);
 
   int   tileIdxCollapse(uint64_t pos, int32_t tile_idx);
@@ -697,6 +698,7 @@ public:
   int           m_dir_inv[6];
 
   int           nbr_lookup[6][512];
+  int           m_num_nbrs;
 
   uint64_t      m_note_n[2];
   int64_t       m_note_plane;

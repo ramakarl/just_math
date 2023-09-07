@@ -43,13 +43,21 @@
 #include "belief_propagation.h"
 #include "bp_helper.h"
 
+// #define USE_PERF       // explicit perf instrumentation (uncomment to opt in)
+
+#ifdef USE_PERF
+  #include "timex.h"      // app perf
+#else
+  #define PERF_PUSH(x)
+  #define PERF_POP()
+#endif
+
 #ifdef USE_OPENGL
   #include <GL/glew.h>
 #endif
 #ifdef USE_CUDA
   #include "common_cuda.h"
 #endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -430,6 +438,10 @@ bool Sample::init()
 
   addSearchPath(ASSET_PATH);
 
+  #ifdef USE_PERF
+    PERF_INIT (64, true, false, true, 0, "" );
+  #endif
+
   m_viz = VIZ_NONE;
 
   _bp_opt_t* op = bpc.get_opt();
@@ -626,7 +638,9 @@ void Sample::DrawGrid3D ()
 void Sample::RunAlgorithmInteractive ()
 {
 
+    PERF_PUSH("Step");
     int ret = bpc.RealizeStep ();
+    PERF_POP();
 
     // check for step complete (0)
     if (ret <= 0) {
@@ -635,13 +649,17 @@ void Sample::RunAlgorithmInteractive ()
 
         // step complete
         // finish this iteration
+        PERF_PUSH("Post");
         ret = bpc.RealizePost();
+        PERF_POP();
 
         if ( ret > 0) {
 
             // iteration complete (all steps)
             // start new iteration
+            PERF_PUSH("Pre");
             bpc.RealizePre();
+            PERF_POP();
             
         } else if ( ret <= 0 ) {
              
@@ -685,59 +703,73 @@ void Sample::display()
 
   //--------- Visualization
 
-  // 3D visualize
-  if ( m_viz >= VIZ_TILE0 ) {
-      Vector3DF wfc_off(0,0,-10);
-      Vector3DF bpc_off(0,0,0);
+  // render cadence every 5 steps for perf
+  if ( bpc.getStep() % 20 == 0) { 
 
-      // 3D raycast on CPU
-      ClearImg (m_img);
+      PERF_PUSH ("Render");
 
-      if ( bpc.getStep() % 2 == 0) { 
+      // 3D visualize
+      if ( m_viz >= VIZ_TILE0 ) {
+          Vector3DF wfc_off(0,0,-10);
+          Vector3DF bpc_off(0,0,0);
 
+          // 3D raycast on CPU
+          ClearImg (m_img);
+
+          PERF_PUSH ("Visualize");
           Visualize ( bpc, BUF_VOL );
+          PERF_POP ();
 
+          PERF_PUSH ("RaycastCPU");
           RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+          PERF_POP ();
+  
+          // OpenGL draw
+          #ifdef USE_OPENGL
+          clearGL();
+          // Draw 3D raycast image (in 2D)
+          start2D();
+            setview2D(getWidth(), getHeight());
+            drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
+          end2D();
+          // Draw 3D grid
+          start3D(m_cam);
+            DrawGrid3D ();
+          end3D();
+          #endif 
+  
+      } else {
+      // 2D visualize
+            
+          #ifdef USE_OPENGL
+     
+          clearGL();      
+          setview2D(getWidth(), getHeight());
+      
+          // Draw current 2D map
+          // get tile values from algorithm
+          PERF_PUSH ("Visualize");
+          Visualize ( bpc, BUF_VOL );
+          PERF_POP();
+
+          PERF_PUSH ("DrawTileMap");
+          DrawTileMap ();        
+          PERF_POP();
+
+          // Draw 2D tileset if requested
+          if ( m_draw_tileset ) {
+              DrawTileSet ();          
+          }       
+
+          #endif 
       }
 
-      // OpenGL draw
-      #ifdef USE_OPENGL
-      clearGL();
-      // Draw 3D raycast image (in 2D)
-      start2D();
-        setview2D(getWidth(), getHeight());
-        drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
-      end2D();
-      // Draw 3D grid
-      start3D(m_cam);
-        DrawGrid3D ();
-      end3D();
-      #endif 
-  
-  } else {
-  // 2D visualize
-      
-      #ifdef USE_OPENGL
-      clearGL();      
-      setview2D(getWidth(), getHeight());
-        
-      // Draw current 2D map
-      // get tile values from algorithm
-      Visualize ( bpc, BUF_VOL );
+      // Complete rendering
+      draw2D();
+      draw3D();
 
-      DrawTileMap ();        
-
-      // Draw 2D tileset if requested
-      if ( m_draw_tileset ) {
-          DrawTileSet ();          
-      }       
-      #endif 
+      PERF_POP();
   }
-
-
-  // Complete rendering
-  draw2D();
-  draw3D();
 
   appPostRedisplay();
 }

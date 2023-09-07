@@ -976,7 +976,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
       v.clear();
       for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
         v.push_back(t);
-      }
+      }      
 
       for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
         for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
@@ -1008,7 +1008,7 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
             ret = bp.filterKeep(pos, v);
             if (ret < 0) { return ret; }
 
-            bp.cellFillVisitedNeighbor (pos, bp.m_note_plane);
+            bp.cellFillVisitedNeighbor (pos, bp.m_note_plane );
           }
         }
       }

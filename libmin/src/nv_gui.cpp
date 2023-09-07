@@ -1855,18 +1855,22 @@ void nvImg::UpdateTex ()
 		char* pnt;	
 	
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		
+		pos = 0;
+		glBindBuffer(GL_ARRAY_BUFFER, s.mVBO[GRP_IMG]);
+		glVertexAttribPointer(localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 0));
+		glVertexAttribPointer(localClr, 4, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 12));
+		glVertexAttribPointer(localUV,  2, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 28));
 
 		for (int n=0; n < s.mNum[GRP_IMG] / 4 ; n++ ) {		
 		
 			glBindTexture ( GL_TEXTURE_2D, *img );
-			glBindBuffer(GL_ARRAY_BUFFER, s.mVBO[GRP_IMG]);
-			glVertexAttribPointer(localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 0));
-			glVertexAttribPointer(localClr, 4, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 12));
-			glVertexAttribPointer(localUV,  2, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 28));
-
-			glDrawArrays ( GL_TRIANGLE_FAN, 0, 4 );
+			glDrawArrays ( GL_TRIANGLE_FAN, pos, 4 );
 			checkGL ( "images" );
-			pos+= sizeof(nvVert)*4;
+			
+			//pos += sizeof(nvVert)*4;
+			pos += 4;
+
 			img++;
 		}
 

@@ -34,6 +34,15 @@
 #include "mersenne.h"
 #include "dataptr.h"
 
+// #define USE_PERF             // explicit perf instrumentation (uncomment to opt in)
+
+#ifdef USE_PERF
+  #include "timex.h"      // app perf
+#else
+  #define PERF_PUSH(x)
+  #define PERF_POP()
+#endif
+
 /*
 #ifdef USE_OPENGL
   #include <GL/glew.h>
@@ -282,7 +291,9 @@ void BeliefPropagation::AllocBuf (int id, char dt, uint64_t resx, uint64_t resy,
 
 void BeliefPropagation::ZeroBuf ( int id ) {
 
+  PERF_PUSH("ZeroBuf");
   m_buf[id].FillBuffer ( 0 );
+  PERF_POP();
 }
 
 
@@ -917,6 +928,8 @@ void BeliefPropagation::PrepareVisualization ()
   // call this *before* updateMU, and use 
   // to prepare for calling getVisSample
   //
+  PERF_PUSH("PrepareVis");
+
   clock_t t1;
   if (st.instr) t1 = clock();
   switch (op.viz_opt) {
@@ -953,6 +966,8 @@ void BeliefPropagation::PrepareVisualization ()
   };
   
   if (st.instr) {st.time_viz += clock()-t1;}
+
+  PERF_POP();
 }
 
 // WFC  cnt = getTilesAtVertex( j );
@@ -2760,6 +2775,8 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
 
   block_s_z = block_bound[4];
   block_n_z = block_bound[5];
+  
+  PERF_PUSH("chooseMinEntropyBlock");
 
   for (iz=block_s_z; iz<(block_s_z + block_n_z); iz++) {
     for (iy=block_s_y; iy<(block_s_y + block_n_y); iy++) {
@@ -2769,7 +2786,7 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
 
         anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
 
-        if (anch_tile_idx_n==0) { return -1; }
+        if (anch_tile_idx_n==0) { PERF_POP(); return -1; }
         if (anch_tile_idx_n==1) { continue; }
 
         g_sum = 0.0;
@@ -2826,7 +2843,7 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
 
   }
 
-  if (_min_cell<0) { return 0; }
+  if (_min_cell<0) { PERF_POP(); return 0; }
 
   _min_tile = getValI( BUF_TILE_IDX, _min_cell, 0 );
   _min_tile_idx = 0;
@@ -2874,6 +2891,8 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
   if (min_tile)     { *min_tile     = _min_tile; }
   if (min_tile_idx) { *min_tile_idx = _min_tile_idx; }
   if (min_entropy)  { *min_entropy  = _min_entropy; }
+
+  PERF_POP();
 
   return count;
 }
@@ -2972,6 +2991,8 @@ int BeliefPropagation::start () {
   int32_t block_odd_dx=0,
           block_odd_dy=0,
           block_odd_dz=0;
+
+  m_num_nbrs = getNumNeighbors(0);
 
   m_rand.seed ( op.seed );
 
@@ -3086,7 +3107,7 @@ int BeliefPropagation::start () {
 int BeliefPropagation::finish (int ret) {
 
   if ( ret==0 ) {
-    // success. complete.
+    // success. complete.    
     printf ( "  DONE (SUCCESS).\n" );
   } else {
     // post error condition
@@ -4487,12 +4508,12 @@ int BeliefPropagation::RealizePre(void) {
     // of breakout succeeding in RealizeStep, so
     // return.
     //
-    ret = CullBoundary();
+    /* ret = CullBoundary();
     if (ret < 0) {
       m_return = -1;
       ret = 0;
       break;
-    }
+    }  */
 
     // reset for cull boundary
     //
@@ -4869,6 +4890,9 @@ int BeliefPropagation::RealizePost(void) {
       printf("## breakout-realizepost m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
       //
       //DEBUG
+
+      // assume continue
+      ret = 1;
 
       if (m_return == 0) {
 
@@ -5643,13 +5667,15 @@ int BeliefPropagation::RealizeStep(void) {
   clock_t t2 = clock();
   st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
 
+  // always increment cur_step;
+  op.cur_step++;
+
   // ret 1 is a 'continue' state, so if we haven't finished,
   // make sure we don't loop forever by incrementing cur_step
   // and return max_step is exceedex
   //
   if ( ret==1 ) {
     if (op.cur_step >= op.max_step )  { ret = -2; }
-    else                              { op.cur_step++; }
   }
 
   // prep vis
@@ -6524,8 +6550,10 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
 
   int32_t n, tile_val, tv;
 
+  PERF_PUSH("tileIdxCollapse"); 
+
   n = getValI( BUF_TILE_IDX_N, pos );
-  if (tile_idx >= n) { return -1; }
+  if (tile_idx >= n) { PERF_POP(); return -1; }
 
   tile_val = getValI( BUF_TILE_IDX, tile_idx, pos );
   tv = getValI( BUF_TILE_IDX, 0, pos );
@@ -6536,6 +6564,7 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
   if (st.enabled) {
     st.num_collapsed += n-1;
   }
+  PERF_POP();
 
   return 0;
 }
@@ -6583,6 +6612,9 @@ int BeliefPropagation::CullBoundary() {
   int64_t x, y, z, vtx;
   Vector3DI vp;
   int64_t note_idx;
+
+
+  PERF_PUSH("CullBoundary");
 
   // set initial notes
 
@@ -6660,6 +6692,8 @@ int BeliefPropagation::CullBoundary() {
   //
   ret = cellConstraintPropagate();
 
+  PERF_POP();
+
   return ret;
 }
 
@@ -6689,6 +6723,25 @@ void BeliefPropagation::cellFillVisitedNeighbor(uint64_t vtx, int32_t note_plane
     if (getValL ( BUF_VISITED, nei_vtx ) != 0) { continue; }
 
     int32_t note_idx = m_note_n [ note_plane ];
+    SetValL ( BUF_NOTE, nei_vtx, note_idx, note_plane );
+    SetValL ( BUF_VISITED, 1, nei_vtx );
+    m_note_n[ note_plane ]++;
+  }
+
+}
+
+// accelerated version
+void BeliefPropagation::cellFillVisitedNeighborFast (Vector3DI jp, uint64_t vtx, int32_t note_plane ) {
+
+  int64_t i, nei_vtx;
+  int32_t note_idx;
+
+  for (i=0; i < m_num_nbrs; i++) {
+    nei_vtx  = getNeighbor(vtx, jp, i);
+    if (nei_vtx < 0) { continue; }
+    if (getValL ( BUF_VISITED, nei_vtx ) != 0) { continue; }
+
+    note_idx = m_note_n [ note_plane ];
     SetValL ( BUF_NOTE, nei_vtx, note_idx, note_plane );
     SetValL ( BUF_VISITED, 1, nei_vtx );
     m_note_n[ note_plane ]++;
@@ -6850,6 +6903,11 @@ int BeliefPropagation::cellConstraintPropagate() {
       PrepareVisualization ();
   }
   
+  // perf: num neighbors is constantant on dimension
+  int num_nbrs = getNumNeighbors(0);
+
+  PERF_PUSH ( "cellConstrProp" );
+  
   // cull noted cells tagged as changed
   //
   while (still_culling) {
@@ -6858,7 +6916,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
     for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
 
-      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );      
 
       jp = getVertexPos(anch_cell);
 
@@ -6873,81 +6931,87 @@ int BeliefPropagation::cellConstraintPropagate() {
         tile_valid = 1;
         anch_b_val = getValI ( BUF_TILE_IDX, anch_b_idx, anch_cell);
 
-        for (i=0; i<getNumNeighbors(anch_cell); i++) {
-          nei_cell = getNeighbor(anch_cell, jp, i);
+        for (i=0; i < m_num_nbrs; i++) {
 
-          if ((nei_cell<0) &&
-              (getValF( BUF_F, anch_b_val, boundary_tile, i ) < _eps)) {
+          if (getValF( BUF_F, anch_b_val, boundary_tile, i ) < _eps) {
 
-            if (anch_n_tile==1) {
+            nei_cell = getNeighbor(anch_cell, jp, i);
+            if (nei_cell<0) {
 
-              if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
-                if (op.verbose >= VB_INTRASTEP) {
-                  printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                          "cell %i slated to remove last remaining tile (tile %s(%i) "
-                          "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [wfc-block.0]\n",
-                          (int)anch_cell,
-                          m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
-                          m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
-                          m_dir_desc[i].c_str(), (int)i);
+                if (anch_n_tile==1) {
+
+                  if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+                    if (op.verbose >= VB_INTRASTEP) {
+                      printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
+                              "cell %i slated to remove last remaining tile (tile %s(%i) "
+                              "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [wfc-block.0]\n",
+                              (int)anch_cell,
+                              m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                              m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
+                              m_dir_desc[i].c_str(), (int)i);
+                    }
+                  }
+                  else if (op.verbose >= VB_ERROR ) {
+                    printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
+                            "cell %i slated to remove last remaining tile (tile %s(%i) "
+                            "conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
+                            (int)anch_cell,
+                            m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                            m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
+                            m_dir_desc[i].c_str(), (int)i);
+                  }
+
+                  // unwind
+                  //
+                  unfillVisited (1 - m_note_plane );
+
+                  PERF_POP();
+                  return -1;
                 }
-              }
-              else if (op.verbose >= VB_ERROR ) {
-                printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                        "cell %i slated to remove last remaining tile (tile %s(%i) "
-                        "conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
+
+                tile_valid = 0;
+
+                //if (op.verbose >= VB_INTRASTEP ) {
+                if (op.verbose >= VB_DEBUG) {
+                  printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
+                      (int)op.cur_iter,
+                      (int)anch_cell,
+                      (int)jp.x, (int)jp.y, (int)jp.z,
+                      (int)anch_b_val,
+                      (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+
+                   //printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
+                   //   (int)anch_b_val, (int)anch_cell,
+                   //   (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+                }
+
+                removeTileIdx (anch_cell, anch_b_idx);
+
+                if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
+                  resolved++;
+
+                  if (op.verbose >= VB_INTRASTEP ) {
+                    printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
+                        (int)op.cur_iter,
                         (int)anch_cell,
-                        m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
-                        m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
-                        m_dir_desc[i].c_str(), (int)i);
-              }
+                        (int)jp.x, (int)jp.y, (int)jp.z,
+                        (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
+                  }
 
-              // unwind
-              //
-              unfillVisited (1 - m_note_plane );
+                }
 
-              return -1;
-            }
+                cellFillVisitedNeighborFast ( jp, anch_cell, 1 - m_note_plane );
 
-            tile_valid = 0;
+                anch_b_idx--;
+                anch_n_tile--;
 
-            //if (op.verbose >= VB_INTRASTEP ) {
-            if (op.verbose >= VB_DEBUG) {
-              printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i (boundary nei, tile:%i, dir:%i(%s)) [cp.0]\n",
-                  (int)op.cur_iter,
-                  (int)anch_cell,
-                  (int)jp.x, (int)jp.y, (int)jp.z,
-                  (int)anch_b_val,
-                  (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
+                break;
 
-               //printf("# removing tile %i from cell %i (boundary nei, tile:%i, dir:%i(%s))\n",
-               //   (int)anch_b_val, (int)anch_cell,
-               //   (int)boundary_tile, (int)i, (char *)m_dir_desc[i].c_str());
-            }
+            } // nei_cell<0
+          } // BUF_F < eps
 
-            removeTileIdx (anch_cell, anch_b_idx);
+        }  // endfor each nbr of anch_cell
 
-            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
-              resolved++;
-
-              if (op.verbose >= VB_INTRASTEP ) {
-                printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
-                    (int)op.cur_iter,
-                    (int)anch_cell,
-                    (int)jp.x, (int)jp.y, (int)jp.z,
-                    (int)getValI( BUF_TILE_IDX, 0, anch_cell ) );
-              }
-
-            }
-
-            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
-
-            anch_b_idx--;
-            anch_n_tile--;
-
-            break;
-          }
-        }
 
         if (!tile_valid) { continue; }
 
@@ -6956,14 +7020,15 @@ int BeliefPropagation::cellConstraintPropagate() {
         // there is at least one "admissible" tile in the appropriate
         // direction by checking the BUF_F table.
         //
-        for (i=0; i<getNumNeighbors(anch_cell); i++) {
+        for (i=0; i < m_num_nbrs; i++) {
           nei_cell = getNeighbor(anch_cell, jp, i);
 
           if (nei_cell<0) { continue; }
 
           anch_has_valid_conn = 0;
 
-          nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
+          // innermost loop: for all cells B, all nbrs A, B->A, all tiles, check rule func F
+          /*nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
           for (nei_a_idx=0; nei_a_idx < nei_n_tile; nei_a_idx++) {
             nei_a_val = getValI ( BUF_TILE_IDX, nei_a_idx, nei_cell );
 
@@ -6971,10 +7036,25 @@ int BeliefPropagation::cellConstraintPropagate() {
               anch_has_valid_conn = 1;
               break;
             }
+          }*/
+
+          //--- fast version
+          nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
+          int32_t* nei_a_ptr = (int32_t*) getPtr ( BUF_TILE_IDX, 0, nei_cell );
+          int32_t* nei_a_end = nei_a_ptr + nei_n_tile;
+          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {              
+              if (getValF( BUF_F, anch_b_val, *nei_a_ptr, i ) > _eps) {    // nei_a_val is random access, so no accel of BUF_F ptr
+                  anch_has_valid_conn = 1;
+                  break;
+              }
           }
+          //---
+
 
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
+
+              nei_a_val = *nei_a_ptr;   
 
               if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
                 if (op.verbose >= VB_INTRASTEP) {
@@ -7003,6 +7083,7 @@ int BeliefPropagation::cellConstraintPropagate() {
               //
               unfillVisited (1 - m_note_plane );
 
+              PERF_POP();
               return -1;
             }
 
@@ -7034,7 +7115,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             }
 
-            cellFillVisitedNeighbor (anch_cell, 1 - m_note_plane );
+            cellFillVisitedNeighborFast (jp, anch_cell, 1 - m_note_plane );
             anch_b_idx--;
             anch_n_tile--;
 
@@ -7060,6 +7141,7 @@ int BeliefPropagation::cellConstraintPropagate() {
   st.iter_resolved += resolved;
   st.total_resolved += resolved;
 
+  PERF_POP();
   return 0;
 }
 
@@ -7199,6 +7281,8 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
   cellFillVisitedNeighbor ( cell, m_note_plane );
   unfillVisited ( m_note_plane );
 
+  int num_nbrs = getNumNeighbors(0);
+
   while (still_culling) {
 
     for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
@@ -7290,7 +7374,7 @@ int BeliefPropagation::cellConstraintPropagate_lookahead(int64_t cell, int32_t t
         // there is at least one "admissible" tile in the appropriate
         // direction by checking the BUF_F table.
         //
-        for (i=0; i<getNumNeighbors(anch_cell); i++) {
+        for (i=0; i < num_nbrs; i++) {
           nei_cell = getNeighbor(anch_cell, jp, i);
 
           if (nei_cell<0) { continue; }
