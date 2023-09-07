@@ -154,6 +154,32 @@ Here are some suggestions:
   - Run constraint propagation on the fuzzed wildcard area
   - Collect statistics on feasability of finding a solution for every tile value in the center of the removed area
 
+---
+
+There's a question on how to pick the block to process.
+I think a reasonable heuristic is:
+
+* Of all the possible blocks available, what is the block that will yield the minimum
+  entropy after it's been fuzzed and constraints have been propagated (grid is in
+  arc consistent state)
+
+This is still a heuristic but it gets closer to the spirit of choosing the "minimum
+entropy".
+It's, unfortunately, a bit computationally expensive to compute, so, as a compromise,
+maybe finding what a "canonical" entropy is (for edge, corner, middle) and picking
+a block that has entropy closest to it might be good enough.
+
+A block that that is fully realized will be completely fuzzed out and is an undesirable
+pick, especially considering other areas that might have unresolved blocks.
+A block that is fully wildcard is also undesirable because this is maximum entropy.
+The "ideal" case is when there's a (arc consisten, constraint propagated) block that
+is completely surrounded by a realized grid.
+Fuzzing a block has essentially no effect as it should be identical after fuzzing and
+constraing propagation, so it's not introducing any more entropy from the fuzzing state.
+
+There could be cases when fuzzing and constraint propagation (without wfc) could yield
+a lower entropy state but this should be rare?
+
 
 
 

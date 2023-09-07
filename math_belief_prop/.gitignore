@@ -7,3 +7,7 @@ bpc.debug
 build/
 
 a.out
+
+lib/
+lib.debug/
+*.o
