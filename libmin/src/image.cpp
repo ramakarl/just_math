@@ -116,22 +116,24 @@ void Image::ResizeImage ( int xr, int yr )
 	ResizeImage ( xr, yr, getInfo()->eFormat );
 }
 
-void Image::ResizeImage ( int xr, int yr, ImageOp::Format eFormat)
-{
-	ResizeChannel ( 0, xr, yr, eFormat );
+void Image::ResizeImage ( int xr, int yr, ImageOp::Format eFormat, uchar use_flags)
+{	
+	ResizeChannel ( 0, xr, yr, eFormat, use_flags );
 }
 
-void Image::ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat)
+void Image::ResizeChannel ( int chan, int xr, int yr, ImageOp::Format eFormat, uchar use_flags)
 {
 	ImageInfo* info = getInfo();
 	
 	if ( xr != info->mXres || yr != info->mYres || eFormat != info->eFormat ) {
 
+		if ( use_flags==0 ) use_flags = m_UseFlags;		// use existing flags
+
 		// Set new pixel format parameters		
 		uchar dt = info->GetDataType ( eFormat );
 		info->SetFormat ( xr, yr, eFormat );		
-		m_Pix.SetUsage ( dt, m_UseFlags, xr, yr,1 );
-		m_Pix.Resize ( GetBytesPerPixel(), xr*yr, 0x0, m_UseFlags );		
+		m_Pix.SetUsage ( dt, use_flags, xr, yr,1 );
+		m_Pix.Resize ( GetBytesPerPixel(), xr*yr, 0x0, use_flags );		
 		m_Pix.mNum = xr*yr;
 				
 		// Create extended buffers

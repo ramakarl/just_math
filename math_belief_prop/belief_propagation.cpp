@@ -516,7 +516,7 @@ void BeliefPropagation::RandomizeMU () {
   }
 }
 
-void BeliefPropagation::ComputeDiffMUField () {
+void BeliefPropagation::ComputeBP_DiffMUField () {
 
   int i, n_a, a;
   float v0, v1, d, max_diff;
@@ -581,11 +581,32 @@ int BeliefPropagation::getMaxBeliefTile ( uint64_t j ) {
   return maxtv;
 }
 
-// ComputeBeliefField
+// ComputeTile0Field
+// - called prior to CheckConstraints
+// - computes a resolved tile field in which each
+//   tile is just the first entry in the available list. eg. WFC
+// - compare this to ComputeBP_BeliefField in which each tile 
+//   is selected based on BP belief
+//
+void BeliefPropagation::ComputeTile0Field() {
+
+  int tile_val;
+
+  for (int j=0; j < m_num_verts; j++) {
+
+    tile_val = getValI ( BUF_TILE_IDX, 0, j );
+
+    SetValI( BUF_TILES, tile_val , j );
+  }
+
+}
+
+
+// ComputeBP_BeliefField
 // - fills BUF_TILES with maxbelief tiles (always)
 // - fills BUF_VIZ with maxbelief values (if VIZ_BELIEF)
 //
-void BeliefPropagation::ComputeBeliefField () {
+void BeliefPropagation::ComputeBP_BeliefField () {
 
   int tile_idx_n, tile_idx, tile_val;
 
@@ -854,16 +875,56 @@ void BeliefPropagation::SetVis (int vopt) {
 
   std::string msg;
   switch ( vopt ) {
-  case VIZ_MU:            msg = "VIZ_MU"; break;
-  case VIZ_DMU:           msg = "VIZ_DMU"; break;
-  case VIZ_BELIEF:        msg = "VIZ_BELIEF"; break;
-  case VIZ_CONSTRAINT:    msg = "VIZ_CONSTRAINT"; break;
-  case VIZ_TILECOUNT:     msg = "VIZ_TILECOUNT"; break;
-  case VIZ_ENTROPY:       msg = "VIZ_ENTROPY"; break;
-  case VIZ_CHANGE:        msg = "VIZ_CHANGE"; break;
-  case VIZ_RESPICK:       msg = "VIZ_RESPICK"; break;
+  case VIZ_TILES_2D:         msg = "VIZ_TILES_2D"; break;
+  case VIZ_TILE0:            msg = "VIZ_TILE0"; break;
+  case VIZ_TILECOUNT:        msg = "VIZ_TILECOUNT"; break;
+  case VIZ_CONSTRAINT:       msg = "VIZ_CONSTRAINT"; break;
+  case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
+  case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
+  case VIZ_BP_MU:            msg = "VIZ_BP_MU"; break;
+  case VIZ_BP_DMU:           msg = "VIZ_BP_DMU"; break;    
   };
-  printf ( "started: %s\n", msg.c_str() );
+  printf ( "  Visualizing: %s\n", msg.c_str() );
+}
+
+void BeliefPropagation::PrepareVisualization ()
+{
+  // visualization prep
+  // call this *before* updateMU, and use 
+  // to prepare for calling getVisSample
+  //
+  clock_t t1;
+  if (st.instr) t1 = clock();
+  switch (op.viz_opt) {
+  case VIZ_TILE0:
+      // simple viz. matches json output.
+      // show the final tile resolved at tile entry 0. if multiple take the first one.
+      //.. nothing to do here
+      break;
+  case VIZ_TILECOUNT:
+      // simple viz. number of available tiles per cell.
+      //.. nothing to do here
+      break;  
+  case VIZ_CONSTRAINT:
+      // this visualization is useful but more costly. 
+      // compute a resolved tile field, then checks how many remaining unresolved 
+      // constraints each tile has.       
+      ComputeTile0Field ();
+      CheckConstraints ();
+      break;
+  case VIZ_BP_BELIEF:
+      // find the maximum belief tile for each cell.
+      ComputeBP_BeliefField ();
+      break;
+  case VIZ_BP_MU:
+      //ComputeMUField ();
+      break;
+  case VIZ_BP_DMU:
+      ComputeBP_DiffMUField ();
+      break;
+  };
+  
+  if (st.instr) {st.time_viz += clock()-t1;}
 }
 
 // WFC  cnt = getTilesAtVertex( j );
@@ -871,63 +932,61 @@ void BeliefPropagation::SetVis (int vopt) {
 //
 Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
 
-  float f, c, b;
+  float f, r, g, b, c;
   Vector4DF s;
 
+  int i;
   float vexp = 0.3;
   float vscale = 0.1;
 
   float vmax = op.eps_converge * 10.0;
 
   switch (op.viz_opt) {
-  case VIZ_MU:
-    f = getValF ( BUF_VIZ, v );
-    s = Vector4DF(f,f,f,f);
+  case VIZ_TILES_2D:
+    // tiles for 2D render. get literal tile value & count
+    i = getValI ( BUF_TILE_IDX, 0, v);
+    f = getValI ( BUF_TILE_IDX_N, v );
+    s = Vector4DF( i, i, i, f );
     break;
-  case VIZ_DMU:
-
-    // dmu written into viz by ComputeDiffMU
-    //
-    f = getValF ( BUF_VIZ, v );
-
-    c = 0.1 + std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));
-    
-    if ( f <= op.eps_converge ) s = Vector4DF(0,c,0,c);
-    else                        s = Vector4DF(c,c,c,c);
-
+  case VIZ_TILE0: 
+    // readily available. no prepare needed.
+    // get tile ID normalized to num tiles
+    i = getValI ( BUF_TILE_IDX, 0, v );
+    r = float(int(i*327) % 255) / 255.0f;
+    b = float(int(i*67125) % 255) / 255.0f;
+    f = float(i) / float(getNumValues(v));
+    s = Vector4DF( f, f, f, 0.5 );
     break;
-
-  case VIZ_BELIEF:    
+  case VIZ_TILECOUNT: 
+    // readily available. no prepare needed.
+    // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
+    i = getValI ( BUF_TILE_IDX_N, v );
+    f = 1.0 / float(i);     
+    s = Vector4DF( f, f, f, f );
+    break;  
+  case VIZ_CONSTRAINT:
+    // visualize remaining constraints per cell    
+    // constraints are associated with faces, so max per cell is 6
+    c = getValI ( BUF_C, v ) / 6.0f;
+    s = Vector4DF( c, c, c, c );
+    break;
+  case VIZ_BP_BELIEF:    
     // get maxbelief value
     f = getValF ( BUF_B, v );
-    f = vscale * std::max(0.0f, std::min(1.0f, pow ( f, vexp ) ) );
+    f = f / st.max_belief;    
     s = Vector4DF(f,f,f,f);
     break;
-  
-  case VIZ_TILECOUNT: {
-    // 1. compute maxbelief and outputs json
-    // 2. visualizes 1/TILE_NDX_N as alpha (eg. 1=opaque=fully resolved)
-    // 3. visualizes green-red as maxbelief # constraints/cell (eg. 0=green, 6=all faces of cell)
-
-    f = getValF ( BUF_VIZ, v );        // 1/tilecount
-
-    c = getValI ( BUF_C, v ) / 6.0f;   // constraints
-    b = getValF ( BUF_B, v );          // belief
-
-    s = Vector4DF( c, 1-c, 0, f*f );
-
-    float beps = 0.1;
-
-    if ( f==1 ) s = Vector4DF(1,1,1,1);              // white = resolved to 1 tile
-    if ( b >= st.max_belief - beps ) s = Vector4DF(1,0,1,1);  // purple = current max belief vertex
-
-    } break;
-
-  case VIZ_CONSTRAINT:
-    
-    c = getValI ( BUF_C, v ) / 6.0f;   // constraints
-    
-    s = Vector4DF( c, c, c, c );
+  case VIZ_BP_MU:
+    // BP only. requires PrepareVisualization for ComputeMUField
+    f = getValF ( BUF_VIZ, v );
+    s = Vector4DF(f,f,f,f);
+    break;
+  case VIZ_BP_DMU:
+    // BP only. requires PrepareVisualization for ComputeDiffMUField
+    f = getValF ( BUF_VIZ, v );
+    c = 0.1 + std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));    
+    if ( f <= op.eps_converge ) s = Vector4DF(0,c,0,c);
+    else                        s = Vector4DF(c,c,c,c);
     break;
   }
 
@@ -2885,8 +2944,8 @@ int BeliefPropagation::start () {
 
   int v = m_rand.randI();  // first random # (used as spot check)
 
-  if (op.verbose >= VB_STEP ) {
-    printf ("  Started. grid %d,%d,%d, seed = %d\n", op.X, op.Y, op.Z, op.seed );
+  if (op.verbose >= VB_RUN ) {
+    printf ("  bpc start. GRID = %d,%d,%d, SEED = %d\n", op.X, op.Y, op.Z, op.seed );
   }
 
   // BLOCK WFC
@@ -2999,17 +3058,20 @@ int BeliefPropagation::finish (int ret) {
   } else {
     // post error condition
     switch (ret) {                
-    case -1: printf ( "ERROR: chooseMaxBelief.\n" ); break;
-    case -2: printf ( "ERROR: tileIdxCollapse.\n" ); break;
-    case -3: printf ( "ERROR: cellConstraintPropagate.\n" ); break;
-    };                
-    printf ( "  DONE (FAIL).\n" );
-  }           
-  
-  // advance seed
-  op.seed++;
-
+    case -1: printf ( "  DONE (FAIL). ERROR: chooseMaxBelief.\n" ); break;
+    case -2: printf ( "  DONE (FAIL). ERROR: tileIdxCollapse.\n" ); break;
+    case -3: printf ( "  DONE (FAIL). ERROR: cellConstraintPropagate.\n" ); break;
+    case -77: printf ( "  DONE (STOPPED BY USER).\n"); break;
+    default:
+        printf ( "  DONE (FAIL).\n"); break;
+    };                    
+  }
   return ret;
+}
+
+void BeliefPropagation::advance_seed ( int amt )
+{
+    op.seed += amt;
 }
 
 void BeliefPropagation::ResetStats () {
@@ -5090,6 +5152,8 @@ int BeliefPropagation::RealizePost(void) {
       st.constraints = CheckConstraints ();
   }*/
 
+  PrepareVisualization();  
+
   st.eps_curr = getLinearEps();
   st.post = ret;
 
@@ -5494,9 +5558,6 @@ int BeliefPropagation::RealizeStep(void) {
         // and count number resolved (only 1 tile val remain)
         //
         _ret = cellConstraintPropagate();
-      
-        // prep vis
-        PrepareVisualization();
 
       }
       // collapse failed
@@ -5558,6 +5619,9 @@ int BeliefPropagation::RealizeStep(void) {
     else                              { op.cur_step++; }
   }
 
+  // prep vis
+  PrepareVisualization();
+
   return ret;
 }
 
@@ -5592,39 +5656,18 @@ int BeliefPropagation::Realize(void) {
 
 int BeliefPropagation::CheckConstraints () {
 
-  // compute and store the max belief tile for each vertex
-  //
-  ComputeBeliefField ();
+  // REQUIRED: ComputeBeliefField to be called
+  // before invoking this function.
 
   // compute the unresolved constraints at each vertex
   //
   int cnt = 0;
-
   for (int64_t vtx = 0; vtx < m_num_verts; vtx++) {
     cnt += CheckConstraints ( vtx );
   }
 
   return cnt;
 }
-
-
-int BeliefPropagation::ComputeTilecountField () {
-
-    int sum = 0;
-    int i;
-
-    for (int64_t vtx = 0; vtx < m_num_verts; vtx++) {
-
-        i = getValI ( BUF_TILE_IDX_N, vtx );
-
-        sum += i;
-
-        SetValF ( BUF_VIZ, 1.0 / i, vtx );        
-    }
-
-    return sum;
-}
-
 
 
 int BeliefPropagation::CheckConstraints ( int64_t vtx ) {
@@ -5694,30 +5737,6 @@ void BeliefPropagation::gp_state_print() {
     }
     printf("#gp: %i %i %i %f\n", (int)pos.x, (int)pos.y, (int)pos.z, (float)max_belief);
   }
-}
-
-
-void BeliefPropagation::PrepareVisualization ()
-{
-  // visualization prep
-  // call this *before* updateMU
-  //
-  clock_t t1;
-  if (st.instr) t1 = clock();
-  if ( op.viz_opt == VIZ_DMU ) {
-    ComputeDiffMUField ();
-  }
-  if ( op.viz_opt == VIZ_BELIEF ) {    
-    ComputeBeliefField ();
-  }
-  if ( op.viz_opt == VIZ_CONSTRAINT ) {
-    CheckConstraints ();   
-    ComputeTilecountField ();
-  }
-  if ( op.viz_opt == VIZ_TILECOUNT ) {
-    ComputeTilecountField ();
-  }
-  if (st.instr) {st.time_viz += clock()-t1;}
 }
 
 // deprecated?

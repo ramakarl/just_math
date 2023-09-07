@@ -55,9 +55,6 @@ int bp_restart ( BeliefPropagation& bpc ) {
   // dynamic start
   // (not needed if this is first init)
   //
-  if (bpc.op.verbose >= VB_RUN) 
-      printf ( "  bpc start() called\n");
-
   ret = bpc.start ();
 
   // updating constraints has to happen after start()
@@ -303,6 +300,7 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
 
              // finish
              bpc.finish ( ret );
+             bpc.advance_seed ();
              runret = 0;
           }                
         }    
@@ -430,6 +428,7 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
             runret = 0;            
             write_tiled_json ( bpc );
             bpc.finish ( ret );
+            bpc.advance_seed ();
           }
           fprintf ( fpr, "%s\n", bpc.getStatCSV().c_str() ); 
           

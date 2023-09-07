@@ -76,23 +76,25 @@ public:
   virtual void mousewheel(int delta);
   virtual void shutdown();
 
-  // Belief Propagation funcs
+  // Algorithm Functions
   void      Restart ();
-
-
-  // Belief Propagation objects
+  void      RunAlgorithmInteractive ();
+  void      Visualize ( BeliefPropagation& src, int vol_id );  
   
   BeliefPropagation bpc;
 
-  
-  // Volume rendering
-  void      Visualize ( BeliefPropagation& src, int vol_id );  
+  // Tileset Icons (2D)
+  void      GenerateTileImgs ( std::string tilefile, int tilesz );
+  void      DrawTileSet ();  
+  void      DrawTileMap ();
 
+  // Volumetric (3D)
   void      AllocVolume(int id, Vector3DI res, int chan=1);
   float     getVoxel ( int id, int x, int y, int z );
   Vector4DF getVoxel4 ( int id, int x, int y, int z );
   void      ClearImg (Image* img);
   void      RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vector3DF vmax );
+  void      DrawGrid3D ();
 
   Camera3D* m_cam;          // camera
   Image*    m_img;          // output image
@@ -102,10 +104,14 @@ public:
   Vector3DI m_vres;         // volume res
   DataPtr   m_vol[4];       // volume
 
+  std::vector<Image*>   m_tile_imgs;
+
   // UI
   int       mouse_down;
   bool      m_run;  
   bool      m_save;
+  bool      m_draw_tileset;
+  float     m_scaling_2D;  
   float     m_frame;  
 
 };
@@ -335,7 +341,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 
   #ifdef USE_OPENGL
     //commit image to OpenGL (hardware gl texture) for on-screen display
-    img->Commit ( DT_GLTEX );
+    img->Commit ( DT_CPU | DT_GLTEX );
   #endif
 }
 
@@ -348,6 +354,75 @@ void Sample::Restart ()
     m_run = true;
 }
 
+
+void Sample::GenerateTileImgs (std::string tilefile, int tilesz)
+{
+    Image* tileset;
+    Image* icon;
+
+    tileset = new Image();
+    
+    // load tileset image
+    if ( tileset->Load ( tilefile ) ) {
+
+        // divide tileset image into TX x TY tiles each of size 'tilesz' pixels
+        int imgx = tileset->GetWidth();
+        int imgy = tileset->GetHeight();
+        int tiles = bpc.getNumValues(0);
+        int TX = imgx/tilesz, TY = imgy/tilesz;
+        int x = 0, y = 0;
+        
+        // process each tile ID
+        for (int n=0; n < tiles; n++) {
+
+            // create an image
+            icon = new Image( tilesz, tilesz, ImageOp::RGB8 );
+
+            // we assume the input and output are RGB8 formatted.
+            // transfer a sub-block of pixels from input tileset to tile icon,
+            // filling exactly the number of pixels in 'icon' (tilesz^2)            
+            uchar* src_px = tileset->GetData ();
+            uchar* dst_px = icon->GetData ();
+            ImageOp::Format src_fmt = tileset->GetFormat();
+            if (src_fmt != ImageOp::RGB8 && src_fmt != ImageOp::RGBA8 ) {
+                printf ("ERROR: Tile set image format must be RGB8 or RGBA8.\n" );
+                exit (-7);
+            }            
+            bool src_alpha = (tileset->GetFormat()==ImageOp::RGBA8);
+            int src_bpp = tileset->GetBytesPerPixel ();
+            src_px += ( (y * tilesz) * imgx + (x * tilesz) ) * src_bpp;
+            for (int py=0; py < tilesz; py++) {
+              for (int px=0; px < tilesz; px++) {
+                // RGB transfer
+                *dst_px++ = *src_px++;  
+                *dst_px++ = *src_px++;
+                *dst_px++ = *src_px++;     
+                if (src_alpha) src_px++;
+              }
+              src_px += (imgx - tilesz) * src_bpp;
+            }
+            // commit to opengl
+            icon->Commit ( DT_CPU | DT_GLTEX );
+
+            // add to image list
+            m_tile_imgs.push_back ( icon );
+  
+            // get next tile icon in tileset
+            if (++x >= TX) {
+                x = 0;
+                if (++y >= TY ) {
+                    printf ( "ERROR: Ran out of tiles. Should never happen.\n" );
+                    exit(-8);
+                }
+            }
+        }
+
+    } else {
+        printf ("ERROR: Unable to find tileset file %s\n", tilefile.c_str() );
+    }
+
+    delete tileset;
+}
 
 bool Sample::init()
 {
@@ -369,8 +444,11 @@ bool Sample::init()
   m_frame     = 0;
   m_run       = false;  // must start out false until all other init is done
   m_save      = false;  // save to disk
+  m_draw_tileset = false;
+  m_scaling_2D = 2;
+
   m_cam = new Camera3D;
-  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 100, 1 );
+  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 250, 1 );
   m_img = new Image;
   m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
 
@@ -396,7 +474,7 @@ bool Sample::init()
     // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
 
   //-- Experiments  
-  bpc.expr.num_expr = 20;
+  /* bpc.expr.num_expr = 20;
   bpc.expr.num_run = 50;
   bpc.expr.grid_min.Set (10, 10, 1);
   bpc.expr.grid_max.Set (210, 210, 1);
@@ -409,7 +487,7 @@ bool Sample::init()
   bpc.st.instr = 0;
 
   bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" );
-  exit(-6);
+  exit(-6); */
     
   //-- Multirun testing  
   /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
@@ -440,6 +518,11 @@ bool Sample::init()
       exit(-1);
     }
   }
+  
+  // Generate tile images (2D only, if tileset is set)
+  if ( bpc.op.Z==1 && bpc.op.tileset_fn.length()>0 ) {
+     GenerateTileImgs ( bpc.op.tileset_fn, bpc.op.tileset_stride_x);
+  }
 
   // Select algorithm
   bpc.SelectAlgorithm ( bpc.op.alg_idx );
@@ -448,7 +531,7 @@ bool Sample::init()
   bp_restart ( bpc ); 
 
   // start viz
-  m_viz = VIZ_TILECOUNT;
+  m_viz = VIZ_TILES_2D;
   bpc.SetVis ( m_viz );
 
   // start running
@@ -457,30 +540,92 @@ bool Sample::init()
   return true;
 }
 
-
-void Sample::display()
+void Sample::DrawTileSet ()
 {
-  int ret;
-  float md= 0.0;
-  char savename[256] = {'\0'};
+    int scaling = 2;
+    int spacing = 4;
+    int tw = bpc.op.tileset_stride_x * scaling;
+    int th = bpc.op.tileset_stride_y * scaling;
+    int num_tiles = bpc.getNumValues(0);
+    int tx, ty;
 
-  Vector3DF a, b, c;
-  Vector3DF p, q, d;
-
-  void (*_cb_f)(void *) = NULL;
-
-  // Run Belief Propagation
-  //
-  if (m_run) {
+    start2D();
     
-    //m_run = false;          // single step (set run false here)
+    // compute region where we draw them, to draw as overlay
+    tx = 0; ty = 0;
+    for (int n=0; n < num_tiles; n++) {
+        tx += (tw + spacing);
+        if (tx+tw > getWidth() ) {
+            tx = 0; ty += (th + spacing);
+        }
+    }
+    ty += (th + spacing);
+    drawFill ( 0, 0, getWidth(), ty, .2,.2,.2, 1 );
+
+    // draw tiles
+    tx = 0; ty = 0;
+    for (int n=0; n < num_tiles; n++) {
+        drawImg ( m_tile_imgs[n]->getGLID(), tx, ty, tx+tw, ty+th, 1,1,1, 1 );    
+        
+        tx += (tw + spacing);
+        if (tx+tw > getWidth() ) {
+            tx = 0; ty += (th + spacing);
+        }
+    }
+
+    end2D();
+}
+
+
+void Sample::DrawTileMap ()
+{
+    // Visualize must be called first to populate BUF_VOL
+    // with literal tile values
+
+    start2D();
+
+    Vector4DF val;
+
+    int tile;    
+    int tw = bpc.op.tileset_stride_x * m_scaling_2D;
+    int th = bpc.op.tileset_stride_y * m_scaling_2D;
+    float num_tiles = bpc.getNumValues(0);
+    float alpha;
+
+    // draw fog box
+    drawFill ( 0, 0, bpc.op.X*tw, bpc.op.Y*th, .8,.8,.8,1 );
+
+    // draw tiles
+    for (int y=0; y < bpc.op.Y; y++) {
+        for (int x=0; x < bpc.op.X; x++) {        
+            
+            // get voxel value (2D) containing tile ID
+            val = getVoxel4 ( BUF_VOL, x, y, 0 );   
+            tile = val.x - 1;
+            alpha = 1.0 / sqrt(val.w);
+            drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );            
+        }
+    }
+    
+    end2D();
+}
+
+
+void Sample::DrawGrid3D ()
+{
+    setLight(S3D, 20, 100, 20);
+    for (int i=-10; i <= 10; i++ ) {
+      drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
+      drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
+    }
+    drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);
+    end3D();
+}
+
+void Sample::RunAlgorithmInteractive ()
+{
 
     int ret = bpc.RealizeStep ();
-
-    if ( m_viz==VIZ_TILECOUNT ) {
-        // write json on every step      
-        // write_tiled_json( bpc );  
-    }
 
     // check for step complete (0)
     if (ret <= 0) {
@@ -516,57 +661,95 @@ void Sample::display()
     } 
     
     fflush(stdout);
+}
+
+void Sample::display()
+{
+  int ret;
+  float md= 0.0;
+  char savename[256] = {'\0'};
+
+  Vector3DF a, b, c;
+  Vector3DF p, q, d;
+
+  void (*_cb_f)(void *) = NULL;
+
+  //--------- Run Algorithm
+  //
+  if (m_run) {
+
+    RunAlgorithmInteractive ();
+    
+  }
+
+  //--------- Visualization
+
+  // 3D visualize
+  if ( m_viz >= VIZ_TILE0 ) {
+      Vector3DF wfc_off(0,0,-10);
+      Vector3DF bpc_off(0,0,0);
+
+      // 3D raycast on CPU
+      ClearImg (m_img);
+
+      if ( bpc.getStep() % 2 == 0) { 
+
+          Visualize ( bpc, BUF_VOL );
+
+          RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
+      }
+
+      // OpenGL draw
+      #ifdef USE_OPENGL
+      clearGL();
+      // Draw 3D raycast image (in 2D)
+      start2D();
+        setview2D(getWidth(), getHeight());
+        drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
+      end2D();
+      // Draw 3D grid
+      start3D(m_cam);
+        DrawGrid3D ();
+      end3D();
+      #endif 
+  
+  } else {
+  // 2D visualize
+      
+      #ifdef USE_OPENGL
+      clearGL();      
+      setview2D(getWidth(), getHeight());
+        
+      // Draw current 2D map
+      // get tile values from algorithm
+      Visualize ( bpc, BUF_VOL );
+
+      DrawTileMap ();        
+
+      // Draw 2D tileset if requested
+      if ( m_draw_tileset ) {
+          DrawTileSet ();          
+      }       
+      #endif 
   }
 
 
-  Vector3DF wfc_off(0,0,-10);
-  Vector3DF bpc_off(0,0,0);
+  // Complete rendering
+  draw2D();
+  draw3D();
 
-  // Raycast
-  ClearImg (m_img);
+  appPostRedisplay();
+}
 
-  /*if ( bpc.getStep() % 5 == 0) { 
-
-      Visualize ( bpc, BUF_VOL );
-
-      RaycastCPU ( m_cam, BUF_VOL, m_img, bpc_off+Vector3DF(0,0,0), bpc_off+Vector3DF(m_vres) );      // raycast volume
-  }*/
-
-  // optional write to disk
-  if ( m_save ) {
+// optional write to disk
+  /* if ( m_save ) {
     sprintf ( savename, "out%04d.png", (int) m_frame );
     m_img->Save ( savename );
     m_frame++;
   } else {
     sprintf ( savename, "save is off");
-  }
+  } */
 
-  // Interactive rendering (opengl only)
-  #ifdef USE_OPENGL
-    clearGL();
-    start2D();
-      setview2D(getWidth(), getHeight());
-      drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
-    end2D();
-    draw2D();                    // complete 2D rendering to OpenGL
-
-    // draw grid in 3D
-    start3D(m_cam);
-    setLight(S3D, 20, 100, 20);
-    for (int i=-10; i <= 10; i++ ) {
-      drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
-      drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
-    }
-    drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);
-    end3D();
-    draw3D();                    // complete 3D rendering to OpenGL
-  #else
-    //dbgprintf ( "Running.. saved: %s\n", savename);
-    dbgprintf ( "Running..\n" );
-  #endif
-
-  appPostRedisplay();
-}
 
 void Sample::motion(AppEnum btn, int x, int y, int dx, int dy)
 {
@@ -613,6 +796,9 @@ void Sample::mousewheel(int delta)
   dist -= delta * zoom * zoomamt;
 
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
+
+  m_scaling_2D += (delta > 0) ? 0.5 : -0.5;
+  if (m_scaling_2D < 0.5 ) m_scaling_2D = 0.5;
 }
 
 
@@ -631,18 +817,31 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       write_tiled_json( bpc ); 
       break;
   
-  case 'g':  
-      Restart ();    // false = dynamic init
+  case 'r':  
+      // restart with same seed
+      bpc.finish(-77);
+      Restart ();   
+      break;
+
+   case 'g':  
+      // regenerate with new seed
+      bpc.finish(-77);   // -77 = stopped by user
+      bpc.advance_seed();
+      Restart (); 
+      break;
+
+  case 't':
+      m_draw_tileset = !m_draw_tileset;
       break;
 
   case ',':  
       m_viz--; 
-      if (m_viz < VIZ_DMU) m_viz = VIZ_TILECOUNT;  
+      if (m_viz < 1) m_viz = 4;
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > VIZ_TILECOUNT ) m_viz = VIZ_DMU;  
+      if (m_viz > 4) m_viz = 1;  
       bpc.SetVis ( m_viz );
       break;
 
@@ -660,15 +859,15 @@ void Sample::reshape(int w, int h)
   m_cam->setAspect(float(w) / float(h));
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());  
 
-  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8 );
+  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8, DT_CPU | DT_GLTEX );  
 
   appPostRedisplay();
 }
 
 void Sample::startup()
 {
-  int w = 800, h = 600;
-  appStart("Volume Raycast", "Volume Raycast", w, h, 4, 2, 16, false);
+  int w = 1400, h = 1200;
+  appStart( "BMS / WFC / BP", "Breakout Model Synth", w, h, 4, 2, 16, false);
 }
 
 void Sample::shutdown()

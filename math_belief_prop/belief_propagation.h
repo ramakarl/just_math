@@ -86,14 +86,14 @@
 #define MU_COPY   1
 
 #define VIZ_NONE        0
-#define VIZ_MU          1
-#define VIZ_DMU         2
-#define VIZ_BELIEF      3
-#define VIZ_CONSTRAINT  4
-#define VIZ_TILECOUNT   5
-#define VIZ_ENTROPY     6
-#define VIZ_CHANGE      7
-#define VIZ_RESPICK     8
+#define VIZ_TILES_2D    1
+#define VIZ_TILE0       2       // simple viz. no overhead. visualized resolved tile 0. similar to json output.
+#define VIZ_TILECOUNT   3       // simple viz. no overhead. number of tiles available per cell.
+#define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead.
+#define VIZ_BP_BELIEF   5       // BP only. max belief among available tiles. some overhead.
+#define VIZ_BP_ENTROPY  6       // BP only
+#define VIZ_BP_MU       7       // BP only
+#define VIZ_BP_DMU      8       // BP only
 
 // primary algorithm selector
 #define ALG_BP                  0
@@ -413,6 +413,8 @@ public:
     m_breakout_block_fail_count = 0;
     m_breakout_soften_limit = 10;
 
+    op.viz_opt = VIZ_TILE0;
+
     for (i=0; i<3; i++) {
       for (j=0; j<2; j++) {
         op.sub_block_range[i][j] = 0;
@@ -436,6 +438,7 @@ public:
 
   int       start();
   int       finish( int final_ret );
+  void      advance_seed ( int amt=1 );
 
   int       RealizePre();
   int       RealizeIter();
@@ -544,10 +547,11 @@ public:
   // used for visualization
   //
   void  PrepareVisualization ();
-  void  ComputeDiffMUField ();
-  void  ComputeBeliefField ();
-  int   ComputeTilecountField ();
-
+  
+  void  ComputeTile0Field();
+  void  ComputeBP_BeliefField ();  
+  void  ComputeBP_DiffMUField ();  
+  
 
   int   ComputeCellEntropy();
   int   ComputeBlockEntropy(int32_t reuse_cell_entropy=0);
