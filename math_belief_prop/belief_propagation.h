@@ -87,13 +87,14 @@
 
 #define VIZ_NONE        0
 #define VIZ_TILES_2D    1
-#define VIZ_TILE0       2       // simple viz. no overhead. visualized resolved tile 0. similar to json output.
-#define VIZ_TILECOUNT   3       // simple viz. no overhead. number of tiles available per cell.
-#define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead.
-#define VIZ_BP_BELIEF   5       // BP only. max belief among available tiles. some overhead.
-#define VIZ_BP_ENTROPY  6       // BP only
-#define VIZ_BP_MU       7       // BP only
-#define VIZ_BP_DMU      8       // BP only
+#define VIZ_TILE0       2       // visualized resolved tile 0. similar to json output. no overhead. 
+#define VIZ_TILECOUNT   3       // number of tiles available per cell. no overhead. 
+#define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead (eg. 5%)
+#define VIZ_NOTES       5       // visualize notes. some overhead.
+#define VIZ_BP_BELIEF   6       // BP only. max belief among available tiles. some overhead.
+#define VIZ_BP_ENTROPY  7       // BP only
+#define VIZ_BP_MU       8       // BP only
+#define VIZ_BP_DMU      9       // BP only
 
 // primary algorithm selector
 #define ALG_BP                  0
@@ -549,6 +550,7 @@ public:
   void  PrepareVisualization ();
   
   void  ComputeTile0Field();
+  void  ComputeNoteField ();
   void  ComputeBP_BeliefField ();  
   void  ComputeBP_DiffMUField ();  
   

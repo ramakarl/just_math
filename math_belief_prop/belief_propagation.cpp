@@ -601,6 +601,29 @@ void BeliefPropagation::ComputeTile0Field() {
 
 }
 
+// ComputeNoteField
+// - mark the notes for visualization
+//
+void BeliefPropagation::ComputeNoteField () {
+
+  int64_t note_idx;
+  int64_t vtx;
+
+  if (m_note_n[m_note_plane]==0) return;
+
+  // printf ( "%d\n", m_note_n[ m_note_plane ] );
+
+  ZeroBuf ( BUF_VIZ );
+
+  for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
+
+    vtx = getValL ( BUF_NOTE, note_idx, m_note_plane  );
+
+    SetValF( BUF_VIZ, 1.0, vtx );
+  }
+
+}
+
 
 // ComputeBP_BeliefField
 // - fills BUF_TILES with maxbelief tiles (always)
@@ -878,6 +901,7 @@ void BeliefPropagation::SetVis (int vopt) {
   case VIZ_TILES_2D:         msg = "VIZ_TILES_2D"; break;
   case VIZ_TILE0:            msg = "VIZ_TILE0"; break;
   case VIZ_TILECOUNT:        msg = "VIZ_TILECOUNT"; break;
+  case VIZ_NOTES:            msg = "VIZ_NOTES"; break;
   case VIZ_CONSTRAINT:       msg = "VIZ_CONSTRAINT"; break;
   case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
   case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
@@ -912,6 +936,10 @@ void BeliefPropagation::PrepareVisualization ()
       ComputeTile0Field ();
       CheckConstraints ();
       break;
+  case VIZ_NOTES:
+      // visualize notes
+      ComputeNoteField ();
+      break;  
   case VIZ_BP_BELIEF:
       // find the maximum belief tile for each cell.
       ComputeBP_BeliefField ();
@@ -969,6 +997,11 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // constraints are associated with faces, so max per cell is 6
     c = getValI ( BUF_C, v ) / 6.0f;
     s = Vector4DF( c, c, c, c );
+    break;
+  case VIZ_NOTES:
+    // visualize notes
+    f = getValF ( BUF_VIZ, v );
+    s = Vector4DF(f,f,f,f);
     break;
   case VIZ_BP_BELIEF:    
     // get maxbelief value
@@ -6812,7 +6845,16 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   int resolved = 0;
 
+  // vis prep for notes 
+  if (op.viz_opt == VIZ_NOTES) {
+      PrepareVisualization ();
+  }
+  
+  // cull noted cells tagged as changed
+  //
   while (still_culling) {
+
+    // printf ( "notes: %d\n", m_note_n[ m_note_plane ] );
 
     for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
 
