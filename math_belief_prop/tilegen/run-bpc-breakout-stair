@@ -58,48 +58,25 @@ mkdir -p log
 ######
 ######
 
-name_fn="./example_microtileset/tilename_mu_forest.csv"
-rule_fn="./example_microtileset/tilerule_mu_forest.csv"
-tiled_fn="./example_microtileset/mu_forest_breakout.json"
-tileset_fn="./tileset_mu_forest.png"
-stride=8
+name_fn="./example_tile_collection/stair_name.csv"
+rule_fn="./example_tile_collection/stair_rule.csv"
+stl_fn="./example_tile_collection/stair_breakout.stl"
+objloc_fn="./example_tile_collection/stair_objloc.csv"
 
-echo "running 'mu forest' breakout model synthesis, producing '$tileset_fn'"
+echo "running 'stair' WFC breakout, producing '$stl_fn' (logging to 'log/stair_wfc_breakout.log')"
 
 $bpc_bin \
   -N $name_fn \
   -R $rule_fn \
-  -M $tiled_fn \
-  -Q $tileset_fn \
-  -X 128 -Y 128 -Z 1 \
-  -s 16  \
-  -b 16  \
+  -L $objloc_fn \
+  -M $stl_fn \
+  -X 64 -Y 64 -Z 64 \
+  -b 8  \
   -G -8 \
-  -j '1:' \
-  -J 'd 0' \
-  -I 10000 \
+  -I 100000 \
   -i 10000 \
   -S 1234 \
-  -V 1 > log/mu_forest_breakout.log
-
-exit 0
-
-## gives error loop:
-$bpc_bin \
-  -N $name_fn \
-  -R $rule_fn \
-  -M $tiled_fn \
-  -Q $tileset_fn \
-  -X 128 -Y 128 -Z 1 \
-  -s 16  \
-  -b 8 \
-  -G -8 \
-  -j '1:' \
-  -J 'd 0' \
-  -I 10000 \
-  -i 10000 \
-  -S 1234 \
-  -V 1 > log/mu_forest_breakout.log
+  -V 1 > log/stair_wfc_breakout.log 
 
 ######
 ######

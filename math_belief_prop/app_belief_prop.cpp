@@ -170,9 +170,14 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       case 'R':
         op->rule_fn = optarg;
         break;      
+
+      case 'j':
+        op->admissible_tile_range_cmd = optarg;
+        break;
       case 'J':
         op->constraint_cmd = optarg;
         break;
+
       case 'L':
         op->tileobj_fn = optarg;
         break;

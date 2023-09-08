@@ -60,8 +60,9 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.8.2"
+#define BELIEF_PROPAGATION_VERSION "0.8.3"
 
+#define VB_SUPPRESS     -1
 #define VB_NONE         0
 #define VB_ERROR        0
 #define VB_EXPERIMENT   1
@@ -228,6 +229,7 @@ typedef struct _bp_opt_t {
   int       tiled_reverse_y;
 
   std::string  constraint_cmd;
+  std::string  admissible_tile_range_cmd;
 
   std::vector< int32_t > cull_list;
 
@@ -244,6 +246,7 @@ typedef struct _bp_opt_t {
             block_size[3],
             block_idx[3],
             sub_block_range[3][2];
+  int32_t   block_schedule;
 
   int64_t   step_cb;
   float     state_info_d;
@@ -274,8 +277,6 @@ typedef struct _bp_opt_t {
 
   int       use_lookahead;
 
-  //int64_t   block_size[3];
-  int32_t   block_schedule;
 
   // As a general rule of thumb, the verbosity is:
   //

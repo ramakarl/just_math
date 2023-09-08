@@ -422,22 +422,23 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 }
 
+/*
 void _debug_constraint_op_list( std::vector< constraint_op_t > &constraint_op_list) {
-	int i, j;
-	printf("constraint_op_list: %i\n", (int)constraint_op_list.size());
-	for (i=0; i<(int)constraint_op_list.size(); i++) {
-		printf("  [%i] op:%c [%i]{", (int)i, constraint_op_list[i].op, (int)constraint_op_list[i].dim_range.size());
-		for (j=0; j<constraint_op_list[i].dim_range.size(); j++) {
-			if (j>0) { printf(","); }
-			printf("%i", constraint_op_list[i].dim_range[j]);
-		}
-		printf("} [%i]{", (int)constraint_op_list[i].tile_range.size());
-		for (j=0; j<constraint_op_list[i].tile_range.size(); j++) {
-			if (j>0) { printf(","); }
-			printf("%i", constraint_op_list[i].tile_range[j]);
-		}
-		printf("}\n");
-	}
+  int i, j;
+  printf("constraint_op_list: %i\n", (int)constraint_op_list.size());
+  for (i=0; i<(int)constraint_op_list.size(); i++) {
+    printf("  [%i] op:%c [%i]{", (int)i, constraint_op_list[i].op, (int)constraint_op_list[i].dim_range.size());
+    for (j=0; j<constraint_op_list[i].dim_range.size(); j++) {
+      if (j>0) { printf(","); }
+      printf("%i", constraint_op_list[i].dim_range[j]);
+    }
+    printf("} [%i]{", (int)constraint_op_list[i].tile_range.size());
+    for (j=0; j<constraint_op_list[i].tile_range.size(); j++) {
+      if (j>0) { printf(","); }
+      printf("%i", constraint_op_list[i].tile_range[j]);
+    }
+    printf("}\n");
+  }
 
 }
 
@@ -449,6 +450,7 @@ void _debug_block_admissible_tile_list( std::vector< int32_t > &block_admissible
   }
   printf("\n");
 }
+*/
 
 
 
@@ -561,11 +563,11 @@ int main(int argc, char **argv) {
 
   std::vector< std::vector< int32_t > > constraint_list;
 
-  std::string constraint_commands;
-  std::vector< constraint_op_t > constraint_op_list;
+  //std::string constraint_commands;
+  //std::vector< constraint_op_t > constraint_op_list;
 
-  std::string block_admissible_tile_range;
-  std::vector< int32_t > block_admissible_tile_list;
+  //std::string block_admissible_tile_range;
+  //std::vector< int32_t > block_admissible_tile_list;
 
   std::vector< std::vector< float > > tri_shape_lib;
 
@@ -696,10 +698,12 @@ int main(int argc, char **argv) {
         break;
 
       case 'j':
-        block_admissible_tile_range = optarg;
+        //block_admissible_tile_range = optarg;
+        bpc.op.admissible_tile_range_cmd = optarg;
         break;
       case 'J':
-        constraint_commands = optarg;
+        //constraint_commands = optarg;
+        bpc.op.constraint_cmd = optarg;
         break;
 
       case 'E':
@@ -799,6 +803,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
+  /*
   if (constraint_commands.size() > 0) {
     std::vector< int > dim;
     dim.push_back(X);
@@ -830,6 +835,7 @@ int main(int argc, char **argv) {
 
 
   }
+  */
 
   if (test_num >= 0) {
     run_test(bpc, test_num);
@@ -878,6 +884,27 @@ int main(int argc, char **argv) {
   //------------ NOTE 
   // should replace bpc.start() with bp_restart()
   // to avoid duplicate code in bp_helper
+  //
+
+  ret = bp_restart(bpc);
+  if (ret < 0) {
+    printf("ERROR: bp_restart() failed (%i)\n", ret);
+    if (bpc.op.verbose > 0) {
+      printf("####################### DEBUG PRINT\n" );
+      bpc.debugPrint();
+    }
+    exit(-1);
+  }
+
+  //DEBUG
+  //_debug_constraint_op_list(constraint_op_list);
+  //_debug_block_admissible_tile_list(block_admissible_tile_list);
+  //DEBUG
+
+  //DEBUG
+  bpc.debugPrintTerse();
+
+  /*
 
   ret = bpc.start();
   if (ret < 0) {
@@ -978,6 +1005,7 @@ int main(int argc, char **argv) {
 
   }
 
+  */
 
 
   //----
@@ -999,10 +1027,12 @@ int main(int argc, char **argv) {
 
   for (it=0; it < n_it; it++) {
 
-    ret = bpc.RealizePre();
-    if (ret < 0) {
-      printf("RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
-      break;
+    if (it > 0) {
+      ret = bpc.RealizePre();
+      if (ret < 0) {
+        printf("RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
+        break;
+      }
     }
 
     ret = 1;
