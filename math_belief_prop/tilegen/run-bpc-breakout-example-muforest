@@ -71,16 +71,35 @@ $bpc_bin \
   -R $rule_fn \
   -M $tiled_fn \
   -Q $tileset_fn \
-  -X 64 -Y 64 -Z 1 \
+  -X 128 -Y 128 -Z 1 \
   -s 16  \
-  -b 8 \
-  -G -5 \
+  -b 16  \
+  -G -8 \
   -j '1:' \
   -J 'd 0' \
   -I 10000 \
   -i 10000 \
   -S 1234 \
-  -V 4 > log/mu_forest_breakout.log
+  -V 1 > log/mu_forest_breakout.log
+
+exit 0
+
+## gives error loop:
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -X 128 -Y 128 -Z 1 \
+  -s 16  \
+  -b 8 \
+  -G -8 \
+  -j '1:' \
+  -J 'd 0' \
+  -I 10000 \
+  -i 10000 \
+  -S 1234 \
+  -V 1 > log/mu_forest_breakout.log
 
 ######
 ######
