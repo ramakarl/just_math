@@ -2775,6 +2775,133 @@ int test_breakout_block_entropy(BeliefPropagation &_bp) {
   return 0;
 }
 
+// running into round off issues with dynamic programming solution?
+// investigate here...
+//
+int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
+  int ret;
+  int i;
+  int iter, max_iter=10;
+  std::vector<int32_t> keep_list;
+  BeliefPropagation bp;
+
+  float block_entropy;
+  float f, e_a, e_b;
+
+  //int32_t X = 8, Y = 7, Z = 6;
+  int32_t X = 256 , Y = 256 , Z = 1;
+  int64_t cell;
+
+  int32_t x,y,z,xx,yy,zz;
+  int32_t n_b[3], XYZ[3];
+
+  XYZ[0] = X;
+  XYZ[1] = Y;
+  XYZ[2] = Z;
+
+  bp.op.block_size[0] = 16;
+  bp.op.block_size[1] = 16;
+  bp.op.block_size[2] = 16;
+
+  if (bp.op.block_size[0] < 1) { bp.op.block_size[0] = 1; }
+  if (bp.op.block_size[1] < 1) { bp.op.block_size[1] = 1; }
+  if (bp.op.block_size[2] < 1) { bp.op.block_size[2] = 1; }
+
+  if (bp.op.block_size[0] >= X) { bp.op.block_size[0] = X; }
+  if (bp.op.block_size[1] >= Y) { bp.op.block_size[1] = Y; }
+  if (bp.op.block_size[2] >= Z) { bp.op.block_size[2] = Z; }
+
+  n_b[0] = X - bp.op.block_size[0] + 1;
+  n_b[1] = Y - bp.op.block_size[1] + 1;
+  n_b[2] = Z - bp.op.block_size[2] + 1;
+
+  bp.op.seed = 1234;
+
+  bp.op.verbose = VB_SUPPRESS;
+
+  ret = bp_init_CSV( bp, X,Y,Z, _bp.op.name_fn, _bp.op.rule_fn );
+  if (ret<0) { return ret; }
+
+  //bp.m_rand.seed( bp.op.seed );
+
+  bp.SelectAlgorithm( -8 );
+  ret = bp_restart(bp);
+  if (ret<0) { return ret; }
+
+  //bp.op.verbose = VB_DEBUG;
+
+
+  /*
+  for (z=0; z<bp.m_res.z; z++) {
+    for (y=0; y<bp.m_res.y; y++) {
+      for (x=0; x<bp.m_res.x; x++) {
+        cell = bp.getVertex(x,y,z);
+        bp.SetValF( BUF_CELL_ENTROPY, bp.m_rand.randF(), cell );
+      }
+    }
+  }
+  */
+
+  // option to re-use BUF_CELL_ENTROPY instead of recalculating it
+  //
+  bp.ComputeBlockEntropy(0);
+  bp.pickMaxEntropyNoiseBlock();
+
+  printf("picking block: [%i+%i,%i+%i,%i+%i]\n",
+      bp.op.sub_block[0], bp.op.block_size[0],
+      bp.op.sub_block[1], bp.op.block_size[1],
+      bp.op.sub_block[2], bp.op.block_size[2]);
+
+
+
+  //bp.debugPrintCellEntropy();
+  //bp.debugPrintBlockEntropy();
+
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
+
+        f = bp.getValF( BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z));
+
+        printf("%i %i %4.16f\n", x,y, f);
+        if (f > (1.0/(1024.0*1024.0))) {
+          printf("## %i %i %4.16f\n", x,y, log(f) / log(2.0));
+        }
+
+      }
+    }
+  }
+
+  return 0;
+
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
+
+        e_a = bp.getValF( BUF_BLOCK_ENTROPY, bp.getVertex(x,y,z) );
+
+        for (zz=0; zz<n_b[2]; zz++) {
+          for (yy=0; yy<n_b[1]; yy++) {
+            for (xx=0; xx<n_b[0]; xx++) {
+
+              e_b = bp.getValF( BUF_BLOCK_ENTROPY, bp.getVertex(xx,yy,zz) );
+
+              printf("## | [%i,%i,%i](%f) - [%i,%i,%i](%f) |: %f\n%4.10f 1\n",
+                  (int)x, (int)y, (int)z, (float)e_a,
+                  (int)xx, (int)yy, (int)zz, (float)e_b,
+                  fabs(e_a-e_b), fabs(e_a-e_b) );
+
+            }
+          }
+        }
+
+      }
+    }
+  }
+
+  return 0;
+}
+
 int test_breakout_cell_entropy(BeliefPropagation &_bp) {
   int ret;
   int i;
@@ -2791,6 +2918,8 @@ int test_breakout_cell_entropy(BeliefPropagation &_bp) {
   int32_t n_b[3];
 
   float _eps = (1.0/(1024.0));
+
+  bp.op.seed = 1234;
 
   bp.op.block_size[0] = 3;
   bp.op.block_size[1] = 3;
@@ -2967,6 +3096,10 @@ int run_test(BeliefPropagation &bp, int test_num) {
 
     case 34:
       ret = test_breakout_cell_entropy(bp);
+      break;
+
+    case 35:
+      ret = test_breakout_block_entropy_debug(bp);
       break;
 
     default:

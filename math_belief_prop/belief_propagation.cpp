@@ -3889,7 +3889,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   n_b[1] = m_res.y - op.block_size[1]+1;
   n_b[2] = m_res.z - op.block_size[2]+1;
 
-  printf(">>> n_b[%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+  if (op.verbose >= VB_DEBUG) {
+    printf("## pickMaxEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+  }
 
   ComputeBlockEntropy();
 
@@ -3901,7 +3903,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
         if ((max_entropy < 0.0) ||
-            ( (cur_entropy - max_entropy) > op.eps_zero )) {
+            ( (cur_entropy - max_entropy) > -op.eps_zero )) {
 
           // if we have a choice between blocks of equal entropy,
           // choose one from the list at random.
@@ -4229,33 +4231,21 @@ int BeliefPropagation::RealizePre(void) {
       op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
 
       if (op.verbose >= VB_INTRASTEP) {
-        printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
+        printf("realizepre-block_rand-pos: choosing block [%i+%i,%i+%i,%i+%i]\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
             (int)op.sub_block[2], (int)op.block_size[2]);
       }
 
-      //DEBUG
-      //
-      printf("## breakout-realizepre: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
-            (int)op.sub_block[0], (int)op.block_size[0],
-            (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2]);
-      //
-      //DEBUG
-
-
     }
     else {
 
-      //DEBUG
-      //
-      printf("## breakout-realizepre: keeping block ([%i+%i][%i+%i][%i+%i])\n",
-            (int)op.sub_block[0], (int)op.block_size[0],
-            (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2]);
-      //
-      //DEBUG
+      if (op.verbose >= VB_INTRASTEP) {
+        printf("realizepre-block_rand-pos: keeping block([%i+%i][%i+%i][%i+%i])\n",
+              (int)op.sub_block[0], (int)op.block_size[0],
+              (int)op.sub_block[1], (int)op.block_size[1],
+              (int)op.sub_block[2], (int)op.block_size[2]);
+      }
 
     }
 
@@ -4277,7 +4267,7 @@ int BeliefPropagation::RealizePre(void) {
     op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
 
     if (op.verbose >= VB_INTRASTEP) {
-      printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
+      printf("realizepre-block_rand-pos-size: choosing [%i+%i,%i+%i,%i+%i]\n",
           (int)op.sub_block[0], (int)op.block_size[0],
           (int)op.sub_block[1], (int)op.block_size[1],
           (int)op.sub_block[2], (int)op.block_size[2]);
@@ -4320,8 +4310,6 @@ int BeliefPropagation::RealizePre(void) {
 
   else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
            (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
-    //WIP
-    //EXPERIMENTAL
 
     // choose block with minimum (average) entropy (?)
     //
@@ -4336,14 +4324,12 @@ int BeliefPropagation::RealizePre(void) {
 
     pickEntropyNoiseBlock();
 
-    //DEBUG
-    //
-    printf("## realizepre-block_min_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    //
-    //DEBUG
+    if (op.verbose >= VB_INTRASTEP) {
+      printf("realizepre-block_min_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
+            (int)op.sub_block[0], (int)op.block_size[0],
+            (int)op.sub_block[1], (int)op.block_size[1],
+            (int)op.sub_block[2], (int)op.block_size[2]);
+    }
 
   }
 
@@ -4351,14 +4337,12 @@ int BeliefPropagation::RealizePre(void) {
 
     pickMaxEntropyNoiseBlock();
 
-    //DEBUG
-    //
-    printf("## realizepre-block_max_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    //
-    //DEBUG
+    if (op.verbose >= VB_INTRASTEP) {
+      printf("realizepre-block_max_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
+            (int)op.sub_block[0], (int)op.block_size[0],
+            (int)op.sub_block[1], (int)op.block_size[1],
+            (int)op.sub_block[2], (int)op.block_size[2]);
+    }
 
   }
 
@@ -4425,7 +4409,7 @@ int BeliefPropagation::RealizePre(void) {
   case ALG_RUN_BREAKOUT:
 
     if (op.verbose >= VB_INTRASTEP) {
-      printf("BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
+      printf("realizepre: BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
           (int)op.sub_block[0], (int)op.block_size[0],
           (int)op.sub_block[1], (int)op.block_size[1],
           (int)op.sub_block[2], (int)op.block_size[2]);
@@ -4567,7 +4551,9 @@ int BeliefPropagation::RealizePre(void) {
     ret = CullBoundary();
     if (ret < 0) {
 
-      fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
+      if (op.verbose > VB_SUPPRESS) {
+        fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
+      }
       break;
     }
 
@@ -6136,9 +6122,9 @@ void BeliefPropagation::debugPrintBlockEntropy() {
   int32_t x,y,z;
   int32_t n_b[3];
 
-  n_b[0] = m_res.x - op.block_size[0];
-  n_b[1] = m_res.y - op.block_size[1];
-  n_b[2] = m_res.z - op.block_size[2];
+  n_b[0] = m_res.x - op.block_size[0] + 1;
+  n_b[1] = m_res.y - op.block_size[1] + 1;
+  n_b[2] = m_res.z - op.block_size[2] + 1;
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
