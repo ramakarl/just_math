@@ -3210,6 +3210,8 @@ void BeliefPropagation::reset () {
 
 void BeliefPropagation::init_dir_desc() {
 
+  m_dir_desc.clear();
+
   m_dir_desc.push_back("+1:0:0");
   m_dir_desc.push_back("-1:0:0");
   m_dir_desc.push_back("0:+1:0");
@@ -3219,12 +3221,10 @@ void BeliefPropagation::init_dir_desc() {
 
 }
 
-int BeliefPropagation::init(
-
-  int Rx, int Ry, int Rz,
-  std::vector< std::string  >           tile_name_list,
-  std::vector< float >                  tile_weight_list,
-  std::vector< std::vector < float > >  tile_rule_list ) {
+int BeliefPropagation::init( int Rx, int Ry, int Rz,
+                             std::vector< std::string  >           tile_name_list,
+                             std::vector< float >                  tile_weight_list,
+                             std::vector< std::vector < float > >  tile_rule_list ) {
 
   int i, ret=0,
       b, maxb=-1;
@@ -3402,26 +3402,6 @@ int BeliefPropagation::init_SVD(void) {
         SetValF( BUF_SVD_Vt, r, c, idir, S(r,0)*V(c,r));
       }
     }
-
-    // CHECK
-    /*
-    for (r=0; r<m_num_values; r++) {
-      for (c=0; c<m_num_values; c++) {
-        s = 0.0;
-        for (k=0; k<m_num_values; k++) {
-          s += getValF( BUF_SVD_U, r, k, idir ) * getValF( BUF_SVD_Vt, k, c, idir );
-        }
-
-        printf("[%i,%i,%i]: %f %f (%f) %c\n",
-            r,c, idir,
-            getValF( BUF_F, r, c, idir ),
-            s,
-            abs(getValF( BUF_F, r, c, idir ) - s),
-            (abs(getValF( BUF_F, r, c, idir ) - s) < _eps) ? ' ' : '!');
-
-      }
-    }
-    */
 
   }
 
@@ -4312,7 +4292,7 @@ int BeliefPropagation::RealizePre(void) {
       }
 
       if (op.verbose >= VB_STEP) {
-        printf("RealizePre: choosing new block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
+        printf("RealizePre : choosing new block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
             (int)op.sub_block[2], (int)op.block_size[2],
@@ -4324,7 +4304,7 @@ int BeliefPropagation::RealizePre(void) {
     else {
 
       if (op.verbose >= VB_STEP) {
-        printf("RealizePre: keeping block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
+        printf("RealizePre : keeping block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
             (int)op.sub_block[2], (int)op.block_size[2],
@@ -4842,8 +4822,6 @@ int BeliefPropagation::RealizePost(void) {
 
       if (m_return == 0) {
 
-        m_block_fail_count=0;
-
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
@@ -4852,6 +4830,8 @@ int BeliefPropagation::RealizePost(void) {
               (int)m_block_fail_count,
               (int)m_block_retry_limit);
         }
+
+        m_block_fail_count=0;
 
       }
 
@@ -5009,10 +4989,12 @@ int BeliefPropagation::RealizePost(void) {
       if (m_return < 0) {
 
         if (op.verbose >= VB_STEP) {
-          printf("RealizePost: MMS restore ([%i+%i][%i+%i][%i+%i] (MMS block fail)\n",
+          printf("RealizePost: MMS restore ([%i+%i][%i+%i][%i+%i] (MMS block fail) (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
-              (int)op.sub_block[2], (int)op.block_size[2]);
+              (int)op.sub_block[2], (int)op.block_size[2],
+              (int)m_block_fail_count,
+              (int)m_block_retry_limit);
         }
 
         // restore block
@@ -5059,19 +5041,16 @@ int BeliefPropagation::RealizePost(void) {
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2]);
         }
-        
 
+        m_block_fail_count=0;
       }
 
       // we're taking control away from the code at the bottom
       // since we're not resolving a single cell/tile now,
       // so we need to do some housekeeping ourselves.
       //
-
       op.cur_iter++;
-
       ret = 1;
-
       break;
 
     case ALG_CELL_ANY:
@@ -5361,6 +5340,7 @@ int BeliefPropagation::RealizeStep(void) {
       if (_ret < 0) {
         ret = -3;
         m_return = ret;
+        m_block_fail_count++;
       }
 
     }
@@ -6016,6 +5996,10 @@ void BeliefPropagation::debugPrintTerse() {
   printf("bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
   printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
   printf("stat_enabled: %i\n", (int) st.enabled);
+  printf("op{max_step:%i, block_retry_limit:%i, noise_coefficient:%f}\n",
+      (int)op.max_step,
+      (int)m_block_retry_limit,
+      (float)op.noise_coefficient);
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i < m_tile_name.size(); i++) {
