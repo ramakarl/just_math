@@ -472,7 +472,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
   fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
-  fprintf(fp, "  -j <range> set range of admissible tiles for block wfc\n");
+  fprintf(fp, "  -j <range> set range of admissible tiles for block algorithms\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
@@ -491,14 +491,14 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "    -1     'wave function collapse'\n");
-  fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
-  fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
-  fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
+  fprintf(fp, "    -2     Merrell's model syntehsis (sequencial)\n");
+  fprintf(fp, "    -3     Merrell's model synthesis (random)\n");
+  fprintf(fp, "    -4     Merrell's model synthesis (random block size)\n");
   fprintf(fp, "    -5     breakout model synthesis\n");
   fprintf(fp, "    -6     breakout model synthesis, min entorpy block choice\n");
   fprintf(fp, "    -7     breakout model synthesis, min entropy block + noise choice\n");
   fprintf(fp, "    -8     breakout model synthesis, max entropy block + noise choice\n");
-  fprintf(fp, "  -b <#>   block size (for use in block wfc and breakout, default 8x8x8, clamped to dimension)\n");
+  fprintf(fp, "  -b <#>   block size (for use in MMS and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -904,110 +904,6 @@ int main(int argc, char **argv) {
   //DEBUG
   bpc.debugPrintTerse();
 
-  /*
-
-  ret = bpc.start();
-  if (ret < 0) {
-    printf("ERROR: bpc.start() failed (%i)\n", ret);
-
-    if (bpc.op.verbose > 0) {
-      printf("####################### DEBUG PRINT\n" );
-      bpc.debugPrint();
-    }
-
-    exit(-1);
-  }
-
-  //DEBUG
-  _debug_constraint_op_list(constraint_op_list);
-  _debug_block_admissible_tile_list(block_admissible_tile_list);
-  //DEBUG
-
-  // updating constrints has to happen after start()
-  //
-  if (constraint_op_list.size() > 0) {
-    ret = constrain_bp( bpc, constraint_op_list);
-    if (ret < 0) {
-      fprintf(stderr, "constrain_bp failure\n");
-      exit(-1);
-    }
-  }
-
-
-  if (bpc.op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
-
-    for (cell=0; cell<bpc.m_num_verts; cell++) {
-
-      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
-
-      // for block wfc to work, we assume 'ground state'
-      // of configuration is chosen, so return an
-      // error here if that assumption is invalid.
-      //
-      if (n_idx != 1) {
-        fprintf(stderr, "block wfc requires valid ground state\n");
-        exit(-1);
-      }
-
-    }
-
-    // Allow only certain tiles when fuzzing block
-    //
-    if (block_admissible_tile_list.size() > 0) {
-      bpc.m_block_admissible_tile = block_admissible_tile_list;
-    }
-
-    if (bpc.op.verbose >= VB_RUN) {
-      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
-      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
-        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
-      }
-      printf("\n");
-    }
-
-  }
-
-  else if (bpc.op.alg_run_opt == ALG_RUN_BREAKOUT) {
-
-    // Save "prefatory" state.
-    // We assume initial constraints have been propagated, including
-    // boundary condition constraints and any user specified constraints.
-    // The prefatory state will be used in the "soften" stage, should a block
-    // choice fail, the prefatory state will be used to fill in the failed
-    // block and its neighbors.
-    //
-    for (cell=0; cell<bpc.m_num_verts; cell++) {
-
-      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
-      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, n_idx, cell );
-
-      for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
-        tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
-        bpc.SetValI( BUF_PREFATORY_TILE_IDX, tile, tile_idx, cell );
-      }
-
-    }
-
-    // Allow only certain tiles when fuzzing blocks.
-    // Maybe not needed for breakout?
-    //
-    if (block_admissible_tile_list.size() > 0) {
-      bpc.m_block_admissible_tile = block_admissible_tile_list;
-    }
-
-    if (bpc.op.verbose >= VB_RUN) {
-      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
-      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
-        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
-      }
-      printf("\n");
-    }
-
-  }
-
-  */
-
-
   //----
   //----
   //----
@@ -1044,11 +940,11 @@ int main(int argc, char **argv) {
     if (ret <= 0) { break; }
 
     if (bpc.m_return == 0) {
-      printf("success!\n");
+      //printf("success!\n");
       //bpc.debugPrintTerse();
     }
     else {
-      printf("FAIL\n");
+      //printf("FAIL\n");
       //bpc.debugPrintTerse();
     }
 

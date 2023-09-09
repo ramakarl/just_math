@@ -2520,7 +2520,7 @@ int test_wfc0(BeliefPropagation &_bp, int x, int y, int z) {
 }
 
 
-int test_block_wfc(BeliefPropagation &_bp) {
+int test_mms(BeliefPropagation &_bp) {
   BeliefPropagation bp;
   int x=4,y=4, z=4;
   int64_t cell=0, idx=0, count=0;
@@ -2532,8 +2532,8 @@ int test_block_wfc(BeliefPropagation &_bp) {
   err_code--;
 
   bp.op.alg_accel         = ALG_ACCEL_NONE;
-  bp.op.alg_run_opt       = ALG_RUN_BLOCK_WFC;
-  bp.op.alg_cell_opt      = ALG_CELL_BLOCK_WFC;
+  bp.op.alg_run_opt       = ALG_RUN_MMS;
+  bp.op.alg_cell_opt      = ALG_CELL_MMS;
   bp.op.block_schedule    = OPT_BLOCK_SEQUENTIAL;
 
   ret = bp.start();
@@ -2565,7 +2565,7 @@ int test_block_wfc(BeliefPropagation &_bp) {
   err_code--;
 
 
-  printf("ok block_wfc\n");
+  printf("ok mms\n");
 
 
   return 0;
@@ -2847,6 +2847,8 @@ int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
   bp.ComputeBlockEntropy(0);
   bp.pickMaxEntropyNoiseBlock();
 
+  bp.debugPrintCellEntropy();
+
   printf("picking block: [%i+%i,%i+%i,%i+%i]\n",
       bp.op.sub_block[0], bp.op.block_size[0],
       bp.op.sub_block[1], bp.op.block_size[1],
@@ -3087,7 +3089,7 @@ int run_test(BeliefPropagation &bp, int test_num) {
       break;
 
     case 32:
-      ret = test_block_wfc(bp);
+      ret = test_mms(bp);
       break;
 
     case 33:

@@ -74,7 +74,7 @@ void _debug_block_admissible_tile_list( std::vector< int32_t > &block_admissible
 // * call `start`
 // * constrain the bpc instance
 // * do algorithmic specific setup
-//   - modify in place model synth (block wfc): check ground state valid
+//   - Merrell's model synthesis (aka, modify in place model synth, aka block wfc): check ground state valid
 //   - breakout modely synth: construct prefatory state
 // * call `RealizePre`
 //
@@ -144,7 +144,7 @@ int bp_restart ( BeliefPropagation& bpc ) {
 
   // preprocessing
   //
-  if ( op->alg_run_opt == ALG_RUN_BLOCK_WFC ) {
+  if ( op->alg_run_opt == ALG_RUN_MMS ) {
     ret = bp_check_groundstate ( bpc );
     if (ret < 0) { return ret; }
   }
@@ -237,13 +237,13 @@ int bp_check_groundstate ( BeliefPropagation& bpc ) {
 
     n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
 
-    // for block wfc to work, we assume 'ground state'
+    // for MMS to work, we assume 'ground state'
     // of configuration is chosen, so return an
     // error here if that assumption is invalid.
     //
     if (n_idx != 1) {
       if (bpc.op.verbose > VB_SUPPRESS) {
-        fprintf(stderr, "ERROR: block wfc requires valid ground state\n");
+        fprintf(stderr, "ERROR: MMS requires valid ground state\n");
       }
       return -1;
     }
@@ -253,8 +253,8 @@ int bp_check_groundstate ( BeliefPropagation& bpc ) {
 }
 
 // Parse the range DSL string into usable tile values for the admissible tile value list.
-// The admissible tile list is used for the modify in place model synthesis (aka block wfc)
-// and for breakout model synthesis when 'fuzzing' blocks.
+// The admissible tile list is used for Merrell's model synthesis (aka modify in place model
+// synthesis, aka block wfc) and for breakout model synthesis when 'fuzzing' blocks.
 //
 // return:
 // 0  - success
