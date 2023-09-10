@@ -142,6 +142,15 @@ int bp_restart ( BeliefPropagation& bpc ) {
     bpc.m_block_admissible_tile = block_admissible_tile_list;
   }
 
+  if (bpc.op.verbose >= VB_RUN) {
+    printf("block_admissible_tile[%i]:", (int) block_admissible_tile_list.size());
+    for (int idx=0; idx < block_admissible_tile_list.size(); idx++) {
+      printf(" %i", (int) block_admissible_tile_list[idx]);
+    }
+    printf("\n");
+  }
+
+
   // preprocessing
   //
   if ( op->alg_run_opt == ALG_RUN_MMS ) {
@@ -295,14 +304,15 @@ int bp_parse_admissable ( BeliefPropagation& bpc,
         block_admissible_tile_list.push_back(tile);
       }
     }
-  }
 
-  if (bpc.op.verbose >= VB_RUN) {
-    printf("done. block_admissible_tile[%i]:", (int) block_admissible_tile_list.size());
-    for (int idx=0; idx < block_admissible_tile_list.size(); idx++) {
-      printf(" %i", (int) block_admissible_tile_list[idx]);
-    }
-    printf("\n");
+//    if (bpc.op.verbose >= VB_RUN) {
+//      printf("done. block_admissible_tile[%i]:", (int) block_admissible_tile_list.size());
+//      for (int idx=0; idx < block_admissible_tile_list.size(); idx++) {
+//        printf(" %i", (int) block_admissible_tile_list[idx]);
+//      }
+//      printf("\n");
+//    }
+
   }
 
   return 1;
