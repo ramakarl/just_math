@@ -735,12 +735,12 @@
 
 	double TimeX::GetSec ()
 	{
-		return ((double) m_CurrTime / (double) SEC_SCALAR );
+		return (double) (m_CurrTime / SEC_SCALAR);
 	}
 
 	double TimeX::GetMSec ()
 	{
-		return ((double) m_CurrTime / (double) MSEC_SCALAR );
+		return (double) (m_CurrTime / MSEC_SCALAR);
 
 		//int s, ms, ns;
 		//GetTime ( s, ms, ns );

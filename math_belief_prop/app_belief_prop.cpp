@@ -12,6 +12,7 @@
 // raytraced as a density volume where value probabilities are mapped to color.
 //
 
+
 //--------------------------------------------------------------------------------
 // Copyright 2019-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
 //
@@ -42,6 +43,8 @@
 
 #include "belief_propagation.h"
 #include "bp_helper.h"
+
+#define DEBUG_GL        false
 
 // #define USE_PERF       // explicit perf instrumentation (uncomment to opt in)
 
@@ -364,7 +367,7 @@ void Sample::Restart ()
     bp_restart ( bpc ); 
 
     // make sure we're running
-    m_run = true;
+    m_run = false;
 }
 
 
@@ -553,7 +556,7 @@ bool Sample::init()
   bpc.SetVis ( m_viz );
 
   // start running
-  m_run = true;
+  m_run = false;
 
   return true;
 }
@@ -620,8 +623,10 @@ void Sample::DrawTileMap ()
             // get voxel value (2D) containing tile ID
             val = getVoxel4 ( BUF_VOL, x, y, 0 );   
             tile = val.x - 1;
-            alpha = 1.0 / sqrt(val.w);      // uncertainty = tile count per cell
-            drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );            
+            if ( tile >= 0 && tile < m_tile_imgs.size() ) {
+                alpha = 1.0 / sqrt(val.w);      // uncertainty = tile count per cell
+                drawImg ( m_tile_imgs[ tile ]->getGLID(), x*tw, y*th, (x+1)*tw, (y+1)*th, 1,1,1, alpha );            
+            }
         }
     }
     
@@ -709,7 +714,7 @@ void Sample::display()
   //--------- Visualization
 
   // render cadence every 5 steps for perf
-  if ( bpc.getStep() % 20 == 0) { 
+  if ( bpc.getStep() % 5 == 0) { 
 
       PERF_PUSH ("Render");
 
@@ -771,13 +776,15 @@ void Sample::display()
 
       // Complete rendering
       draw2D();
-      draw3D();
+      //draw3D();
 
       PERF_POP();
   }
 
   appPostRedisplay();
 }
+
+
 
 // optional write to disk
   /* if ( m_save ) {
@@ -835,8 +842,8 @@ void Sample::mousewheel(int delta)
 
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
 
-  m_scaling_2D += (delta > 0) ? 0.25 : -0.25;
-  if (m_scaling_2D < 0.25 ) m_scaling_2D = 0.25;
+  m_scaling_2D += (delta > 0) ? 0.1 : -0.1;
+  if (m_scaling_2D < 0.1 ) m_scaling_2D = 0.1;
 }
 
 
@@ -905,7 +912,7 @@ void Sample::reshape(int w, int h)
 void Sample::startup()
 {
   int w = 1400, h = 1300;
-  appStart( "BMS / WFC / BP", "Breakout Model Synth", w, h, 4, 2, 16, false);
+  appStart( "BMS / WFC / BP", "Breakout Model Synth", w, h, 4, 2, 16, DEBUG_GL);
 }
 
 void Sample::shutdown()
