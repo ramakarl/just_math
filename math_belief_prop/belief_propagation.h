@@ -60,7 +60,7 @@
 #include <vector>
 #include <string>
 
-#define BELIEF_PROPAGATION_VERSION "0.8.3"
+#define BELIEF_PROPAGATION_VERSION "0.8.4"
 
 #define VB_SUPPRESS     -1
 #define VB_NONE         0
@@ -76,12 +76,16 @@
 #define OPT_FH
 #define OPT_MUBOUND
 
+#define OPT_BLOCK_NONE                -1
 #define OPT_BLOCK_RANDOM_POS          0
 #define OPT_BLOCK_RANDOM_POS_SIZE     1
 #define OPT_BLOCK_SEQUENTIAL          2
 #define OPT_BLOCK_MIN_ENTROPY         3
 #define OPT_BLOCK_NOISY_MIN_ENTROPY   4
 #define OPT_BLOCK_NOISY_MAX_ENTROPY   5
+
+#define OPT_NOISE_FUNC_UNIFORM        0
+#define OPT_NOISE_FUNC_POWER_LAW      1
 
 #define MU_NOCOPY 0
 #define MU_COPY   1
@@ -103,9 +107,9 @@
 #define ALG_BP_MIN_WAVE         2
 #define ALG_BP_MIN_RESIDUAL     3
 #define ALG_WFC                 -1
-#define ALG_WFC_BLOCK_SEQ       -2
-#define ALG_WFC_BLOCK_RAND1     -3
-#define ALG_WFC_BLOCK_RAND2     -4
+#define ALG_MMS_SEQ             -2
+#define ALG_MMS_RAND1           -3
+#define ALG_MMS_RAND2           -4
 #define ALG_BMS                 -5
 #define ALG_BMS_MIN             -6
 #define ALG_BMS_MIN_NOISE       -7
@@ -113,7 +117,7 @@
 
 // algorithm settings
 #define ALG_CELL_WFC            31
-#define ALG_CELL_BLOCK_WFC      32
+#define ALG_CELL_MMS            32 // Merrell's Model Synthesis, aka 'block wfc', aka Modify in Place Model Synthesis
 #define ALG_CELL_ANY            33
 #define ALG_CELL_MIN_ENTROPY    34
 #define ALG_CELL_BREAKOUT       35
@@ -123,7 +127,7 @@
 #define ALG_RUN_VANILLA         37
 #define ALG_RUN_RESIDUAL        38
 #define ALG_RUN_WFC             39
-#define ALG_RUN_BLOCK_WFC       40
+#define ALG_RUN_MMS             40
 #define ALG_RUN_BACKTRACK       41
 #define ALG_RUN_BREAKOUT        42
 
@@ -181,7 +185,7 @@
 #define BUF_BT                    22    // backtrack list,      val list, interleaved cell/tile val - backtrack wfc     // <2*B*num_vert, 1, 1>
 #define BUF_BT_IDX                23    // backtrack stack ptr, val list, index pointer into BUF_BT - backtrack wfc     // <B*num_vert, 1, 1>
 
-#define BUF_BLOCK                 24    // saved block tile,    1x int,   all verts (?) - block wfc                     // <num_vert, 1, 1>
+#define BUF_BLOCK                 24    // saved block tile,    1x int,   all verts (?) - MMS                           // <num_vert, 1, 1>
 
 //--
 //
@@ -277,6 +281,9 @@ typedef struct _bp_opt_t {
 
   int       use_lookahead;
 
+
+  float     noise_coefficient;
+  int32_t   noise_func;
 
   // As a general rule of thumb, the verbosity is:
   //
@@ -413,8 +420,14 @@ public:
     op.block_idx[1] = 0;
     op.block_idx[2] = 0;
 
-    m_breakout_block_fail_count = 0;
-    m_breakout_soften_limit = 10;
+    op.noise_coefficient = 0.0;
+    op.noise_func = OPT_NOISE_FUNC_UNIFORM;
+
+    //m_breakout_block_fail_count = 0;
+    //m_breakout_soften_limit = 10;
+
+    m_block_fail_count = 0;
+    m_block_retry_limit = 10;
 
     op.viz_opt = VIZ_TILE0;
 
@@ -590,8 +603,9 @@ public:
   // number of fixed tiles (only 1 tile in cell)
   //
   int64_t numFixed();
-  int pickEntropyNoiseBlock(void);
+  int pickMinEntropyNoiseBlock(void);
   int pickMaxEntropyNoiseBlock(void);
+  float pickNoiseFunc(void);
 
   //----------------------- visualization
 
@@ -714,8 +728,11 @@ public:
 
   // unused right now...
   //
-  int64_t       m_breakout_block_fail_count,
-                m_breakout_soften_limit;
+  //int64_t       m_breakout_block_fail_count,
+  //              m_breakout_soften_limit;
+
+  int64_t       m_block_fail_count,
+                m_block_retry_limit;
 
   // parameters/options
   //

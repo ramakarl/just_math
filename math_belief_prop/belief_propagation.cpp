@@ -125,7 +125,6 @@ int BeliefPropagation::default_opts () {
   //
   op.max_iter = 0;
 
-
   // steps
   //
   op.cur_step = 0;
@@ -160,99 +159,93 @@ int BeliefPropagation::default_opts () {
   op.tileset_height = 0;
   op.tiled_reverse_y = 0;
 
-  //op.block_size[0] = 8;
-  //op.block_size[1] = 8;
-  //op.block_size[2] = 8;
-
-  //op.block_schedule = 0;
-  //op.block_schedule = OPT_BLOCK_RANDOM_POS;
-  op.block_schedule = OPT_BLOCK_SEQUENTIAL;
+  op.block_schedule = OPT_BLOCK_NONE;
 
   return 0;
 }
 
-void BeliefPropagation::SelectAlgorithm ( int alg_idx )
-{
-    op.alg_idx = alg_idx;
-    switch (alg_idx) {
-    case ALG_BP:                                // BP
-        op.alg_cell_opt = ALG_CELL_ANY;
-        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-        op.alg_run_opt  = ALG_RUN_VANILLA;
-        break;
-    case ALG_WFC:                               // WFC        
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_WFC;
-        op.alg_cell_opt = ALG_CELL_WFC;
-        break;
-    case ALG_WFC_BLOCK_SEQ:                     // WFC_BLOCK_SEQ
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-        op.block_schedule = OPT_BLOCK_SEQUENTIAL;
-        break;
-    case ALG_WFC_BLOCK_RAND1:                   // WFC_BLOCK_RAND1
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-        op.block_schedule = OPT_BLOCK_RANDOM_POS;
-        break;
-    case ALG_WFC_BLOCK_RAND2:                   // WFC_BLOCK_RAND2
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BLOCK_WFC;
-        op.alg_cell_opt = ALG_CELL_BLOCK_WFC;
-        op.block_schedule = OPT_BLOCK_RANDOM_POS_SIZE;
-        break;
+void BeliefPropagation::SelectAlgorithm ( int alg_idx ) {
+  op.alg_idx = alg_idx;
 
-    case ALG_BMS:                               // BMS, Breakout Model Synth
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BREAKOUT;
-        op.alg_cell_opt = ALG_CELL_BREAKOUT;
-        op.block_schedule = OPT_BLOCK_RANDOM_POS;
-        break;
+  switch (alg_idx) {
+  case ALG_BP:                                // BP
+    op.alg_cell_opt = ALG_CELL_ANY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt  = ALG_RUN_VANILLA;
+    break;
+  case ALG_WFC:                               // WFC        
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_WFC;
+    op.alg_cell_opt = ALG_CELL_WFC;
+    break;
+  case ALG_MMS_SEQ:                           // MMS_SEQ
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_MMS;
+    op.alg_cell_opt = ALG_CELL_MMS;
+    op.block_schedule = OPT_BLOCK_SEQUENTIAL;
+    break;
+  case ALG_MMS_RAND1:                         // MMS_RAND1
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_MMS;
+    op.alg_cell_opt = ALG_CELL_MMS;
+    op.block_schedule = OPT_BLOCK_RANDOM_POS;
+    break;
+  case ALG_MMS_RAND2:                         // MMS_RAND2
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_MMS;
+    op.alg_cell_opt = ALG_CELL_MMS;
+    op.block_schedule = OPT_BLOCK_RANDOM_POS_SIZE;
+    break;
 
-    case ALG_BMS_MIN:                           // BMS, Breakout Model Synth, min block entropy
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BREAKOUT;
-        op.alg_cell_opt = ALG_CELL_BREAKOUT;
-        op.block_schedule = OPT_BLOCK_MIN_ENTROPY;
-        break;
-    case ALG_BMS_MIN_NOISE:                     // BMS, Breakout Model Synth, min block entropy + noise
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BREAKOUT;
-        op.alg_cell_opt = ALG_CELL_BREAKOUT;
-        op.block_schedule = OPT_BLOCK_NOISY_MIN_ENTROPY;
-        break;
+  case ALG_BMS:                               // BMS, Breakout Model Synth
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    op.alg_cell_opt = ALG_CELL_BREAKOUT;
+    op.block_schedule = OPT_BLOCK_RANDOM_POS;
+    break;
 
-    case ALG_BMS_MAX_NOISE:                     // BMS, Breakout Model Synth, max block entropy + noise
-        op.alg_accel    = ALG_ACCEL_NONE;
-        op.alg_run_opt  = ALG_RUN_BREAKOUT;
-        op.alg_cell_opt = ALG_CELL_BREAKOUT;
-        op.block_schedule = OPT_BLOCK_NOISY_MAX_ENTROPY;
-        break;
+  case ALG_BMS_MIN:                           // BMS, Breakout Model Synth, min block entropy
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    op.alg_cell_opt = ALG_CELL_BREAKOUT;
+    op.block_schedule = OPT_BLOCK_MIN_ENTROPY;
+    break;
+  case ALG_BMS_MIN_NOISE:                     // BMS, Breakout Model Synth, min block entropy + noise
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    op.alg_cell_opt = ALG_CELL_BREAKOUT;
+    op.block_schedule = OPT_BLOCK_NOISY_MIN_ENTROPY;
+    break;
 
-    case ALG_BP_MIN:                            // BP, Min Entropy
-        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-        op.alg_run_opt  = ALG_RUN_VANILLA;
-        break;
-    case ALG_BP_MIN_WAVE:                       // BP, Min Entropy, Wavefront
-        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-        op.alg_run_opt  = ALG_RUN_VANILLA;
-        op.alg_accel    = ALG_ACCEL_WAVE;
-        break;
-    case ALG_BP_MIN_RESIDUAL:                   // BP, Min Entropy, Residual
-        op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
-        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-        op.alg_run_opt  = ALG_RUN_RESIDUAL;
-        break;
-    default:        // unspecified, BP default
-        op.alg_cell_opt = ALG_CELL_ANY;
-        op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
-        op.alg_run_opt  = ALG_RUN_VANILLA;
-        break;
-    };
+  case ALG_BMS_MAX_NOISE:                     // BMS, Breakout Model Synth, max block entropy + noise
+    op.alg_accel    = ALG_ACCEL_NONE;
+    op.alg_run_opt  = ALG_RUN_BREAKOUT;
+    op.alg_cell_opt = ALG_CELL_BREAKOUT;
+    op.block_schedule = OPT_BLOCK_NOISY_MAX_ENTROPY;
+    break;
+
+  case ALG_BP_MIN:                            // BP, Min Entropy
+    op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt  = ALG_RUN_VANILLA;
+    break;
+  case ALG_BP_MIN_WAVE:                       // BP, Min Entropy, Wavefront
+    op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt  = ALG_RUN_VANILLA;
+    op.alg_accel    = ALG_ACCEL_WAVE;
+    break;
+  case ALG_BP_MIN_RESIDUAL:                   // BP, Min Entropy, Residual
+    op.alg_cell_opt = ALG_CELL_MIN_ENTROPY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt  = ALG_RUN_RESIDUAL;
+    break;
+  default:        // unspecified, BP default
+    op.alg_cell_opt = ALG_CELL_ANY;
+    op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
+    op.alg_run_opt  = ALG_RUN_VANILLA;
+    break;
+  };
 }
 
 // AllocBuf -- new allocation function
@@ -480,11 +473,11 @@ void BeliefPropagation::ConstructTempBufs () {
   //
   AllocBuf ( BUF_C, 'i', m_num_verts );
 
-  //-- for block wfc
+  //-- for block algorithms (mms, bms)
   //
   AllocBuf ( BUF_BLOCK, 'i', m_num_verts );
 
-  //-- for breakout model synth
+  //-- for block alg entropy calculations
   //
   AllocBuf ( BUF_CELL_ENTROPY, 'f', m_num_verts );
   AllocBuf ( BUF_BLOCK_ENTROPY, 'f', m_num_verts );
@@ -3002,8 +2995,9 @@ int BeliefPropagation::start () {
     printf ("  bpc start. GRID = %d,%d,%d, SEED = %d\n", op.X, op.Y, op.Z, op.seed );
   }
 
-  // BLOCK WFC
-  //
+  //------------
+  //------------ BLOCK calculations
+  //------------
 
   // clip block parameters (if needed)
   //
@@ -3035,8 +3029,9 @@ int BeliefPropagation::start () {
   block_odd_dy = op.block_size[1] / 2;
   block_odd_dz = op.block_size[2] / 2;
 
-  if (op.verbose >= VB_RUN) 
-      printf ("  calc block index bounds.\n");
+  if (op.verbose >= VB_RUN) {
+    printf ("  calc block index bounds.\n");
+  }
 
   end_x = m_bpres.x - op.block_size[0];
   for (ix=0,x=0; ix<m_bpres.x; ix++) {
@@ -3067,10 +3062,15 @@ int BeliefPropagation::start () {
     else { z = ((iz+1)/2) * op.block_size[2]; }
     if (z > end_z) { z = end_z; }
   }
-  //
-  // BLOCK WFC
+
+
+  //------------
+  //------------
+  //------------
+
 
   // reset stats (must do first)
+  //
   ResetStats ();
 
   // rebuild dynamic bufs
@@ -3085,8 +3085,9 @@ int BeliefPropagation::start () {
 
   // cull boundary
   //
-  if (op.verbose >= VB_RUN) 
-      printf ("  cull boundary..\n");
+  if (op.verbose >= VB_RUN) {
+    printf ("  cull boundary..\n");
+  }
 
   ret = CullBoundary();
   if (ret < 0) { return ret; }
@@ -3123,25 +3124,24 @@ int BeliefPropagation::finish (int ret) {
   return ret;
 }
 
-void BeliefPropagation::advance_seed ( int amt )
-{
-    op.seed += amt;
+void BeliefPropagation::advance_seed ( int amt ) {
+  op.seed += amt;
 }
 
 void BeliefPropagation::ResetStats () {
 
-    op.cur_iter = 0;
-    st.elapsed_time = 0;
-    st.iter_resolved = 0;
-    st.total_resolved = 0;
-    st.post = 1;
+  op.cur_iter = 0;
+  st.elapsed_time = 0;
+  st.iter_resolved = 0;
+  st.total_resolved = 0;
+  st.post = 1;
 
-    st.time_boundary = 0;
-    st.time_normalize = 0;
-    st.time_bp = 0;
-    st.time_viz = 0;
-    st.time_maxdiff = 0;
-    st.time_updatemu = 0;
+  st.time_boundary = 0;
+  st.time_normalize = 0;
+  st.time_bp = 0;
+  st.time_viz = 0;
+  st.time_maxdiff = 0;
+  st.time_updatemu = 0;
 }
 
 
@@ -3193,21 +3193,24 @@ int BeliefPropagation::filter_constraint(std::vector< std::vector< int32_t > > &
 
 void BeliefPropagation::reset () {
 
-    // reset clears all memory buffers
-    // allowing a full rebuild of bp from init.
+  // reset clears all memory buffers
+  // allowing a full rebuild of bp from init.
 
-    // erase all buffers
-    for (int n=0; n < BUF_MAX; n++)
-        m_buf[ n ].Clear ();
+  // erase all buffers
+  for (int n=0; n < BUF_MAX; n++) {
+    m_buf[ n ].Clear ();
+  }
 
-    // reset stats
-    ResetStats();
+  // reset stats
+  ResetStats();
 
-    // do not erase ops as they
-    // may be needed for re-init
+  // do not erase ops as they
+  // may be needed for re-init
 }
 
 void BeliefPropagation::init_dir_desc() {
+
+  m_dir_desc.clear();
 
   m_dir_desc.push_back("+1:0:0");
   m_dir_desc.push_back("-1:0:0");
@@ -3218,12 +3221,10 @@ void BeliefPropagation::init_dir_desc() {
 
 }
 
-int BeliefPropagation::init(
-
-  int Rx, int Ry, int Rz,
-  std::vector< std::string  >           tile_name_list,
-  std::vector< float >                  tile_weight_list,
-  std::vector< std::vector < float > >  tile_rule_list ) {
+int BeliefPropagation::init( int Rx, int Ry, int Rz,
+                             std::vector< std::string  >           tile_name_list,
+                             std::vector< float >                  tile_weight_list,
+                             std::vector< std::vector < float > >  tile_rule_list ) {
 
   int i, ret=0,
       b, maxb=-1;
@@ -3402,26 +3403,6 @@ int BeliefPropagation::init_SVD(void) {
       }
     }
 
-    // CHECK
-    /*
-    for (r=0; r<m_num_values; r++) {
-      for (c=0; c<m_num_values; c++) {
-        s = 0.0;
-        for (k=0; k<m_num_values; k++) {
-          s += getValF( BUF_SVD_U, r, k, idir ) * getValF( BUF_SVD_Vt, k, c, idir );
-        }
-
-        printf("[%i,%i,%i]: %f %f (%f) %c\n",
-            r,c, idir,
-            getValF( BUF_F, r, c, idir ),
-            s,
-            abs(getValF( BUF_F, r, c, idir ) - s),
-            (abs(getValF( BUF_F, r, c, idir ) - s) < _eps) ? ' ' : '!');
-
-      }
-    }
-    */
-
   }
 
   return 0;
@@ -3429,6 +3410,8 @@ int BeliefPropagation::init_SVD(void) {
 
 //---
 
+// deprecated?
+//
 int BeliefPropagation::wfc() {
 
   int ret = 1;
@@ -3459,6 +3442,8 @@ int BeliefPropagation::wfc() {
   return ret;
 }
 
+// deprecated?
+//
 int BeliefPropagation::wfc_start() {
   int ret=0;
 
@@ -3468,6 +3453,8 @@ int BeliefPropagation::wfc_start() {
   return ret;
 }
 
+// deprecated?
+//
 int BeliefPropagation::wfc_step(int64_t it) {
 
   int ret;
@@ -3857,6 +3844,51 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
 
 }
 
+// Noise function, used in breakout's pickMaxEntropyNoiseBlock
+// to add noise to max entropy block pick.
+// Returns random value based on op.noise_func and
+// noise_coefficient.
+//
+// See https://mathworld.wolfram.com/RandomNumber.html
+// for motivation on generating the power law random variable.
+//
+//
+//  WIP, UNTESTED
+//
+float BeliefPropagation::pickNoiseFunc() {
+  float f, val = 0.0;
+  float x_0=(1/1024.0), x_1=(1024.0*1024.0), alpha = -2.0;
+
+  float tx0, tx1;
+
+  if (op.noise_coefficient < op.eps_zero) {
+    return 0.0;
+  }
+
+  switch (op.noise_func) {
+    case OPT_NOISE_FUNC_UNIFORM:
+      val = m_rand.randF() * op.noise_coefficient;
+      break;
+    case OPT_NOISE_FUNC_POWER_LAW:
+
+      f = m_rand.randF();
+
+      tx0 = pow(x_0, alpha+1.0);
+      tx1 = pow(x_1, alpha+1.0);
+
+      val = pow( (f*(tx1 - tx0) + tx0), 1.0/(alpha+1.0) );
+      val *= op.noise_coefficient;
+      break;
+
+    default:
+      val=0.0;
+      break;
+  }
+
+  return val;
+}
+
+
 // Pick the maximum entropy block.
 // Entropy blocks are calculated from the simple sum of
 // cell entropies.
@@ -3869,7 +3901,7 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
 //
 // 
 // return:
-// >=0  - success, number of maximum entropy blocks
+// >=0  - success, number of maximum equal entropy blocks
 // <0   - failure (currently can't happen)
 //
 int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
@@ -3889,7 +3921,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   n_b[1] = m_res.y - op.block_size[1]+1;
   n_b[2] = m_res.z - op.block_size[2]+1;
 
-  printf(">>> n_b[%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+  if (op.verbose >= VB_DEBUG) {
+    printf("## pickMaxEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+  }
 
   ComputeBlockEntropy();
 
@@ -3900,8 +3934,10 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cell = getVertex(x,y,z);
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
+        cur_entropy += pickNoiseFunc();
+
         if ((max_entropy < 0.0) ||
-            ( (cur_entropy - max_entropy) > op.eps_zero )) {
+            ( (cur_entropy - max_entropy) > -op.eps_zero )) {
 
           // if we have a choice between blocks of equal entropy,
           // choose one from the list at random.
@@ -3932,132 +3968,97 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   return (int)equal_entropy_count;
 }
 
-/*
-int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
-  double _block_entropy = 0.0,
-         _cell_entropy = 0.0,
-         _max_block_entropy = 0.0,
-         _cell_renorm = 0.0,
-         lg2 = log(2.0);
-  float _f;
+// Pick the minimum entropy block.
+// Entropy blocks are calculated from the simple sum of
+// cell entropies.
+// call ComputeBlockEntropy to populate BUF_BLOCK_ENTROPY
+// and BUF_CELL_ENTROPY, then do a sweep to find the minimum.
+//
+// stores chosen block in:
+//
+//  op.sub_block[]
+//
+// 
+// return:
+// >=0  - success, number of minimum equal entropy blocks
+// <0   - failure (currently can't happen)
+//
+int BeliefPropagation::pickMinEntropyNoiseBlock(void) {
+  int32_t x,y,z;
 
-  int32_t _block_choice[3] = {0,0,0};
-
-  int32_t _start_block[3] = {0,0,0};
-  int32_t _end_block_pos[3] = {0};
-  int32_t _sx, _sy, _sz,
-          _x, _y, _z;
-  int64_t _cell;
-  int32_t _tile_idx, _tile, _n_idx;
-
-  int32_t _unfixed_cell_count = 0,
-          _blocks_considered=0;
-
-  _end_block_pos[0] = m_res.x - op.block_size[0] + 1;
-  _end_block_pos[1] = m_res.y - op.block_size[1] + 1;
-  _end_block_pos[2] = m_res.z - op.block_size[2] + 1;
-
-  // very ineffient, testing idea out
+  // block buffer size: (X,Y,Z) - blocksize(x,y,z)
   //
-  for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
-    for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
-      for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
+  int32_t n_b[3] = {0,0,0};
 
-        if (_sx == 0) {
-          _unfixed_cell_count = 0;
-          _block_entropy = 0.0;
+  float min_entropy = -1, cur_entropy;
+  int32_t min_x=0, min_y=0, min_z=0;
+  int64_t cell;
 
-          for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
-            for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
-              for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
+  int32_t equal_entropy_count=0;
 
-                _cell_entropy = 0.0;
-                _cell_renorm = 0.0;
+  n_b[0] = m_res.x - op.block_size[0]+1;
+  n_b[1] = m_res.y - op.block_size[1]+1;
+  n_b[2] = m_res.z - op.block_size[2]+1;
 
-                _cell = getVertex((int)_x, (int)_y, (int)_z);
-                _n_idx = getValI( BUF_TILE_IDX_N, _cell );
+  if (op.verbose >= VB_DEBUG) {
+    printf("## pickMinEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+  }
 
-                if (_n_idx <= 1) { continue; }
-                for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
+  ComputeBlockEntropy();
 
-                  _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
+  for (z=0; z<n_b[2]; z++) {
+    for (y=0; y<n_b[1]; y++) {
+      for (x=0; x<n_b[0]; x++) {
 
-                  _f = getValF( BUF_G, _tile );
-                  _cell_renorm += (double)_f;
+        cell = getVertex(x,y,z);
+        cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
-                  _cell_entropy += (_f * log(_f) / lg2);
+        cur_entropy += pickNoiseFunc();
 
-                }
-                _cell_entropy /= _cell_renorm;
-                _cell_entropy -= (log(_cell_renorm) / lg2);
-                _cell_entropy = -_cell_entropy;
+        if ((min_entropy < 0.0) ||
+            ( (cur_entropy - min_entropy) < op.eps_zero )) {
 
-                _block_entropy += _cell_entropy;
+          // if we have a choice between blocks of equal entropy,
+          // choose one from the list at random.
+          //
+          if (fabs(cur_entropy - min_entropy) < op.eps_zero) {
+            equal_entropy_count++;
+          }
+          else {
+            equal_entropy_count = 1;
+          }
 
-                _unfixed_cell_count++;
-
-              }
-            }
+          if (m_rand.randF() <= (1.0/(float)equal_entropy_count)) {
+            min_entropy = cur_entropy;
+            min_x = x;
+            min_y = y;
+            min_z = z;
           }
         }
-
-        else {
-
-        }
-
-        if (_unfixed_cell_count==0) { continue; }
-
-        if (_blocks_considered == 0) {
-          _max_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        if ( _block_entropy > _max_block_entropy ) {
-          _max_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        _blocks_considered++;
-
-        //DEBUG
-        //
-//        printf("## breakout-max_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_max_block_entropy:%3.4f {%i,%i,%i})\n",
-//            (int)_sx, (int)op.block_size[0],
-//            (int)_sy, (int)op.block_size[1],
-//            (int)_sz, (int)op.block_size[2],
-//            (float)_block_entropy,
-//            (float)_max_block_entropy,
-//            (int)_block_choice[0],
-//            (int)_block_choice[1],
-//            (int)_block_choice[2]);
-//
 
       }
     }
   }
 
-  printf("## pickEntropyNoiseBlock _max_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
-      (float)_max_block_entropy,
-      (int)_block_choice[0],
-      (int)_block_choice[1],
-      (int)_block_choice[2],
-      (int)_blocks_considered);
+  op.sub_block[0] = min_x;
+  op.sub_block[1] = min_y;
+  op.sub_block[2] = min_z;
 
-
-  op.sub_block[0] = _block_choice[0];
-  op.sub_block[1] = _block_choice[1];
-  op.sub_block[2] = _block_choice[2];
-
-  return (int)_unfixed_cell_count;
-
+  return (int)equal_entropy_count;
 }
-*/
 
-int BeliefPropagation::pickEntropyNoiseBlock(void) {
+
+/*
+// choose block with minimum (average) entropy (?)
+//
+// $\sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
+//
+// choose block with minimum (average) entropy (?)
+// and add a noise factor to allow for some randomness in choice
+//
+// $\text(rand)() + \sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
+//
+int BeliefPropagation::pickMinEntropyNoiseBlock(void) {
 
   //DEBUG
   printf("## cp op.block_schedule:%i\n", (int)op.block_schedule);
@@ -4145,26 +4146,12 @@ int BeliefPropagation::pickEntropyNoiseBlock(void) {
 
         _blocks_considered++;
 
-        //DEBUG
-        //
-        /*
-        printf("## breakout-min_entropy [%i+%i][%i+%i][%i+%i] _block_entropy:%3.4f (_min_block_entropy:%3.4f {%i,%i,%i})\n",
-            (int)_sx, (int)op.block_size[0],
-            (int)_sy, (int)op.block_size[1],
-            (int)_sz, (int)op.block_size[2],
-            (float)_block_entropy,
-            (float)_min_block_entropy,
-            (int)_block_choice[0],
-            (int)_block_choice[1],
-            (int)_block_choice[2]);
-            */
-
 
       }
     }
   }
 
-  printf("## pickEntropyNoiseBlock _min_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
+  printf("## pickMinEntropyNoiseBlock _min_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
       (float)_min_block_entropy,
       (int)_block_choice[0],
       (int)_block_choice[1],
@@ -4178,6 +4165,7 @@ int BeliefPropagation::pickEntropyNoiseBlock(void) {
 
   return (int)_unfixed_cell_count;
 }
+*/
 
 //  0 - success
 // -1 - error
@@ -4194,6 +4182,7 @@ int BeliefPropagation::RealizePre(void) {
   float belief=-1.0, d = -1.0;
 
   // reset steps
+  //
   op.cur_step = 0;
 
   float _eps = getLinearEps();
@@ -4211,162 +4200,129 @@ int BeliefPropagation::RealizePre(void) {
 
   clock_t t1 = clock();
 
+  //----------- 
   //----------- REALIZEPRE - BLOCK SCHEDULE SECTION
+  //----------- 
 
-  // random position, fixed size
+  // block schedule is set means we're using an algorithm
+  // that needs a block choice
   //
-  if (op.block_schedule == OPT_BLOCK_RANDOM_POS) {
+  if (op.block_schedule != OPT_BLOCK_NONE) {
 
-    // If fail count is non zero, it means we've failed to find a block
-    // but haven't hit the soften step, so we re-use the  block we've
-    // previously chosen.
-    // Otherwise, choose a new block.
+
+    // If fail count is zero, it means we're at the start of the block
+    // choice phase, so pick a new block.
+    // Otherwise, keep the block that was previously picked.
     //
-    if (m_breakout_block_fail_count==0) {
+    if (m_block_fail_count==0) {
 
-      op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
-      op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
-      op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
-
-      if (op.verbose >= VB_INTRASTEP) {
-        printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
-            (int)op.sub_block[0], (int)op.block_size[0],
-            (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2]);
+      // random position, fixed size
+      //
+      if (op.block_schedule == OPT_BLOCK_RANDOM_POS) {
+        op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
+        op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
+        op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
       }
 
-      //DEBUG
+      // random position, random size
       //
-      printf("## breakout-realizepre: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
+      else if (op.block_schedule == OPT_BLOCK_RANDOM_POS_SIZE) {
+
+        op.block_size[0] = ( op.sub_block_range[0][0] +
+                            (int32_t)( m_rand.randF() * (float)(op.sub_block_range[0][1] - op.sub_block_range[0][0]) ) );
+        op.block_size[1] = ( op.sub_block_range[1][0] +
+                            (int32_t)( m_rand.randF() * (float)(op.sub_block_range[1][1] - op.sub_block_range[1][0]) ) );
+        op.block_size[2] = ( op.sub_block_range[2][0] +
+                            (int32_t)( m_rand.randF() * (float)(op.sub_block_range[2][1] - op.sub_block_range[2][0]) ) );
+
+        op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
+        op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
+        op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
+
+      }
+
+      // sequential and overlapping
+      //
+      else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
+
+        end_s[0] = m_bpres.x - op.block_size[0];
+        end_s[1] = m_bpres.y - op.block_size[1];
+        end_s[2] = m_bpres.z - op.block_size[2];
+
+        iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
+        iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
+        ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
+
+        ix %= op.block_idx[0];
+        iy %= op.block_idx[1];
+        iz %= op.block_idx[2];
+
+        x = (ix/2) * op.block_size[0];
+        if ((ix%2)==1) { x += (op.block_size[0]/2); }
+        if (ix == (op.block_idx[0]-1)) { x = end_s[0]; }
+
+        y = (iy/2) * op.block_size[1];
+        if ((iy%2)==1) { y += (op.block_size[1]/2); }
+        if (iy == (op.block_idx[1]-1)) { y = end_s[1]; }
+
+        z = (iz/2) * op.block_size[2];
+        if ((iz%2)==1) { z += (op.block_size[2]/2); }
+        if (iz == (op.block_idx[2]-1)) { z = end_s[2]; }
+
+        op.sub_block[0] = x;
+        op.sub_block[1] = y;
+        op.sub_block[2] = z;
+
+      }
+
+      else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
+               (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
+
+        pickMinEntropyNoiseBlock();
+
+      }
+
+      else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
+        pickMaxEntropyNoiseBlock();
+      }
+
+      else {
+        // error in block choice option?
+        //
+      }
+
+      if (op.verbose >= VB_STEP) {
+        printf("RealizePre : choosing new block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2]);
-      //
-      //DEBUG
-
+            (int)op.sub_block[2], (int)op.block_size[2],
+            (int)op.block_schedule);
+      }
 
     }
+
     else {
 
-      //DEBUG
-      //
-      printf("## breakout-realizepre: keeping block ([%i+%i][%i+%i][%i+%i])\n",
+      if (op.verbose >= VB_STEP) {
+        printf("RealizePre : keeping block ([%i+%i][%i+%i][%i+%i]) (block sched:%i)\n",
             (int)op.sub_block[0], (int)op.block_size[0],
             (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2]);
-      //
-      //DEBUG
+            (int)op.sub_block[2], (int)op.block_size[2],
+            (int)op.block_schedule);
+      }
 
     }
 
   }
 
-  // random position, random size
+  // non block algorithm
   //
-  else if (op.block_schedule == OPT_BLOCK_RANDOM_POS_SIZE) {
+  else { }
 
-    op.block_size[0] = ( op.sub_block_range[0][0] +
-                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[0][1] - op.sub_block_range[0][0]) ) );
-    op.block_size[1] = ( op.sub_block_range[1][0] +
-                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[1][1] - op.sub_block_range[1][0]) ) );
-    op.block_size[2] = ( op.sub_block_range[2][0] +
-                        (int32_t)( m_rand.randF() * (float)(op.sub_block_range[2][1] - op.sub_block_range[2][0]) ) );
 
-    op.sub_block[0] = (int)(m_rand.randF() * (float)(m_res.x - op.block_size[0]));
-    op.sub_block[1] = (int)(m_rand.randF() * (float)(m_res.y - op.block_size[1]));
-    op.sub_block[2] = (int)(m_rand.randF() * (float)(m_res.z - op.block_size[2]));
-
-    if (op.verbose >= VB_INTRASTEP) {
-      printf("WFC_BLOCK choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    }
-
-  }
-
-  // sequential and overlapping
-  //
-  else if (op.block_schedule == OPT_BLOCK_SEQUENTIAL) {
-
-    end_s[0] = m_bpres.x - op.block_size[0];
-    end_s[1] = m_bpres.y - op.block_size[1];
-    end_s[2] = m_bpres.z - op.block_size[2];
-
-    iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
-    iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
-    ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
-
-    ix %= op.block_idx[0];
-    iy %= op.block_idx[1];
-    iz %= op.block_idx[2];
-
-    x = (ix/2) * op.block_size[0];
-    if ((ix%2)==1) { x += (op.block_size[0]/2); }
-    if (ix == (op.block_idx[0]-1)) { x = end_s[0]; }
-
-    y = (iy/2) * op.block_size[1];
-    if ((iy%2)==1) { y += (op.block_size[1]/2); }
-    if (iy == (op.block_idx[1]-1)) { y = end_s[1]; }
-
-    z = (iz/2) * op.block_size[2];
-    if ((iz%2)==1) { z += (op.block_size[2]/2); }
-    if (iz == (op.block_idx[2]-1)) { z = end_s[2]; }
-
-    op.sub_block[0] = x;
-    op.sub_block[1] = y;
-    op.sub_block[2] = z;
-  }
-
-  else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
-           (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
-    //WIP
-    //EXPERIMENTAL
-
-    // choose block with minimum (average) entropy (?)
-    //
-    // $\sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
-    //
-
-    // choose block with minimum (average) entropy (?)
-    // and add a noise factor to allow for some randomness in choice
-    //
-    // $\text(rand)() + \sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
-    //
-
-    pickEntropyNoiseBlock();
-
-    //DEBUG
-    //
-    printf("## realizepre-block_min_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    //
-    //DEBUG
-
-  }
-
-  else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
-
-    pickMaxEntropyNoiseBlock();
-
-    //DEBUG
-    //
-    printf("## realizepre-block_max_entropy: choosing new block ([%i+%i][%i+%i][%i+%i])\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    //
-    //DEBUG
-
-  }
-
-  else {
-    //error?
-  }
-
+  //----------- 
   //----------- REALIZEPRE - ALG SECTION
+  //----------- 
 
   //---
   switch (op.alg_run_opt) {
@@ -4377,7 +4333,7 @@ int BeliefPropagation::RealizePre(void) {
     WriteBoundaryMUbuf(BUF_MU);
     NormalizeMU(BUF_MU);
 
-    if (op.verbose >= VB_INTRASTEP ) {
+    if (op.verbose >= VB_STEP) {
       printf("# RealizePre %f (%i/%i) eps[%f:%f]\n",
           (float) _eps, (int) op.cur_iter, (int) op.max_iter,
           (float) op.eps_converge_beg, (float) op.eps_converge_end);
@@ -4424,26 +4380,11 @@ int BeliefPropagation::RealizePre(void) {
 
   case ALG_RUN_BREAKOUT:
 
-    if (op.verbose >= VB_INTRASTEP) {
-      printf("BREAKOUT choosing [%i+%i,%i+%i,%i+%i]\n",
-          (int)op.sub_block[0], (int)op.block_size[0],
-          (int)op.sub_block[1], (int)op.block_size[1],
-          (int)op.sub_block[2], (int)op.block_size[2]);
-    }
-
-
     // inefficient, but just to get working, save whole grid state
     // so that if we need to restore state after a block choice failure,
     // we can reset it
     //
     _saveTileIdx();
-
-    //DEBUG
-    //
-    //sanity = sanityBreakoutSavedTileGrid();
-    //printf("## breakout-choose (sanity:%i)\n", (int)sanity);
-    //
-    //DEBUG
 
     // fuzz out a block
     //
@@ -4485,7 +4426,9 @@ int BeliefPropagation::RealizePre(void) {
     // this as a failed breakout state so we can proceed to the
     // 'soften' phase.
     // Regardless, we should return a 'success' code
-    // as we still want to continue trying.
+    // as we still want to continue trying, while
+    // saving information to pass to RealizePost to make
+    // sure to do the soften phase.
     //
     // If we were unable to get into an arc consistent state before
     // this step, that is an error.
@@ -4500,6 +4443,7 @@ int BeliefPropagation::RealizePre(void) {
     //
     
     // keep this. necessary here after fuzzing
+    //
     ret = cellConstraintPropagate();
     if (ret < 0) {
       m_return = -1;
@@ -4508,7 +4452,7 @@ int BeliefPropagation::RealizePre(void) {
 
     break;
 
-  case ALG_RUN_BLOCK_WFC:
+  case ALG_RUN_MMS:
 
     // fuzz out a block
     //
@@ -4557,6 +4501,7 @@ int BeliefPropagation::RealizePre(void) {
         break;
     }
 
+    /*
     // reset for cull boundary
     //
     m_note_n[ m_note_plane ] = 0;
@@ -4567,7 +4512,9 @@ int BeliefPropagation::RealizePre(void) {
     ret = CullBoundary();
     if (ret < 0) {
 
-      fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
+      if (op.verbose > VB_SUPPRESS) {
+        fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
+      }
       break;
     }
 
@@ -4579,7 +4526,13 @@ int BeliefPropagation::RealizePre(void) {
     // paranoia
     //
     ret = cellConstraintPropagate();   
+    */
     
+    break;
+
+  default:
+    // bad algorithm choice error?
+    //
     break;
   }
   
@@ -4831,11 +4784,10 @@ int BeliefPropagation::RealizePost(void) {
 
   //DEBU
   //
-  std::vector<int32_t> _sub_block;
   std::vector<int32_t> _debug_stat;
   int sanity=0;
   //
-  //DEBU
+  //DEBUG
 
   // measure elapsed time
   clock_t t1 = clock();
@@ -4860,74 +4812,38 @@ int BeliefPropagation::RealizePost(void) {
 
     case ALG_CELL_BREAKOUT:
 
-      //WIP
-      //EXPERIMENTAL
-
-      //DEBUG
-      //
-      printf("## breakout-realizepost m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
-      //
-      //DEBUG
+      if (op.verbose >= VB_STEP) {
+        printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
+      }
 
       // assume continue
+      //
       ret = 1;
 
       if (m_return == 0) {
 
-        m_breakout_block_fail_count = 0;
-
-        if (op.verbose >= VB_INTRASTEP) {
-          printf("BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
+        if (op.verbose >= VB_STEP) {
+          printf("RealizePost: BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2],
-              (int)m_breakout_block_fail_count,
-              (int)m_breakout_soften_limit );
+              (int)m_block_fail_count,
+              (int)m_block_retry_limit);
         }
 
-        //DEBUG
-        //
-        printf("## breakout-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
-            (int)op.sub_block[0], (int)op.block_size[0],
-            (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2],
-            (int)m_breakout_block_fail_count,
-            (int)m_breakout_soften_limit );
-
-        //_sub_block.push_back(op.sub_block[0]);
-        //_sub_block.push_back(op.block_size[0]);
-
-        //_sub_block.push_back(op.sub_block[1]);
-        //_sub_block.push_back(op.block_size[1]);
-
-        //_sub_block.push_back(op.sub_block[2]);
-        //_sub_block.push_back(op.block_size[2]);
-
-        //sanity = sanityBreakoutRealizedBlock(_sub_block);
-
-        //printf("## breakout-accept ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
-        //    (int)op.sub_block[0], (int)op.block_size[0],
-        //    (int)op.sub_block[1], (int)op.block_size[1],
-        //    (int)op.sub_block[2], (int)op.block_size[2],
-        //    (int)m_breakout_block_fail_count,
-        //    (int)m_breakout_soften_limit, (int)sanity );
-        //
-        //DEBUG
-
-        // we accept the block
-        // ... do nothing
+        m_block_fail_count=0;
 
       }
 
       else if (m_return < 0) {
 
-        if (op.verbose >= VB_INTRASTEP) {
-          printf("BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
+        if (op.verbose >= VB_STEP) {
+          printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2],
-              (int)m_breakout_block_fail_count,
-              (int)m_breakout_soften_limit );
+              (int)m_block_fail_count,
+              (int)m_block_retry_limit);
         }
 
         // before we soften, we need to restore the grid state to before we started mucking
@@ -4935,32 +4851,13 @@ int BeliefPropagation::RealizePost(void) {
         //
         _restoreTileIdx();
 
-        //DEBUG
-        //
-        printf("## breakout-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i)\n",
-            (int)op.sub_block[0], (int)op.block_size[0],
-            (int)op.sub_block[1], (int)op.block_size[1],
-            (int)op.sub_block[2], (int)op.block_size[2],
-            (int)m_breakout_block_fail_count,
-            (int)m_breakout_soften_limit );
-
-        //sanity = sanityBreakoutSavedTileGrid();
-        //printf("## breakout-restore ([%i+%i][%i+%i][%i+%i] (m_breakout_block_fail_count:%i / m_breakout_soften_limit:%i) (sanity:%i)\n",
-        //    (int)op.sub_block[0], (int)op.block_size[0],
-        //    (int)op.sub_block[1], (int)op.block_size[1],
-        //    (int)op.sub_block[2], (int)op.block_size[2],
-        //    (int)m_breakout_block_fail_count,
-        //    (int)m_breakout_soften_limit, (int)sanity );
-        //
-        //DEBUG
-
         // SOFTEN phase
         //
-        if (m_breakout_block_fail_count >= m_breakout_soften_limit) {
-          m_breakout_block_fail_count = 0;
+        if (m_block_fail_count >= m_block_retry_limit) {
+          m_block_fail_count = 0;
 
-          if (op.verbose >= VB_INTRASTEP) {
-            printf("BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+          if (op.verbose >= VB_STEP) {
+            printf("RealizePost: BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
                 (int)op.sub_block[0], (int)op.block_size[0],
                 (int)op.sub_block[1], (int)op.block_size[1],
                 (int)op.sub_block[2], (int)op.block_size[2]);
@@ -4986,8 +4883,8 @@ int BeliefPropagation::RealizePost(void) {
           if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
           if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
 
-          if (op.verbose >= VB_INTRASTEP) {
-            printf("BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
+          if (op.verbose >= VB_STEP) {
+            printf("RealizePost: BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
                 (int)_soften_bounds[0], (int)_soften_bounds[1],
                 (int)_soften_bounds[2], (int)_soften_bounds[3],
                 (int)_soften_bounds[4], (int)_soften_bounds[5]);
@@ -5017,34 +4914,21 @@ int BeliefPropagation::RealizePost(void) {
             }
           }
 
-          //DEBUG
-          //
-          printf("## breakout-soften ([%i:%i][%i:%i][%i:%i]\n",
-                (int)_soften_bounds[0], (int)_soften_bounds[1],
-                (int)_soften_bounds[2], (int)_soften_bounds[3],
-                (int)_soften_bounds[4], (int)_soften_bounds[5] );
-
-
-          //sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
-          //printf("## breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
-          //      (int)_soften_bounds[0], (int)_soften_bounds[1],
-          //      (int)_soften_bounds[2], (int)_soften_bounds[3],
-          //      (int)_soften_bounds[4], (int)_soften_bounds[5],
-          //      (int)_debug_stat[0], (int)_debug_stat[1]
-          //      );
-          //
-          //DEBUG
+          if (op.verbose >= VB_DEBUG) {
+            sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
+            printf("## RealizePost: breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+                  (int)_soften_bounds[0], (int)_soften_bounds[1],
+                  (int)_soften_bounds[2], (int)_soften_bounds[3],
+                  (int)_soften_bounds[4], (int)_soften_bounds[5],
+                  (int)_debug_stat[0], (int)_debug_stat[1]);
+            
+          }
 
 
           // reset visited from above so that constraint propagate
           // can use it.
           //
           unfillVisited( m_note_plane  );
-
-          if (op.verbose >= VB_INTRASTEP) {
-            printf("BREAKOUT-SOFTEN after soften, before constraint propagation:\n");
-            debugPrintTerse();
-          }
 
           // if the constraint propgation fails, we're in a bad state
           // as we should have been in an even more unrestricted state
@@ -5084,7 +4968,7 @@ int BeliefPropagation::RealizePost(void) {
 
       break;
 
-    case ALG_CELL_BLOCK_WFC:
+    case ALG_CELL_MMS:
 
 
       // TODO: potentially check for iteration count.
@@ -5095,27 +4979,26 @@ int BeliefPropagation::RealizePost(void) {
       // For now, just return 1 (continue) so that
       // it's handled at a higher level.
       //
-      // TODO: (important) if wfc fails on the sub block,
-      // go back and replace with previous known
-      // good state.
-      //
 
-      if (op.verbose >= VB_INTRASTEP) {
-        printf("WFC_BLOCK m_return %i\n", (int)m_return);
+      if (op.verbose >= VB_STEP) {
+        printf("RealizePost: WFC_MMS m_return %i\n", (int)m_return);
       }
 
-      // if wfc failed, reset to previously known good state
+      // if wfc failed on the block, reset to previously known good state
       //
       if (m_return < 0) {
 
-
-        if (op.verbose >= VB_INTRASTEP) {
-          printf("BLOCK backup ([%i+%i][%i+%i][%i+%i] (wfc block fail)\n",
+        if (op.verbose >= VB_STEP) {
+          printf("RealizePost: MMS restore ([%i+%i][%i+%i][%i+%i] (MMS block fail) (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
-              (int)op.sub_block[2], (int)op.block_size[2]);
+              (int)op.sub_block[2], (int)op.block_size[2],
+              (int)m_block_fail_count,
+              (int)m_block_retry_limit);
         }
 
+        // restore block
+        //
         for (x=op.sub_block[0]; x<(op.sub_block[0] + op.block_size[0]); x++) {
           for (y=op.sub_block[1]; y<(op.sub_block[1] + op.block_size[1]); y++) {
             for (z=op.sub_block[2]; z<(op.sub_block[2] + op.block_size[2]); z++) {
@@ -5128,28 +5011,46 @@ int BeliefPropagation::RealizePost(void) {
           }
         }
 
+        // only retry the block m_block_retry_limit times.
+        // if we hit the retry limit, reset the fail count so
+        // that a new block is chosen in RealizePre
+        //
+        if (m_block_fail_count >= m_block_retry_limit) {
+          
+          m_block_fail_count=0;
+
+          if (op.verbose >= VB_STEP) {
+            printf("RealizePost: MMS giving up on block ([%i+%i][%i+%i][%i+%i] (mms block fail)\n",
+                (int)op.sub_block[0], (int)op.block_size[0],
+                (int)op.sub_block[1], (int)op.block_size[1],
+                (int)op.sub_block[2], (int)op.block_size[2]);
+          }
+
+
+        }
+
       }
+
+      // else we accept move on
+      //
       else {
 
-        if (op.verbose >= VB_INTRASTEP) {
-          printf("BLOCK accept ([%i+%i][%i+%i][%i+%i]\n",
+        if (op.verbose >= VB_STEP) {
+          printf("RealizePost: MMS accept block ([%i+%i][%i+%i][%i+%i]\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2]);
         }
-        
 
+        m_block_fail_count=0;
       }
 
       // we're taking control away from the code at the bottom
       // since we're not resolving a single cell/tile now,
       // so we need to do some housekeeping ourselves.
       //
-
       op.cur_iter++;
-
       ret = 1;
-
       break;
 
     case ALG_CELL_ANY:
@@ -5213,106 +5114,6 @@ int BeliefPropagation::RealizePost(void) {
 
   return ret;
 }
-
-
-/*
-  // iteration or overall complete
-  //
-  if (post_ret >= 0) {
-
-
-    //-------------------------------
-    //-------------------------------
-    //-------------------------------
-    // EXPERIMENTAL
-    //-------------------------------
-    //-------------------------------
-    //-------------------------------
-    //
-    if ( (post_ret > 0) &&
-         (op.use_lookahead) ) {
-
-      int _r = 0,
-          _end_lookahead=0;
-      int64_t _idir=0,
-              _nei_cell = 0,
-              _nei_tile_idx = 0;
-      int64_t _idx = 0,
-              _n = 0,
-              _tv = -1;
-
-      Vector3DI _vp;
-
-      for (_idir=0; _idir<6; _idir++) {
-        _nei_cell = getNeighbor( cell, _idir );
-        if (_nei_cell < 0) { continue; }
-        _n = getValI( BUF_TILE_IDX_N, _nei_cell );
-        if (_n <= 1) { continue; }
-        for (_idx=0;  _idx<_n; _idx++) {
-          _tv = getValI( BUF_TILE_IDX, _idx, _nei_cell );
-          _r = cellConstraintPropagate_lookahead( _nei_cell, _tv );
-          _vp = getVertexPos(_nei_cell);
-          printf(" cell %i[%i,%i,%i], tile %i, lookahead %i\n",
-              (int)_nei_cell, (int)_vp.x, (int)_vp.y, (int)_vp.z,
-              (int)_tv, (int)_r );
-
-          if (_r) {
-            for (_nei_tile_idx=0; _nei_tile_idx < _n; _nei_tile_idx++) {
-              if ( getValI( BUF_TILE_IDX, _nei_tile_idx, _nei_cell ) == _tv) {
-                break;
-              }
-            }
-            if (_nei_tile_idx == _n) { return -1; }
-
-            //if (op.verbose >= VB_INTRASTEP ) {
-            if (op.verbose >= VB_DEBUG) {
-              printf("# REMOVE it:%i cell:%i;[%i,%i,%i] tile %i tile_idx %i (/%i) [la]\n",
-                  (int)op.cur_iter,
-                  (int)_nei_cell,
-                  (int)_vp.x, (int)_vp.y, (int)_vp.z,
-                  (int)_tv, (int)_nei_tile_idx, (int)_n);
-            }
-
-            removeTileIdx(_nei_cell, _nei_tile_idx);
-
-            cellFillVisitedNeighbor ( _nei_cell , m_note_plane );
-            unfillVisited( m_note_plane  );
-
-            // propagate constraints to remove neighbor tiles,
-            // and count number resolved (only 1 tile val remain)
-            //
-            ret = cellConstraintPropagate();
-            if (ret < 0) {
-              post_ret = -1;
-              _end_lookahead = 1;
-              break;
-            }
-
-            if (op.verbose >= VB_DEBUG) {
-              printf("#### _l_a\n");
-            }
-
-
-
-          }
-
-        }
-
-        if (_end_lookahead) { break; }
-
-      }
-
-
-    }
-    //-------------------------------
-    //-------------------------------
-    //-------------------------------
-    // EXPERIMENTAL
-    //-------------------------------
-    //-------------------------------
-    //-------------------------------
-*/
-
 
 
 std::string BeliefPropagation::getStatMessage () {
@@ -5476,9 +5277,13 @@ int BeliefPropagation::RealizeStep(void) {
 
   }
 
-  else if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+  else if (op.alg_run_opt == ALG_RUN_MMS) {
 
-    // here we run WFC on the block we've fuzzed
+    // Here we run WFC on the block we've fuzzed
+    // Since the whole grid outside of the block we've fuzzed
+    // is in a 'ground state' (tile count exactly 1), we can
+    // run vanilla WFC without worrying about moving out of the
+    // block.
     //
     ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
     m_return = ret;
@@ -5535,6 +5340,7 @@ int BeliefPropagation::RealizeStep(void) {
       if (_ret < 0) {
         ret = -3;
         m_return = ret;
+        m_block_fail_count++;
       }
 
     }
@@ -5607,7 +5413,8 @@ int BeliefPropagation::RealizeStep(void) {
       // value on
       //
       if (_ret < 0) {
-        m_breakout_block_fail_count++;
+        //m_breakout_block_fail_count++;
+        m_block_fail_count++;
         ret = -3;
         m_return = ret;
       }
@@ -5625,7 +5432,7 @@ int BeliefPropagation::RealizeStep(void) {
     // RealizePost can use.
     //
     else if (ret < 0) {
-      m_breakout_block_fail_count++;
+      m_block_fail_count++;
       ret = 0;
     }
 
@@ -6136,9 +5943,9 @@ void BeliefPropagation::debugPrintBlockEntropy() {
   int32_t x,y,z;
   int32_t n_b[3];
 
-  n_b[0] = m_res.x - op.block_size[0];
-  n_b[1] = m_res.y - op.block_size[1];
-  n_b[2] = m_res.z - op.block_size[2];
+  n_b[0] = m_res.x - op.block_size[0] + 1;
+  n_b[1] = m_res.y - op.block_size[1] + 1;
+  n_b[2] = m_res.z - op.block_size[2] + 1;
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
@@ -6189,6 +5996,10 @@ void BeliefPropagation::debugPrintTerse() {
   printf("bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
   printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
   printf("stat_enabled: %i\n", (int) st.enabled);
+  printf("op{max_step:%i, block_retry_limit:%i, noise_coefficient:%f}\n",
+      (int)op.max_step,
+      (int)m_block_retry_limit,
+      (float)op.noise_coefficient);
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i < m_tile_name.size(); i++) {
@@ -6918,7 +6729,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
                 if (anch_n_tile==1) {
 
-                  if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+                  if (op.alg_run_opt == ALG_RUN_MMS) {
                     if (op.verbose >= VB_INTRASTEP) {
                       printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
                               "cell %i slated to remove last remaining tile (tile %s(%i) "
@@ -7034,7 +6845,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
               nei_a_val = *nei_a_ptr;   
 
-              if (op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
+              if (op.alg_run_opt == ALG_RUN_MMS) {
                 if (op.verbose >= VB_INTRASTEP) {
                   printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
                           "cell %i slated to rmove last remaining tile (tile %s(%i) "

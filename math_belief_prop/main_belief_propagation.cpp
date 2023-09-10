@@ -422,37 +422,6 @@ void visualize_dmu ( BeliefPropagation& src, int bp_id, int vol_id, Vector3DI vr
 
 }
 
-/*
-void _debug_constraint_op_list( std::vector< constraint_op_t > &constraint_op_list) {
-  int i, j;
-  printf("constraint_op_list: %i\n", (int)constraint_op_list.size());
-  for (i=0; i<(int)constraint_op_list.size(); i++) {
-    printf("  [%i] op:%c [%i]{", (int)i, constraint_op_list[i].op, (int)constraint_op_list[i].dim_range.size());
-    for (j=0; j<constraint_op_list[i].dim_range.size(); j++) {
-      if (j>0) { printf(","); }
-      printf("%i", constraint_op_list[i].dim_range[j]);
-    }
-    printf("} [%i]{", (int)constraint_op_list[i].tile_range.size());
-    for (j=0; j<constraint_op_list[i].tile_range.size(); j++) {
-      if (j>0) { printf(","); }
-      printf("%i", constraint_op_list[i].tile_range[j]);
-    }
-    printf("}\n");
-  }
-
-}
-
-void _debug_block_admissible_tile_list( std::vector< int32_t > &block_admissible_tile_list ) {
-  int i, j;
-  printf("admissible_tile_list[%i]:", (int)block_admissible_tile_list.size());
-  for (i=0; i<(int)block_admissible_tile_list.size(); i++) {
-    printf(" %i", (int)block_admissible_tile_list[i]);
-  }
-  printf("\n");
-}
-*/
-
-
 
 //-------------------------------------------------//
 //                      _             _       _    //
@@ -462,6 +431,7 @@ void _debug_block_admissible_tile_list( std::vector< int32_t > &block_admissible
 //  \___\___/|_| |_|___/\__|_|  \__,_|_|_| |_|\__| //
 //                                                 //
 //-------------------------------------------------//
+int _g_default_block_retry_count;
 
 void show_usage(FILE *fp) {
   fprintf(fp, "usage:\n");
@@ -472,12 +442,12 @@ void show_usage(FILE *fp) {
   fprintf(fp, "  -R <fn>  CSV rule file\n");
   fprintf(fp, "  -C <fn>  constrained realization file\n");
   fprintf(fp, "  -J <dsl> constraint dsl to help populuate/cull initial grid\n");
-  fprintf(fp, "  -j <range> set range of admissible tiles for block wfc\n");
+  fprintf(fp, "  -j <range> set range of admissible tiles for block algorithms\n");
   fprintf(fp, "  -e <#>   set convergence epsilon\n");
   fprintf(fp, "  -z <#>   set zero epsilon\n");
   fprintf(fp, "  -w <#>   set (update) rate\n");
   fprintf(fp, "  -I <#>   set max step iteration\n");
-  fprintf(fp, "  -i <#>   set max iteration (default to #cell * #tile)\n");
+  fprintf(fp, "  -i <#>   set max iteration (default to #(cell) * #(tile) )\n");
   fprintf(fp, "  -D <#>   set X,Y,Z = D\n");
   fprintf(fp, "  -X <#>   set X\n");
   fprintf(fp, "  -Y <#>   set Y\n");
@@ -491,14 +461,16 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    3      after convergence, pick minimum entropy cell, maximum belief tile value, wave acceleration\n");
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "    -1     'wave function collapse'\n");
-  fprintf(fp, "    -2     block 'wave function collapse' (sequencial)\n");
-  fprintf(fp, "    -3     block 'wave function collapse' (random)\n");
-  fprintf(fp, "    -4     block 'wave function collapse' (random block size)\n");
+  fprintf(fp, "    -2     Merrell's model syntehsis (sequencial)\n");
+  fprintf(fp, "    -3     Merrell's model synthesis (random)\n");
+  fprintf(fp, "    -4     Merrell's model synthesis (random block size)\n");
   fprintf(fp, "    -5     breakout model synthesis\n");
   fprintf(fp, "    -6     breakout model synthesis, min entorpy block choice\n");
   fprintf(fp, "    -7     breakout model synthesis, min entropy block + noise choice\n");
   fprintf(fp, "    -8     breakout model synthesis, max entropy block + noise choice\n");
-  fprintf(fp, "  -b <#>   block size (for use in block wfc and breakout, default 8x8x8, clamped to dimension)\n");
+  fprintf(fp, "  -b <#>   block size (for use in MMS and breakout, default 8x8x8, clamped to dimension)\n");
+  fprintf(fp, "  -m <#>   block size retry count (default %i)\n", _g_default_block_retry_count);
+  fprintf(fp, "  -a <#>   noise function paramters\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -562,16 +534,11 @@ int main(int argc, char **argv) {
           tile_idx=-1 ;
 
   std::vector< std::vector< int32_t > > constraint_list;
-
-  //std::string constraint_commands;
-  //std::vector< constraint_op_t > constraint_op_list;
-
-  //std::string block_admissible_tile_range;
-  //std::vector< int32_t > block_admissible_tile_list;
-
   std::vector< std::vector< float > > tri_shape_lib;
 
   BeliefPropagation bpc;
+
+  _g_default_block_retry_count = bpc.m_block_retry_limit;
 
   eps_range.push_back( bpc.op.eps_converge );
   eps_range.push_back( bpc.op.eps_converge );
@@ -581,7 +548,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -617,13 +584,6 @@ int main(int argc, char **argv) {
         break;
 
       case 'e':
-        /*
-        eps_converge = atof(optarg);
-        if (eps_converge > 0.0) {
-          bpc.op.eps_converge = eps_converge;
-        }
-        */
-
         _eps_str = optarg;
 
         ret = parse_frange( eps_range, _eps_str );
@@ -646,12 +606,17 @@ int main(int argc, char **argv) {
       case 'I':
         max_iter = atoi(optarg);
         if (max_iter > 0) {
-          //bpc.op.max_iter = (int64_t)max_iter;
           bpc.op.max_step = (int64_t)max_iter;
         }
         break;
       case 'i':
         n_it = atoi(optarg);
+        break;
+      case 'm':
+        bpc.m_block_retry_limit = atoi(optarg);
+        break;
+      case 'a':
+        bpc.op.noise_coefficient = atof(optarg);
         break;
 
       case 'w':
@@ -698,11 +663,9 @@ int main(int argc, char **argv) {
         break;
 
       case 'j':
-        //block_admissible_tile_range = optarg;
         bpc.op.admissible_tile_range_cmd = optarg;
         break;
       case 'J':
-        //constraint_commands = optarg;
         bpc.op.constraint_cmd = optarg;
         break;
 
@@ -803,40 +766,6 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  /*
-  if (constraint_commands.size() > 0) {
-    std::vector< int > dim;
-    dim.push_back(X);
-    dim.push_back(Y);
-    dim.push_back(Z);
-    ret = parse_constraint_dsl(constraint_op_list, constraint_commands, dim, bpc.m_tile_name);
-    if (ret < 0) {
-      fprintf(stderr, "incorrect syntax when parsing constraint DSL\n");
-      exit(-1);
-    }
-  }
-
-  if (block_admissible_tile_range.size() > 0) {
-    std::vector<int> tile_range, tile_dim;
-
-    tile_dim.push_back(bpc.m_num_values);
-    ret = parse_range(tile_range, block_admissible_tile_range, tile_dim);
-    if (ret<0) {
-      fprintf(stderr, "could not parse admissbile block tile range, ignoring\n");
-    }
-    else {
-
-      block_admissible_tile_list.clear();
-      for (tile=tile_range[0]; tile < tile_range[1]; tile++) {
-        block_admissible_tile_list.push_back(tile);
-      }
-
-    }
-
-
-  }
-  */
-
   if (test_num >= 0) {
     run_test(bpc, test_num);
     exit(0);
@@ -896,118 +825,6 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  //DEBUG
-  //_debug_constraint_op_list(constraint_op_list);
-  //_debug_block_admissible_tile_list(block_admissible_tile_list);
-  //DEBUG
-
-  //DEBUG
-  bpc.debugPrintTerse();
-
-  /*
-
-  ret = bpc.start();
-  if (ret < 0) {
-    printf("ERROR: bpc.start() failed (%i)\n", ret);
-
-    if (bpc.op.verbose > 0) {
-      printf("####################### DEBUG PRINT\n" );
-      bpc.debugPrint();
-    }
-
-    exit(-1);
-  }
-
-  //DEBUG
-  _debug_constraint_op_list(constraint_op_list);
-  _debug_block_admissible_tile_list(block_admissible_tile_list);
-  //DEBUG
-
-  // updating constrints has to happen after start()
-  //
-  if (constraint_op_list.size() > 0) {
-    ret = constrain_bp( bpc, constraint_op_list);
-    if (ret < 0) {
-      fprintf(stderr, "constrain_bp failure\n");
-      exit(-1);
-    }
-  }
-
-
-  if (bpc.op.alg_run_opt == ALG_RUN_BLOCK_WFC) {
-
-    for (cell=0; cell<bpc.m_num_verts; cell++) {
-
-      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
-
-      // for block wfc to work, we assume 'ground state'
-      // of configuration is chosen, so return an
-      // error here if that assumption is invalid.
-      //
-      if (n_idx != 1) {
-        fprintf(stderr, "block wfc requires valid ground state\n");
-        exit(-1);
-      }
-
-    }
-
-    // Allow only certain tiles when fuzzing block
-    //
-    if (block_admissible_tile_list.size() > 0) {
-      bpc.m_block_admissible_tile = block_admissible_tile_list;
-    }
-
-    if (bpc.op.verbose >= VB_RUN) {
-      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
-      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
-        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
-      }
-      printf("\n");
-    }
-
-  }
-
-  else if (bpc.op.alg_run_opt == ALG_RUN_BREAKOUT) {
-
-    // Save "prefatory" state.
-    // We assume initial constraints have been propagated, including
-    // boundary condition constraints and any user specified constraints.
-    // The prefatory state will be used in the "soften" stage, should a block
-    // choice fail, the prefatory state will be used to fill in the failed
-    // block and its neighbors.
-    //
-    for (cell=0; cell<bpc.m_num_verts; cell++) {
-
-      n_idx = bpc.getValI( BUF_TILE_IDX_N, cell);
-      bpc.SetValI( BUF_PREFATORY_TILE_IDX_N, n_idx, cell );
-
-      for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
-        tile = bpc.getValI( BUF_TILE_IDX, tile_idx, cell );
-        bpc.SetValI( BUF_PREFATORY_TILE_IDX, tile, tile_idx, cell );
-      }
-
-    }
-
-    // Allow only certain tiles when fuzzing blocks.
-    // Maybe not needed for breakout?
-    //
-    if (block_admissible_tile_list.size() > 0) {
-      bpc.m_block_admissible_tile = block_admissible_tile_list;
-    }
-
-    if (bpc.op.verbose >= VB_RUN) {
-      printf("m_block_admissible_tile[%i]:", (int)bpc.m_block_admissible_tile.size());
-      for (idx=0; idx<bpc.m_block_admissible_tile.size(); idx++) {
-        printf(" %i", (int)bpc.m_block_admissible_tile[idx]);
-      }
-      printf("\n");
-    }
-
-  }
-
-  */
-
-
   //----
   //----
   //----
@@ -1044,11 +861,11 @@ int main(int argc, char **argv) {
     if (ret <= 0) { break; }
 
     if (bpc.m_return == 0) {
-      printf("success!\n");
+      //printf("success!\n");
       //bpc.debugPrintTerse();
     }
     else {
-      printf("FAIL\n");
+      //printf("FAIL\n");
       //bpc.debugPrintTerse();
     }
 
