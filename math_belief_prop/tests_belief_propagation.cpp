@@ -2778,6 +2778,8 @@ int test_breakout_block_entropy(BeliefPropagation &_bp) {
 // running into round off issues with dynamic programming solution?
 // investigate here...
 //
+// This is currently setup to run on the pm tileset.
+//
 int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
   int ret;
   int i;
@@ -2789,7 +2791,7 @@ int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
   float f, e_a, e_b;
 
   //int32_t X = 8, Y = 7, Z = 6;
-  int32_t X = 256 , Y = 256 , Z = 1;
+  int32_t X = 128, Y = 128, Z = 1;
   int64_t cell;
 
   int32_t x,y,z,xx,yy,zz;
@@ -2819,6 +2821,9 @@ int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
 
   bp.op.verbose = VB_SUPPRESS;
 
+  bp.op.admissible_tile_range_cmd = "1:";
+  bp.op.constraint_cmd = "d 0";
+
   ret = bp_init_CSV( bp, X,Y,Z, _bp.op.name_fn, _bp.op.rule_fn );
   if (ret<0) { return ret; }
 
@@ -2847,7 +2852,11 @@ int test_breakout_block_entropy_debug(BeliefPropagation &_bp) {
   bp.ComputeBlockEntropy(0);
   bp.pickMaxEntropyNoiseBlock();
 
+  printf("BUF_CELL_ENTROPY:\n");
   bp.debugPrintCellEntropy();
+
+  printf("BUF_BLOCK_ENTROPY:\n");
+  bp.debugPrintBlockEntropy();
 
   printf("picking block: [%i+%i,%i+%i,%i+%i]\n",
       bp.op.sub_block[0], bp.op.block_size[0],

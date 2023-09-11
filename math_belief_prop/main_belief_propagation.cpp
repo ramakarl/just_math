@@ -548,6 +548,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
+  bpc.op.eps_zero = 1.0/256.0;
   while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:")) != EOF) {
     switch (ch) {
       case 'h':
