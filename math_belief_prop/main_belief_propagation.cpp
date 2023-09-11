@@ -462,8 +462,8 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "    -1     'wave function collapse'\n");
   fprintf(fp, "    -2     Merrell's model syntehsis (sequencial)\n");
-  fprintf(fp, "    -3     Merrell's model synthesis (random)\n");
-  fprintf(fp, "    -4     Merrell's model synthesis (random block size)\n");
+  fprintf(fp, "    -3     Merrell's model synthesis (random position)\n");
+  fprintf(fp, "    -4     Merrell's model synthesis (random position and block size)\n");
   fprintf(fp, "    -5     breakout model synthesis\n");
   fprintf(fp, "    -6     breakout model synthesis, min entorpy block choice\n");
   fprintf(fp, "    -7     breakout model synthesis, min entropy block + noise choice\n");
