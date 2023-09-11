@@ -811,7 +811,7 @@ void nvImg::UpdateTex ()
 			dbgprintf ( "ERROR: draw must be inside of draw2D/end2D or draw3D/end3D\n" );
 		}
 		if ( s->mNum[grp] + cnt >= s->mMax[grp] ) {		
-			xlong new_max = s->mMax[grp] * 8 + cnt;		
+			xlong new_max = s->mMax[grp] * 2 + cnt;		
 			//	dbgprintf  ( "allocGeom: expand, %lu\n", new_max );
 			nvVert* new_data = (nvVert*) malloc ( new_max*sizeof(nvVert) );
 			if ( s->mGeom[grp] != 0x0 ) {
@@ -855,7 +855,7 @@ void nvImg::UpdateTex ()
 	uint* nvDraw::allocIdx ( int cnt, int grp, nvSet* s )
 	{
 		if ( s->mNumI[grp] + cnt >= s->mMaxI[grp] ) {		
-			xlong new_max = s->mMaxI[grp] * 8 + cnt;
+			xlong new_max = s->mMaxI[grp] * 2 + cnt;
 			// dbgprintf  ( "allocIdx: expand, %lu\n", new_max );
 			uint* new_data = (uint*) malloc ( new_max*sizeof(uint) );
 			if ( s->mIdx[grp] != 0x0 ) {
@@ -1642,9 +1642,9 @@ void nvImg::UpdateTex ()
 
 	void nvDraw::drawGL ()
 	{
-		glEnable ( GL_DEPTH_TEST );
-		glEnable ( GL_TEXTURE_2D );	
+		glEnable ( GL_DEPTH_TEST );		
 		glEnable ( GL_BLEND );
+		// glEnable ( GL_TEXTURE_2D );		//-- deprecated in GL 3.0+
 		glDepthFunc ( GL_LESS );
 		glBlendFunc ( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
 		glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
@@ -1853,25 +1853,27 @@ void nvImg::UpdateTex ()
 		int pos=0;
 		uint* img = s.mIdx[GRP_IMG];								// using index to store image GLIDs
 		char* pnt;	
-	
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		
-		pos = 0;
-		glBindBuffer(GL_ARRAY_BUFFER, s.mVBO[GRP_IMG]);
-		glVertexAttribPointer(localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 0));
-		glVertexAttribPointer(localClr, 4, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 12));
-		glVertexAttribPointer(localUV,  2, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 28));
+		GLuint texid;
 
-		for (int n=0; n < s.mNum[GRP_IMG] / 4 ; n++ ) {		
-		
-			glBindTexture ( GL_TEXTURE_2D, *img );
-			glDrawArrays ( GL_TRIANGLE_FAN, pos, 4 );
-			checkGL ( "images" );
-			
-			//pos += sizeof(nvVert)*4;
-			pos += 4;
+		if (s.mNum[GRP_IMG] > 0) { 
+			pos = 0;
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);	
 
-			img++;
+			glBindBuffer(GL_ARRAY_BUFFER, s.mVBO[GRP_IMG]);
+			glVertexAttribPointer(localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 0));
+			glVertexAttribPointer(localClr, 4, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 12));
+			glVertexAttribPointer(localUV,  2, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)(pos + 28));
+
+			for (int n=0; n < s.mNum[GRP_IMG] / 4 ; n++ ) {		
+		
+				texid = *(GLuint*) img;
+				glBindTexture ( GL_TEXTURE_2D, texid );
+				glDrawArrays ( GL_TRIANGLE_FAN, pos, 4 );
+				checkGL ( "images" );
+				pos += 4;
+
+				img++;
+			}
 		}
 
 		// text
