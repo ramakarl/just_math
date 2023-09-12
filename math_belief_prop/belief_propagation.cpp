@@ -4378,6 +4378,23 @@ int BeliefPropagation::RealizePre(void) {
           n_idx=0;
           cell = getVertex(x,y,z);
 
+          // we need to 'fuzz' a block by loading the prefatory state as
+          // there might be user level constraints that need to be pushed
+          // to whichever block is getting fuzzed.
+          //
+
+          n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+          for (tile_idx=0; tile_idx < n_idx; tile_idx++) {
+            tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+            cellFillVisitedSingle ( cell, m_note_plane );
+            cellFillVisitedNeighbor ( cell, m_note_plane );
+          }
+          SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+
+          /*
           for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
             tile = m_block_admissible_tile[tile_idx];
             SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
@@ -4389,6 +4406,7 @@ int BeliefPropagation::RealizePre(void) {
           }
 
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
+          */
 
         }
       }
@@ -4477,37 +4495,7 @@ int BeliefPropagation::RealizePre(void) {
     // and count number resolved (only 1 tile val remain)
     //
     ret = cellConstraintPropagate();
-    if (ret < 0) {
-        break;
-    }
-
-    /*
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // cull boundary
-    //
-    ret = CullBoundary();
-    if (ret < 0) {
-
-      if (op.verbose > VB_SUPPRESS) {
-        fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
-      }
-      break;
-    }
-
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // paranoia
-    //
-    ret = cellConstraintPropagate();   
-    */
-    
+    if (ret < 0) { break; }
     break;
 
   default:
@@ -5738,7 +5726,7 @@ int BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
   return 0;
 }
 
-// Discard tile entreis at cell positoin `pos`
+// Discard tile entries at cell position `pos`
 //
 int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id) {
   int32_t tile_idx,
@@ -5775,7 +5763,7 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
     st.iter_resolved++;
     st.total_resolved++;
 
-    if (op.verbose >= VB_INTRASTEP ) {
+    if (op.verbose >= VB_DEBUG ) {
       Vector3DI vp;
       vp = getVertexPos(pos);
 
@@ -5792,7 +5780,51 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
   return 0;
 }
 
-// Iniefficiant scan to recover tile ID from tile name
+// Add tiles at cell positoin `pos`.
+// If a tile already exists, do nothing.
+//
+// return:
+//
+// >=0 - number of tiles added to pos
+// <0  - error (currently can't happen)
+//
+int BeliefPropagation::filterAdd(uint64_t pos, std::vector<int32_t> &tile_id) {
+  int32_t tile_idx,
+          idx,
+          n,
+          tile_val,
+          tv,
+          found;
+  std::vector< int32_t > add_list;
+
+  n = getValI( BUF_TILE_IDX_N, pos );
+  int nstart = n;
+
+  for (tile_idx=0; tile_idx<tile_id.size(); tile_idx++) {
+    tile_val = tile_id[tile_idx];
+
+    found = 0;
+    for (idx=0; idx<n; idx++) {
+      if (tile_val == getValI( BUF_TILE_IDX, idx, pos )) {
+        found = 1;
+        break;
+      }
+    }
+
+    if (found==0) { add_list.push_back(tile_val); }
+  }
+  if (add_list.size()==0) { return 0; }
+
+  for (tile_idx=0; tile_idx<add_list.size(); tile_idx++) {
+    SetValI( BUF_TILE_IDX, add_list[tile_idx], n, pos );
+    n++;
+  }
+  SetValI( BUF_TILE_IDX_N, n, pos );
+
+  return (int)add_list.size();
+}
+
+// Inefficiant scan to recover tile ID from tile name
 //
 int32_t BeliefPropagation::tileName2ID (std::string &tile_name) {
   int32_t  i;
@@ -5941,7 +5973,7 @@ void BeliefPropagation::debugPrintBlockEntropy() {
 
 }
 
-void BeliefPropagation::debugPrintTerse() {
+void BeliefPropagation::debugPrintTerse(int buf_id) {
 
   int i=0, j=0, n=3, m=7, jnbr=0, a=0;
   int a_idx=0, a_idx_n=0;
@@ -5958,6 +5990,18 @@ void BeliefPropagation::debugPrintTerse() {
   int count=-1;
 
   int print_rule = 0;
+
+  int buf_tile_idx = BUF_TILE_IDX,
+      buf_tile_idx_n = BUF_TILE_IDX_N;
+
+  if (buf_id == BUF_PREFATORY_TILE_IDX) {
+    buf_tile_idx = BUF_PREFATORY_TILE_IDX;
+    buf_tile_idx_n = BUF_PREFATORY_TILE_IDX_N;
+  }
+  else if (buf_id == BUF_SAVE_TILE_IDX) {
+    buf_tile_idx = BUF_SAVE_TILE_IDX;
+    buf_tile_idx_n = BUF_SAVE_TILE_IDX_N;
+  }
 
   _eps = op.eps_zero;
 
@@ -6014,13 +6058,14 @@ void BeliefPropagation::debugPrintTerse() {
 
   //---
 
+  printf("buf_id:%i, buf:%i, buf_n:%i\n", buf_id, buf_tile_idx, buf_tile_idx_n);
   for (u=0; u<m_num_verts; u++) {
     p = getVertexPos(u);
-    a_idx_n = getValI( BUF_TILE_IDX_N, u );
+    a_idx_n = getValI( buf_tile_idx_n, u );
 
     printf("[%i,%i,%i](%i): ", (int)p.x, (int)p.y, (int)p.z, (int)u);
     for (a_idx=0; a_idx<a_idx_n; a_idx++) {
-      a = getValI( BUF_TILE_IDX, (int)a_idx, (int)u );
+      a = getValI( buf_tile_idx, (int)a_idx, (int)u );
       printf(" %i", (int)a);
     }
     printf("\n");

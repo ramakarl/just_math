@@ -128,7 +128,6 @@ int bp_restart ( BeliefPropagation& bpc ) {
         fprintf(stderr, "  constrain_bp failure\n");
       }
       return ret;
-      //exit(-1);
     }
 
     if (bpc.op.verbose >= VB_RUN) {
@@ -1176,7 +1175,24 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
     }
 
     else if (op_list[op_idx].op == 'a') {
-      // sorry
+
+      v.clear();
+      for (t=op_list[op_idx].tile_range[0]; t<op_list[op_idx].tile_range[1]; t++) {
+        v.push_back(t);
+      }
+
+      for (x=op_list[op_idx].dim_range[0]; x<op_list[op_idx].dim_range[1]; x++) {
+        for (y=op_list[op_idx].dim_range[2]; y<op_list[op_idx].dim_range[3]; y++) {
+          for (z=op_list[op_idx].dim_range[4]; z<op_list[op_idx].dim_range[5]; z++) {
+            pos = bp.getVertex(x,y,z);
+            ret = bp.filterAdd(pos, v);
+            if (ret < 0) { return ret; }
+
+            bp.cellFillVisitedNeighbor (pos, bp.m_note_plane );
+          }
+        }
+      }
+
     }
 
     else {
@@ -1184,6 +1200,8 @@ int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list)
     }
 
   }
+
+  if (bp.op.verbose >= VB_DEBUG) { bp.debugPrintTerse(); }
 
   bp.unfillVisited (bp.m_note_plane);
   ret = bp.cellConstraintPropagate();

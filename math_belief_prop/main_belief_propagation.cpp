@@ -821,7 +821,8 @@ int main(int argc, char **argv) {
     printf("ERROR: bp_restart() failed (%i)\n", ret);
     if (bpc.op.verbose > 0) {
       printf("####################### DEBUG PRINT\n" );
-      bpc.debugPrint();
+      //bpc.debugPrint();
+      bpc.debugPrintTerse();
     }
     exit(-1);
   }
@@ -840,6 +841,9 @@ int main(int argc, char **argv) {
   //
   printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
   bpc.debugPrintTerse();
+
+  printf("## prefatory state:\n");
+  bpc.debugPrintTerse( BUF_PREFATORY_TILE_IDX );
   //
   //DEBUG
 
