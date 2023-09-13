@@ -222,6 +222,7 @@ typedef struct _bp_opt_t {
   std::string tileset_fn,
               tilemap_fn,
               tileobj_fn,
+              tilefilter_fn,
               outstl_fn;
 
   int32_t   tileset_stride_x,

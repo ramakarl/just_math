@@ -222,6 +222,52 @@ int bp_parse_constraints ( BeliefPropagation& bpc,
   return ret;
 }
 
+int bp_read_constraint_file ( BeliefPropagation& bpc,
+                           std::string &constraint_file,
+                           std::string &constraint_cmd ) {
+  int ret = 1;
+
+  if (constraint_file.size() > 0) {
+
+    if (bpc.op.verbose >= VB_RUN) {      
+      printf ( "  parsing constraint file: %s..", constraint_file.c_str());
+    }
+    std::vector< int > dim;
+    dim.push_back( bpc.op.X );
+    dim.push_back( bpc.op.Y );
+    dim.push_back( bpc.op.Z );
+
+    // parse the file and pack into a cmd
+    std::string filepath;
+    #ifdef _WIN32
+        if (!getFileLocation ( constraint_file, filepath )) {
+            fprintf(stderr, "ERROR: Cannot find file %s\n", constraint_file.c_str());
+            exit(-1);
+        }
+    #else
+        filepath = constraint_file;
+    #endif
+    
+
+    char buf[2048];
+    strncpy ( buf, filepath.c_str(), 1024);
+    FILE* fp = fopen ( buf, "rt" );
+    if (fp==0x0) {return -1;}
+
+    constraint_cmd = "";
+    while (fgets(buf, 2048, fp))
+        constraint_cmd += std::string(buf);
+
+    fclose(fp);
+
+    printf ( "  constraint cmd: %s\n", constraint_cmd.c_str());
+
+  } else {
+    ret = -1;
+  }
+  return ret;
+}
+
 // Check to make sure grid has exactly one tile in each grid location.
 // "Ground state" comes from Merrell's "Modify in Parts" model
 // synthesis algorithm, where an initial, valid, state needs

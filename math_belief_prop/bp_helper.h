@@ -60,6 +60,8 @@ int bp_check_groundstate ( BeliefPropagation& bpc );
 
 int bp_save_prefatorystate ( BeliefPropagation& bpc );
 
+int bp_read_constraint_file ( BeliefPropagation& bpc, std::string &constraint_file, std::string &constraint_cmd );
+
 
 //---------------------- secondary helpers
 
