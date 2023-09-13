@@ -2168,8 +2168,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
 
     }
 
-    //DEBUG
-    //
     if (op.verbose >= VB_DEBUG) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2189,7 +2187,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
       _pick_tile_max_belief( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
       count=1;
 
-      //DEBUG
       if (op.verbose >= VB_DEBUG ) {
         printf("  ## (i.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
             (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
@@ -2216,7 +2213,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
         _pick_tile_max_belief( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
         count=1;
 
-        //DEBUG
         if (op.verbose >= VB_DEBUG ) {
           printf("  ## (a.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
@@ -2234,7 +2230,6 @@ int BeliefPropagation::chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max
           _pick_tile_max_belief( anch_cell, &_max_cell, &_max_tile, &_max_tile_idx, &_max_belief );
 
           if (op.verbose >= VB_DEBUG ) {
-            //DEBUG
             printf("  ## (b.0) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
           }
@@ -2295,7 +2290,6 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
 
     }
 
-    //DEBUG
     if (op.verbose >= VB_DEBUG ) {
       printf("anch_cell: %i, _entropy_sum: %f, n: %i\n", (int)anch_cell, (float)_entropy_sum, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2315,7 +2309,6 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
       _pick_tile_min_belief( anch_cell, &_min_cell, &_min_tile, &_min_tile_idx, &_min_belief );
       count=1;
 
-      //DEBUG
       if (op.verbose >= VB_DEBUG ) {
         vp = getVertexPos(_min_cell);
         printf("  ## (i.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
@@ -2344,7 +2337,6 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
         _pick_tile_min_belief( anch_cell, &_min_cell, &_min_tile, &_min_tile_idx, &_min_belief );
         count=1;
 
-        //DEBUG
         if (op.verbose >= VB_INTRASTEP ) {
           printf("  ## (a.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
               (int)vp.x, (int)vp.y, (int)vp.z,
@@ -2363,7 +2355,6 @@ int BeliefPropagation::chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min
           _pick_tile_min_belief( anch_cell, &_min_cell, &_min_tile, &_min_tile_idx, &_min_belief );
 
           if (op.verbose >= VB_INTRASTEP ) {
-            //DEBUG
             printf("  ## (b.1) picked cell:[%i,%i,%i](%i), tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)vp.x, (int)vp.y, (int)vp.z,
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
@@ -2410,7 +2401,6 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
-    //DEBUG
     if (op.verbose >= VB_DEBUG ) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2437,7 +2427,6 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
           count=1;
 
           if (op.verbose >= VB_DEBUG ) {
-            //DEBUG
             printf("  ## (a.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
           }
@@ -2458,7 +2447,6 @@ int BeliefPropagation::chooseMaxBelief(int64_t *max_cell, int32_t *max_tile, int
             _max_belief = f;
 
             if (op.verbose >= VB_INTRASTEP ) {
-              //DEBUG
               printf("  ## (b.2) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_max_cell, (int)_max_tile, (int)_max_tile_idx, (float)_max_belief, (int)count);
             }
@@ -2511,7 +2499,6 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
     if (anch_tile_idx_n==0) { return -1; }
     if (anch_tile_idx_n==1) { continue; }
 
-    //DEBUG
     if (op.verbose >= VB_DEBUG ) {
       printf("anch_cell: %i, n: %i\n", (int)anch_cell, (int)anch_tile_idx_n);
       for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
@@ -2540,7 +2527,6 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
           count=1;
 
           if (op.verbose >= VB_DEBUG ) {
-            //DEBUG
             printf("  ## (a.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                 (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
           }
@@ -2560,7 +2546,6 @@ int BeliefPropagation::chooseMinBelief(int64_t *min_cell, int32_t *min_tile, int
             _min_belief = f;
 
             if (op.verbose >= VB_INTRASTEP ) {
-              //DEBUG
               printf("  ## (b.3) picked cell:%i, tile:%i, tile_idx:%i, belief:%f, count:%i\n",
                   (int)_min_cell, (int)_min_tile, (int)_min_tile_idx, (float)_min_belief, (int)count);
             }
@@ -3701,29 +3686,17 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
   x=0; z=0;
   for (y=1; y<n_b[1]; y++) {
 
-    //DEBUG
-    //printf("getting block entropy for (%i,%i,%i):%f\n",
-    //    x, y-1, z, (double)getValF( BUF_BLOCK_ENTROPY, getVertex(x,y-1,z) ) );
-
     block_entropy = getValF( BUF_BLOCK_ENTROPY, getVertex(x,y-1,z) );
     for (zz=0; zz<bs[2]; zz++) {
       for (xx=0; xx<bs[0]; xx++) {
         cell_a = getVertex( xx, (y+bs[1]-1), zz );
         cell_b = getVertex( xx, (y-1), zz );
 
-        /*
-        printf("  ce[%i,%i,%i]:%f - ce[%i,%i,%i]:%f (cur:%f)\n",
-            xx, y+bs[1]-1, zz, (double)getValF( BUF_CELL_ENTROPY, getVertex( xx, (y+bs[1]-1), zz ) ),
-            xx, y-1, zz,        (double)getValF( BUF_CELL_ENTROPY, getVertex( xx, (y-1), zz ) ),
-            (double)block_entropy );
-            */
-
         block_entropy +=
             getValF( BUF_CELL_ENTROPY, getVertex( xx, (y+bs[1]-1), zz ) )
           - getValF( BUF_CELL_ENTROPY, getVertex( xx, (y-1),        zz ) );
       }
     }
-    //printf(">>> %f\n", (double)block_entropy);
 
     SetValF( BUF_BLOCK_ENTROPY, block_entropy, getVertex(x,y,z) );
   }
@@ -3917,6 +3890,13 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
   int32_t equal_entropy_count=0;
 
+  // we have significant round off error because
+  // of the running sums, so use a local epsilon
+  // to try and mitigate the issue.
+  //
+  //float _eps = (1.0/16.0);
+  float _eps = op.eps_zero;
+
   n_b[0] = m_res.x - op.block_size[0]+1;
   n_b[1] = m_res.y - op.block_size[1]+1;
   n_b[2] = m_res.z - op.block_size[2]+1;
@@ -3937,12 +3917,12 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cur_entropy += pickNoiseFunc();
 
         if ((max_entropy < 0.0) ||
-            ( (cur_entropy - max_entropy) > -op.eps_zero )) {
+            ( (cur_entropy - max_entropy) > -_eps )) {
 
           // if we have a choice between blocks of equal entropy,
           // choose one from the list at random.
           //
-          if (fabs(cur_entropy - max_entropy) < op.eps_zero) {
+          if (fabs(cur_entropy - max_entropy) < _eps) {
             equal_entropy_count++;
           }
           else {
@@ -4398,6 +4378,23 @@ int BeliefPropagation::RealizePre(void) {
           n_idx=0;
           cell = getVertex(x,y,z);
 
+          // we need to 'fuzz' a block by loading the prefatory state as
+          // there might be user level constraints that need to be pushed
+          // to whichever block is getting fuzzed.
+          //
+
+          n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+          for (tile_idx=0; tile_idx < n_idx; tile_idx++) {
+            tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+            cellFillVisitedSingle ( cell, m_note_plane );
+            cellFillVisitedNeighbor ( cell, m_note_plane );
+          }
+          SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+
+          /*
           for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
             tile = m_block_admissible_tile[tile_idx];
             SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
@@ -4409,6 +4406,7 @@ int BeliefPropagation::RealizePre(void) {
           }
 
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
+          */
 
         }
       }
@@ -4497,37 +4495,7 @@ int BeliefPropagation::RealizePre(void) {
     // and count number resolved (only 1 tile val remain)
     //
     ret = cellConstraintPropagate();
-    if (ret < 0) {
-        break;
-    }
-
-    /*
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // cull boundary
-    //
-    ret = CullBoundary();
-    if (ret < 0) {
-
-      if (op.verbose > VB_SUPPRESS) {
-        fprintf(stderr, "!!!! RealizePre cull boundary failed... it:%i\n", op.cur_iter);
-      }
-      break;
-    }
-
-    // reset for cull boundary
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
-
-    // paranoia
-    //
-    ret = cellConstraintPropagate();   
-    */
-    
+    if (ret < 0) { break; }
     break;
 
   default:
@@ -5758,7 +5726,7 @@ int BeliefPropagation::filterKeep(uint64_t pos, std::vector<int32_t> &tile_id) {
   return 0;
 }
 
-// Discard tile entreis at cell positoin `pos`
+// Discard tile entries at cell position `pos`
 //
 int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id) {
   int32_t tile_idx,
@@ -5795,7 +5763,7 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
     st.iter_resolved++;
     st.total_resolved++;
 
-    if (op.verbose >= VB_INTRASTEP ) {
+    if (op.verbose >= VB_DEBUG ) {
       Vector3DI vp;
       vp = getVertexPos(pos);
 
@@ -5812,7 +5780,51 @@ int BeliefPropagation::filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id
   return 0;
 }
 
-// Iniefficiant scan to recover tile ID from tile name
+// Add tiles at cell positoin `pos`.
+// If a tile already exists, do nothing.
+//
+// return:
+//
+// >=0 - number of tiles added to pos
+// <0  - error (currently can't happen)
+//
+int BeliefPropagation::filterAdd(uint64_t pos, std::vector<int32_t> &tile_id) {
+  int32_t tile_idx,
+          idx,
+          n,
+          tile_val,
+          tv,
+          found;
+  std::vector< int32_t > add_list;
+
+  n = getValI( BUF_TILE_IDX_N, pos );
+  int nstart = n;
+
+  for (tile_idx=0; tile_idx<tile_id.size(); tile_idx++) {
+    tile_val = tile_id[tile_idx];
+
+    found = 0;
+    for (idx=0; idx<n; idx++) {
+      if (tile_val == getValI( BUF_TILE_IDX, idx, pos )) {
+        found = 1;
+        break;
+      }
+    }
+
+    if (found==0) { add_list.push_back(tile_val); }
+  }
+  if (add_list.size()==0) { return 0; }
+
+  for (tile_idx=0; tile_idx<add_list.size(); tile_idx++) {
+    SetValI( BUF_TILE_IDX, add_list[tile_idx], n, pos );
+    n++;
+  }
+  SetValI( BUF_TILE_IDX_N, n, pos );
+
+  return (int)add_list.size();
+}
+
+// Inefficiant scan to recover tile ID from tile name
 //
 int32_t BeliefPropagation::tileName2ID (std::string &tile_name) {
   int32_t  i;
@@ -5950,7 +5962,8 @@ void BeliefPropagation::debugPrintBlockEntropy() {
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
       for (x=0; x<n_b[0]; x++) {
-        printf(" %2.3f", getValF( BUF_BLOCK_ENTROPY, getVertex(x,y,z)) );
+        //printf(" %2.3f", getValF( BUF_BLOCK_ENTROPY, getVertex(x,y,z)) );
+        printf(" %4.8f", getValF( BUF_BLOCK_ENTROPY, getVertex(x,y,z)) );
       }
       printf("\n");
     }
@@ -5960,7 +5973,7 @@ void BeliefPropagation::debugPrintBlockEntropy() {
 
 }
 
-void BeliefPropagation::debugPrintTerse() {
+void BeliefPropagation::debugPrintTerse(int buf_id) {
 
   int i=0, j=0, n=3, m=7, jnbr=0, a=0;
   int a_idx=0, a_idx_n=0;
@@ -5977,6 +5990,18 @@ void BeliefPropagation::debugPrintTerse() {
   int count=-1;
 
   int print_rule = 0;
+
+  int buf_tile_idx = BUF_TILE_IDX,
+      buf_tile_idx_n = BUF_TILE_IDX_N;
+
+  if (buf_id == BUF_PREFATORY_TILE_IDX) {
+    buf_tile_idx = BUF_PREFATORY_TILE_IDX;
+    buf_tile_idx_n = BUF_PREFATORY_TILE_IDX_N;
+  }
+  else if (buf_id == BUF_SAVE_TILE_IDX) {
+    buf_tile_idx = BUF_SAVE_TILE_IDX;
+    buf_tile_idx_n = BUF_SAVE_TILE_IDX_N;
+  }
 
   _eps = op.eps_zero;
 
@@ -5996,10 +6021,11 @@ void BeliefPropagation::debugPrintTerse() {
   printf("bpres: (%i,%i,%i)\n", m_bpres.x, m_bpres.y, m_bpres.z);
   printf("num_verts: %i, m_num_values: %i\n", (int)m_num_verts, (int)m_num_values);
   printf("stat_enabled: %i\n", (int) st.enabled);
-  printf("op{max_step:%i, block_retry_limit:%i, noise_coefficient:%f}\n",
+  printf("op{max_step:%i, block_retry_limit:%i, noise_coefficient:%f, eps_zero:%f}\n",
       (int)op.max_step,
       (int)m_block_retry_limit,
-      (float)op.noise_coefficient);
+      (float)op.noise_coefficient,
+      (float)op.eps_zero);
 
   printf("m_tile_name[%i]:\n", (int)m_tile_name.size());
   for (i=0; i < m_tile_name.size(); i++) {
@@ -6032,13 +6058,14 @@ void BeliefPropagation::debugPrintTerse() {
 
   //---
 
+  printf("buf_id:%i, buf:%i, buf_n:%i\n", buf_id, buf_tile_idx, buf_tile_idx_n);
   for (u=0; u<m_num_verts; u++) {
     p = getVertexPos(u);
-    a_idx_n = getValI( BUF_TILE_IDX_N, u );
+    a_idx_n = getValI( buf_tile_idx_n, u );
 
     printf("[%i,%i,%i](%i): ", (int)p.x, (int)p.y, (int)p.z, (int)u);
     for (a_idx=0; a_idx<a_idx_n; a_idx++) {
-      a = getValI( BUF_TILE_IDX, (int)a_idx, (int)u );
+      a = getValI( buf_tile_idx, (int)a_idx, (int)u );
       printf(" %i", (int)a);
     }
     printf("\n");

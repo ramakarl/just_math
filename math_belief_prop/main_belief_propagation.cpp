@@ -462,8 +462,8 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    4      use residue algorithm (schedule max residue updates until convergence)\n");
   fprintf(fp, "    -1     'wave function collapse'\n");
   fprintf(fp, "    -2     Merrell's model syntehsis (sequencial)\n");
-  fprintf(fp, "    -3     Merrell's model synthesis (random)\n");
-  fprintf(fp, "    -4     Merrell's model synthesis (random block size)\n");
+  fprintf(fp, "    -3     Merrell's model synthesis (random position)\n");
+  fprintf(fp, "    -4     Merrell's model synthesis (random position and block size)\n");
   fprintf(fp, "    -5     breakout model synthesis\n");
   fprintf(fp, "    -6     breakout model synthesis, min entorpy block choice\n");
   fprintf(fp, "    -7     breakout model synthesis, min entropy block + noise choice\n");
@@ -548,6 +548,7 @@ int main(int argc, char **argv) {
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
+  bpc.op.eps_zero = 1.0/256.0;
   while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:")) != EOF) {
     switch (ch) {
       case 'h':
@@ -820,7 +821,8 @@ int main(int argc, char **argv) {
     printf("ERROR: bp_restart() failed (%i)\n", ret);
     if (bpc.op.verbose > 0) {
       printf("####################### DEBUG PRINT\n" );
-      bpc.debugPrint();
+      //bpc.debugPrint();
+      bpc.debugPrintTerse();
     }
     exit(-1);
   }
@@ -835,12 +837,10 @@ int main(int argc, char **argv) {
     n_it = bpc.m_num_verts * bpc.m_num_values;
   }
 
-  //DEBUG
-  //
-  printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
-  bpc.debugPrintTerse();
-  //
-  //DEBUG
+  if (bpc.op.verbose >= VB_DEBUG) {
+    printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
+    bpc.debugPrintTerse();
+  }
 
   for (it=0; it < n_it; it++) {
 

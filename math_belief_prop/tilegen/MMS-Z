@@ -1,0 +1,95 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+#
+# A note on usage:
+#
+# The 'name' and 'rule' files are required for a bpc run,
+# as is the X, Y, Z dimension.
+#
+# The 'map' or 'tiled_fn' is the output rendered to a tiled
+# JSON file, using the specified tileset_fn (path relative to
+# where the tiled JSON file is) and the stride is the tile
+# width.
+# Specifying the map file makes sure the output gets saved in
+# a reasonable way (otherwise you'd have to parse the 'verbose'
+# output to make a reasonable rendering of the output) and
+# the tileset_fn and stride are not technically needed but
+# are used to populate the appropriate JSON values in the tiled
+# file.
+#
+# The -J 'd 0` option culls the 0 tile.
+# The 0 (or 'null') tile is special in the 2D tileset contexts
+# of this sort and represent a tile that is not to be displayed
+# and on the border. Though it might not be an error to include
+# the null tiles as part of the choice in the bulk grid, the
+# intent is to restrict them, which is why the 'cull' option needs
+# to be set.
+#
+# Common Options:
+#
+#  -N         name file (CSV)
+#  -R         rule file (CSV)
+#  -M         (output) tiled file (JSON)
+#  -Q         tileset to use in the tiled file (png)
+#  -s         stride to use in the tiled file
+#  -[XYZ] <#> dimensional ordinals. Z should be 1 for the 2d tilesets
+#  -G <#>     fixing schedule. 2 is minimum entropy cell, choosing maximum belief
+#  -I <#>     maximum iteration count for a step in the belief propagation convergence
+#  -S <#>     seed
+#  -V <#>     verbosity level
+#
+
+
+bpc_bin="../bpc"
+#bpc_bin="valgrind ../bpc.debug"
+
+mkdir -p log
+
+######
+######
+
+name_fn="./example_tile_collection/oloz_tilename.csv"
+rule_fn="./example_tile_collection/oloz_tilerule.csv"
+tiled_fn="./example_tile_collection/oloz_mms_tiled.json"
+tileset_fn="./oloz_tileset.png"
+stride=8
+
+echo "running 'pm' MMS, producing '$tileset_fn'"
+
+flt=`cat oloz.filter | tr '\n' ' '`
+
+#n=64
+#n=256
+n=128
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -M $tiled_fn \
+  -Q $tileset_fn \
+  -X $n -Y $n -Z 1 \
+  -z 0.0001 \
+  -s 16 \
+  -b 16 \
+  -G -2 \
+  -J "$flt" \
+  -I 1024 \
+  -i 256 \
+  -S 1235 \
+  -V 3
+
+#  -j '1:' \
+######
+######
+
+
