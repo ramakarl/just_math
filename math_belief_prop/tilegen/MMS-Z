@@ -60,17 +60,17 @@ mkdir -p log
 
 name_fn="./example_tile_collection/oloz_tilename.csv"
 rule_fn="./example_tile_collection/oloz_tilerule.csv"
-tiled_fn="./example_tile_collection/oloz_breakout_tiled.json"
+tiled_fn="./example_tile_collection/oloz_mms_tiled.json"
 tileset_fn="./oloz_tileset.png"
 stride=8
 
-echo "running 'pm' breakout model synthesis, producing '$tileset_fn'"
+echo "running 'pm' MMS, producing '$tileset_fn'"
 
 flt=`cat oloz.filter | tr '\n' ' '`
 
 #n=64
 #n=256
-n=35
+n=128
 
 $bpc_bin \
   -N $name_fn \
@@ -80,11 +80,11 @@ $bpc_bin \
   -X $n -Y $n -Z 1 \
   -z 0.0001 \
   -s 16 \
-  -b 8 \
-  -G -8 \
+  -b 16 \
+  -G -2 \
   -J "$flt" \
   -I 1024 \
-  -i 1000 \
+  -i 256 \
   -S 1235 \
   -V 3
 

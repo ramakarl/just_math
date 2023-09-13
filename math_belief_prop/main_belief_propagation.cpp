@@ -837,15 +837,10 @@ int main(int argc, char **argv) {
     n_it = bpc.m_num_verts * bpc.m_num_values;
   }
 
-  //DEBUG
-  //
-  printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
-  bpc.debugPrintTerse();
-
-  printf("## prefatory state:\n");
-  bpc.debugPrintTerse( BUF_PREFATORY_TILE_IDX );
-  //
-  //DEBUG
+  if (bpc.op.verbose >= VB_DEBUG) {
+    printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
+    bpc.debugPrintTerse();
+  }
 
   for (it=0; it < n_it; it++) {
 
