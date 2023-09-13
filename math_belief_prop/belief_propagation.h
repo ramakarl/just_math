@@ -557,6 +557,7 @@ public:
 
   int filterKeep(uint64_t pos, std::vector<int32_t> &tile_id);
   int filterDiscard(uint64_t pos, std::vector<int32_t> &tile_id);
+  int filterAdd(uint64_t pos, std::vector<int32_t> &tile_id);
   int32_t tileName2ID (std::string &tile_name);
   int32_t tileName2ID (char *);
 
@@ -679,7 +680,7 @@ public:
   // helper arrays and functions for ease of testing and simple use
   //
   void  debugPrint();
-  void  debugPrintTerse();
+  void  debugPrintTerse(int buf_idx=BUF_TILE_IDX);
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
