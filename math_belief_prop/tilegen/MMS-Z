@@ -70,7 +70,8 @@ flt=`cat oloz.filter | tr '\n' ' '`
 
 #n=64
 #n=256
-n=128
+#n=128
+n=32
 
 $bpc_bin \
   -N $name_fn \
@@ -82,6 +83,7 @@ $bpc_bin \
   -s 16 \
   -b 16 \
   -G -2 \
+  -j '1:' \
   -J "$flt" \
   -I 1024 \
   -i 256 \
