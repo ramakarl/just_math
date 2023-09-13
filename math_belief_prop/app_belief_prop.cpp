@@ -177,10 +177,12 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       case 'j':
         op->admissible_tile_range_cmd = optarg;
         break;
-      case 'J':
+      case 'J':        
         op->constraint_cmd = optarg;
         break;
-
+      case 'C':
+        op->tilefilter_fn = optarg;        
+        break;
       case 'L':
         op->tileobj_fn = optarg;
         break;
@@ -521,7 +523,10 @@ bool Sample::init()
   std::string name_path, rule_path;
   getFileLocation ( op->name_fn, name_path );
   getFileLocation ( op->rule_fn, rule_path );
-  
+
+  // find contraint file
+  bp_read_constraint_file ( bpc, op->tilefilter_fn, op->constraint_cmd );
+
   // initialize belief prop (using helper func)
   ret = bp_init_CSV ( bpc, op->X, op->Y, op->Z, name_path, rule_path );
   if (ret<0) {
