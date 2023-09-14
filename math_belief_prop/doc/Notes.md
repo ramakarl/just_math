@@ -204,3 +204,4 @@ References
 * [Maxim Gumin on twitter](https://twitter.com/ExUtumno/status/895684431477747715)
 * [Creating Infinite Road for my Drifting Game](https://www.youtube.com/watch?v=n44DgwqnjxQ)
 * [wfc zelda](https://observablehq.com/@makio135/zelda-wfc)
+* [Infinite WFC for Clomper](https://www.youtube.com/watch?v=DrTYmUtWWw4) (infinite wfc but destroys saved collapsed state outside of field of view)

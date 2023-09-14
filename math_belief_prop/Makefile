@@ -1,7 +1,7 @@
 
-lib: lib/camera3d.o lib/common_defs.o lib/dataptr.o lib/datax.o lib/file_png.o lib/mersenne.o lib/quaternion.o lib/string_helper.o lib/vec.o lib/belief_propagation.o lib/bp_helper.o lib/belief_propagation_residue.o lib/tests_belief_propagation.o
+lib: lib/camera3d.o lib/common_defs.o lib/dataptr.o lib/datax.o lib/file_png.o lib/mersenne.o lib/quaternion.o lib/string_helper.o lib/vec.o lib/belief_propagation.o lib/bp_helper.o lib/belief_propagation_residue.o lib/tests_belief_propagation.o lib/bp_experiment.o
 
-lib.debug: lib.debug/camera3d.o lib.debug/common_defs.o lib.debug/dataptr.o lib.debug/datax.o lib.debug/file_png.o lib.debug/mersenne.o lib.debug/quaternion.o lib.debug/string_helper.o lib.debug/vec.o lib.debug/belief_propagation.o lib.debug/bp_helper.o lib.debug/belief_propagation_residue.o lib.debug/tests_belief_propagation.o
+lib.debug: lib.debug/camera3d.o lib.debug/common_defs.o lib.debug/dataptr.o lib.debug/datax.o lib.debug/file_png.o lib.debug/mersenne.o lib.debug/quaternion.o lib.debug/string_helper.o lib.debug/vec.o lib.debug/belief_propagation.o lib.debug/bp_helper.o lib.debug/belief_propagation_residue.o lib.debug/tests_belief_propagation.o lib.debug/bp_experiment.o
 
 lib.debug/camera3d.o: ../libmin/src/camera3d.cpp
 	g++ -c -g -I../libmin/include/ -D__linux__ -DLIBHELP_STATIC ../libmin/src/camera3d.cpp -o lib.debug/camera3d.o
@@ -65,8 +65,11 @@ lib/tests_belief_propagation.o: tests_belief_propagation.cpp
 lib/belief_propagation.o: belief_propagation.cpp belief_propagation.h
 	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation.cpp -o lib/belief_propagation.o
 
-lib/bp_helper.o: bp_helper.cpp
+lib/bp_helper.o: bp_helper.cpp bp_helper.h
 	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC bp_helper.cpp -o lib/bp_helper.o
+
+lib/bp_experiment.o: bp_experiment.cpp bp_experiment.h
+	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC bp_experiment.cpp -o lib/bp_experiment.o
 
 lib/belief_propagation_residue.o: belief_propagation_residue.cpp
 	g++ -c -O3 -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation_residue.cpp -o lib/belief_propagation_residue.o
@@ -78,8 +81,11 @@ lib.debug/tests_belief_propagation.o: tests_belief_propagation.cpp
 lib.debug/belief_propagation.o: belief_propagation.cpp belief_propagation.h
 	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation.cpp -o lib.debug/belief_propagation.o
 
-lib.debug/bp_helper.o: bp_helper.cpp
+lib.debug/bp_helper.o: bp_helper.cpp bp_helper.h
 	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC bp_helper.cpp -o lib.debug/bp_helper.o
+
+lib.debug/bp_experiment.o: bp_experiment.cpp bp_experiment.h
+	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC bp_experiment.cpp -o lib.debug/bp_experiment.o
 
 lib.debug/belief_propagation_residue.o: belief_propagation_residue.cpp
 	g++ -c -g -I../libmin/include/ -I /usr/include/eigen3 -D__linux__ -DLIBHELP_STATIC belief_propagation_residue.cpp -o lib.debug/belief_propagation_residue.o

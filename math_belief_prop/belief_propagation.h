@@ -283,9 +283,10 @@ typedef struct _bp_opt_t {
 
   int       use_lookahead;
 
-
   float     noise_coefficient;
   int32_t   noise_func;
+
+  int32_t   experiment_idx;
 
   // As a general rule of thumb, the verbosity is:
   //
@@ -384,16 +385,14 @@ typedef struct _bp_stat_type {
 
 typedef struct _bp_expr_type {
 
-    int         num_expr;
-    int         num_run;
+  int         num_expr;
+  int         num_run;
 
-    Vector3DI   grid_min, grid_max;
+  Vector3DI   grid_min, grid_max;
 
-    int         maxstep_min, maxstep_max;
-
-    float       steprate_min, steprate_max;
-
-    float       eps_min, eps_max;
+  int         maxstep_min, maxstep_max;
+  float       steprate_min, steprate_max;
+  float       eps_min, eps_max;
 
 } bp_expr_t;
 
@@ -426,6 +425,8 @@ public:
 
     op.noise_coefficient = 0.0;
     op.noise_func = OPT_NOISE_FUNC_UNIFORM;
+
+    op.experiment_idx = -1;
 
     //m_breakout_block_fail_count = 0;
     //m_breakout_soften_limit = 10;

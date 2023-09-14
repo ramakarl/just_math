@@ -46,6 +46,7 @@
 #include "pd_getopt.h"
 
 #include "bp_helper.h"
+#include "bp_experiment.h"
 
 extern char *optarg;
 
@@ -549,7 +550,7 @@ int main(int argc, char **argv) {
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
   bpc.op.eps_zero = 1.0/256.0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:U:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -710,6 +711,10 @@ int main(int argc, char **argv) {
         bpc.op.sub_block_range[2][1] = bpc.op.block_size[2];
         break;
 
+      case 'U':
+        bpc.op.experiment_idx = atoi(optarg);
+        break;
+
       default:
         show_usage(stderr);
         exit(-1);
@@ -770,6 +775,11 @@ int main(int argc, char **argv) {
   if (test_num >= 0) {
     run_test(bpc, test_num);
     exit(0);
+  }
+
+  if (bpc.op.experiment_idx >= 0) {
+    ret = run_experiment(bpc);
+    exit(ret);
   }
 
   // prepare raycast [optional]
