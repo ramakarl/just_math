@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
         break;
 
       case 'U':
-        bpc.op.experiment_idx = atoi(optarg);
+        bpc.op.experiment_str = optarg;
         break;
 
       default:
@@ -777,7 +777,8 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  if (bpc.op.experiment_idx >= 0) {
+  //if (bpc.op.experiment_idx >= 0) {
+  if ( bpc.op.experiment_str.size() > 0 ) {
     ret = run_experiment(bpc);
     exit(ret);
   }

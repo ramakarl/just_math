@@ -286,7 +286,8 @@ typedef struct _bp_opt_t {
   float     noise_coefficient;
   int32_t   noise_func;
 
-  int32_t   experiment_idx;
+  //int32_t   experiment_idx;
+  std::string experiment_str;
 
   // As a general rule of thumb, the verbosity is:
   //
@@ -426,7 +427,7 @@ public:
     op.noise_coefficient = 0.0;
     op.noise_func = OPT_NOISE_FUNC_UNIFORM;
 
-    op.experiment_idx = -1;
+    //op.experiment_idx = -1;
 
     //m_breakout_block_fail_count = 0;
     //m_breakout_soften_limit = 10;

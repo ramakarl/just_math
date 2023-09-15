@@ -13,7 +13,7 @@
 //
 
 //--------------------------------------------------------------------------------
-// Copyright 2019-2022 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
+// Copyright 2019-2023 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
 //
 // * Derivative works may append the above copyright notice but should not remove or modify earlier notices.
 //
@@ -43,7 +43,12 @@
 #include "string_helper.h"
 
 int run_experiment(BeliefPropagation &bpc);
-int bp_experiment_tile_fix(BeliefPropagation &bpc);
+int bp_correlation_experiment(BeliefPropagation &bpc,
+                              std::string &op0,
+                              std::string &op1,
+                              std::string &op2,
+                              std::string &op3 );
+
 
 
 #endif
