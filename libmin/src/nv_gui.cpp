@@ -317,6 +317,8 @@ void nvImg::UpdateTex ()
 	bool init2D ( const char* fontName )		{ return g_2D->Initialize( fontName ); }
 	void drawGL ()		{ g_2D->drawGL(); }
 	void setLight (int s, float x1, float y1, float z1 )	{ g_2D->setLight(s,x1,y1,z1); }
+	void setLight (int s, float x1, float y1, float z1, float r,float g, float b ) { g_2D->setLight(s,x1,y1,z1,r,g,b); }
+	void setMaterial (int s, Vector3DF Ks, Vector3DF Kd, float Ni, float Tf)  { g_2D->setMaterial (s,Ks,Kd,Ni,Tf); }
 	void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c,  Vector4DF d  )	{ g_2D->setPntParams(a,b,c, d); }
 	void setPreciseEye (int s, Camera3D* cam )						{ g_2D->setPreciseEye(s, cam); }
 	void start2D ()		{ g_2D->start2D(); }
@@ -346,6 +348,7 @@ void nvImg::UpdateTex ()
 
 	void start3D ( Camera3D* cam )		{ g_2D->start3D( cam ); }
 	void selfDraw3D ( Camera3D* cam, int sh )	{ g_2D->selfDraw3D( cam, sh ); }
+	void selfSetTexture ( int glid)		{g_2D->selfSetTexture(glid); }
 	void selfEndDraw3D ()				{ g_2D->selfEndDraw3D(); }
 	void drawLine3D ( float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a ) { g_2D->drawLine3D(x1,y1,z1,x2,y2,z2,r,g,b,a); }
 	void drawLine3D ( Vector3DF p1, Vector3DF p2, Vector4DF clr ) { g_2D->drawLine3D ( p1, p2, clr ); }
@@ -588,13 +591,23 @@ void nvImg::UpdateTex ()
 	void nvDraw::drawTri3D(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float nx, float ny, float nz, float r, float g, float b, float a)
 	{
 		int ndx;
-		nvVert* v = allocGeom(3, GRP_TRI, mCurrSet, ndx);
-		uint* i = allocIdx(4, GRP_TRI, mCurrSet);
+		nvVert* v = allocGeom(5, GRP_TRI, mCurrSet, ndx);
+		uint* i = allocIdx(5, GRP_TRI, mCurrSet);
+
+		// GRP_TRI is a triangle strip! (NEED TO CHANGE THIS)
+		// repeat first for jump
+		v->x = x1; v->y = y1; v->z = z1; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0; 	v->nx = nx; v->ny = ny; v->nz = nz; v++;
 
 		v->x = x1; v->y = y1; v->z = z1; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v->nx = nx; v->ny = ny; v->nz = nz; v++;
 		v->x = x2; v->y = y2; v->z = z2; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;	v->nx = nx; v->ny = ny; v->nz = nz; v++;
-		v->x = x3; v->y = y3; v->z = z3; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;  v->nx = nx; v->ny = ny; v->nz = nz;
-		*i++ = ndx++; *i++ = ndx++; *i++ = ndx++; *i++ = (ndx-1);
+		v->x = x3; v->y = y3; v->z = z3; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;  v->nx = nx; v->ny = ny; v->nz = nz; v++;
+
+		// repeat last for jump
+		v->x = x3; v->y = y3; v->z = z3; v->r = r; v->g = g; v->b = b; v->a = a; v->tx = 0; v->ty = 0;  v->nx = nx; v->ny = ny; v->nz = nz; v++;
+		
+		for (int j=0; j < 5; j++) {
+			*i++ = ndx++; 
+		}
 	}
 	void nvDraw::drawFace3D(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4, float nx, float ny, float nz, float r, float g, float b, float a)
 	{
@@ -1487,14 +1500,22 @@ void nvImg::UpdateTex ()
 			"in vec3		vpos; \n"
 			"in vec4		vcolor; \n"		
 			"in vec2		vtexcoord; \n"
-			"in vec3		vnorm; \n"		
+			"in vec3		vnorm; \n"
+			"uniform float  spec_power; \n"
+			"uniform vec3   spec_clr; \n"
+			"uniform vec3   lightclr; \n"
 			"uniform vec3	lightpos; \n"
+			"uniform vec3	campos; \n"
 			"out vec4		outColor;\n"
 			"void main () {\n"		
 			"    vec4 imgclr = texture(imgTex, vtexcoord);\n"
-			"    vec4 clr = (vcolor.w > 0.f) ? vcolor * imgclr: vec4( vcolor.x, vcolor.y, vcolor.z, -vcolor.w * imgclr.w); \n"
-			"    float d = (vnorm.x < -1.f) ? 1.0f : 0.1f + 0.9f * clamp( dot ( vnorm, normalize(lightpos-vpos) ), 0.f, 1.f); \n"
-			"    outColor = vec4(d, d, d, 1) * clr;\n"
+			"    vec4 texclr = (vcolor.w > 0.f) ? vcolor * imgclr: vec4( vcolor.x, vcolor.y, vcolor.z, -vcolor.w * imgclr.w); \n"			
+			"    vec3 lgtdir = normalize(lightpos - vpos);\n"
+			"    vec3 V = normalize( campos - vpos );\n"
+			"    vec3 R = normalize( vnorm * (2.0f*dot ( vnorm, lgtdir)) - lgtdir );\n"
+			"    vec3 sclr = (vnorm.x<-1.f) ? vec3(0,0,0) : spec_clr * pow( max(0.0f, dot(R, V)), spec_power );\n"
+			"    float d =   (vnorm.x<-1.f) ? 1.0f : max( 0.0f, dot ( vnorm, lgtdir )); \n"
+			"    outColor = vec4( lightclr * (vec3(d*texclr.x, d*texclr.y, d*texclr.z) + sclr), texclr.w);\n"						
 			"}\n"
 		;
 
@@ -1517,11 +1538,15 @@ void nvImg::UpdateTex ()
 		glUseProgram( mSH[S3D] );
 		checkGL( "Use program" );
 
-		mProj[S3D] =	glGetUniformLocation ( mSH[S3D], "projMatrix" );
-		mModel[S3D] =	glGetUniformLocation ( mSH[S3D], "modelMatrix" );
-		mView[S3D] =	glGetUniformLocation ( mSH[S3D], "viewMatrix" );
-		mLight[S3D] =	glGetUniformLocation ( mSH[S3D], "lightpos" );
-		mTex[S3D] =		glGetUniformLocation ( mSH[S3D], "imgTex" );
+		mProj[S3D] =		glGetUniformLocation ( mSH[S3D], "projMatrix" );
+		mModel[S3D] =		glGetUniformLocation ( mSH[S3D], "modelMatrix" );
+		mView[S3D] =		glGetUniformLocation ( mSH[S3D], "viewMatrix" );
+		mCamPos[S3D] =		glGetUniformLocation ( mSH[S3D], "campos" );
+		mLightPos[S3D] =	glGetUniformLocation ( mSH[S3D], "lightpos" );
+		mLightClr[S3D] =	glGetUniformLocation ( mSH[S3D], "lightclr" );
+		mTex[S3D] =			glGetUniformLocation ( mSH[S3D], "imgTex" );
+		mSpecPow[S3D] =		glGetUniformLocation ( mSH[S3D], "spec_power" );
+		mSpecClr[S3D] =		glGetUniformLocation ( mSH[S3D], "spec_clr" );
 
 		checkGL( "Get Shader Matrices" );	
 	}
@@ -1623,7 +1648,7 @@ void nvImg::UpdateTex ()
 		mProj[SPNT] =	glGetUniformLocation ( mSH[SPNT], "projMatrix" );
 		mModel[SPNT] =	glGetUniformLocation ( mSH[SPNT], "modelMatrix" );
 		mView[SPNT] =	glGetUniformLocation ( mSH[SPNT], "viewMatrix" );
-		mLight[SPNT] =	glGetUniformLocation ( mSH[SPNT], "lightpos" );
+		mLightPos[SPNT] =	glGetUniformLocation ( mSH[SPNT], "lightpos" );
 		mTex[SPNT] =	glGetUniformLocation ( mSH[SPNT], "imgTex" );
 		checkGL( "Get tex" );	
 
@@ -1665,12 +1690,25 @@ void nvImg::UpdateTex ()
 		glBindTexture ( GL_TEXTURE_2D, mWhiteImg.getTex() );
 		checkGL ( "drawGL" );
 	}
-	void nvDraw::setLight (int s, float x1, float y1, float z1 )
+	void nvDraw::setLight (int s, float x1, float y1, float z1)
 	{
 		//glProgramUniform3f ( mSH[s], mLight[s], x1, y1, z1 );
 		glUseProgram (mSH[S3D]);
-		glUniform3f ( mLight[s], x1, y1, z1 );
+		glUniform3f ( mLightPos[s], x1, y1, z1 );				
 	}
+	void nvDraw::setLight (int s, float x1, float y1, float z1, float r,float g, float b )
+	{
+		glUseProgram (mSH[S3D]);
+		glUniform3f ( mLightPos[s], x1, y1, z1 );		
+		glUniform3f ( mLightClr[s], r, g, b );
+	}
+	void nvDraw::setMaterial (int s, Vector3DF Ks, Vector3DF Kd, float Ns, float Tf)
+	{
+		glUseProgram (mSH[S3D]);
+		glUniform1f ( mSpecPow[s], Ns );		
+		glUniform3f ( mSpecClr[s], Ks.x, Ks.y, Ks.z );
+	}
+
 	void nvDraw::setPreciseEye (int s, Camera3D* cam )
 	{
 		Vector3DF hi,lo;
@@ -1891,7 +1929,7 @@ void nvImg::UpdateTex ()
 
 		// lines 			
 		if ( s.mVBO[GRP_LINES] !=0 && s.mNum[GRP_LINES] != 0 ) {
-			glLineWidth(2);
+			glLineWidth( 1 );
 			glBindTexture(GL_TEXTURE_2D, mWhiteImg.getTex());			// default texture (solid white)
 			glBindBuffer ( GL_ARRAY_BUFFER, s.mVBO[ GRP_LINES ] );	
 			glVertexAttribPointer( localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), 0 );
@@ -1930,8 +1968,18 @@ void nvImg::UpdateTex ()
 		glUniformMatrix4fv ( mModel[sh], 1, GL_FALSE, ident.GetDataF() );
 		glUniformMatrix4fv ( mView[sh],  1, GL_FALSE, cam->getViewMatrix().GetDataF() );
 
-		glEnableVertexAttribArray(localPos);
-		glEnableVertexAttribArray(localClr);
+		// send camera pos to shader
+		Vector3DF c = cam->getPos();
+		glUniform3f ( mCamPos[sh], c.x, c.y, c.z );
+
+		// assume no texture
+		selfSetTexture();	
+	}
+
+	void nvDraw::selfSetTexture ( int glid ) 
+	{
+		glActiveTexture ( GL_TEXTURE0 );				
+		glBindTexture ( GL_TEXTURE_2D, (glid==-1) ? mWhiteImg.getTex() : glid );
 	}
 
 	void nvDraw::selfEndDraw3D ()
@@ -2064,7 +2112,11 @@ void nvImg::UpdateTex ()
 		// lines 	
 		// -- draw lines last as they may overlay (alpha-blend) with polygons
 		if (s.mVBO[GRP_LINES] != 0 && s.mNum[GRP_LINES] != 0) {
+			
 			glBindTexture(GL_TEXTURE_2D, mWhiteImg.getTex());
+
+			setMaterial (S3D, Vector3DF(0,0,0), Vector3DF(1,1,1), 0, 0);
+			
 			glBindBuffer(GL_ARRAY_BUFFER, s.mVBO[GRP_LINES]);
 			glVertexAttribPointer(localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), 0);
 			glVertexAttribPointer(localClr, 4, GL_FLOAT, GL_FALSE, sizeof(nvVert), (void*)12);
@@ -2174,7 +2226,7 @@ void nvImg::UpdateTex ()
 		glEnable ( GL_BLEND );
 		glDepthFunc ( GL_LEQUAL );
 		glBlendFunc ( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-		glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+		//glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
 
 		glBindVertexArray ( mVAO );		
 		glUseProgram ( mSH[S3D] );
@@ -2985,3 +3037,4 @@ void nvImg::UpdateTex ()
 	HELPAPI bool	guiChanged ( int n )								{return false;}	
 
 #endif
+

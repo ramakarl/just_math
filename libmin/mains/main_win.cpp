@@ -534,7 +534,7 @@ bool Application::appStartWindow (void* arg1, void* arg2, void* arg3, void* arg4
     winClass.hIcon = LoadIcon( m_win->_hInstance, IDI_APPLICATION);
     winClass.hIconSm = LoadIcon( m_win->_hInstance, IDI_APPLICATION);
     winClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    winClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    winClass.hbrBackground = NULL;  // (HBRUSH)GetStockObject(BLACK_BRUSH);
     winClass.lpszMenuName = NULL;
     winClass.cbClsExtra = 0;
     winClass.cbWndExtra = 0;
@@ -678,13 +678,16 @@ void Application::appForegroundWindow()
 {
     Sleep (1000);
 
+    // disable dynamic resizing: SWP_NOSIZE | SWP_NOMOVE
+    int flags = SWP_SHOWWINDOW | SWP_NOCOPYBITS | SWP_NOSENDCHANGING;
+
     HWND hwnd = m_win->_hWnd;
     HWND hCurWnd = ::GetForegroundWindow();
     DWORD dwMyID = ::GetCurrentThreadId();
     DWORD dwCurID = ::GetWindowThreadProcessId(hCurWnd, NULL);
     ::AttachThreadInput(dwCurID, dwMyID, TRUE);
-    ::SetWindowPos( hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
-    ::SetWindowPos( hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE);
+    ::SetWindowPos( hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags);
+    ::SetWindowPos( hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
     ::SetForegroundWindow( hwnd );
     ::SetFocus( hwnd );
     ::SetActiveWindow( hwnd );

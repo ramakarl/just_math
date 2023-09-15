@@ -283,6 +283,7 @@
 			void setView3D ( nvSet& s, Camera3D* cam );
 			void start3D ( Camera3D* cam );			
 			void selfDraw3D ( Camera3D* cam, int sh );
+			void selfSetTexture ( int glid=-1 );
 			void selfEndDraw3D ();
 			void drawLine3D ( float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a );
 			void drawLine3D ( Vector3DF p1, Vector3DF p2, Vector4DF clr );
@@ -314,6 +315,8 @@
 			void drawSet2D ( nvSet& buf );
 			void drawSet3D ( nvSet& buf );
 			void setLight (int s, float x1, float y1, float z1 );
+			void setLight (int s, float x1, float y1, float z1, float r,float g, float b );
+			void setMaterial (int s, Vector3DF Ks, Vector3DF Kd, float Ns, float Tf);
 			void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c, Vector4DF d);
 			void setPreciseEye (int s, Camera3D* cam );
 		
@@ -341,7 +344,8 @@
 			GLuint				mSH[SMAX];					// Shaders
 			GLuint				mModel[SMAX], mProj[SMAX];	// Shader parameters
 			GLuint				mView[SMAX], mTex[SMAX];
-			GLuint				mLight[SMAX];
+			GLuint				mCamPos[SMAX], mLightPos[SMAX], mLightClr[SMAX];
+			GLuint				mSpecPow[SMAX], mSpecClr[SMAX];
 			GLuint				mEyeHi[SMAX], mEyeLo[SMAX];
 			GLuint				mPntP0[SMAX], mPntP1[SMAX], mPntP2[SMAX], mPntP3[SMAX];
 
@@ -452,11 +456,14 @@
 		HELPAPI void drawPnts3D ( Vector4DF* pnts, Vector4DF* clrs, int pnts_num );	
 		HELPAPI void drawText3D ( Camera3D* cam, float x, float y, float z, char* msg, float r, float g, float b, float a );
 		HELPAPI void selfDraw3D ( Camera3D* cam, int sh );
+		HELPAPI void selfSetTexture ( int glid=-1);
 		HELPAPI void selfEndDraw3D ();
 		HELPAPI void end3D ();
 		HELPAPI void draw3D ();
 		HELPAPI void drawGL ();
 		HELPAPI void setLight (int s, float x1, float y1, float z1 );
+		HELPAPI void setLight (int s, float x1, float y1, float z1, float r,float g, float b );
+		HELPAPI void setMaterial (int s, Vector3DF Ks, Vector3DF Kd, float Ns, float Tf);
 		HELPAPI void setPntParams (Vector4DF a, Vector4DF b, Vector4DF c, Vector4DF d);
 		HELPAPI void setPreciseEye (int s, Camera3D* cam );
 
