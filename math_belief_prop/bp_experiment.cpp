@@ -287,6 +287,7 @@ int bp_correlation_experiment(BeliefPropagation &bpc,
 
           //DEBUG
           //
+          /*
           if ( (_ix - cur_x) == -111 ) {
             int _found,
                 _i_save, _i_cur,
@@ -312,6 +313,7 @@ int bp_correlation_experiment(BeliefPropagation &bpc,
               if (!_found) { printf("# @-111 not found saved tile %i\n", (int)_tile_save); }
             }
           }
+          */
           //
           //DEBUG
 
