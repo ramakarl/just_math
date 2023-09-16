@@ -346,9 +346,10 @@ void nvImg::UpdateTex ()
 	void getTextSize ( const char* msg, float& sx, float& sy )	{ return g_2D->getTextSize(msg, sx, sy); }
 	void getGlyphSize ( const char c, float& sx, float& sy )	{ return g_2D->getGlyphSize(c, sx, sy); }
 
-	void start3D ( Camera3D* cam )		{ g_2D->start3D( cam ); }
+	void start3D ( Camera3D* cam )				{ g_2D->start3D( cam ); }
 	void selfDraw3D ( Camera3D* cam, int sh )	{ g_2D->selfDraw3D( cam, sh ); }
-	void selfSetTexture ( int glid)		{g_2D->selfSetTexture(glid); }
+	void selfSetTexture ( int glid)				{ g_2D->selfSetTexture(glid); }
+	void selfSetModelMtx ( Matrix4F& mtx )  { g_2D->selfSetModelMtx (mtx); }	
 	void selfEndDraw3D ()				{ g_2D->selfEndDraw3D(); }
 	void drawLine3D ( float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a ) { g_2D->drawLine3D(x1,y1,z1,x2,y2,z2,r,g,b,a); }
 	void drawLine3D ( Vector3DF p1, Vector3DF p2, Vector4DF clr ) { g_2D->drawLine3D ( p1, p2, clr ); }
@@ -1983,6 +1984,11 @@ void nvImg::UpdateTex ()
 		glActiveTexture ( GL_TEXTURE0 );				
 		glBindTexture ( GL_TEXTURE_2D, (glid==-1) ? mWhiteImg.getTex() : glid );
 	}
+	void nvDraw::selfSetModelMtx ( Matrix4F& mtx )
+	{
+		glUniformMatrix4fv ( mModel[S3D], 1, GL_FALSE, mtx.GetDataF() );
+	}
+
 
 	void nvDraw::selfEndDraw3D ()
 	{

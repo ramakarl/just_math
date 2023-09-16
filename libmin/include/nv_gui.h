@@ -284,6 +284,7 @@
 			void start3D ( Camera3D* cam );			
 			void selfDraw3D ( Camera3D* cam, int sh );
 			void selfSetTexture ( int glid=-1 );
+			void selfSetModelMtx ( Matrix4F& mtx );
 			void selfEndDraw3D ();
 			void drawLine3D ( float x1, float y1, float z1, float x2, float y2, float z2, float r, float g, float b, float a );
 			void drawLine3D ( Vector3DF p1, Vector3DF p2, Vector4DF clr );
@@ -457,6 +458,7 @@
 		HELPAPI void drawText3D ( Camera3D* cam, float x, float y, float z, char* msg, float r, float g, float b, float a );
 		HELPAPI void selfDraw3D ( Camera3D* cam, int sh );
 		HELPAPI void selfSetTexture ( int glid=-1);
+		HELPAPI void selfSetModelMtx ( Matrix4F& mtx );
 		HELPAPI void selfEndDraw3D ();
 		HELPAPI void end3D ();
 		HELPAPI void draw3D ();

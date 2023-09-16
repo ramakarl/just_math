@@ -80,7 +80,12 @@ void MeshX::ComputeNormals (bool flat)
 	Vector3DF v1, v2, v3;
 	Vector3DF* vn;
 
-	if ( !isActive(BVERTNORM) ) return;
+	if ( !isActive(BVERTNORM) ) {
+		// add normal buffer
+		int64_t cnt = GetNumVert ();
+		AddBuffer ( BVERTNORM, "norm", sizeof(Vector3DF), cnt );
+		ReserveBuffer ( BVERTNORM, cnt );
+	}
 
 	// Clear vertex normals	
 	for (vn = (Vector3DF*) GetStart(BVERTNORM); vn <= (Vector3DF*) GetEnd(BVERTNORM); vn++) {
@@ -94,9 +99,9 @@ void MeshX::ComputeNormals (bool flat)
 			v1 = *GetVertPos( f->v1 );	v2 = *GetVertPos( f->v2 );	v3 = *GetVertPos( f->v3 );			
 			norm = norm.Cross ( v2-v1, v3-v1 );
 			norm.NormalizeFast ();
-			vn = GetVertNorm( f->v1);	*vn = norm;
-			vn = GetVertNorm( f->v2);	*vn = norm;
-			vn = GetVertNorm( f->v3);	*vn = norm;
+			vn = GetVertNorm( f->v1 );	*vn = norm;
+			vn = GetVertNorm( f->v2 );	*vn = norm;
+			vn = GetVertNorm( f->v3 );	*vn = norm;
 		}
 	} else {
 		// Smoothed normals
@@ -1061,10 +1066,12 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 					
 					// if not. create a new vertex:
 					fv[j] = AddVert ( vlist[v[j]] );			// vertex position
-					AddVertNorm( nlist[n[j]] );					// vertex normal
+
+					if (!bNeedNormals)
+						AddVertNorm( nlist[n[j]] );				// vertex normal
 
 					if (curr_mtl >= 0 )
-						AddVertClr( palette[ curr_mtl % 8 ] );	    // vertex color (optional)
+						AddVertClr( palette[ curr_mtl % 8 ] );	// vertex color (optional)
 
 					if ( t[0] >= 0 ) 
 						AddVertTex ( tlist[t[j]] );				// vertex texcoord (optional)
@@ -1111,7 +1118,7 @@ bool MeshX::LoadObj ( const char* fname, float scal )
 	//Measure ();
 
 	if ( bNeedNormals ) 
-		ComputeNormals ();
+		ComputeNormals (false);
 
 	return true;
 }
