@@ -177,7 +177,7 @@ is completely surrounded by a realized grid.
 Fuzzing a block has essentially no effect as it should be identical after fuzzing and
 constraint propagation, so it's not introducing any more entropy from the fuzzing state.
 
-There could be cases when fuzzing and constraint propagation (without wfc) could yield
+There could be cases when fuzzing and constraint propagation (without WFC) could yield
 a lower entropy state but this should be rare?
 
 
@@ -192,8 +192,8 @@ Alternate names:
 * hook radius
 
 The underlying assumption is that there is something like a 'radius of influence' that
-is finite for these tilesets.
-Some tilesets that have large influence radius still work, so this is not a clear characterization.
+is finite for these tile sets.
+Some tile sets that have large influence radius still work, so this is not a clear characterization.
 
 One attempt at defining the influence radius is:
 
@@ -213,6 +213,85 @@ One can hope to try and get at this idea by measuring an arc consistent influenc
 by starting in a prefatory state, fixing a tile value in the middle and seeing what the farthest
 cell that's affected after propagating constraints.
 
+---
+
+In relation to BMS, we're concerned with finding realizations.
+WFC is a "one-shot" algorithm, meaning that it will stop when it reaches a contradiction.
+Without backtracking, WFC will most likely fail for constrained tile sets past a certain size,
+so some other algorithm needs to be used.
+
+MMS has the advantage of always producing valid states but at the cost of finding an initial
+valid state and the disadvantage of potentially being locked in a basin of solutions without
+the ability to be able to break out to sample other basins of solutions.
+
+Breakout model synthesis (BMS) draws from the advantage of WFC and MMS by running the constraint
+propagation of WFC but restricted to a block, like MMS.
+Unlike MMS, the initial state need not be specified, potentially allowing a broader set of solutions.
+
+Whereas MMS can get trapped into a basin of solutions, like in the 'river runs through it' example,
+BMS defers the choice of the state by allowing cell positions to have more tile values available.
+BMS also offers the advantage of not requiring the explicit setup of a ground state, as in MMS,
+which can be labor intensive or non-trivial to find.
+
+The deferred choice that BMS offers comes at the cost of space and run time. BMS requires the grid to
+store tile value choices still available inflating space considerations from an efficient implementation
+of MMS.
+BMS further runs constraint propagation on a potentially partially realized grid surrounding a chosen
+block which could increase the run time of an efficient implementation of MMS, which only requires local
+constraint propagation to within the block being considered.
+
+For problems that are amenable to MMS, MMS is probably the better choice.
+BMS is probably a better choice when initial ground state is difficult to create, for example when
+a ground state is not obvious or is labor intesive to create, or when the choice of ground state for
+MMS would lock it into a basin of solutions that do not explore the full solution space.
+
+One example of MMS getting locked into a strict subset solution space is if there are structural
+features embedded in the tile set whose size is larger than a block.
+MMS will never be able to find these structures unless they exist in the ground state, as there
+is no way to discover a valid grid state that only has part of the structure embedded within a block
+sized region.
+
+This can be a tricky balance as BMS will also have problems finding a realization if the tile set
+is too constrained, all of which have effects on the probability of finding a valid realization restricted
+to a block, the block size to begin with and how large the SOFTEN region should be.
+
+For BMS, choosing the block size too small can lead to getting trapped in a local minima.
+Choosing the block size too large can lead to the inability to find any realization, as the
+WFC portion will not be able to find, with reasonable probability, a valid realization for
+the large block region.
+
+We are concerned with BMS's ability to actually find solutions.
+To that end, we can test to see what the probability is of finding a solution given
+a block size.
+
+One option is to vary the block size and potentially the placement region to estimate how probable
+a solution can be found.
+
+One idea is to try and tie the arc consistent influence radius, $R_{ac}$, to the block size but this is
+tricky as we're really more concerned with the 'constraidedness' of the tile set which may or
+may not have a direct relation to $R_{ac}$.
+For example, a structure that is completley or near completely specified might have a large $R_{ac}$
+but is not constrained in the usual sense as it's easy to resolve, even with a small block size.
+
+There are competing ideas:
+
+* constraidednes - how much freedom does each tile have to either be next to each other or be
+                   chosen at any given location
+* arc consistent influence radius - what the average or maximum grid cell length is that is affected
+  by fixing a particular tile at a grid location 
+* block size - how big to choose a sub region to work on
+
+---
+
+* too overly constrained, wfc will work because the implication is deterministic or near deterministic
+* too underconstrained and wfc or mms will work
+* a mix of underconstrained and over constrained and nothing will work as it's optimally hard
+
+
+---
+
+* multi-colored ouroborous.
+* left-to-right and right-to-left train
 
 
 ---
