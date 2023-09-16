@@ -6766,8 +6766,9 @@ int BeliefPropagation::cellConstraintPropagate() {
 
                 if (anch_n_tile==1) {
 
-                  if (op.alg_run_opt == ALG_RUN_MMS) {
-                    if (op.verbose >= VB_INTRASTEP) {
+                  if (op.verbose >= VB_INTRASTEP) {
+                    if ( (op.alg_run_opt == ALG_RUN_MMS) ||
+                         (op.alg_run_opt == ALG_RUN_BREAKOUT) ) {
                       printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
                               "cell %i slated to remove last remaining tile (tile %s(%i) "
                               "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [wfc-block.0]\n",

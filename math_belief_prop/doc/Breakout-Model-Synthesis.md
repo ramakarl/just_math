@@ -34,7 +34,7 @@ A rough overview of the algorithm is provided:
 /* BREAKOUT-MODEL-SYNTHESIS algorithm */
 Create an initial prefatory arc consistent model $M = M_0$ (if no such model exists, fail)
 
-Repeat $T_{mix}$ times {
+Repeat until a realization is found or a maximum $T_{max}$ tries has been made {
 
   /* BLOCK-POSITION phase */
   Choose a block, $B$, of cells to modify
@@ -136,7 +136,7 @@ Miscellaneous Notes
 
 Fundamental to the functioning of this idea is that the correlation length, however it's measured, is finite
 for generic tile sets and configurations.
-A finite correlation length means choosing a big enough block size, and 'soften' length, wil be able to resolve a
+A finite correlation length means choosing a big enough block size, and 'soften' length, will be able to resolve a
 section independent of the surrounding configuration.
 
 The question comes up on how to measure the various quantities analogous to correlation length and cluster
@@ -152,7 +152,7 @@ Here are some suggestions:
   - Choose corners, boundaries and the center
   - Remove a block, potentially with non linear/planar boundaries, and make each cell wildcard
   - Run constraint propagation on the fuzzed wildcard area
-  - Collect statistics on feasability of finding a solution for every tile value in the center of the removed area
+  - Collect statistics on feasibility of finding a solution for every tile value in the center of the removed area
 
 ---
 
@@ -172,16 +172,46 @@ a block that has entropy closest to it might be good enough.
 A block that that is fully realized will be completely fuzzed out and is an undesirable
 pick, especially considering other areas that might have unresolved blocks.
 A block that is fully wildcard is also undesirable because this is maximum entropy.
-The "ideal" case is when there's a (arc consisten, constraint propagated) block that
+The "ideal" case is when there's a (arc consistent, constraint propagated) block that
 is completely surrounded by a realized grid.
 Fuzzing a block has essentially no effect as it should be identical after fuzzing and
-constraing propagation, so it's not introducing any more entropy from the fuzzing state.
+constraint propagation, so it's not introducing any more entropy from the fuzzing state.
 
 There could be cases when fuzzing and constraint propagation (without wfc) could yield
 a lower entropy state but this should be rare?
 
 
+Radius of Influence
+---
 
+Alternate names:
+
+* implication radius
+* tangle radius
+* influence radius
+* hook radius
+
+The underlying assumption is that there is something like a 'radius of influence' that
+is finite for these tilesets.
+Some tilesets that have large influence radius still work, so this is not a clear characterization.
+
+One attempt at defining the influence radius is:
+
+$$
+\begin{array}{ll}
+\forall s, t \in M :& |t - s| > R, \\
+\forall d_s \in D_s, \forall d_t \in D_t, &
+|\Pr\{ u_t = d_t | u_s = d_s\} - \Pr\{ u_t = d_t \}| > \epsilon
+\end{array}
+$$
+
+Where the probability is assumed to be over all valid configurations.
+
+Besides being clunky to define, the above is, in general, intractable to compute as it
+requires a full enumeration of states.
+One can hope to try and get at this idea by measuring an arc consistent influence
+by starting in a prefatory state, fixing a tile value in the middle and seeing what the farthest
+cell that's affected after propagating constraints.
 
 
 

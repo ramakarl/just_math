@@ -354,7 +354,7 @@ int bp_correlation_experiment(BeliefPropagation &bpc,
         for (z=0; z<bpc.m_bpres.z; z++) {
 
           if (grid_sum[x][y][z] > 0) {
-            printf("%i %i %i\n", (int)x, (int)y, (int)grid_sum[x][y][z]);
+            printf("%i %i %i %i\n", (int)x, (int)y, (int)z, (int)grid_sum[x][y][z]);
             lf=1;
           }
 
