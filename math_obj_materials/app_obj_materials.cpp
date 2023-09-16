@@ -1,6 +1,28 @@
 //--------------------------------------------------------
 // JUST MATH:
-// Tilegen, R.Hoetzlein
+// 
+// Render .obj materials
+// R.Hoetzlein, 2023
+// 
+// This app demonstrates how to load, read and render .obj files composed of multiple materials. 
+// Wavefront .obj format supports materials thru the 'mtllib' and 'usemat' commands:
+//  https://en.wikipedia.org/wiki/Wavefront_.obj_file
+// The Material Template Library .mtl file is specified by 'mtllib'
+//
+// The program flow is as follows:
+// 1. Load meshes. Mesh .obj file is read. During reading, multiple ranges of vertices are tagged as face groups.
+// 2. Load materials. The material .mtl file is read. Materials are loaded in memory with their parameters.
+// 3. Resolve. Each face group range of each mesh is assigned a specific in-memory material ID by name.
+// 4. Rendering. 
+//  4.a. Face groups of a mesh are rendered separately. (instead of rendering the entire VBO)
+//  4.b. Just prior to draw call, the material ID associated with a face group is retrieved and 
+//       specific material parameters are written to the current shader.
+//  4.c. The draw call only renders a sub-group of faces by using glDrawElements with a 
+//       specific start and end range for a portion of the VBO:
+//        glDrawElements ( GL_TRIANGLES, vcnt, GL_UNSIGNED_INT, (void*) (vstart * sizeof(uint)) );	
+//
+// This design allows the mesh information to still be stored in large, continuous VBOs.
+// While the rendering step handles sub-group rendering by material.
 //
 //--------------------------------------------------------------------------------
 // Copyright 2019-2023 (c) Quanta Sciences, Rama Hoetzlein, ramakarl.com
@@ -128,20 +150,21 @@ bool Sample::init ()
 	setview2D ( w, h );	
 	setText ( 16, 1 );		
 
-	// Load meshes
+	// 1. Load multple meshes
 	// - must have correct 'face orientation'
 	// - only triangle meshes (no quads)
+	// - assume all using the same .mtl file
 
 	AddMesh ( "01_rail_bend.obj" );
 	AddMesh ( "02_rail_straight.obj" );
 
-	// Load library file (if specified)
+	// 2. Load library file (if specified)
 	std::string mtl_lib = m_meshes[0].mesh->getMtlLibrary();
 	if ( mtl_lib.size() > 0 ) {
 		LoadMaterials ( mtl_lib );
 	}
 
-	// Resolve materials
+	// 3. Resolve materials
 	ResolveMaterials ();
 
 	// Create camera
@@ -153,6 +176,9 @@ bool Sample::init ()
 	return true;
 }
 
+// Load Materials
+// Reads a .mtl (Material Template Library) file and records material specs
+//
 void Sample::LoadMaterials ( std::string name )
 {
 	// Load materials
@@ -181,10 +207,12 @@ void Sample::LoadMaterials ( std::string name )
 		strline = strTrim(strline);
 
 		if (word.compare("newmtl")==0) {
+
 			// allocate new mtl
 			RMtl newmtl;
 			m_materials.push_back ( newmtl );
 			curr_mtl++;
+			
 			// get mtl					
 			mtl = &m_materials[ curr_mtl ];
 			mtl->name = strline;
@@ -213,6 +241,9 @@ void Sample::LoadMaterials ( std::string name )
 }
 
 
+// ResolveMaterials finds the material IDs in
+// the .mtl library associated with each face group
+//
 void Sample::ResolveMaterials ()
 {
 	int mid;
@@ -385,6 +416,7 @@ void Sample::RenderMesh ( RMesh& rm )
 	
 	// Draw elements	
 
+	// check for face groups..
 	if (rm.mFaceGrps.size() > 0 ) {
 		
 		// use face groups
@@ -392,21 +424,25 @@ void Sample::RenderMesh ( RMesh& rm )
 		int vstart, vend, vcnt;
 		int num_grp = rm.mFaceGrps.size();		
 		for (int i=0; i < num_grp; i++) {
+
+			// identify range of vertices
 			vstart = rm.mFaceGrps[i].face_start * 3;
 			vend = rm.mFaceGrps[i].face_end * 3;
 			vcnt = vend - vstart + 3;
-
+			
+			// get associated material
 			mtl_id = rm.mFaceGrps[i].mtl_id;
 			if (  mtl_id >= 0 ) {
-				// assign color to slot
+				// assign color to shader slot
 				Vector3DF Kd = m_materials [ mtl_id].Kd;
 				glDisableVertexAttribArray ( slotClr );
 				glVertexAttrib4f( slotClr, Kd.x, Kd.y, Kd.z, 1.0 );
 
-				// set material on shader
+				// set material params on current shader
 				setMaterial ( S3D, m_materials [ mtl_id].Ks, Kd, m_materials [ mtl_id].Ns, 1.0 );
 			}
-
+			
+			// draw a sub-range of vertices from VBO
 			glDrawElements ( GL_TRIANGLES, vcnt, GL_UNSIGNED_INT, (void*) (vstart * sizeof(uint)) );	
 		}
 	} else {
@@ -486,6 +522,7 @@ void Sample::display ()
 	int w = getWidth();
 	int h = getHeight();
 
+	glClearColor ( 0.4,0.42,0.45, 1.0);
 	clearGL();	
 
 	// 2D rendering (overlay)
@@ -496,7 +533,7 @@ void Sample::display ()
 	// 3D rendering (widgets)
 	start3D(m_cam);
 		// Draw ground
-		drawGrid( Vector4DF(.1, .1, .1, 1) );
+		//drawGrid( Vector4DF(.1, .1, .1, 1) );
 
 		drawBox3D ( Vector3DF(0,0,0), Vector3DF(1,1,1), 1,1,1,1 );
 
@@ -540,7 +577,6 @@ void Sample::mouse(AppEnum button, AppEnum state, int mods, int x, int y)
 		
 	}
 }
-
 
 void Sample::motion (AppEnum button, int x, int y, int dx, int dy) 
 {
@@ -607,7 +643,7 @@ void Sample::reshape (int w, int h)
 void Sample::startup ()
 {
 	int w = 1900, h = 1000;
-	appStart ( "Tilegen", "Tilegen", w, h, 4, 2, 16, false );
+	appStart ( "Render .obj materials", "", w, h, 3, 0, 16, false );
 }
 
 void Sample::shutdown()

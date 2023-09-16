@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-set(PROJNAME math_tilegen)
+set(PROJNAME math_obj_materials)
 Project(${PROJNAME})
 Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")

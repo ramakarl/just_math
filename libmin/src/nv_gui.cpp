@@ -1929,7 +1929,9 @@ void nvImg::UpdateTex ()
 
 		// lines 			
 		if ( s.mVBO[GRP_LINES] !=0 && s.mNum[GRP_LINES] != 0 ) {
-			glLineWidth( 1 );
+			
+			//*note*: glLineWidth not supported in core profile
+
 			glBindTexture(GL_TEXTURE_2D, mWhiteImg.getTex());			// default texture (solid white)
 			glBindBuffer ( GL_ARRAY_BUFFER, s.mVBO[ GRP_LINES ] );	
 			glVertexAttribPointer( localPos, 3, GL_FLOAT, GL_FALSE, sizeof(nvVert), 0 );
@@ -1954,7 +1956,7 @@ void nvImg::UpdateTex ()
 	}
 
 	void nvDraw::selfDraw3D ( Camera3D* cam, int sh ) 
-	{
+	{		
 		glEnable ( GL_DEPTH_TEST );
 		glEnable ( GL_BLEND );
 		glBlendFunc ( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );	
@@ -2222,10 +2224,12 @@ void nvImg::UpdateTex ()
 	{
 		std::vector<nvSet>::iterator it;
 
+		// alpha blending
 		glEnable ( GL_DEPTH_TEST );
 		glEnable ( GL_BLEND );
 		glDepthFunc ( GL_LEQUAL );
 		glBlendFunc ( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+		
 		//glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
 
 		glBindVertexArray ( mVAO );		

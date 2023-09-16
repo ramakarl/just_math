@@ -1007,15 +1007,15 @@ extern void save_png(char* fname, unsigned char* img, int w, int h, int ch);
             m_win->_hDC = GetDC(m_win->_hWnd);
 
             int attri[] = {
-                WGL_DRAW_TO_WINDOW_ARB, true,
-                WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
-                WGL_SUPPORT_OPENGL_ARB, true,
-                WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
-                WGL_DOUBLE_BUFFER_ARB, true,
-                WGL_DEPTH_BITS_ARB, settings.depth,
-                WGL_STENCIL_BITS_ARB, settings.stencil,
-                WGL_SAMPLE_BUFFERS_ARB, 1,
-                WGL_SAMPLES_ARB, settings.MSAA,
+                WGL_ACCELERATION_ARB,           WGL_FULL_ACCELERATION_ARB,
+                WGL_DRAW_TO_WINDOW_ARB,         GL_TRUE,                
+                WGL_SUPPORT_OPENGL_ARB,         GL_TRUE,                
+                WGL_DOUBLE_BUFFER_ARB,          GL_TRUE,
+                WGL_PIXEL_TYPE_ARB,             WGL_TYPE_RGBA_ARB,
+                WGL_DEPTH_BITS_ARB,             settings.depth,
+                WGL_STENCIL_BITS_ARB,           settings.stencil,
+                WGL_SAMPLE_BUFFERS_ARB,         GL_TRUE,
+                WGL_SAMPLES_ARB,                settings.MSAA,
                 0,0
             };
             GLuint nfmts;
