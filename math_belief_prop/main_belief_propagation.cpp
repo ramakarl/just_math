@@ -471,7 +471,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -8     breakout model synthesis, max entropy block + noise choice\n");
   fprintf(fp, "  -b <#>   block size (for use in MMS and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -m <#>   block size retry count (default %i)\n", _g_default_block_retry_count);
-  fprintf(fp, "  -a <#>   noise function paramters\n");
+  fprintf(fp, "  -a <#>   noise function parameters\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -872,6 +872,27 @@ int main(int argc, char **argv) {
     if (ret <= 0) { break; }
 
     if (bpc.m_return == 0) {
+
+      if (bpc.op.verbose >= VB_STEP) {
+
+        if (bpc.op.alg_idx == ALG_MMS_SEQ) {
+          if (bpc.op.tileobj_fn.size() > 0) {
+            bpc.op.cur_run = it;
+            printf("# step:%i: writing stl\n", (int)bpc.op.cur_run);
+            fflush(stdout);
+            bpc.op.outstl_fn = bpc.op.tilemap_fn;
+            write_bp_stl( bpc, tri_shape_lib );
+          }
+          else {
+            bpc.op.cur_run = it;
+            printf("# step:%i: writing tiled json\n", (int)bpc.op.cur_run);
+            fflush(stdout);
+            write_tiled_json( bpc );
+          }
+        }
+
+      }
+
       //printf("success!\n");
       //bpc.debugPrintTerse();
     }
