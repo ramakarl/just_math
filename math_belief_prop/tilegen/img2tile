@@ -233,6 +233,10 @@ if len(fn) == 0:
   usage(sys.stderr)
   sys.exit(-1)
 
+# Read PNG image from fn into data.
+# This is the raw pixels for later
+# processing.
+#
 def load_image(data, fn):
   info = data["info"]
   img = Image.open(fn).convert("RGB")
@@ -353,6 +357,21 @@ def pxl_key(pxl):
       tile_a.append(s_b)
 
   return "".join(tile_a)
+
+def pxl_a_key(pxl):
+  _key_a = []
+  for idx in range(0, len(pxl), 3):
+    str_r = "%0.2x" % pxl[idx+0]
+    str_g = "%0.2x" % pxl[idx+1]
+    str_b = "%0.2x" % pxl[idx+2]
+
+    _key_a.append(str_r)
+    _key_a.append(str_g)
+    _key_a.append(str_b)
+
+  _key = "".join(_key_a)
+
+  return _key
 
 
 def construct_id_pxl_map(data):
@@ -568,8 +587,9 @@ def barf_supertile(pxl, png_row, png_col, ofn):
   png_ofp.close()
 
 # construct:
-# block_id_map
-# id_block_map
+#
+# block_id_map - map block data to ID
+# id_block_map - map ID to block data
 # 
 def construct_block_tile(data):
 
@@ -691,6 +711,14 @@ def construct_block_tile(data):
 
 ## construct rules from pixel data
 ##
+## For each superblock, there is a subregion that
+## defines the overlapping part that would connect
+## to another supertile.
+## These neighbor regions are constructed, creating
+## a string of pixel data that are keys into a map
+## so we can look them when doing the N^2
+## superblock neighbor tile consideration.
+##
 def construct_block_nei(data):
 
   n_block = data["n_block"]
@@ -717,8 +745,11 @@ def construct_block_nei(data):
       for nei_idx in range(6):
         id_id_nei_map[src_tile_id][dst_tile_id][nei_idx] = 0
 
-  nei_desc = [ "+x", "-x", "+y", "-y" ]
-  nei_id_map = { 0:{}, 1:{}, 2:{}, 3:{} }
+  # only 2d is supported in the program, so "start/end" (se)
+  # only has four entries
+  #
+  nei_desc = [ "+x", "-x", "+y", "-y", "+z", "-z" ]
+  nei_id_map = { 0:{}, 1:{}, 2:{}, 3:{}, 4:{}, 5:{} }
   se = [
     [ [0, window[row_idx] ], [stride[col_idx], window[col_idx] ] ],
     [ [0, window[row_idx] ], [0, window[col_idx]  - stride[col_idx] ] ],
@@ -793,6 +824,18 @@ def construct_block_nei(data):
 
   data["id_id_nei_map"] = id_id_nei_map
 
+# as far as I can tell, this is removing superblocks that
+# have a 'null' tile as the representative/displayed tile.
+# We take care of null tiles specially, having just one null
+# tile with the privileged tile id of zero (0) that's a
+# neighbor to all boundary (super) tiles.
+# Any other supertiles with a null tile as the representative
+# are redundant and can be thrown away.
+#
+# This function might be a vestige of a previous method that
+# required some more post processing to get the supertiles into
+# a form that was needed.
+#
 def dedup_block(data):
 
   n_block = data["n_block"]
@@ -820,6 +863,11 @@ def dedup_block(data):
   dedup_id_block_map = {}
   dedup_id_block_map[0] = id_block_map[0]
 
+  dedup_block_id_map = {}
+  dedup_block_id_map[ pxl_a_key(id_block_map[0]) ] = 0;
+
+  reject_count=0
+
   # find number of deduplicated tiles
   # and save where they came from
   #
@@ -832,9 +880,11 @@ def dedup_block(data):
         (src_pxl[b_idx+1] == null_pxl[1]) and
         (src_pxl[b_idx+2] == null_pxl[2])):
       src_id_dedup_id_map[src_tile_id] = 0
+      reject_count+=1
       continue
 
     dedup_id_block_map[n_dedup_id] = id_block_map[src_tile_id]
+    dedup_block_id_map[ pxl_a_key(id_block_map[src_tile_id]) ] = n_dedup_id
     src_id_dedup_id_map[src_tile_id] = n_dedup_id
     n_dedup_id += 1
 
@@ -864,6 +914,7 @@ def dedup_block(data):
   data["dedup_id_rule"] = dedup_id_rule
   data["src_id_dedup_id_map"] = src_id_dedup_id_map
   data["dedup_id_block_map"] = dedup_id_block_map
+  data["dedup_block_id_map"] = dedup_block_id_map
 
   _opt = data["info"]["opt"]
   if _opt["barf_supertile"]:
@@ -905,13 +956,76 @@ def write_name_csv(n_block, ofn):
     ofp.write( str(tile_id) + "," + str(tile_id) + "\n" )
   ofp.close()
 
-def write_tiled_json(info, tm):
+## write tiled output
+##
+def write_tiled_json(data, json_fn):
 
-  stride_r = info["stride"][0]
-  stride_c = info["stride"][1]
+  info = data["info"]
 
-  tile_r = len(tm)
-  tile_c = len(tm[0])
+  pxltile = data["pxltile"]
+  stride = pxltile["stride"]
+  window = pxltile["window"]
+  base = pxltile["base"]
+
+  sz = data["img"]["size"]
+  src_pxl = data["img"]["pxl"]
+
+  row_idx = data["row_idx"]
+  col_idx = data["col_idx"]
+
+  s_c = 0
+  n_c = sz[col_idx]
+
+  s_r = 0
+  n_r = sz[row_idx]
+
+  null_pxl = data["null_pixel"]
+  dedup_block_id_map = data["dedup_block_id_map"]
+  tilemap_a = []
+
+  for r in range(s_r, n_r, stride[row_idx]):
+    for c in range(s_c, n_c, stride[col_idx]):
+
+      st_key = []
+      supertile = []
+      for tile_r in range(window[row_idx]):
+        for tile_c in range(window[col_idx]):
+
+          src_r = r + tile_r
+          src_c = c + tile_c
+
+          if ((src_r < 0) or (src_c < 0) or
+              (src_r >= sz[row_idx]) or (src_c >= sz[col_idx])):
+            supertile.append( null_pxl[0] )
+            supertile.append( null_pxl[1] )
+            supertile.append( null_pxl[2] )
+            continue
+
+          rgb = src_pxl[ src_c, src_r ]
+
+          supertile.append( rgb[0] )
+          supertile.append( rgb[1] )
+          supertile.append( rgb[2] )
+
+      tile_key = -1
+      st_key_str = pxl_a_key( supertile )
+
+      if not (st_key_str in dedup_block_id_map):
+        print("ERROR: row:",r,"col:",c,"not found in dedup_block_id_map")
+      else:
+        tile_key = dedup_block_id_map[ st_key_str ]
+
+      tilemap_a.append(tile_key)
+
+
+  stride_r = stride[row_idx]
+  stride_c = stride[col_idx]
+
+  #tile_r = len(tm)
+  #tile_c = len(tm[0])
+
+  tile_r = int( n_r / stride[row_idx] )
+  tile_c = int( n_c / stride[col_idx] )
 
   tiled_map_template = {
     "backgroundcolor" : "#ffffff",
@@ -929,7 +1043,8 @@ def write_tiled_json(info, tm):
   }
 
   tiled_layer_template = {
-    "data": [],
+    #"data": [],
+    "data": tilemap_a,
     "height": tile_r,
     "width":  tile_c,
     "name":   "main",
@@ -941,30 +1056,40 @@ def write_tiled_json(info, tm):
     "y": 0
   }
 
+  n_id = data["n_dedup_id"]
+  n = int(math.ceil( math.sqrt(float(n_id)) ))
+
+  png_row = stride[row_idx]*n
+  png_col = stride[col_idx]*n
+
   tiled_tileset_template = {
     "firstgid": info["firstgid"],
-    "columns":  info["tileset"]["width"],
+    #"columns":  info["tileset"]["width"],
+    "columns":  n,
     "name":     "tileset",
     "image":    info["tileset"]["fn"],
-    "imageheight":  info["tileset"]["height"] * info["tileset"]["stride"][1],
-    "imagewidth":   info["tileset"]["width"] * info["tileset"]["stride"][0],
+    "imageheight":  png_row,
+    "imagewidth":   png_col,
     "margin":   0,
     "spacing":  0,
-    "tilecount":  info["tileset"]["count"],
-    "tileheight": info["tileset"]["stride"][1],
-    "tilewidth":  info["tileset"]["stride"][0]
+    #"tilecount":  info["tileset"]["count"],
+    "tilecount": data["n_dedup_id"],
+    #"tileheight": info["tileset"]["stride"][1],
+    #"tilewidth":  info["tileset"]["stride"][0]
+    "tileheight": stride[row_idx],
+    "tilewidth":  stride[col_idx]
   }
 
   json_data = tiled_map_template
   json_data["layers"].append( tiled_layer_template )
   json_data["tilesets"].append( tiled_tileset_template )
 
-  for it_r in range(tile_r):
-    row = []
-    for it_c in range(tile_c):
-      json_data["layers"][0]["data"].append( tm[it_r][it_c] )
+  #for it_r in range(tile_r):
+  #  row = []
+  #  for it_c in range(tile_c):
+  #    json_data["layers"][0]["data"].append( tm[it_r][it_c] )
 
-  ofp = open( info["tilemap"]["fn"], "wb" )
+  ofp = open( json_fn, "wb" )
   ofp.write( json.dumps( json_data, indent=2 ).encode() )
   ofp.close()
   return json_data
@@ -1086,10 +1211,6 @@ if info["tilerule"]["realize"]:
 if info["tileset"]["realize"]:
   write_tileset_png(data, info["tileset"]["fn"], True)
 
-#if info["tilemap"]["realize"]:
-#
-#  print(data["dedup_id_block_map"])
-#
-#  print("????")
-#  write_tiled_json(info, info["tilemap"]["data"])
+if info["tilemap"]["realize"]:
+  write_tiled_json(data, info["tilemap"]["fn"])
 
