@@ -1,0 +1,42 @@
+#!/bin/bash
+
+bpbin="../bpc"
+namefn="../examples/.data/oskar-pipe_name.csv"
+rulefn="../examples/.data/oskar-pipe_rule.csv"
+
+nexperiment=100
+baseseed=123
+
+
+
+for D in `seq 4 12`; do
+  echo $d
+
+  success=0
+
+  for x in `seq $nexperiment`; do
+    seed=`echo "$baseseed + $x" | bc`
+
+    z=$($bpbin \
+      -V 1 \
+      -D $D \
+      -S $seed \
+      -N $namefn \
+      -R $rulefn \
+      -J 'd[][1:][] 1 d[][0][] 2: f[0][0][0] 1 f[-1][0][-1] 1 f[0][0][-1] 1 f[-1][0][0] 1' \
+      -W | grep got)
+    echo "[$x] D:$D seed:$seed $z"
+
+    c=$( echo "$z" | grep -P -o '\d+' )
+
+    if [[ "$c" -eq "0" ]] ; then
+      success=`echo "$success+1" | bc `
+    fi
+
+  done
+
+  p=`echo "$success / $nexperiment" | bc -l `
+  echo "### $p"
+
+done
+
