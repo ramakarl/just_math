@@ -753,7 +753,7 @@ int main(int argc, char **argv) {
 
 
   if (bpc.op.verbose > 0) {
-    printf ( "bpc init csv. (%s, %s)\n",
+    printf ( "# bpc init csv. (%s, %s)\n",
         name_fn_str.c_str(),
         rule_fn_str.c_str() );
     fflush(stdout);
