@@ -1,0 +1,17 @@
+#tile_id, tile_name
+0, 00_empty_0
+1, 01_rail_bend_0
+2, 01_rail_bend_1
+3, 01_rail_bend_2
+4, 01_rail_bend_3
+5, 02_rail_straight_0
+6, 02_rail_straight_1
+7, 03_rail_cross_0
+8, 04_rail_incline_start_0
+9, 04_rail_incline_start_1
+10, 04_rail_incline_start_2
+11, 04_rail_incline_start_3
+12, 05_rail_incline_end_0
+13, 05_rail_incline_end_1
+14, 05_rail_incline_end_2
+15, 05_rail_incline_end_3

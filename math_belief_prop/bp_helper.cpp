@@ -1349,9 +1349,10 @@ int write_tiled_json ( BeliefPropagation & bpc) {
   op->tileset_width *= op->tileset_stride_x;
   op->tileset_height *= op->tileset_stride_y;
 
+  int tile;
 
   // open file for write
-  fp = fopen( fname, "w");
+  fp = fopen( fname, "w+");
 
   if (!fp) {
       printf("ERROR: Failed to write (%s)\n", fname );
@@ -1359,73 +1360,58 @@ int write_tiled_json ( BeliefPropagation & bpc) {
   } else {
       if (op->verbose >= 2) printf("Writing tilemap (%s)\n", fname );
   }
-
+  //--- common data
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"#ffffff\",\n");
   fprintf(fp, "  \"height\": %i,\n", (int) bpc.m_res.y);
   fprintf(fp, "  \"width\": %i,\n", (int) bpc.m_res.x);
-  fprintf(fp, "  \"layers\": [{\n");
+  fprintf(fp, "  \"layers\": [\n");
 
-  fprintf(fp, "    \"data\": [");
+  int ystart, yend, ydir;
 
-  // tiled expects y to increment in the negative direction
-  // so we need to reverse the y direction when exporting
+  // write each layer (z-axis)
   //
+  for (int k=0; k < (int) bpc.m_res.z; k++) {
 
-  int tile;
+      //--- start of layer      
+      // layer tile data
+      fprintf(fp, "   { \"data\": [");
+      // select layer scan direction:
+      // reversed y- scan direction = tiled expects y to increment in the negative direction
+      // standard y+ scan direction
+      ystart = (op->tiled_reverse_y) ? bpc.m_res.y : 0;
+      yend   = (op->tiled_reverse_y) ? 0 : bpc.m_res.y;
+      ydir   = (op->tiled_reverse_y) ? -1 : 1;
+      for (j=ystart; j != yend; j += ydir) {
+        for (i=0; i<(int) bpc.m_res.x; i++) {
+          vtx = bpc.getVertex(i, j, k);
+          //tile = bpc.getMaxBeliefTile ( vtx );
+          tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
+          fprintf(fp, " %i", tile );
+          if ((j==yend-ydir) && (i==(bpc.m_res.x-1))) { }
+          else                                { fprintf(fp, ","); }
+        }
+        fprintf(fp, "\n  ");
+      }            
+      fprintf(fp, "\n    ],\n");
 
-  if (op->tiled_reverse_y) {
+      // additional layer data      
+      fprintf(fp, "    \"name\":\"z%d\",\n", k);
+      fprintf(fp, "    \"opacity\":1,\n");
+      fprintf(fp, "    \"type\":\"tilelayer\",\n");
+      fprintf(fp, "    \"visible\":true,\n");
+      fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
+      fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
+      fprintf(fp, "    \"x\":0,\n");
+      fprintf(fp, "    \"y\":0\n");
 
-    for (i=(int) (bpc.m_res.y-1); i>=0; i--) {
-      for (j=0; j<(int) bpc.m_res.x; j++) {
+      if (k < bpc.m_res.z-1) { fprintf(fp, "  },\n  "); }
+      else                  { fprintf(fp, "  }\n  "); }
 
-        vtx = bpc.getVertex(j, i, 0);
-
-        //tile = bpc.getMaxBeliefTile ( vtx );
-        tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
-
-        fprintf(fp, " %i", tile );
-        //if ((i==0) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        //else                                { fprintf(fp, "%s", ","); }
-        if ((i==0) && (j==(bpc.m_res.x-1))) { }
-        else                                { fprintf(fp, ","); }
-      }
-      fprintf(fp, "\n  ");
-    }
-
+      //--- end of layer
   }
-  else {
-    for (i=0; i<(int) (bpc.m_res.y); i++) {
-      for (j=0; j<(int) bpc.m_res.x; j++) {
-        vtx = bpc.getVertex(j, i, 0);
-
-        //tile = bpc.getMaxBeliefTile ( vtx );
-        tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
-
-        fprintf(fp, " %i", tile );
-
-        //if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { fprintf(fp, "%s",  ""); }
-        //else                                { fprintf(fp, "%s", ","); }
-        if ((i==(bpc.m_res.y-1)) && (j==(bpc.m_res.x-1))) { }
-        else                                { fprintf(fp, ","); }
-      }
-      fprintf(fp, "\n  ");
-    }
-
-  }
-
-  fprintf(fp, "\n    ],\n");
-  fprintf(fp, "    \"name\":\"main\",\n");
-  fprintf(fp, "    \"opacity\":1,\n");
-  fprintf(fp, "    \"type\":\"tilelayer\",\n");
-  fprintf(fp, "    \"visible\":true,\n");
-  fprintf(fp, "    \"width\": %i,\n", (int)bpc.m_res.x);
-  fprintf(fp, "    \"height\": %i,\n", (int)bpc.m_res.y);
-  fprintf(fp, "    \"x\":0,\n");
-  fprintf(fp, "    \"y\":0\n");
-
-  fprintf(fp, "  }\n");
-
+  
+  // global data
   fprintf(fp, "  ],\n");
   fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
