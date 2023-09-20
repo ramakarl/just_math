@@ -70,15 +70,21 @@ flt=`cat oloz.filter | tr '\n' ' '`
 
 #n=64
 #n=256
-#n=128
-n=32
+n=128
+#n=32
+
+X=$n
+Y=$n
+
+X=186
+Y=88
 
 $bpc_bin \
   -N $name_fn \
   -R $rule_fn \
   -M $tiled_fn \
   -Q $tileset_fn \
-  -X $n -Y $n -Z 1 \
+  -X $X -Y $Y -Z 1 \
   -z 0.0001 \
   -s 16 \
   -b 16 \

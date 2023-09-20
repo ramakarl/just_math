@@ -1,0 +1,28 @@
+#!/bin/bash
+
+
+bpc_bin="./bpc"
+
+######
+######
+
+name_fn="./tilename_mu_forest.csv"
+rule_fn="./tilerule_mu_forest.csv"
+
+echo "## running 'mu forest' radius experiments"
+
+X=128
+Y=128
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -X $X -Y $Y -Z 1 \
+  -z 0.000001 \
+  -j '1:' \
+  -J 'd 0' \
+  -U 'center,collapse,diff_sum,2d' \
+  -V 3
+
+
+
