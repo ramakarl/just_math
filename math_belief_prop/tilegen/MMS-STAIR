@@ -58,15 +58,13 @@ mkdir -p log
 ######
 ######
 
-name_fn="./example_tile_collection/oloz_tilename.csv"
-rule_fn="./example_tile_collection/oloz_tilerule.csv"
-tiled_fn="./example_tile_collection/oloz_mms_tiled.json"
-tileset_fn="./oloz_tileset.png"
-stride=8
+name_fn="./example_tile_collection/stair_name.csv"
+rule_fn="./example_tile_collection/stair_rule.csv"
+stl_fn="./example_tile_collection/stair_breakout.stl"
+objloc_fn="./example_tile_collection/stair_objloc.csv"
 
-echo "running 'pm' MMS, producing '$tileset_fn'"
+echo "running 'stair' MMS, producing '$stl_fn'"
 
-flt=`cat oloz.filter | tr '\n' ' '`
 
 #n=64
 #n=256
@@ -76,21 +74,18 @@ n=32
 $bpc_bin \
   -N $name_fn \
   -R $rule_fn \
-  -M $tiled_fn \
-  -Q $tileset_fn \
-  -X $n -Y $n -Z 1 \
+  -L $objloc_fn \
+  -M $stl_fn \
+  -X $n -Y $n -Z $n \
   -z 0.0001 \
-  -s 16 \
-  -b 16 \
+  -b 8 \
+  -J 'f 0' \
   -G -2 \
-  -j '1:' \
-  -J "$flt" \
   -I 1024 \
-  -i 256 \
+  -i 1024 \
   -S 1235 \
   -V 3
 
-#  -j '1:' \
 ######
 ######
 

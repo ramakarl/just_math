@@ -173,7 +173,7 @@ void BeliefPropagation::SelectAlgorithm ( int alg_idx ) {
     op.alg_tile_opt = ALG_TILE_MAX_BELIEF;
     op.alg_run_opt  = ALG_RUN_VANILLA;
     break;
-  case ALG_WFC:                               // WFC        
+  case ALG_WFC:                               // WFC
     op.alg_accel    = ALG_ACCEL_NONE;
     op.alg_run_opt  = ALG_RUN_WFC;
     op.alg_cell_opt = ALG_CELL_WFC;
@@ -343,7 +343,7 @@ int64_t BeliefPropagation::getNeighbor( uint64_t j, Vector3DI jp, int nbr ) {
 
   //-- using lookup
   /* int32_t ndx = (nbr<2) ? jp.x : (nbr<4) ? jp.y : jp.z;
-  int64_t n = nbr_lookup[nbr][ ndx ];    
+  int64_t n = nbr_lookup[nbr][ ndx ];
   n = (n==NOUT) ? -1 : j + n;
   return n; */
 
@@ -356,8 +356,8 @@ int64_t BeliefPropagation::getNeighbor( uint64_t j, Vector3DI jp, int nbr ) {
   case 3:    return (jp.y > 0) ?        j-m_bpres.x : -1;
   case 4:    return (jp.z < m_bpres.z-1) ?  j+(m_bpres.x*m_bpres.y) : -1;
   case 5:    return (jp.z > 0) ?        j-(m_bpres.x*m_bpres.y) : -1;
-  }; 
-  return -1; 
+  };
+  return -1;
 }
 
 
@@ -441,7 +441,7 @@ void BeliefPropagation::ConstructDynamicBufs () {
 
   //-- Construct note
   //
-  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );  
+  AllocBuf ( BUF_NOTE,    'l', m_num_verts, 2 );
   m_note_n[0] = 0;
   m_note_n[1] = 0;
   m_note_plane = 0;
@@ -464,7 +464,7 @@ void BeliefPropagation::ConstructTempBufs () {
   //-- Construct TILE buf
   //
   AllocBuf ( BUF_TILES, 'i', m_num_verts );
-  
+
   //-- Construct B buf
   //
   AllocBuf ( BUF_B, 'f', m_num_verts );
@@ -589,7 +589,7 @@ int BeliefPropagation::getMaxBeliefTile ( uint64_t j ) {
 // - called prior to CheckConstraints
 // - computes a resolved tile field in which each
 //   tile is just the first entry in the available list. eg. WFC
-// - compare this to ComputeBP_BeliefField in which each tile 
+// - compare this to ComputeBP_BeliefField in which each tile
 //   is selected based on BP belief
 //
 void BeliefPropagation::ComputeTile0Field() {
@@ -736,12 +736,12 @@ float BeliefPropagation::MaxDiffMU ()  {
             st.ave_mu += v1;
             st.ave_dmu += d;
             mu_cnt++;
-        } 
+        }
       }
     }
 
     if ( op.alg_accel==ALG_ACCEL_WAVE) {
-      // store the dmu in BUF_MU_NXT temporarily 
+      // store the dmu in BUF_MU_NXT temporarily
       //  (will be overwritten on next bp step)
       SetValF ( BUF_MU_NXT, vert_maxdiff, 0, 0, j );
     }
@@ -910,7 +910,7 @@ void BeliefPropagation::SetVis (int vopt) {
   case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
   case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
   case VIZ_BP_MU:            msg = "VIZ_BP_MU"; break;
-  case VIZ_BP_DMU:           msg = "VIZ_BP_DMU"; break;    
+  case VIZ_BP_DMU:           msg = "VIZ_BP_DMU"; break;
   };
   printf ( "  Visualizing: %s\n", msg.c_str() );
 }
@@ -918,7 +918,7 @@ void BeliefPropagation::SetVis (int vopt) {
 void BeliefPropagation::PrepareVisualization ()
 {
   // visualization prep
-  // call this *before* updateMU, and use 
+  // call this *before* updateMU, and use
   // to prepare for calling getVisSample
   //
   PERF_PUSH("PrepareVis");
@@ -934,18 +934,18 @@ void BeliefPropagation::PrepareVisualization ()
   case VIZ_TILECOUNT:
       // simple viz. number of available tiles per cell.
       //.. nothing to do here
-      break;  
+      break;
   case VIZ_CONSTRAINT:
-      // this visualization is useful but more costly. 
-      // compute a resolved tile field, then checks how many remaining unresolved 
-      // constraints each tile has.       
+      // this visualization is useful but more costly.
+      // compute a resolved tile field, then checks how many remaining unresolved
+      // constraints each tile has.
       ComputeTile0Field ();
       CheckConstraints ();
       break;
   case VIZ_NOTES:
       // visualize notes
       ComputeNoteField ();
-      break;  
+      break;
   case VIZ_BP_BELIEF:
       // find the maximum belief tile for each cell.
       ComputeBP_BeliefField ();
@@ -957,7 +957,7 @@ void BeliefPropagation::PrepareVisualization ()
       ComputeBP_DiffMUField ();
       break;
   };
-  
+
   if (st.instr) {st.time_viz += clock()-t1;}
 
   PERF_POP();
@@ -984,7 +984,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     f = getValI ( BUF_TILE_IDX_N, v );
     s = Vector4DF( i, i, i, f );
     break;
-  case VIZ_TILE0: 
+  case VIZ_TILE0:
     // readily available. no prepare needed.
     // get tile ID normalized to num tiles
     i = getValI ( BUF_TILE_IDX, 0, v );
@@ -993,15 +993,15 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     f = float(i) / float(getNumValues(v));
     s = Vector4DF( f, f, f, 0.5 );
     break;
-  case VIZ_TILECOUNT: 
+  case VIZ_TILECOUNT:
     // readily available. no prepare needed.
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
-    f = 1.0 / float(i);     
+    f = 1.0 / float(i);
     s = Vector4DF( f, f, f, f );
-    break;  
+    break;
   case VIZ_CONSTRAINT:
-    // visualize remaining constraints per cell    
+    // visualize remaining constraints per cell
     // constraints are associated with faces, so max per cell is 6
     c = getValI ( BUF_C, v ) / 6.0f;
     s = Vector4DF( c, c, c, c );
@@ -1011,10 +1011,10 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     f = getValF ( BUF_VIZ, v );
     s = Vector4DF(f,f,f,f);
     break;
-  case VIZ_BP_BELIEF:    
+  case VIZ_BP_BELIEF:
     // get maxbelief value
     f = getValF ( BUF_B, v );
-    f = f / st.max_belief;    
+    f = f / st.max_belief;
     s = Vector4DF(f,f,f,f);
     break;
   case VIZ_BP_MU:
@@ -1025,7 +1025,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
   case VIZ_BP_DMU:
     // BP only. requires PrepareVisualization for ComputeDiffMUField
     f = getValF ( BUF_VIZ, v );
-    c = 0.1 + std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));    
+    c = 0.1 + std::max(0.0f, std::min(1.0f, pow ( f * vscale / vmax, vexp ) ));
     if ( f <= op.eps_converge ) s = Vector4DF(0,c,0,c);
     else                        s = Vector4DF(c,c,c,c);
     break;
@@ -1761,7 +1761,7 @@ float BeliefPropagation::BeliefProp () {
 
 
     // if already decided, continue
-    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );    
+    anch_tile_idx_n = getValI( BUF_TILE_IDX_N, anch_cell );
 
     if ( anch_tile_idx_n==1 ) { continue; }
 
@@ -1783,7 +1783,7 @@ float BeliefPropagation::BeliefProp () {
               if ( dmu >= _eps * conv_frac ) eval++;
             }
         }
-        dmu = getValF( BUF_MU_NXT, 0, 0, anch_cell ); 
+        dmu = getValF( BUF_MU_NXT, 0, 0, anch_cell );
         //if ( eval==0 && dmu < op.eps_converge * conv_frac ) { continue; }
         if ( eval==0 && dmu < _eps * conv_frac ) { continue; }
         //------
@@ -2048,9 +2048,9 @@ int BeliefPropagation::_pick_tile_max_belief(int64_t anch_cell, int64_t *max_cel
       printf("##### f: %f, max_p %f, anch_cell %i, anch_tile %i, anch_tile_idx %i\n",
           f, max_p, (int) anch_cell, (int)anch_tile, (int)anch_tile_idx);
     }
-    
+
     //---- attempt at more randomness in maps
-    //float u = 1.0 - float(op.cur_iter) / op.max_iter;    
+    //float u = 1.0 - float(op.cur_iter) / op.max_iter;
     //if ( f >= max_p - belief_eps*u && m_rand.randF(0,1) > 0.5f*u ) {
 
     if ( f >= max_p ) {
@@ -2753,7 +2753,7 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
 
   block_s_z = block_bound[4];
   block_n_z = block_bound[5];
-  
+
   PERF_PUSH("chooseMinEntropyBlock");
 
   for (iz=block_s_z; iz<(block_s_z + block_n_z); iz++) {
@@ -3048,7 +3048,6 @@ int BeliefPropagation::start () {
     if (z > end_z) { z = end_z; }
   }
 
-
   //------------
   //------------
   //------------
@@ -3093,18 +3092,18 @@ int BeliefPropagation::start () {
 int BeliefPropagation::finish (int ret) {
 
   if ( ret==0 ) {
-    // success. complete.    
+    // success. complete.
     printf ( "  DONE (SUCCESS).\n" );
   } else {
     // post error condition
-    switch (ret) {                
+    switch (ret) {
     case -1: printf ( "  DONE (FAIL). ERROR: chooseMaxBelief.\n" ); break;
     case -2: printf ( "  DONE (FAIL). ERROR: tileIdxCollapse.\n" ); break;
     case -3: printf ( "  DONE (FAIL). ERROR: cellConstraintPropagate.\n" ); break;
     case -77: printf ( "  DONE (STOPPED BY USER).\n"); break;
     default:
         printf ( "  DONE (FAIL).\n"); break;
-    };                    
+    };
   }
   return ret;
 }
@@ -3519,7 +3518,7 @@ void BeliefPropagation::_restoreTileIdx(void) {
 // Compute individual cell entropies, using the BUF_G
 // buffer to determine the individual tile probabilities.
 // Cell entries with only 1 tile have 0 entropy.
-// 
+//
 // return:
 // 0  - success
 // !0 - failure (currently can't happen)
@@ -3584,14 +3583,14 @@ int BeliefPropagation::ComputeCellEntropy(void) {
 // The algorithm proceeds in phases:
 // * first calculate the B[0,0,0] block entropy
 // * calculate the block entropy in each of the principle directions
-//   (B[x,0,0], B[0,y,0], B[0,0,z]) subtracting off the receding plane 
+//   (B[x,0,0], B[0,y,0], B[0,0,z]) subtracting off the receding plane
 //   and adding the incoming plane from BUF_CELL_ENTROPY
 // * calculate the xy, xz, yz corner planes (B[x,y,0], B[x,0,z], B[0,y,z])
 //   by subtracting off the receding line from BUF_CELL_ENTROPY
 //   and adding in the incoming line from BUF_CELL_ENTROPY
 // * finally, do the 'bulk' middle section (B[1:,1:,1:]) by re-using
 //   already calculated sum block entries and adding/subtracting the
-//   appropriate 
+//   appropriate
 //
 // return:
 // 0  - success
@@ -3872,7 +3871,7 @@ float BeliefPropagation::pickNoiseFunc() {
 //
 //  op.sub_block[]
 //
-// 
+//
 // return:
 // >=0  - success, number of maximum equal entropy blocks
 // <0   - failure (currently can't happen)
@@ -3958,7 +3957,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 //
 //  op.sub_block[]
 //
-// 
+//
 // return:
 // >=0  - success, number of minimum equal entropy blocks
 // <0   - failure (currently can't happen)
@@ -4180,9 +4179,9 @@ int BeliefPropagation::RealizePre(void) {
 
   clock_t t1 = clock();
 
-  //----------- 
+  //-----------
   //----------- REALIZEPRE - BLOCK SCHEDULE SECTION
-  //----------- 
+  //-----------
 
   // block schedule is set means we're using an algorithm
   // that needs a block choice
@@ -4229,9 +4228,13 @@ int BeliefPropagation::RealizePre(void) {
         end_s[1] = m_bpres.y - op.block_size[1];
         end_s[2] = m_bpres.z - op.block_size[2];
 
-        iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
-        iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
-        ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
+        //iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
+        //iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
+        //ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
+
+        iz = op.seq_iter / (op.block_idx[0] * op.block_idx[1]);
+        iy = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
+        ix = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
 
         ix %= op.block_idx[0];
         iy %= op.block_idx[1];
@@ -4252,6 +4255,26 @@ int BeliefPropagation::RealizePre(void) {
         op.sub_block[0] = x;
         op.sub_block[1] = y;
         op.sub_block[2] = z;
+
+        //DEBUG
+        //
+        /*
+        printf("#####\n");
+        printf("#####\n");
+        printf("## end_s:(%i,%i,%i)\n", (int)end_s[0], (int)end_s[1], (int)end_s[2]);
+        printf("## ixyz: (%i,%i,%i)\n", (int)ix, (int)iy, (int)iz);
+        printf("## iz = %i ( op.seq_iter:%i / (op.block_idx[0]:%i * op.block_idx[1]:%i) )\n",
+            (int)iz, (int)op.seq_iter, (int)op.block_idx[0], (int)op.block_idx[1]);
+        printf("## iy = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) / (op.block_idx[0]:%i) )\n",
+            (int)iy, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)op.block_idx[0] );
+        printf("## ix = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) - (iy:%i * op.block_idx[0]:%i) )\n",
+            (int)ix, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)iy, (int)op.block_idx[0]);
+        printf("## xyz: (%i,%i,%i)\n", (int)x, (int)y, (int)z);
+        printf("#####\n");
+        printf("#####\n");
+        */
+        //
+        //DEBUG
 
       }
 
@@ -4300,9 +4323,9 @@ int BeliefPropagation::RealizePre(void) {
   else { }
 
 
-  //----------- 
+  //-----------
   //----------- REALIZEPRE - ALG SECTION
-  //----------- 
+  //-----------
 
   //---
   switch (op.alg_run_opt) {
@@ -4393,21 +4416,6 @@ int BeliefPropagation::RealizePre(void) {
           }
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
 
-
-          /*
-          for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
-            tile = m_block_admissible_tile[tile_idx];
-            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
-
-            cellFillVisitedSingle ( cell, m_note_plane );
-            cellFillVisitedNeighbor ( cell, m_note_plane );
-
-            n_idx++;
-          }
-
-          SetValI( BUF_TILE_IDX_N, n_idx, cell );
-          */
-
         }
       }
     }
@@ -4439,7 +4447,7 @@ int BeliefPropagation::RealizePre(void) {
     // propagate constraints to remove neighbor tiles,
     // and count number resolved (only 1 tile val remain)
     //
-    
+
     // keep this. necessary here after fuzzing
     //
     ret = cellConstraintPropagate();
@@ -4503,7 +4511,7 @@ int BeliefPropagation::RealizePre(void) {
     //
     break;
   }
-  
+
   // measure elapsed time
   clock_t t2 = clock();
   st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
@@ -4719,7 +4727,7 @@ int BeliefPropagation::CollapseAndPropagate (int64_t& cell, int32_t& tile, int32
     // error. collapse failed
     //
     else {
-      ret = -2; 
+      ret = -2;
     }
     return ret;
 }
@@ -4750,7 +4758,7 @@ int BeliefPropagation::RealizePost(void) {
 
   int64_t fixed_count = 0;
 
-  //DEBU
+  //DEBUG
   //
   std::vector<int32_t> _debug_stat;
   int sanity=0;
@@ -4760,9 +4768,9 @@ int BeliefPropagation::RealizePost(void) {
   // measure elapsed time
   clock_t t1 = clock();
 
-  // resolved = all tiles complete (1 tile), and arc-consistent state  
-  // arc-consistent = ac3. 
-  // 
+  // resolved = all tiles complete (1 tile), and arc-consistent state
+  // arc-consistent = ac3.
+  //
 
   // choose the cell and propagate choice
   //
@@ -4774,7 +4782,7 @@ int BeliefPropagation::RealizePost(void) {
       //>=1: One or more tiles ready to collapse (ie. the cell).
 
       if ( ret >= 1 ) {
-        ret = CollapseAndPropagate (cell, tile, tile_idx);        
+        ret = CollapseAndPropagate (cell, tile, tile_idx);
       }
       break;
 
@@ -4799,6 +4807,7 @@ int BeliefPropagation::RealizePost(void) {
               (int)m_block_retry_limit);
         }
 
+        op.seq_iter++;
         m_block_fail_count=0;
 
       }
@@ -4822,6 +4831,7 @@ int BeliefPropagation::RealizePost(void) {
         // SOFTEN phase
         //
         if (m_block_fail_count >= m_block_retry_limit) {
+          op.seq_iter++;
           m_block_fail_count = 0;
 
           if (op.verbose >= VB_STEP) {
@@ -4889,7 +4899,7 @@ int BeliefPropagation::RealizePost(void) {
                   (int)_soften_bounds[2], (int)_soften_bounds[3],
                   (int)_soften_bounds[4], (int)_soften_bounds[5],
                   (int)_debug_stat[0], (int)_debug_stat[1]);
-            
+
           }
 
 
@@ -4906,7 +4916,7 @@ int BeliefPropagation::RealizePost(void) {
           //
           ret = cellConstraintPropagate();
           if (ret < 0) {
-            op.cur_iter++;
+            //op.cur_iter++;
           }
 
         }
@@ -4922,13 +4932,13 @@ int BeliefPropagation::RealizePost(void) {
           // so we need to do some housekeeping ourselves.
           //
 
-          op.cur_iter++;
+          //op.cur_iter++;
 
           // slow way to check to see if we've converged
           //
           if (numFixed() == m_num_verts) {
             ret = 0;
-          
+
           } else {
             ret = 1;
           }
@@ -4984,7 +4994,8 @@ int BeliefPropagation::RealizePost(void) {
         // that a new block is chosen in RealizePre
         //
         if (m_block_fail_count >= m_block_retry_limit) {
-          
+
+          op.seq_iter++;
           m_block_fail_count=0;
 
           if (op.verbose >= VB_STEP) {
@@ -5010,6 +5021,7 @@ int BeliefPropagation::RealizePost(void) {
               (int)op.sub_block[2], (int)op.block_size[2]);
         }
 
+        op.seq_iter++;
         m_block_fail_count=0;
       }
 
@@ -5017,14 +5029,14 @@ int BeliefPropagation::RealizePost(void) {
       // since we're not resolving a single cell/tile now,
       // so we need to do some housekeeping ourselves.
       //
-      op.cur_iter++;
+      //op.cur_iter++;
       ret = 1;
       break;
 
     case ALG_CELL_ANY:
 
       ret = chooseMaxBelief( &cell, &tile, &tile_idx, &belief );
-      
+
       if ( ret >= 1 ) {
         ret = CollapseAndPropagate (cell, tile, tile_idx);
       }
@@ -5033,7 +5045,7 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_MIN_ENTROPY:
 
       ret = chooseMinEntropyMaxBelief( &cell, &tile, &tile_idx, &belief );
-      
+
       if ( ret >= 1 ) {
         ret = CollapseAndPropagate (cell, tile, tile_idx);
       }
@@ -5056,7 +5068,7 @@ int BeliefPropagation::RealizePost(void) {
       st.constraints = CheckConstraints ();
   }*/
 
-  PrepareVisualization();  
+  PrepareVisualization();
 
   st.eps_curr = getLinearEps();
   st.post = ret;
@@ -5072,14 +5084,12 @@ int BeliefPropagation::RealizePost(void) {
   // print run completion
   if (ret<=0 && op.verbose >= VB_RUN ) {
 
-    st.success = (ret==0);    
-    
+    st.success = (ret==0);
+
     printf ("%s", getStatMessage().c_str() );
   }
-    
-  op.cur_iter++;
-  
 
+  op.cur_iter++;
   return ret;
 }
 
@@ -5088,27 +5098,27 @@ std::string BeliefPropagation::getStatMessage () {
 
   char msg[1024] = {0};
 
-  snprintf ( msg, 1024, 
+  snprintf ( msg, 1024,
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), Grid:%d,%d,%d, Seed: %d\n",
               ((st.post==1) ? "RUN" :
-              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),              
-              op.cur_run, op.max_run, op.cur_iter, 
-              st.elapsed_time, (int)st.constraints, 
-              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
-              op.X, op.Y, op.Z, op.seed ); 
+              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),
+              op.cur_run, op.max_run, op.cur_iter,
+              st.elapsed_time, (int)st.constraints,
+              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
+              op.X, op.Y, op.Z, op.seed );
 
-  
+
   //-- belief prop stats
-  /* snprintf ( msg, 1024, 
+  /* snprintf ( msg, 1024,
              "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), steps %d/%d, max.dmu %f, eps %f, av.mu %1.5f, av.dmu %1.8f\n",
               ((st.post==1) ? "RUN" :
-              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),              
-              op.cur_run, op.max_run, op.cur_iter, 
-              st.elapsed_time, (int)st.constraints, 
-              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
-              op.cur_step, op.max_step, 
+              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),
+              op.cur_run, op.max_run, op.cur_iter,
+              st.elapsed_time, (int)st.constraints,
+              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
+              op.cur_step, op.max_step,
               st.max_dmu, st.eps_curr, st.ave_mu, st.ave_dmu ); */
-  
+
   // b:%f, n:%f, bp:%f, v:%f, md:%f, u:%f
   // st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );
 
@@ -5121,16 +5131,16 @@ std::string BeliefPropagation::getStatCSV (int mode) {
   int status;
   status = (st.post==1) ? 0 : (st.success==1) ? 1 : -1;
 
-  snprintf ( msg, 1024, 
-      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %d, %d",  
+  snprintf ( msg, 1024,
+      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %d, %d",
       op.cur_run, status, op.cur_iter, st.elapsed_time,
-      (int) st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter, 
+      (int) st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
       op.X, op.Y, op.Z, op.seed );
-      
-      
+
+
  //     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
  //     st.ave_mu, st.ave_dmu,
- //     st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );                   
+ //     st.time_boundary, st.time_normalize, st.time_bp, st.time_viz, st.time_maxdiff, st.time_updatemu );
 
   return msg;
 }
@@ -5554,7 +5564,7 @@ void BeliefPropagation::gp_state_print() {
 // deprecated?
 //
 float BeliefPropagation::step (int update_mu) {
-  
+
   float max_diff = -1.0;
   int m_calc_residue = 1;
 
@@ -5564,7 +5574,7 @@ float BeliefPropagation::step (int update_mu) {
   //
   #ifdef OPT_MUBOUND
     if (st.instr) t1 = clock();
-    WriteBoundaryMUbuf(BUF_MU);      
+    WriteBoundaryMUbuf(BUF_MU);
     //WriteBoundaryMUbuf(BUF_MU_NXT);  //-- not necessary i believe, BeliefProp will overwrite buf_mu_nxt
     if (st.instr) {st.time_boundary += clock()-t1;}
 
@@ -5587,7 +5597,7 @@ float BeliefPropagation::step (int update_mu) {
   //
   NormalizeMU( BUF_MU_NXT );
 
-  PrepareVisualization();  
+  PrepareVisualization();
 
   // calculate the difference between
   // BUF_MU_NXT and BUF_MU
@@ -6366,7 +6376,7 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
 
   int32_t n, tile_val, tv;
 
-  PERF_PUSH("tileIdxCollapse"); 
+  PERF_PUSH("tileIdxCollapse");
 
   n = getValI( BUF_TILE_IDX_N, pos );
   if (tile_idx >= n) { PERF_POP(); return -1; }
@@ -6714,16 +6724,16 @@ int BeliefPropagation::cellConstraintPropagate() {
 
   int resolved = 0;
 
-  // vis prep for notes 
+  // vis prep for notes
   if (op.viz_opt == VIZ_NOTES) {
       PrepareVisualization ();
   }
-  
+
   // perf: num neighbors is constantant on dimension
   int num_nbrs = getNumNeighbors(0);
 
   PERF_PUSH ( "cellConstrProp" );
-  
+
   // cull noted cells tagged as changed
   //
   while (still_culling) {
@@ -6732,7 +6742,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
     for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
 
-      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );      
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );
 
       jp = getVertexPos(anch_cell);
 
@@ -6858,7 +6868,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
           int32_t* nei_a_ptr = (int32_t*) getPtr ( BUF_TILE_IDX, 0, nei_cell );
           int32_t* nei_a_end = nei_a_ptr + nei_n_tile;
-          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {              
+          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {
               if (getValF( BUF_F, anch_b_val, *nei_a_ptr, i ) > _eps) {    // nei_a_val is random access, so no accel of BUF_F ptr
                   anch_has_valid_conn = 1;
                   break;
@@ -6870,7 +6880,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
 
-              nei_a_val = *nei_a_ptr;   
+              nei_a_val = *nei_a_ptr;
 
               if (op.alg_run_opt == ALG_RUN_MMS) {
                 if (op.verbose >= VB_INTRASTEP) {

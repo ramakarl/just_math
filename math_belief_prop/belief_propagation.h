@@ -250,7 +250,8 @@ typedef struct _bp_opt_t {
   int32_t   sub_block[3],
             block_size[3],
             block_idx[3],
-            sub_block_range[3][2];
+            sub_block_range[3][2],
+            seq_iter;
   int32_t   block_schedule;
 
   int64_t   step_cb;
@@ -420,6 +421,8 @@ public:
     op.block_idx[0] = 0;
     op.block_idx[1] = 0;
     op.block_idx[2] = 0;
+
+    op.seq_iter = 0;
 
     op.noise_coefficient = 0.0;
     op.noise_func = OPT_NOISE_FUNC_UNIFORM;
