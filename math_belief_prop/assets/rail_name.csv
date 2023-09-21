@@ -31,7 +31,10 @@
 29, 10_rail_tunnel_0
 30, 10_rail_tunnel_1
 31, 13_rail_piers_0
-32, 14_rail_bridge_0
-33, 15_rail_concrete_bridge_0
-34, 16_rail_pier_cross_0
-35, 16_rail_pier_cross_1
+32, 13_rail_piers_1
+33, 14_rail_bridge_0
+34, 14_rail_bridge_1
+35, 15_rail_concrete_bridge_0
+36, 15_rail_concrete_bridge_1
+37, 16_rail_pier_cross_0
+38, 16_rail_pier_cross_1

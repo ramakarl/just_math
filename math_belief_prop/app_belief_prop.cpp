@@ -167,6 +167,12 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
           op->max_step = (int64_t) vali;
         }
         break;
+      case 'i':
+        vali = strToI(optarg);
+        if (vali > 0) {
+          op->max_iter = (int64_t) vali;
+        }
+        break;
       case 'N':
         op->name_fn = optarg;
         break;

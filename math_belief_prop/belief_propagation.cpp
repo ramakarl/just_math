@@ -115,14 +115,11 @@ int BeliefPropagation::default_opts () {
   op.cur_run = 0;
   op.max_run = 0;
 
-
-
-   // iterations
-   //
+  // iterations
+  //
   op.cur_iter = 0;
 
-  // will be set to # vertices
-  //
+  // default to max_iter 0
   op.max_iter = 0;
 
   // steps
@@ -3318,8 +3315,6 @@ int BeliefPropagation::init( int Rx, int Ry, int Rz,
   // set max iterations
   //
   op.cur_iter = 0;
-  op.max_iter = m_num_verts;
-
 
   // block init
   //
@@ -5081,15 +5076,26 @@ int BeliefPropagation::RealizePost(void) {
   if (ret==1 && op.verbose >= VB_STEP ) {
     printf ("%s", getStatMessage().c_str() );
   }
-  // print run completion
-  if (ret<=0 && op.verbose >= VB_RUN ) {
 
+  // check entire map completion
+  if (ret<=0) {
+
+    // success only happens once in post. when fully done.
     st.success = (ret==0);
 
-    printf ("%s", getStatMessage().c_str() );
+    if (op.verbose >= VB_RUN)
+        printf ("%s", getStatMessage().c_str() );
   }
 
-  op.cur_iter++;
+  // iter completion.
+  // cur_iter represents the number of successful blocks (when m_ret=0)
+  if (m_return==0) {
+     op.cur_iter++;
+     if (op.cur_iter >= op.max_iter)
+         ret = 0;
+  }
+  printf ("mret: %d ret: %d iter: %d maxiter: %d\n", m_return, ret, op.cur_iter, op.max_iter );
+  
   return ret;
 }
 
