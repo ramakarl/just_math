@@ -46,6 +46,7 @@
 #include "pd_getopt.h"
 
 #include "bp_helper.h"
+#include "bp_experiment.h"
 
 extern char *optarg;
 
@@ -470,7 +471,7 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -8     breakout model synthesis, max entropy block + noise choice\n");
   fprintf(fp, "  -b <#>   block size (for use in MMS and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -m <#>   block size retry count (default %i)\n", _g_default_block_retry_count);
-  fprintf(fp, "  -a <#>   noise function paramters\n");
+  fprintf(fp, "  -a <#>   noise function parameters\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -549,7 +550,7 @@ int main(int argc, char **argv) {
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
   bpc.op.eps_zero = 1.0/256.0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:U:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -710,6 +711,10 @@ int main(int argc, char **argv) {
         bpc.op.sub_block_range[2][1] = bpc.op.block_size[2];
         break;
 
+      case 'U':
+        bpc.op.experiment_str = optarg;
+        break;
+
       default:
         show_usage(stderr);
         exit(-1);
@@ -748,7 +753,7 @@ int main(int argc, char **argv) {
 
 
   if (bpc.op.verbose > 0) {
-    printf ( "bpc init csv. (%s, %s)\n",
+    printf ( "# bpc init csv. (%s, %s)\n",
         name_fn_str.c_str(),
         rule_fn_str.c_str() );
     fflush(stdout);
@@ -770,6 +775,12 @@ int main(int argc, char **argv) {
   if (test_num >= 0) {
     run_test(bpc, test_num);
     exit(0);
+  }
+
+  //if (bpc.op.experiment_idx >= 0) {
+  if ( bpc.op.experiment_str.size() > 0 ) {
+    ret = run_experiment(bpc);
+    exit(ret);
   }
 
   // prepare raycast [optional]
@@ -861,6 +872,27 @@ int main(int argc, char **argv) {
     if (ret <= 0) { break; }
 
     if (bpc.m_return == 0) {
+
+      if (bpc.op.verbose >= VB_STEP) {
+
+        if (bpc.op.alg_idx == ALG_MMS_SEQ) {
+          if (bpc.op.tileobj_fn.size() > 0) {
+            bpc.op.cur_run = it;
+            printf("# step:%i: writing stl\n", (int)bpc.op.cur_run);
+            fflush(stdout);
+            bpc.op.outstl_fn = bpc.op.tilemap_fn;
+            write_bp_stl( bpc, tri_shape_lib );
+          }
+          else {
+            bpc.op.cur_run = it;
+            printf("# step:%i: writing tiled json\n", (int)bpc.op.cur_run);
+            fflush(stdout);
+            write_tiled_json( bpc );
+          }
+        }
+
+      }
+
       //printf("success!\n");
       //bpc.debugPrintTerse();
     }
