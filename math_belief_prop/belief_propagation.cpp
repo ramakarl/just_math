@@ -3889,6 +3889,8 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
   int32_t equal_entropy_count=0;
 
+  float df = 0.0;
+
   // we have significant round off error because
   // of the running sums, so use a local epsilon
   // to try and mitigate the issue.
@@ -3913,7 +3915,8 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cell = getVertex(x,y,z);
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
-        cur_entropy += pickNoiseFunc();
+        df = pickNoiseFunc();
+        cur_entropy += df;
 
         if ((max_entropy < 0.0) ||
             ( (cur_entropy - max_entropy) > -_eps )) {
@@ -6720,13 +6723,14 @@ int BeliefPropagation::cellConstraintPropagate() {
   int gn_idx = 0;
 
   float _eps = op.eps_zero;
-  Vector3DI jp;
+  Vector3DI jp,
+            _pos, _nei_pos;
 
   int resolved = 0;
 
   // vis prep for notes
   if (op.viz_opt == VIZ_NOTES) {
-      PrepareVisualization ();
+    PrepareVisualization ();
   }
 
   // perf: num neighbors is constantant on dimension
@@ -6766,22 +6770,28 @@ int BeliefPropagation::cellConstraintPropagate() {
 
                 if (anch_n_tile==1) {
 
-                  if (op.alg_run_opt == ALG_RUN_MMS) {
-                    if (op.verbose >= VB_INTRASTEP) {
-                      printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                              "cell %i slated to remove last remaining tile (tile %s(%i) "
-                              "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [wfc-block.0]\n",
+                  if ( (op.alg_run_opt == ALG_RUN_MMS) ||
+                       (op.alg_run_opt == ALG_RUN_BREAKOUT) ) {
+                    if (op.verbose >= VB_STEP) {
+                      _pos = getVertexPos(anch_cell);
+                      printf("# cellConstraintPropagate: conflict, "
+                              "cell %i(%i,%i,%i) slated to remove last remaining tile (tile %s(%i) "
+                              "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [ccp-block.0]\n",
                               (int)anch_cell,
-                              m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
+                              (int)_pos.x, (int)_pos.y, (int)_pos.z,
+                              m_tile_name[anch_b_val].c_str(),
+                              (int)anch_b_val,
                               m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
                               m_dir_desc[i].c_str(), (int)i);
                     }
                   }
                   else if (op.verbose >= VB_ERROR ) {
-                    printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                            "cell %i slated to remove last remaining tile (tile %s(%i) "
+                    _pos = getVertexPos(anch_cell);
+                    printf("# BeliefPropagation::cellConstraintPropagate: conflict, "
+                            "cell %i(%i,%i,%i), slated to remove last remaining tile (tile %s(%i) "
                             "conflicts with out of bounds neighbor %s(%i) dir %s(%d))\n",
                             (int)anch_cell,
+                            (int)_pos.x, (int)_pos.y, (int)_pos.z,
                             m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                             m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
                             m_dir_desc[i].c_str(), (int)i);
@@ -6816,7 +6826,8 @@ int BeliefPropagation::cellConstraintPropagate() {
                 if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
                   resolved++;
 
-                  if (op.verbose >= VB_INTRASTEP ) {
+                  //if (op.verbose >= VB_INTRASTEP ) {
+                  if (op.verbose >= VB_DEBUG) {
                     printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.0]\n",
                         (int)op.cur_iter,
                         (int)anch_cell,
@@ -6882,25 +6893,34 @@ int BeliefPropagation::cellConstraintPropagate() {
 
               nei_a_val = *nei_a_ptr;
 
-              if (op.alg_run_opt == ALG_RUN_MMS) {
-                if (op.verbose >= VB_INTRASTEP) {
-                  printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                          "cell %i slated to rmove last remaining tile (tile %s(%i) "
-                          "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [wfc-block.1]\n",
+              if ((op.alg_run_opt == ALG_RUN_MMS) ||
+                  (op.alg_run_opt == ALG_RUN_BREAKOUT)) {
+                if (op.verbose >= VB_STEP) {
+                  _pos = getVertexPos(anch_cell);
+                  _nei_pos = getVertexPos(nei_cell);
+                  printf("# cellConstraintPropagate: conflict, "
+                          "cell %i(%i,%i,%i) slated to remove last remaining tile (tile %s(%i) "
+                          "conflicts with neighbor cell %i(%i,%i,%i), tile %s(%i) dir %s(%d)) [ccp-block.1]\n",
                           (int)anch_cell,
+                          (int)_pos.x, (int)_pos.y, (int)_pos.z,
                           m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                           (int)nei_cell,
+                          (int)_nei_pos.x, (int)_nei_pos.y, (int)_nei_pos.z,
                           m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
                           m_dir_desc[i].c_str(), (int)i);
                 }
               }
               else if (op.verbose >= VB_ERROR ) {
-                printf("# BeliefPropagation::cellConstraintPropagate: ERROR, "
-                        "cell %i slated to rmove last remaining tile (tile %s(%i) "
-                        "conflicts with neighbor cell %i, tile %s(%i) dir %s(%d)) [e0]\n",
+                _pos = getVertexPos(anch_cell);
+                _nei_pos = getVertexPos(nei_cell);
+                printf("# BeliefPropagation::cellConstraintPropagate: conflict, "
+                        "cell %i(%i,%i,%i) slated to rmove last remaining tile (tile %s(%i) "
+                        "conflicts with neighbor cell %i(%i,%i,%i), tile %s(%i) dir %s(%d)) [e0]\n",
                         (int)anch_cell,
+                        (int)_pos.x, (int)_pos.y, (int)_pos.z,
                         m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                         (int)nei_cell,
+                        (int)_nei_pos.x, (int)_nei_pos.y, (int)_nei_pos.z,
                         m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
                         m_dir_desc[i].c_str(), (int)i);
               }
@@ -6930,7 +6950,8 @@ int BeliefPropagation::cellConstraintPropagate() {
             if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
               resolved++;
 
-              if (op.verbose >= VB_INTRASTEP ) {
+              //if (op.verbose >= VB_INTRASTEP ) {
+              if (op.verbose >= VB_DEBUG) {
                 printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i [cp.1]\n",
                     (int)op.cur_iter,
                     (int)anch_cell,

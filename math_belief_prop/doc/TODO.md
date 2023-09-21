@@ -1,17 +1,25 @@
 TODO
 ===
 
+###### 2023-09-18
+
+* different boundary conditions
+  - mirror, loop/modular, arbitrary
+* Breakout Model Synthesis
+  - global constraints (occupancy, connectivity, etc.)
+
+
 ###### 2023-09-01
 
 * Breakout Model Synthesis
-  - further debugging (Rama noticed some buggy behavior during visualization)
-  - choice of block
-    + based on block entropy
-    + add random component
+  - ~further debugging (Rama noticed some buggy behavior during visualization)~ (fixed)
+  - ~choice of block~ (done)
+    + ~based on block entropy~
+    + ~add random component~
   - global constraints (occupancy, connectivity, etc.)
-* statistics to calculate correlation length or cluster size (or their analogs
-  in this domain)
-* differnet boundary conditions
+* ~statistics to calculate correlation length or cluster size (or their analogs
+  in this domain)~ (mostly done)
+* different boundary conditions
   - mirror, loop/modular, arbitrary
 
 
