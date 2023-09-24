@@ -123,7 +123,7 @@ public:
   bool      m_save;
   bool      m_draw_tileset;
   float     m_scaling_2D;  
-  float     m_frame;  
+  int       m_frame;  
 
 };
 Sample obj;
@@ -165,6 +165,12 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         vali  = strToI(optarg);
         if (vali > 0) {
           op->max_step = (int64_t) vali;
+        }
+        break;
+      case 'i':
+        vali = strToI(optarg);
+        if (vali > 0) {
+          op->max_iter = (int64_t) vali;
         }
         break;
       case 'N':
@@ -309,7 +315,7 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
   Vector4DF val;
   int iter;
   float alpha;
-  float pStep = 0.2;          // volume quality   - lower=better (0.01), higher=worse (0.1)
+  float pStep = 0.5;          // volume quality   - lower=better (0.01), higher=worse (0.1)
   float kDensity = 2.0;       // volume density   - lower=softer, higher=more opaque
   float kIntensity = 16.0;    // volume intensity - lower=darker, higher=brighter
   float kWidth = 4.0;         // transfer func    - lower=broader, higher=narrower (when sigmoid transfer enabled)
@@ -366,10 +372,13 @@ void Sample::RaycastCPU ( Camera3D* cam, int id, Image* img, Vector3DF vmin, Vec
 void Sample::Restart ()
 {
     // restart BP state
-    bp_restart ( bpc ); 
+    if ( bp_restart ( bpc ) < 0 ) {
+        printf ( "ERROR: Unable to start bpc. Possibly too many constraints.\n" );
+        exit (-5);
+    }
 
     // make sure we're running
-    m_run = false;
+    m_run = true;
 }
 
 
@@ -463,8 +472,7 @@ bool Sample::init()
 
   // UI Options
   //
-  m_frame     = 0;
-  m_run       = false;  // must start out false until all other init is done
+  m_frame     = 0;  
   m_save      = false;  // save to disk
   m_draw_tileset = false;
   m_scaling_2D = 2;
@@ -473,7 +481,7 @@ bool Sample::init()
   m_cam->setNearFar ( 1, 2000 );
   m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 250, 1 );
   m_img = new Image;
-  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
+  m_img->ResizeImage ( 128, 128, ImageOp::RGB8 );
 
   printf("Init done\n");
   fflush(stdout);
@@ -554,14 +562,14 @@ bool Sample::init()
   bpc.SelectAlgorithm ( bpc.op.alg_idx );
   
   // Restart
-  bp_restart ( bpc ); 
+  Restart ();
 
   // start viz
   m_viz = VIZ_TILES_2D;
   bpc.SetVis ( m_viz );
 
   // start running
-  m_run = false;
+  m_run = true;
 
   return true;
 }
@@ -657,6 +665,8 @@ void Sample::RunAlgorithmInteractive ()
     int ret = bpc.RealizeStep ();
     PERF_POP();
 
+     // write_tiled_json( bpc, m_frame ); 
+
     // check for step complete (0)
     if (ret <= 0) {
 
@@ -670,6 +680,13 @@ void Sample::RunAlgorithmInteractive ()
 
         if ( ret > 0) {
 
+            // successful iteration..
+            // write out after every step
+           if (bpc.m_return >= 0) {
+             write_tiled_json( bpc, m_frame); 
+             m_frame++;
+           }
+
             // iteration complete (all steps)
             // start new iteration
             PERF_PUSH("Pre");
@@ -677,7 +694,10 @@ void Sample::RunAlgorithmInteractive ()
             PERF_POP();
             
         } else if ( ret <= 0 ) {
-             
+            
+            // ret=0: whole map succcess
+            // ret<0: fail w error
+
             // write json output (failed or success)
             if (bpc.op.tileobj_fn.size() > 0) {
               bpc.op.outstl_fn = bpc.op.tilemap_fn;
@@ -718,8 +738,11 @@ void Sample::display()
 
   //--------- Visualization
 
+  int cadence = 10;
+
+
   // render cadence every 5 steps for perf
-  if ( bpc.getStep() % 5 == 0) { 
+  if ( bpc.getStep() % cadence == 0) { 
 
       PERF_PUSH ("Render");
 
@@ -909,7 +932,7 @@ void Sample::reshape(int w, int h)
   m_cam->setAspect(float(w) / float(h));
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), m_cam->getOrbitDist(), m_cam->getDolly());  
 
-  m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8, DT_CPU | DT_GLTEX );  
+  //m_img->ResizeImage ( w/2, h/2, ImageOp::RGB8, DT_CPU | DT_GLTEX );  
 
   appPostRedisplay();
 }
