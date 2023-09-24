@@ -7009,13 +7009,17 @@ int BeliefPropagation::cellConstraintPropagate() {
                       _pos = getVertexPos(anch_cell);
                       printf("# cellConstraintPropagate: conflict, "
                               "cell %i(%i,%i,%i) slated to remove last remaining tile (tile %s(%i) "
-                              "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) [ccp-block.0]\n",
+                              "conflicts with out of bounds neighbor %s(%i) dir %s(%d)) (block[%i+%i][%i+%i][%i+%i]) [ccp-block.0]\n",
                               (int)anch_cell,
                               (int)_pos.x, (int)_pos.y, (int)_pos.z,
                               m_tile_name[anch_b_val].c_str(),
                               (int)anch_b_val,
                               m_tile_name[boundary_tile].c_str(), (int)boundary_tile,
-                              m_dir_desc[i].c_str(), (int)i);
+                              m_dir_desc[i].c_str(), (int)i,
+
+                              (int)op.sub_block[0], (int)op.block_size[0],
+                              (int)op.sub_block[1], (int)op.block_size[1],
+                              (int)op.sub_block[2], (int)op.block_size[2] );
                     }
                   }
                   else if (op.verbose >= VB_ERROR ) {
@@ -7133,14 +7137,18 @@ int BeliefPropagation::cellConstraintPropagate() {
                   _nei_pos = getVertexPos(nei_cell);
                   printf("# cellConstraintPropagate: conflict, "
                           "cell %i(%i,%i,%i) slated to remove last remaining tile (tile %s(%i) "
-                          "conflicts with neighbor cell %i(%i,%i,%i), tile %s(%i) dir %s(%d)) [ccp-block.1]\n",
+                          "conflicts with neighbor cell %i(%i,%i,%i), tile %s(%i) dir %s(%d)) (block[%i+%i][%i+%i][%i+%i]) [ccp-block.1]\n",
                           (int)anch_cell,
                           (int)_pos.x, (int)_pos.y, (int)_pos.z,
                           m_tile_name[anch_b_val].c_str(), (int)anch_b_val,
                           (int)nei_cell,
                           (int)_nei_pos.x, (int)_nei_pos.y, (int)_nei_pos.z,
                           m_tile_name[nei_a_val].c_str(), (int)nei_a_val,
-                          m_dir_desc[i].c_str(), (int)i);
+                          m_dir_desc[i].c_str(), (int)i,
+
+                          (int)op.sub_block[0], (int)op.block_size[0],
+                          (int)op.sub_block[1], (int)op.block_size[1],
+                          (int)op.sub_block[2], (int)op.block_size[2] );
                 }
               }
               else if (op.verbose >= VB_ERROR ) {
