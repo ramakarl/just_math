@@ -984,9 +984,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
   case VIZ_TILE0:
     // readily available. no prepare needed.
     // get tile ID normalized to num tiles
-    i = getValI ( BUF_TILE_IDX, 0, v );
-    r = float(int(i*327) % 255) / 255.0f;
-    b = float(int(i*67125) % 255) / 255.0f;
+    i = getValI ( BUF_TILE_IDX, 0, v );    
     f = float(i) / float(getNumValues(v));
     s = Vector4DF( f, f, f, 0.5 );
     break;

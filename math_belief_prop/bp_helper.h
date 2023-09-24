@@ -83,7 +83,7 @@ void debug_constraint_op_list(std::vector< constraint_op_t > &op_list);
 int constrain_bp(BeliefPropagation &bp, std::vector< constraint_op_t > &op_list);
 void stl_print(FILE *, std::vector< float > &, float, float, float);
 int write_bp_stl( BeliefPropagation &bpc, std::vector< std::vector< float > > tri_lib);
-int write_tiled_json ( BeliefPropagation &bpc);
+int write_tiled_json ( BeliefPropagation &bpc, int frame=0);
 int grid_obj2stl_out(std::string ofn, BeliefPropagation &bp, std::vector< std::vector< float > > tri);
 int load_obj2tri(std::string inputfile, std::vector< float > &tri);
 //void stl_print(FILE *fp, std::vector< float > &tri, float dx=0.0, float dy=0.0, float dz=0.0);

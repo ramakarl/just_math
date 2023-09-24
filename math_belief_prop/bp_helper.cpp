@@ -1324,7 +1324,7 @@ int write_bp_stl (BeliefPropagation& bp, std::vector< std::vector< float > > tri
   return 0;
 }
 
-int write_tiled_json ( BeliefPropagation & bpc) {
+int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
   FILE *fp;
   int i, j, n, tileset_size;
   int64_t vtx;
@@ -1333,7 +1333,7 @@ int write_tiled_json ( BeliefPropagation & bpc) {
 
   // set filename
   char fname[1024];
-  sprintf (fname, "%s_%03d_%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.X, bpc.op.cur_run );
+  sprintf (fname, "%s_%03d_%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.X, frame );
   //sprintf (fname, "%s.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
 
   // get BP options
