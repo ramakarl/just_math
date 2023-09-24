@@ -348,6 +348,14 @@ typedef struct _bp_stat_type {
   int     iter_resolved,
           total_resolved;
 
+  int     total_block_cnt,
+          num_block_retry,
+          num_block_fail,
+          num_block_success,
+          num_block_fails,
+          num_soften;
+  float   ave_block_try;
+
   float   elapsed_time;
 
   int64_t constraints; 

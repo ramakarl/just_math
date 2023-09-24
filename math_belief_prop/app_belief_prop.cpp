@@ -735,7 +735,7 @@ void Sample::display()
   //
   if (m_run) {
 
-    m_run = false;
+    //m_run = false;
 
     RunAlgorithmInteractive ();
     

@@ -119,8 +119,8 @@ int BeliefPropagation::default_opts () {
   //
   op.cur_iter = 0;
 
-  // default to max_iter 0
-  op.max_iter = 0;
+  // default to max_iter 10000
+  op.max_iter = 10000;
 
   // steps
   //
@@ -3115,6 +3115,12 @@ void BeliefPropagation::ResetStats () {
   st.total_resolved = 0;
   st.post = 1;
 
+  st.total_block_cnt = 0;
+  st.num_block_fail = 0;
+  st.num_block_retry = 0;
+  st.num_block_success = 0;
+  st.num_soften = 0;
+
   st.time_boundary = 0;
   st.time_normalize = 0;
   st.time_bp = 0;
@@ -4799,7 +4805,7 @@ int BeliefPropagation::RealizePost(void) {
       ret = 1;
 
       if (m_return == 0) {
-
+        // block succeeded.
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
@@ -4809,13 +4815,14 @@ int BeliefPropagation::RealizePost(void) {
               (int)m_block_retry_limit);
         }
 
-        op.seq_iter++;
+        op.seq_iter++;        
         m_block_fail_count=0;
 
       }
 
       else if (m_return < 0) {
 
+        // block failed. restore.
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
@@ -4823,7 +4830,7 @@ int BeliefPropagation::RealizePost(void) {
               (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_block_fail_count,
               (int)m_block_retry_limit);
-        }
+        }        
 
         // before we soften, we need to restore the grid state to before we started mucking
         // around with fixing a block within it
@@ -4834,6 +4841,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
           op.seq_iter++;
+          st.num_soften++;                  
           m_block_fail_count = 0;
 
           if (op.verbose >= VB_STEP) {
@@ -4998,7 +5006,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
 
-          op.seq_iter++;
+          op.seq_iter++;          
           m_block_fail_count=0;
 
           if (op.verbose >= VB_STEP) {
@@ -5095,15 +5103,34 @@ int BeliefPropagation::RealizePost(void) {
         printf ("%s", getStatMessage().c_str() );
   }
 
-  // iter completion.
-  // cur_iter represents the number of successful blocks (when m_ret=0)
+  // statistics: record block result
+  st.total_block_cnt++;
   if (m_return==0) {
-     op.cur_iter++;
-     if (op.cur_iter >= op.max_iter)
-         ret = 0;
+      // block success.      
+      st.num_block_success++;      
+  } else {
+      // block failure        
+      st.num_block_fail++;    // equal to total_block_cnt - num_block_success
   }
-  printf ("mret: %d failcnt: %d ret: %d iter: %d maxiter: %d\n", m_return, m_block_fail_count, ret, op.cur_iter, op.max_iter );
+  if (op.verbose >= VB_RUN) {
+    printf ("Block (%s): total blks: %d, failcnt: %d, success rate: %3.1f%%, #success: %d, ave retry: %3.1f, #soften: %d, resolved tiles: %d (%4.1f%%)\n",
+            (m_return==0) ? "SUCCESS" : "FAIL   ",
+            st.total_block_cnt,
+            m_block_fail_count,
+            float(st.num_block_success)*100.0/st.total_block_cnt,
+            st.num_block_success,            
+            float(st.total_block_cnt) / (st.num_block_success+1),
+            st.num_soften,
+            st.total_resolved,
+            100.0*float(st.total_resolved)/getNumVerts() );
+  }
   
+  // cur_iter is total number of realizepost completed (unconditional).
+  // force stop if max_iter reached.
+  op.cur_iter++;
+  if (op.cur_iter >= op.max_iter)
+     ret = 0;
+ 
   return ret;
 }
 

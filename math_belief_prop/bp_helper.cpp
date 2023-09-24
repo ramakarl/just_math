@@ -1352,20 +1352,10 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
 
   sprintf (fname, "%s%s%s.json", prefix.c_str(), szbuf, nbuf );
 
-
   // get BP options
   bp_opt_t* op = bpc.get_opt();
-
   int tilecount = (int)bpc.m_tile_name.size();
   tilecount--;
-
-  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
-  op->tileset_width = ceil( sqrt( (double) tilecount ) );
-  op->tileset_height = op->tileset_width;
-
-  op->tileset_width *= op->tileset_stride_x;
-  op->tileset_height *= op->tileset_stride_y;
-
   int tile;
 
   // open file for write
@@ -1375,7 +1365,10 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
       printf("ERROR: Failed to write (%s)\n", fname );
       return -1;
   } else {
-      if (op->verbose >= 2) printf("Writing tilemap (%s)\n", fname );
+      if (op->verbose >= 2) {
+        if (mapsz>=0 && cnt >=0) 
+            printf("Writing tilemap (%s)\n", fname );        
+      }
   }
   //--- common data
   fprintf(fp, "{\n");
@@ -1441,24 +1434,32 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
   fprintf(fp, "  \"properties\": [ ],\n");
   fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
-  fprintf(fp, "  \"tileheight\": %i,\n", (int) op->tileset_stride_y);
-  fprintf(fp, "  \"tilewidth\": %i,\n", (int) op->tileset_stride_x);
-  fprintf(fp, "  \"tilesets\": [{\n");
 
-  fprintf(fp, "    \"firstgid\": %i,\n", 1);
-  fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
-  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
-  fprintf(fp, "    \"image\": \"%s\",\n", op->tileset_fn.c_str());
-  fprintf(fp, "    \"imageheight\": %i,\n", (int) op->tileset_height);
-  fprintf(fp, "    \"imagewidth\": %i,\n", (int) op->tileset_width);
-  fprintf(fp, "    \"margin\": %i,\n", (int) op->tileset_margin);
-  fprintf(fp, "    \"spacing\": %i,\n", (int) op->tileset_spacing);
-  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
-  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
-  fprintf(fp, "    \"tileheight\": %i,\n", (int) op->tileset_stride_y);
-  fprintf(fp, "    \"tilewidth\": %i\n", (int) op->tileset_stride_x);
+  // 2D tileset info [optional]
+  if ( op->tileset_fn.size() > 0 ) {
+      if ( op->tileset_stride_x == 0 || op->tileset_stride_y==0) {
+          printf ("ERROR: Tileset output for %s requires stride option (-s).\n", op->tileset_fn.c_str() );
+      }
+      op->tileset_width = ceil( sqrt( (double) tilecount ) ) * op->tileset_stride_x;
+      op->tileset_height = op->tileset_width * op->tileset_stride_y;
 
-  fprintf(fp, "  }],\n");
+      fprintf(fp, "  \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+      fprintf(fp, "  \"tilewidth\": %i,\n", (int) op->tileset_stride_x);
+      fprintf(fp, "  \"tilesets\": [{\n");
+      fprintf(fp, "    \"firstgid\": %i,\n", 1);
+      fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
+      fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
+      fprintf(fp, "    \"image\": \"%s\",\n", op->tileset_fn.c_str());
+      fprintf(fp, "    \"imageheight\": %i,\n", (int) op->tileset_height);
+      fprintf(fp, "    \"imagewidth\": %i,\n", (int) op->tileset_width);
+      fprintf(fp, "    \"margin\": %i,\n", (int) op->tileset_margin);
+      fprintf(fp, "    \"spacing\": %i,\n", (int) op->tileset_spacing);
+      fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
+      fprintf(fp, "    \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+      fprintf(fp, "    \"tilewidth\": %i\n", (int) op->tileset_stride_x);
+      fprintf(fp, "  }],\n");
+  }
+
   fprintf(fp, "  \"version\": %i\n", 1);
   fprintf(fp, "}\n");
   
