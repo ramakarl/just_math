@@ -479,16 +479,17 @@ bool Sample::init()
 
   m_cam = new Camera3D;
   m_cam->setNearFar ( 1, 2000 );
-  m_cam->SetOrbit ( 30, 20, 0, m_vres/2.0f, 250, 1 );
+  m_cam->SetOrbit ( 0, 89, 0, m_vres/2.0f, 250, 1 );
   m_img = new Image;
-  m_img->ResizeImage ( 128, 128, ImageOp::RGB8 );
+  m_img->ResizeImage ( 256, 256, ImageOp::RGB8 );
 
   printf("Init done\n");
   fflush(stdout);
   #ifdef USE_OPENGL
     init2D("arial");
     setText(18,1);
-  #endif
+    setview2D(getWidth(), getHeight());
+  #endif  
 
   #ifdef USE_CUDA
     if ( m_run_cuda ) {
@@ -565,7 +566,7 @@ bool Sample::init()
   Restart ();
 
   // start viz
-  m_viz = VIZ_TILES_2D;
+  m_viz = VIZ_TILECOUNT;
   bpc.SetVis ( m_viz );
 
   // start running
@@ -646,16 +647,18 @@ void Sample::DrawTileMap ()
     end2D();
 }
 
-
 void Sample::DrawGrid3D ()
 {
     setLight(S3D, 20, 100, 20);
-    for (int i=-10; i <= 10; i++ ) {
-      drawLine3D( i, 0, -10, i, 0, 10, 1,1,1, .1);
-      drawLine3D( -10, 0, i, 10, 0, i, 1,1,1, .1);
+    for (int i=0; i <= 64; i++ ) {
+      drawLine3D( i, 0, 0, i, 0, 64, 1,1,1, .3);
+      drawLine3D( 0, 0, i, 64, 0, i, 1,1,1, .3);
     }
-    drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);
-    end3D();
+    drawLine3D ( 0,0,0, 5,0,0, 1,0,0, 1);
+    drawLine3D ( 0,0,0, 0,5,0, 0,1,0, 1);
+    drawLine3D ( 0,0,0, 0,0,5, 0,0,1, 1);
+    
+    drawBox3D ( Vector3DF(0,0,0), m_vres, 1,1,1, 0.3);    
 }
 
 void Sample::RunAlgorithmInteractive ()
@@ -665,7 +668,8 @@ void Sample::RunAlgorithmInteractive ()
     int ret = bpc.RealizeStep ();
     PERF_POP();
 
-     // write_tiled_json( bpc, m_frame ); 
+    write_tiled_json( bpc, "stream", -2, -2 ); 
+    Sleep(20);
 
     // check for step complete (0)
     if (ret <= 0) {
@@ -683,8 +687,7 @@ void Sample::RunAlgorithmInteractive ()
             // successful iteration..
             // write out after every step
            if (bpc.m_return >= 0) {
-             write_tiled_json( bpc, m_frame); 
-             m_frame++;
+             write_tiled_json( bpc, "", -1, -1 );  
            }
 
             // iteration complete (all steps)
@@ -732,6 +735,8 @@ void Sample::display()
   //
   if (m_run) {
 
+    m_run = false;
+
     RunAlgorithmInteractive ();
     
   }
@@ -771,14 +776,16 @@ void Sample::display()
             drawImg ( m_img->getGLID(), 0, 0, getWidth(), getHeight(), 1,1,1,1 );  // draw raycast image
           end2D();
           // Draw 3D grid
+          
           start3D(m_cam);
             DrawGrid3D ();
           end3D();
           #endif 
   
       } else {
-      // 2D visualize
-            
+          // 2D visualize
+          
+
           #ifdef USE_OPENGL
      
           clearGL();      
@@ -804,7 +811,7 @@ void Sample::display()
 
       // Complete rendering
       draw2D();
-      //draw3D();
+      draw3D();
 
       PERF_POP();
   }
@@ -887,7 +894,7 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   case ' ':        
       m_run = !m_run;  
-      write_tiled_json( bpc ); 
+      
       break;
   
   case 'r':  

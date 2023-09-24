@@ -993,7 +993,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
     f = 1.0 / float(i);
-    s = Vector4DF( f, f, f, f );
+    s = (i==1) ? Vector4DF(f,0,0,f) : Vector4DF( f, f, f, f );
     break;
   case VIZ_CONSTRAINT:
     // visualize remaining constraints per cell
@@ -4142,6 +4142,12 @@ int BeliefPropagation::pickMinEntropyNoiseBlock(void) {
 }
 */
 
+void BeliefPropagation::getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax )
+{
+    bmin = Vector3DI(op.sub_block[0], op.sub_block[1], op.sub_block[2] );
+    bmax = bmin + Vector3DI(op.block_size[0]-1, op.block_size[1]-1, op.block_size[2]-1 );
+}
+
 //  0 - success
 // -1 - error
 //
@@ -4903,7 +4909,7 @@ int BeliefPropagation::RealizePost(void) {
           // can use it.
           //
           unfillVisited( m_note_plane  );
-
+          
           // if the constraint propgation fails, we're in a bad state
           // as we should have been in an even more unrestricted state
           // before we started since we restored from a previously
@@ -4912,7 +4918,8 @@ int BeliefPropagation::RealizePost(void) {
           //
           ret = cellConstraintPropagate();
           if (ret < 0) {
-            //op.cur_iter++;
+              printf ( "*** SOFTEN FAIL ***\n" );
+              op.cur_iter++;
           }
 
         }
@@ -5095,7 +5102,7 @@ int BeliefPropagation::RealizePost(void) {
      if (op.cur_iter >= op.max_iter)
          ret = 0;
   }
-  printf ("mret: %d ret: %d iter: %d maxiter: %d\n", m_return, ret, op.cur_iter, op.max_iter );
+  printf ("mret: %d failcnt: %d ret: %d iter: %d maxiter: %d\n", m_return, m_block_fail_count, ret, op.cur_iter, op.max_iter );
   
   return ret;
 }

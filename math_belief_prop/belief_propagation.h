@@ -468,6 +468,8 @@ public:
   int       RealizePost();
   int       Realize();
 
+  void      getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax );
+
   int       CollapseAndPropagate (int64_t& cell, int32_t& tile, int32_t& tile_idx );
   int       CheckConstraints ( int64_t p );
   int       CheckConstraints ();
