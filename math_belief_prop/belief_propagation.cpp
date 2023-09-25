@@ -119,8 +119,8 @@ int BeliefPropagation::default_opts () {
   //
   op.cur_iter = 0;
 
-  // default to max_iter 0
-  op.max_iter = 0;
+  // default to max_iter 10000
+  op.max_iter = 10000;
 
   // steps
   //
@@ -993,7 +993,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
     f = 1.0 / float(i);
-    s = Vector4DF( f, f, f, f );
+    s = (i==1) ? Vector4DF(f,0,0,f) : Vector4DF( f, f, f, f );
     break;
   case VIZ_CONSTRAINT:
     // visualize remaining constraints per cell
@@ -2785,7 +2785,7 @@ int BeliefPropagation::chooseMinEntropyWithinBlock( std::vector<int64_t> &block_
         //
         if (count==0) {
           _min_cell     = anch_cell;
-          _min_entropy = _entropy;
+          _min_entropy  = _entropy;
           count=1;
           continue;
         }
@@ -2895,6 +2895,8 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
 
   float p, g,
         _entropy, _df,
+        _saved_entropy, _saved_noise,
+        _tmp_entropy, _tmp_noise,
         g_sum, g_cdf;
 
   float _min_entropy= -1.0;
@@ -2952,11 +2954,16 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
           }
         }
 
+        _tmp_entropy = _entropy;
+
         // add noise to entropy choice
         // from specified noise function
         //
         _df = pickNoiseFunc( op.wfc_noise_func, op.wfc_noise_coefficient, op.wfc_noise_alpha );
         _entropy += _df;
+
+        _tmp_noise = _df;
+
 
         // initialize min entropy
         //
@@ -2964,6 +2971,10 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
           _min_cell     = anch_cell;
           _min_entropy  = _entropy;
           count=1;
+
+          _saved_entropy = _tmp_entropy;
+          _saved_noise = _tmp_noise;
+
           continue;
         }
 
@@ -2973,6 +2984,9 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
             _min_entropy  = _entropy;
             _min_cell     = anch_cell;
             count=1;
+
+            _saved_entropy = _tmp_entropy;
+            _saved_noise = _tmp_noise;
           }
 
           // randomize 'equal' choices
@@ -2985,6 +2999,10 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
             if ( p < (1.0/(float)count) ) {
               _min_entropy  = _entropy;
               _min_cell     = anch_cell;
+
+              _saved_entropy = _tmp_entropy;
+              _saved_noise = _tmp_noise;
+
             }
           }
 
@@ -3037,6 +3055,16 @@ int BeliefPropagation::chooseMinEntropyWithinNoisyBlock(  std::vector<int64_t> &
     _min_tile_idx = 0;
 
   }
+
+  if (op.verbose >= VB_DEBUG) {
+    printf("### chooseMinEntropyWithinNoisyBlock, picked entropy:%f+%f(%f), tile:%i, cell:%i\n",
+        (float)_saved_entropy, (float)_saved_noise,
+        (float)_min_entropy,
+        (int)_min_tile,
+        (int)_min_cell);
+  }
+
+
 
   if (min_cell)     { *min_cell     = _min_cell; }
   if (min_tile)     { *min_tile     = _min_tile; }
@@ -3292,6 +3320,12 @@ void BeliefPropagation::ResetStats () {
   st.iter_resolved = 0;
   st.total_resolved = 0;
   st.post = 1;
+
+  st.total_block_cnt = 0;
+  st.num_block_fail = 0;
+  st.num_block_retry = 0;
+  st.num_block_success = 0;
+  st.num_soften = 0;
 
   st.time_boundary = 0;
   st.time_normalize = 0;
@@ -3989,51 +4023,6 @@ int BeliefPropagation::ComputeBlockEntropy(int32_t reuse_cell_entropy) {
 
 // Noise function, used in breakout's pickMaxEntropyNoiseBlock
 // to add noise to max entropy block pick.
-// Returns random value based on op.noise_func and
-// noise_coefficient.
-//
-// See https://mathworld.wolfram.com/RandomNumber.html
-// for motivation on generating the power law random variable.
-//
-/*
-float BeliefPropagation::pickNoiseFunc() {
-  float f,
-        val = 0.0,
-        x_0=(1/1024.0),
-        x_1=(1024.0*1024.0),
-        alpha = -2.0;
-  float tx0, tx1;
-
-  if (op.noise_coefficient < op.eps_zero) {
-    return 0.0;
-  }
-
-  switch (op.noise_func) {
-    case OPT_NOISE_FUNC_UNIFORM:
-      val = m_rand.randF() * op.noise_coefficient;
-      break;
-    case OPT_NOISE_FUNC_POWER_LAW:
-
-      f = m_rand.randF();
-
-      tx0 = pow(x_0, alpha+1.0);
-      tx1 = pow(x_1, alpha+1.0);
-
-      val = pow( (f*(tx1 - tx0) + tx0), 1.0/(alpha+1.0) );
-      val *= op.noise_coefficient;
-      break;
-
-    default:
-      val=0.0;
-      break;
-  }
-
-  return val;
-}
-*/
-
-// Noise function, used in breakout's pickMaxEntropyNoiseBlock
-// to add noise to max entropy block pick.
 // Returns random value based on noise_func,
 // noise_coefficient and noise_alpha.
 //
@@ -4097,7 +4086,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   //
   int32_t n_b[3] = {0,0,0};
 
-  float max_entropy = -1, cur_entropy;
+  float max_entropy = -1, cur_entropy,
+        saved_entropy=-1, saved_noise=-1,
+        tmp_ent, tmp_noise;
   int32_t max_x=0, max_y=0, max_z=0;
   int64_t cell;
 
@@ -4117,7 +4108,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   n_b[2] = m_res.z - op.block_size[2]+1;
 
   if (op.verbose >= VB_DEBUG) {
-    printf("## pickMaxEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
+    printf("### pickMaxEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
   }
 
   ComputeBlockEntropy();
@@ -4129,8 +4120,12 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cell = getVertex(x,y,z);
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
+        tmp_ent = cur_entropy;
+
         df = pickNoiseFunc( op.block_noise_func, op.block_noise_coefficient, op.block_noise_alpha );
         cur_entropy += df;
+
+        tmp_noise = df;
 
         if ((max_entropy < 0.0) ||
             ( (cur_entropy - max_entropy) > -_eps )) {
@@ -4150,12 +4145,25 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
             max_x = x;
             max_y = y;
             max_z = z;
+
+            saved_entropy = tmp_ent;
+            saved_noise = tmp_noise;
           }
         }
 
       }
     }
   }
+
+  //DEBUG
+  if (op.verbose >= VB_DEBUG) {
+    printf("### pickMaxEntropyNoiseBlock picked max entropy:%f+%f(%f), block[%i][%i][%i]\n",
+        (float)saved_entropy, (float)saved_noise, max_entropy,
+        (int)max_x,
+        (int)max_y,
+        (int)max_z);
+  }
+  //DEBUG
 
   op.sub_block[0] = max_x;
   op.sub_block[1] = max_y;
@@ -4243,125 +4251,10 @@ int BeliefPropagation::pickMinEntropyNoiseBlock(void) {
   return (int)equal_entropy_count;
 }
 
-
-/*
-// choose block with minimum (average) entropy (?)
-//
-// $\sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
-//
-// choose block with minimum (average) entropy (?)
-// and add a noise factor to allow for some randomness in choice
-//
-// $\text(rand)() + \sum_{b \in B} \sum_{v \in \text{tile}(b)} \frac{g_b(v)}{|B|}$
-//
-int BeliefPropagation::pickMinEntropyNoiseBlock(void) {
-
-  //DEBUG
-  printf("## cp op.block_schedule:%i\n", (int)op.block_schedule);
-  fflush(stdout);
-
-  double _block_entropy = 0.0,
-         _cell_entropy = 0.0,
-         _min_block_entropy = 0.0,
-         _cell_renorm = 0.0,
-         lg2 = log(2.0);
-  float _f;
-
-  int32_t _block_choice[3] = {0,0,0};
-
-  int32_t _start_block[3] = {0,0,0};
-  int32_t _end_block_pos[3] = {0};
-  int32_t _sx, _sy, _sz,
-          _x, _y, _z;
-  int64_t _cell;
-  int32_t _tile_idx, _tile, _n_idx;
-
-  int32_t _unfixed_cell_count = 0,
-          _blocks_considered=0;
-
-  _end_block_pos[0] = m_res.x - op.block_size[0] + 1;
-  _end_block_pos[1] = m_res.y - op.block_size[1] + 1;
-  _end_block_pos[2] = m_res.z - op.block_size[2] + 1;
-
-  // very ineffient, testing idea out
-  //
-  for (_sz=0; _sz<_end_block_pos[2]; _sz++) {
-    for (_sy=0; _sy<_end_block_pos[1]; _sy++) {
-      for (_sx=0; _sx<_end_block_pos[0]; _sx++) {
-
-        _unfixed_cell_count = 0;
-        _block_entropy = 0.0;
-        for (_z=_sz; _z<(_sz+op.block_size[2]); _z++) {
-          for (_y=_sy; _y<(_sy+op.block_size[1]); _y++) {
-            for (_x=_sx; _x<(_sx+op.block_size[0]); _x++) {
-
-              _cell_entropy = 0.0;
-              _cell_renorm = 0.0;
-
-              _cell = getVertex((int)_x, (int)_y, (int)_z);
-              _n_idx = getValI( BUF_TILE_IDX_N, _cell );
-
-              if (_n_idx <= 1) { continue; }
-              for (_tile_idx=0; _tile_idx<_n_idx; _tile_idx++) {
-
-                _tile = getValI( BUF_TILE_IDX, _tile_idx, _cell );
-
-                _f = getValF( BUF_G, _tile );
-                _cell_renorm += (double)_f;
-
-                _cell_entropy += (_f * log(_f) / lg2);
-
-              }
-              _cell_entropy /= _cell_renorm;
-              _cell_entropy -= (log(_cell_renorm) / lg2);
-              _cell_entropy = -_cell_entropy;
-
-              _block_entropy += _cell_entropy;
-
-              _unfixed_cell_count++;
-
-            }
-          }
-        }
-
-        if (_unfixed_cell_count==0) { continue; }
-
-        if (_blocks_considered == 0) {
-          _min_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        if ( _block_entropy < _min_block_entropy ) {
-          _min_block_entropy = _block_entropy;
-          _block_choice[0] = _sx;
-          _block_choice[1] = _sy;
-          _block_choice[2] = _sz;
-        }
-
-        _blocks_considered++;
-
-
-      }
-    }
-  }
-
-  printf("## pickMinEntropyNoiseBlock _min_block_entropy:%3.4f {%i,%i,%i}) (num_cell:%i)\n",
-      (float)_min_block_entropy,
-      (int)_block_choice[0],
-      (int)_block_choice[1],
-      (int)_block_choice[2],
-      (int)_blocks_considered);
-
-
-  op.sub_block[0] = _block_choice[0];
-  op.sub_block[1] = _block_choice[1];
-  op.sub_block[2] = _block_choice[2];
-
-  return (int)_unfixed_cell_count;
+void BeliefPropagation::getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax ) {
+  bmin = Vector3DI(op.sub_block[0], op.sub_block[1], op.sub_block[2] );
+  bmax = bmin + Vector3DI(op.block_size[0]-1, op.block_size[1]-1, op.block_size[2]-1 );
 }
-*/
 
 //  0 - success
 // -1 - error
@@ -5014,7 +4907,7 @@ int BeliefPropagation::RealizePost(void) {
       ret = 1;
 
       if (m_return == 0) {
-
+        // block succeeded.
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
@@ -5024,13 +4917,14 @@ int BeliefPropagation::RealizePost(void) {
               (int)m_block_retry_limit);
         }
 
-        op.seq_iter++;
+        op.seq_iter++;        
         m_block_fail_count=0;
 
       }
 
       else if (m_return < 0) {
 
+        // block failed. restore.
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
@@ -5038,7 +4932,7 @@ int BeliefPropagation::RealizePost(void) {
               (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_block_fail_count,
               (int)m_block_retry_limit);
-        }
+        }        
 
         // before we soften, we need to restore the grid state to before we started mucking
         // around with fixing a block within it
@@ -5049,6 +4943,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
           op.seq_iter++;
+          st.num_soften++;                  
           m_block_fail_count = 0;
 
           if (op.verbose >= VB_STEP) {
@@ -5124,7 +5019,7 @@ int BeliefPropagation::RealizePost(void) {
           // can use it.
           //
           unfillVisited( m_note_plane  );
-
+          
           // if the constraint propgation fails, we're in a bad state
           // as we should have been in an even more unrestricted state
           // before we started since we restored from a previously
@@ -5133,7 +5028,8 @@ int BeliefPropagation::RealizePost(void) {
           //
           ret = cellConstraintPropagate();
           if (ret < 0) {
-            //op.cur_iter++;
+              printf ( "*** SOFTEN FAIL ***\n" );
+              op.cur_iter++;
           }
 
         }
@@ -5212,7 +5108,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
 
-          op.seq_iter++;
+          op.seq_iter++;          
           m_block_fail_count=0;
 
           if (op.verbose >= VB_STEP) {
@@ -5309,16 +5205,36 @@ int BeliefPropagation::RealizePost(void) {
         printf ("%s", getStatMessage().c_str() );
   }
 
-  // iter completion.
-  // cur_iter represents the number of successful blocks (when m_ret=0)
+  // statistics: record block result
+  st.total_block_cnt++;
   if (m_return==0) {
-    op.cur_iter++;
-    if (op.cur_iter >= op.max_iter) {
-      ret = 0;
-    }
+    // block success.      
+    st.num_block_success++;      
+  } else {
+    // block failure        
+    st.num_block_fail++;    // equal to total_block_cnt - num_block_success
   }
-  printf ("mret: %d ret: %d iter: %d maxiter: %d\n", m_return, ret, op.cur_iter, op.max_iter );
 
+  if (op.verbose >= VB_RUN) {
+    printf ("Block (%s): total blks: %d, failcnt: %d, success rate: %3.1f%%, #success: %d, ave retry: %3.1f, #soften: %d, resolved tiles: %d (%4.1f%%)\n",
+            (m_return==0) ? "SUCCESS" : "FAIL   ",
+            (int)st.total_block_cnt,
+            (int)m_block_fail_count,
+            float(st.num_block_success)*100.0/st.total_block_cnt,
+            (int)st.num_block_success,            
+            float(st.total_block_cnt) / (st.num_block_success+1),
+            (int)st.num_soften,
+            (int)st.total_resolved,
+            100.0*float(st.total_resolved)/getNumVerts() );
+  }
+  
+  // cur_iter is total number of realizepost completed (unconditional).
+  // force stop if max_iter reached.
+  op.cur_iter++;
+  if (op.cur_iter >= op.max_iter) {
+    ret = 0;
+  }
+ 
   return ret;
 }
 

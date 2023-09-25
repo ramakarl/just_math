@@ -1514,9 +1514,13 @@ void nvImg::UpdateTex ()
 			"    vec3 lgtdir = normalize(lightpos - vpos);\n"
 			"    vec3 V = normalize( campos - vpos );\n"
 			"    vec3 R = normalize( vnorm * (2.0f*dot ( vnorm, lgtdir)) - lgtdir );\n"
-			"    vec3 sclr = (vnorm.x<-1.f) ? vec3(0,0,0) : spec_clr * pow( max(0.0f, dot(R, V)), spec_power );\n"
-			"    float d =   (vnorm.x<-1.f) ? 1.0f : max( 0.0f, dot ( vnorm, lgtdir )); \n"
-			"    outColor = vec4( lightclr * (vec3(d*texclr.x, d*texclr.y, d*texclr.z) + sclr), texclr.w);\n"						
+			"    if (vnorm.x < -1.f) {\n"
+			"       outColor = vec4( texclr );\n"
+			"    } else {\n"
+			"       vec3 sclr = spec_clr * pow( max(0.0f, dot(R, V)), spec_power );\n"
+			"       float d =   max( 0.0f, dot ( vnorm, lgtdir )); \n"
+			"       outColor = vec4( lightclr * (vec3(d*texclr.x, d*texclr.y, d*texclr.z) + sclr), texclr.w);\n"						
+			"    }\n"
 			"}\n"
 		;
 

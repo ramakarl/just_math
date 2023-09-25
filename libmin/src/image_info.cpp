@@ -74,7 +74,21 @@ unsigned int ImageInfo::GetFlags ( ImageOp::Format ef )
 	return flags;
 }
 
-
+// Bits per pixel - value depends on format
+unsigned char ImageInfo::GetBitsPerPix (ImageOp::Format ef)
+{
+	switch (ef) {
+	case ImageOp::RGBA32F:						return 128;		break;	// 4 chan,32-bit = 128
+	case ImageOp::RGB16:						return 48;		break;	// 3 chan,16-bit =  24
+	case ImageOp::RGB8: case ImageOp::BGR8:		return 24;		break;	// 3 chan, 8-bit =  24
+	case ImageOp::RGBA8:						return 32;		break;	// 4 chan, 8-bit =  32
+	case ImageOp::BW8:							return 8;		break;	// 1 chan, 8-bit =   8
+	case ImageOp::BW16:							return 16;		break;
+	case ImageOp::BW32:							return 32;		break;
+	case ImageOp::F32:							return 32;		break;
+	}
+	return 0;
+}
 
 // Data type - value depends on format
 unsigned char ImageInfo::GetDataType (ImageOp::Format ef)

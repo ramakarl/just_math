@@ -1324,31 +1324,38 @@ int write_bp_stl (BeliefPropagation& bp, std::vector< std::vector< float > > tri
   return 0;
 }
 
-int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
+int write_tiled_json( BeliefPropagation &bpc )
+{ 
+    return write_tiled_json ( bpc, "", -1, 0 ); 
+}
+
+// write_tiled_json
+// prefix - specify your own name prefix. if not given (empty), use tilemap_fn name
+// mapsz  - specify your own size suffix. if -1 (default), use bpc solver X dim. if -2, no suffix.
+// cnt    - specify your own cnt suffix. if -1 (default), use current iteration #. if -2, no suffix.
+// 
+int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, int cnt ) {
   FILE *fp;
   int i, j, n, tileset_size;
   int64_t vtx;
-
   int sy, ey_inc;
+  char szbuf[512], nbuf[512], fname[1024];
+  szbuf[0] = '\0';
+  nbuf[0] = '\0';
 
-  // set filename
-  char fname[1024];
-  sprintf (fname, "%s_%03d_%04d.json", bpc.op.tilemap_fn.c_str(), bpc.op.X, frame );
-  //sprintf (fname, "%s.json", bpc.op.tilemap_fn.c_str(), bpc.op.cur_run );
+  // better json naming flexibility
+  if (mapsz == -1) mapsz = bpc.op.X;
+  if (cnt   == -1) cnt = bpc.op.cur_iter;
+  if (mapsz > 0)   sprintf ( szbuf, "_%03d", mapsz );
+  if (cnt   >= 0)  sprintf ( nbuf, "_%05d", cnt );
+  if (prefix.size()==0) prefix = bpc.op.tilemap_fn.c_str();
+
+  snprintf (fname, 1023, "%s%s%s.json", prefix.c_str(), szbuf, nbuf );
 
   // get BP options
   bp_opt_t* op = bpc.get_opt();
-
   int tilecount = (int)bpc.m_tile_name.size();
   tilecount--;
-
-  //opt.tileset_width = ceil( sqrt( ((double)bpc.m_tile_name.size()) - 1.0 ) );
-  op->tileset_width = ceil( sqrt( (double) tilecount ) );
-  op->tileset_height = op->tileset_width;
-
-  op->tileset_width *= op->tileset_stride_x;
-  op->tileset_height *= op->tileset_stride_y;
-
   int tile;
 
   // open file for write
@@ -1358,7 +1365,10 @@ int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
       printf("ERROR: Failed to write (%s)\n", fname );
       return -1;
   } else {
-      if (op->verbose >= 2) printf("Writing tilemap (%s)\n", fname );
+      if (op->verbose >= 2) {
+        if (mapsz>=0 && cnt >=0) 
+            printf("Writing tilemap (%s)\n", fname );        
+      }
   }
   //--- common data
   fprintf(fp, "{\n");
@@ -1367,7 +1377,7 @@ int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
   fprintf(fp, "  \"width\": %i,\n", (int) bpc.m_res.x);
   fprintf(fp, "  \"layers\": [\n");
 
-  int ystart, yend, ydir;
+  int ystart, yend, ydir, tcnt;
 
   // write each layer (z-axis)
   //
@@ -1387,6 +1397,8 @@ int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
           vtx = bpc.getVertex(i, j, k);
           //tile = bpc.getMaxBeliefTile ( vtx );
           tile = bpc.getValI( BUF_TILE_IDX, 0, vtx );
+          tcnt = bpc.getValI( BUF_TILE_IDX_N, vtx );
+          if (tcnt > 1 ) tile = 0;
           fprintf(fp, " %i", tile );
           if ((j==yend-ydir) && (i==(bpc.m_res.x-1))) { }
           else                                { fprintf(fp, ","); }
@@ -1409,36 +1421,50 @@ int write_tiled_json ( BeliefPropagation & bpc, int frame ) {
       else                  { fprintf(fp, "  }\n  "); }
 
       //--- end of layer
-  }
+  }  
+  fprintf(fp, "  ],\n");
+
+  Vector3DI bmin, bmax;
+  bpc.getCurrentBlock ( bmin, bmax );
   
   // global data
-  fprintf(fp, "  ],\n");
+  fprintf(fp, "  \"block_min\": \"<%d,%d,%d>\",\n", bmin.x, bmin.y, bmin.z);
+  fprintf(fp, "  \"block_max\": \"<%d,%d,%d>\",\n", bmax.x, bmax.y, bmax.z);
   fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
   fprintf(fp, "  \"properties\": [ ],\n");
   fprintf(fp, "  \"renderorder\": \"%s\",\n", "right-down");
-  fprintf(fp, "  \"tileheight\": %i,\n", (int) op->tileset_stride_y);
-  fprintf(fp, "  \"tilewidth\": %i,\n", (int) op->tileset_stride_x);
-  fprintf(fp, "  \"tilesets\": [{\n");
 
-  fprintf(fp, "    \"firstgid\": %i,\n", 1);
-  fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
-  fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
-  fprintf(fp, "    \"image\": \"%s\",\n", op->tileset_fn.c_str());
-  fprintf(fp, "    \"imageheight\": %i,\n", (int) op->tileset_height);
-  fprintf(fp, "    \"imagewidth\": %i,\n", (int) op->tileset_width);
-  fprintf(fp, "    \"margin\": %i,\n", (int) op->tileset_margin);
-  fprintf(fp, "    \"spacing\": %i,\n", (int) op->tileset_spacing);
-  //fprintf(fp, "    \"tilecount\": %i,\n", (int)(bpc.m_tile_name.size()-1));
-  fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
-  fprintf(fp, "    \"tileheight\": %i,\n", (int) op->tileset_stride_y);
-  fprintf(fp, "    \"tilewidth\": %i\n", (int) op->tileset_stride_x);
+  // 2D tileset info [optional]
+  if ( op->tileset_fn.size() > 0 ) {
+      if ( op->tileset_stride_x == 0 || op->tileset_stride_y==0) {
+          printf ("ERROR: Tileset output for %s requires stride option (-s).\n", op->tileset_fn.c_str() );
+      }
+      op->tileset_width = ceil( sqrt( (double) tilecount ) ) * op->tileset_stride_x;
+      op->tileset_height = op->tileset_width * op->tileset_stride_y;
 
-  fprintf(fp, "  }],\n");
+      fprintf(fp, "  \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+      fprintf(fp, "  \"tilewidth\": %i,\n", (int) op->tileset_stride_x);
+      fprintf(fp, "  \"tilesets\": [{\n");
+      fprintf(fp, "    \"firstgid\": %i,\n", 1);
+      fprintf(fp, "    \"columns\": %i,\n", (int) bpc.m_res.x);
+      fprintf(fp, "    \"name\": \"%s\",\n", "tileset");
+      fprintf(fp, "    \"image\": \"%s\",\n", op->tileset_fn.c_str());
+      fprintf(fp, "    \"imageheight\": %i,\n", (int) op->tileset_height);
+      fprintf(fp, "    \"imagewidth\": %i,\n", (int) op->tileset_width);
+      fprintf(fp, "    \"margin\": %i,\n", (int) op->tileset_margin);
+      fprintf(fp, "    \"spacing\": %i,\n", (int) op->tileset_spacing);
+      fprintf(fp, "    \"tilecount\": %i,\n", tilecount);
+      fprintf(fp, "    \"tileheight\": %i,\n", (int) op->tileset_stride_y);
+      fprintf(fp, "    \"tilewidth\": %i\n", (int) op->tileset_stride_x);
+      fprintf(fp, "  }],\n");
+  }
+
   fprintf(fp, "  \"version\": %i\n", 1);
   fprintf(fp, "}\n");
-
-  fclose(fp);
+  
+  fflush(fp);
+  fclose(fp); 
 
   return 0;
 }

@@ -353,6 +353,14 @@ typedef struct _bp_stat_type {
   int     iter_resolved,
           total_resolved;
 
+  int     total_block_cnt,
+          num_block_retry,
+          num_block_fail,
+          num_block_success,
+          num_block_fails,
+          num_soften;
+  float   ave_block_try;
+
   float   elapsed_time;
 
   int64_t constraints; 
@@ -429,11 +437,11 @@ public:
 
     op.seq_iter = 0;
 
-    op.block_noise_coefficient = 0.0;
+    op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
     op.block_noise_func = OPT_NOISE_FUNC_POWER_LAW;
 
-    op.wfc_noise_coefficient = 0.0;
+    op.wfc_noise_coefficient = 1.0/128.0;
     op.wfc_noise_alpha = -2.0;
     op.wfc_noise_func = OPT_NOISE_FUNC_POWER_LAW;
 
@@ -477,6 +485,8 @@ public:
   int       RealizeStep();
   int       RealizePost();
   int       Realize();
+
+  void      getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax );
 
   int       CollapseAndPropagate (int64_t& cell, int32_t& tile, int32_t& tile_idx );
   int       CheckConstraints ( int64_t p );
