@@ -856,7 +856,6 @@ int _read_rule_csv(std::string &fn, std::vector< std::vector<float> > &rule) {
         rule.push_back(v);
       }
     }
-
     // explicit entry
     //
     else {
@@ -1424,12 +1423,16 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
   }  
   fprintf(fp, "  ],\n");
 
-  Vector3DI bmin, bmax;
+  Vector3DI bmin, bmax, e, ec;
   bpc.getCurrentBlock ( bmin, bmax );
+  e = bpc.getErrorCell();
+  ec = bpc.getErrorCause();
   
   // global data
   fprintf(fp, "  \"block_min\": \"<%d,%d,%d>\",\n", bmin.x, bmin.y, bmin.z);
   fprintf(fp, "  \"block_max\": \"<%d,%d,%d>\",\n", bmax.x, bmax.y, bmax.z);
+  fprintf(fp, "  \"error_cell\": \"<%d,%d,%d>\",\n", e.x, e.y, e.z);
+  fprintf(fp, "  \"error_cause\": \"<%d,%d,%d>\",\n", ec.x, ec.y, ec.z);
   fprintf(fp, "  \"nextobjectid\": %i,\n", 1);
   fprintf(fp, "  \"orientation\": \"%s\",\n", "orthogonal");
   fprintf(fp, "  \"properties\": [ ],\n");

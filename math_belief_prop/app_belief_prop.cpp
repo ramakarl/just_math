@@ -122,6 +122,7 @@ public:
   bool      m_run;  
   bool      m_save;
   bool      m_draw_tileset;
+  bool      m_stop_on_error;
   float     m_scaling_2D;  
   int       m_frame;  
   int       m_stream_json;
@@ -179,8 +180,13 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         break;
       case 'R':
         op->rule_fn = optarg;
-        break;      
-
+        break;
+      case 'a':
+        op->adaptive_soften = (strToI(optarg)==1) ? 1 : 0;
+        break;
+      case 't':
+        op->jitter_block = strToI(optarg);
+        break;
       case 'j':
         op->admissible_tile_range_cmd = optarg;
         break;
@@ -199,6 +205,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
       case 'Q':
         op->tileset_fn = optarg;
         break;
+       
       case 's':
         op->tileset_stride_x = strToI(optarg);
         op->tileset_stride_y = op->tileset_stride_x;
@@ -465,6 +472,7 @@ bool Sample::init()
   m_viz = VIZ_NONE;
 
   m_stream_json = 0;
+  m_stop_on_error = false;
 
   _bp_opt_t* op = bpc.get_opt();
 
@@ -681,49 +689,56 @@ void Sample::RunAlgorithmInteractive ()
     if (ret <= 0) {
 
         // *NOTE*: right now RealizeStep ret error (<0) is ignored.
+        
+        if (ret==-3 && m_stop_on_error) {       
 
-        // step complete
-        // finish this iteration
-        PERF_PUSH("Post");
-        ret = bpc.RealizePost();
-        PERF_POP();
-
-        if ( ret > 0) {
-
-            // successful iteration..
-            // write out after every step
-           if (bpc.m_return >= 0) {
-              // write to stream for tilemaker vis
-              write_tiled_json( bpc, "stream", -2, -2 ); 
-              // write to save numbered sequence
-              write_tiled_json( bpc, "", -1, -1 );  
-           }
-
-            // iteration complete (all steps)
-            // start new iteration
-            PERF_PUSH("Pre");
-            bpc.RealizePre();
-            PERF_POP();
-            
-        } else if ( ret <= 0 ) {
-            
-            // ret=0: whole map succcess
-            // ret<0: fail w error
-
-            // write json output (failed or success)
-            if (bpc.op.tileobj_fn.size() > 0) {
-              bpc.op.outstl_fn = bpc.op.tilemap_fn;
-              write_bp_stl( bpc, tri_shape_lib );
-            } else {
-              write_tiled_json( bpc );
-            }
-            // finish
-            bpc.finish (ret);
-
-            // stop
+            // pause at moment block failed
             m_run = false;
-        }
 
+        } else {
+
+            // step complete
+            // finish this iteration
+            PERF_PUSH("Post");
+            ret = bpc.RealizePost();
+            PERF_POP();
+
+            if ( ret > 0) {
+
+                // successful iteration..
+                // write out after every step
+               if (bpc.m_return >= 0) {
+                  // write to stream for tilemaker vis
+                  write_tiled_json( bpc, "stream", -2, -2 ); 
+                  // write to save numbered sequence
+                  write_tiled_json( bpc, "", -1, -1 );  
+               }
+
+                // iteration complete (all steps)
+                // start new iteration
+                PERF_PUSH("Pre");
+                bpc.RealizePre();
+                PERF_POP();
+            
+            } else if ( ret <= 0 ) {
+            
+                // ret=0: whole map succcess
+                // ret<0: fail w error
+
+                // write json output (failed or success)
+                if (bpc.op.tileobj_fn.size() > 0) {
+                  bpc.op.outstl_fn = bpc.op.tilemap_fn;
+                  write_bp_stl( bpc, tri_shape_lib );
+                } else {
+                  write_tiled_json( bpc );
+                }
+                // finish
+                bpc.finish (ret);
+
+                // stop
+                m_run = false;
+            }
+        }
     } 
     
     fflush(stdout);
@@ -756,7 +771,7 @@ void Sample::display()
 
 
   // render cadence every 5 steps for perf
-  if ( bpc.getStep() % cadence == 0) { 
+  if ( bpc.getStep() % cadence == 0 || !m_run) { 
 
       PERF_PUSH ("Render");
 
@@ -791,8 +806,12 @@ void Sample::display()
 
             Vector3DI bmin, bmax;
             bpc.getCurrentBlock ( bmin, bmax );
+            drawBox3D ( bmin, bmax+Vector3DI(1,1,1), 1, 0.5, 0, 1);
 
-            drawBox3D ( bmin, bmax, 1, 0.5, 0, 1);
+            bmin = bpc.getErrorCell();
+            drawBox3D ( bmin, bmin+Vector3DI(1,1,1), 1, 0, 0, 1);
+            bmin = bpc.getErrorCause();
+            drawBox3D ( bmin, bmin+Vector3DI(1,1,1), 1, 0, 1, 1);
 
           end3D();
           #endif 
@@ -903,12 +922,19 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   switch (keycode) {
   case 'w':  
-
       write_tiled_json( bpc ); 
+      break;
+  case 'e':
+      m_stop_on_error = !m_stop_on_error;
       break;
 
   case ' ':        
       m_run = !m_run;  
+
+      if (m_run) {
+          bpc.RealizePost();
+          bpc.RealizePre();
+      }
       
       break;
   

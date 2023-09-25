@@ -253,6 +253,8 @@ typedef struct _bp_opt_t {
             sub_block_range[3][2],
             seq_iter;
   int32_t   block_schedule;
+  bool      adaptive_soften;
+  int       jitter_block;
 
   int64_t   step_cb;
   float     state_info_d;
@@ -436,6 +438,8 @@ public:
     op.block_idx[2] = 0;
 
     op.seq_iter = 0;
+    op.adaptive_soften = false;     // default (fixed soften)
+    op.jitter_block = 0;            // default (no-jitter)
 
     op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
@@ -444,7 +448,7 @@ public:
     op.wfc_noise_coefficient = 1.0/128.0;
     op.wfc_noise_alpha = -2.0;
     op.wfc_noise_func = OPT_NOISE_FUNC_POWER_LAW;
-
+    
     //op.experiment_idx = -1;
 
     //m_breakout_block_fail_count = 0;
@@ -487,6 +491,8 @@ public:
   int       Realize();
 
   void      getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax );
+  Vector3DI getErrorCell () { return getVertexPos(m_error_cell);}
+  Vector3DI getErrorCause () { return getVertexPos(m_error_cause);}
 
   int       CollapseAndPropagate (int64_t& cell, int32_t& tile, int32_t& tile_idx );
   int       CheckConstraints ( int64_t p );
@@ -770,6 +776,8 @@ public:
   int           m_soften_range;
   
   int64_t       m_error_cell;
+  int64_t       m_error_cause;
+  std::string   m_error_name;
 
   // parameters/options
   //

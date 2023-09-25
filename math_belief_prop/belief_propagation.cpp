@@ -993,7 +993,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
     f = 1.0 / float(i);
-    s = (i==1) ? Vector4DF(f,0,0,f) : Vector4DF( f, f, f, f );
+    s = (i==1) ? Vector4DF(0,0,0,1) : Vector4DF( f, f, f, f );
     break;
   case VIZ_CONSTRAINT:
     // visualize remaining constraints per cell
@@ -4405,20 +4405,7 @@ int BeliefPropagation::RealizePre(void) {
 
       else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
         pickMaxEntropyNoiseBlock();
-
-        // randomize the block center after soften (-Rama)
-        printf ("rand block ctr.\n");
-        Vector3DI v;
-        v = m_rand.randV3(-2,2);
-        op.sub_block[0] += v.x;  
-        op.sub_block[1] += v.y;
-        op.sub_block[2] += v.z;      
-        if (op.sub_block[0] < 0) op.sub_block[0] = 0;
-        if (op.sub_block[1] < 0) op.sub_block[1] = 0;
-        if (op.sub_block[2] < 0) op.sub_block[2] = 0;
-        if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
-        if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
-        if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
+        
       }
 
       else {
@@ -4453,6 +4440,22 @@ int BeliefPropagation::RealizePre(void) {
   // non block algorithm
   //
   else { }
+
+  // [optional] block jittering
+  // randomize the block center somewhat 
+  if (op.jitter_block > 0 ) {    
+    Vector3DI v;
+    v = m_rand.randV3(-op.jitter_block, op.jitter_block);
+    op.sub_block[0] += v.x;  
+    op.sub_block[1] += v.y;
+    op.sub_block[2] += v.z;      
+    if (op.sub_block[0] < 0) op.sub_block[0] = 0;
+    if (op.sub_block[1] < 0) op.sub_block[1] = 0;
+    if (op.sub_block[2] < 0) op.sub_block[2] = 0;
+    if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
+    if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
+    if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
+  }
 
 
   //-----------
@@ -5006,11 +5009,15 @@ int BeliefPropagation::RealizePost(void) {
           _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);*/
 
           // adjust soften range dynamically
-          if (m_last_fail_count < 10 ) m_soften_range--;
-          if (m_last_fail_count > 15 ) m_soften_range++;
-          if (m_soften_range < 1) m_soften_range = 1;
-          if (m_soften_range > op.block_size[0]) m_soften_range = op.block_size[0];
-          printf ( "ready to soften. last_fail_count=%d, soften_range=%d\n", m_last_fail_count, m_soften_range );
+          if (op.adaptive_soften) {
+              if (m_last_fail_count < 10 ) m_soften_range--;
+              if (m_last_fail_count > 15 ) m_soften_range++;
+              if (m_soften_range < 1) m_soften_range = 1;
+              if (m_soften_range > op.block_size[0]) m_soften_range = op.block_size[0];
+              printf ( "Adaptive soften. last_fail_count=%d, soften_range=%d\n", m_last_fail_count, m_soften_range );              
+          } else {
+              m_soften_range = op.block_size[0];
+          }
 
           // this soften counts as a last failure (if no success on previous soften)
           m_last_fail_count = 20;       
@@ -5590,7 +5597,11 @@ int BeliefPropagation::RealizeStep(void) {
 
             // NOT USED. try returning failed cell to prefatory and continue (-Rama)
             // cellReturnToPrefatory ( m_error_cell );                        
-            // _ret = 1;            
+            // _ret = 1;     
+            Vector3DI v = getErrorCell();
+            if (op.verbose >= VB_STEP ) {
+                printf ( "Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
+            }
         }
 
       }
@@ -7028,6 +7039,8 @@ int BeliefPropagation::cellConstraintPropagate() {
                   unfillVisited (1 - m_note_plane );
 
                   m_error_cell = anch_cell;
+                  m_error_cause = boundary_tile;
+                  m_error_name = m_tile_name[anch_b_val] + " removing by " + m_tile_name[boundary_tile] + " (boundary)";
 
                   PERF_POP();
                   return -1;
@@ -7107,7 +7120,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
           int32_t* nei_a_ptr = (int32_t*) getPtr ( BUF_TILE_IDX, 0, nei_cell );
           int32_t* nei_a_end = nei_a_ptr + nei_n_tile;
-          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {
+          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {              
               if (getValF( BUF_F, anch_b_val, *nei_a_ptr, i ) > _eps) {    // nei_a_val is random access, so no accel of BUF_F ptr
                   anch_has_valid_conn = 1;
                   break;
@@ -7119,7 +7132,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           if (!anch_has_valid_conn) {
             if (anch_n_tile==1) {
 
-              nei_a_val = *nei_a_ptr;
+              nei_a_val = *(nei_a_ptr-1);
 
               if ((op.alg_run_opt == ALG_RUN_MMS) ||
                   (op.alg_run_opt == ALG_RUN_BREAKOUT)) {
@@ -7162,6 +7175,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               unfillVisited (1 - m_note_plane );
 
               m_error_cell = anch_cell;
+              m_error_cause = nei_cell;
+              m_error_name = m_tile_name[anch_b_val] + " removing by " + m_tile_name[nei_a_val];
               
               PERF_POP();              
               return -1;
