@@ -984,7 +984,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
   case VIZ_TILE0:
     // readily available. no prepare needed.
     // get tile ID normalized to num tiles
-    i = getValI ( BUF_TILE_IDX, 0, v );    
+    i = getValI ( BUF_TILE_IDX, 0, v );
     f = float(i) / float(getNumValues(v));
     s = Vector4DF( f, f, f, 0.5 );
     break;
@@ -5091,12 +5091,13 @@ int BeliefPropagation::RealizePost(void) {
   // iter completion.
   // cur_iter represents the number of successful blocks (when m_ret=0)
   if (m_return==0) {
-     op.cur_iter++;
-     if (op.cur_iter >= op.max_iter)
-         ret = 0;
+    op.cur_iter++;
+    if (op.cur_iter >= op.max_iter) {
+      ret = 0;
+    }
   }
   printf ("mret: %d ret: %d iter: %d maxiter: %d\n", m_return, ret, op.cur_iter, op.max_iter );
-  
+
   return ret;
 }
 

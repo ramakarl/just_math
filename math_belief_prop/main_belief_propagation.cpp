@@ -526,8 +526,8 @@ int main(int argc, char **argv) {
   std::vector<float> eps_range;
 
   int max_iter = -1,
-      it = -1,
-      n_it = -1;
+      it = -1;
+      //n_it = -1;
 
   int64_t cell=-1;
   int32_t n_idx=-1,
@@ -612,7 +612,8 @@ int main(int argc, char **argv) {
         }
         break;
       case 'i':
-        n_it = atoi(optarg);
+        //n_it = atoi(optarg);
+        bpc.op.max_iter = atoi(optarg);
         break;
       case 'm':
         bpc.m_block_retry_limit = atoi(optarg);
@@ -844,16 +845,17 @@ int main(int argc, char **argv) {
 
   // set default if not specified on command line
   //
-  if (n_it <= 0) {
-    n_it = bpc.m_num_verts * bpc.m_num_values;
-  }
+  //if (n_it <= 0) {
+  //  n_it = bpc.m_num_verts * bpc.m_num_values;
+  //}
 
   if (bpc.op.verbose >= VB_DEBUG) {
-    printf("AFTER INIT:... (n_it:%i)\n", (int)n_it);
+    printf("AFTER INIT:... (bp.op.max_iter:%i)\n", (int)bpc.op.max_iter);
     bpc.debugPrintTerse();
   }
 
-  for (it=0; it < n_it; it++) {
+  //for (it=0; it < n_it; it++) {
+  while (1) {
 
     if (it > 0) {
       ret = bpc.RealizePre();
@@ -913,6 +915,8 @@ int main(int argc, char **argv) {
       if (bpc.op.verbose > 0) { printf ( "  output: %s\n", imgfile ); }
       save_png ( imgfile, m_img, iresx, iresy, 3 );
     }
+
+    it++;
 
   }
 
