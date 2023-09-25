@@ -600,6 +600,8 @@ public:
   void  cellFillVisitedNeighborFast (Vector3DI jp, uint64_t vtx,  int32_t note_idx); 
   int   cellFillVisitedSingle(uint64_t vtx, int32_t note_idx);
 
+  void  cellReturnToPrefatory ( int64_t cell );
+
   int   tileIdxCollapse(uint64_t pos, int32_t tile_idx);
   int   tileIdxRemove(uint64_t pos, int32_t tile_idx);
 
@@ -749,7 +751,13 @@ public:
   //              m_breakout_soften_limit;
 
   int64_t       m_block_fail_count,
-                m_block_retry_limit;
+                m_block_retry_limit,
+                m_last_fail_count,
+                m_soften_fail_count;
+
+  int           m_soften_range;
+  
+  int64_t       m_error_cell;
 
   // parameters/options
   //

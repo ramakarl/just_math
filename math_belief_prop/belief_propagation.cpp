@@ -2834,20 +2834,23 @@ int BeliefPropagation::chooseMinEntropyBlock( std::vector<int64_t> &block_bound,
 
   if (g_sum > _eps) {
 
+    // choose tile value based on distribution of tile probabilities
     p = m_rand.randF();
 
     g_cdf = 0.0;
     for (anch_tile_idx=0; anch_tile_idx < anch_tile_idx_n; anch_tile_idx++) {
-      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
-      g_cdf += getValF( BUF_G, anch_tile ) / g_sum;
+        anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+        g_cdf += getValF( BUF_G, anch_tile ) / g_sum;
 
-      if (p < g_cdf) {
+        if (p < g_cdf) {
         _min_tile     = anch_tile;
         _min_tile_idx = anch_tile_idx;
 
         break;
-      }
+        }
     }
+
+
 
   }
 
@@ -2998,7 +3001,11 @@ int BeliefPropagation::start () {
   for (n_idx=0; n_idx<m_num_values; n_idx++) {
     m_block_admissible_tile.push_back(n_idx);
   }
+  
+  // starting soften
+  m_soften_range = 2;
 
+  
   // calculate block index bounds.
   //
   op.block_idx[0] = 0;
@@ -3095,6 +3102,7 @@ int BeliefPropagation::finish (int ret) {
     case -1: printf ( "  DONE (FAIL). ERROR: chooseMaxBelief.\n" ); break;
     case -2: printf ( "  DONE (FAIL). ERROR: tileIdxCollapse.\n" ); break;
     case -3: printf ( "  DONE (FAIL). ERROR: cellConstraintPropagate.\n" ); break;
+    case -4: printf ( "  DONE (FAIL). MAX ITER HIT.\n" ); break;
     case -77: printf ( "  DONE (STOPPED BY USER).\n"); break;
     default:
         printf ( "  DONE (FAIL).\n"); break;
@@ -4295,6 +4303,20 @@ int BeliefPropagation::RealizePre(void) {
 
       else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
         pickMaxEntropyNoiseBlock();
+
+        // randomize the block center after soften (-Rama)
+        printf ("rand block ctr.\n");
+        Vector3DI v;
+        v = m_rand.randV3(-2,2);
+        op.sub_block[0] += v.x;  
+        op.sub_block[1] += v.y;
+        op.sub_block[2] += v.z;      
+        if (op.sub_block[0] < 0) op.sub_block[0] = 0;
+        if (op.sub_block[1] < 0) op.sub_block[1] = 0;
+        if (op.sub_block[2] < 0) op.sub_block[2] = 0;
+        if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
+        if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
+        if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
       }
 
       else {
@@ -4741,6 +4763,22 @@ int BeliefPropagation::CollapseAndPropagate (int64_t& cell, int32_t& tile, int32
 }
 
 
+void BeliefPropagation::cellReturnToPrefatory ( int64_t cell )
+{
+    int32_t n_idx, tile_idx, tile;
+
+    n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+    SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+    for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+        tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+        SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+    }
+    cellFillVisitedSingle ( cell, m_note_plane );
+    cellFillVisitedNeighbor ( cell, m_note_plane );
+}
+
+
 //  0 - success and finish
 //  1 - continuation
 // -1 - error
@@ -4816,6 +4854,7 @@ int BeliefPropagation::RealizePost(void) {
         }
 
         op.seq_iter++;        
+        m_last_fail_count = m_block_fail_count;
         m_block_fail_count=0;
 
       }
@@ -4841,7 +4880,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
           op.seq_iter++;
-          st.num_soften++;                  
+          st.num_soften++;          
           m_block_fail_count = 0;
 
           if (op.verbose >= VB_STEP) {
@@ -4854,14 +4893,34 @@ int BeliefPropagation::RealizePost(void) {
           // assume neighbor blocks to soften are same size as center block that was
           // attempting to be fixed
           //
-          _soften_bounds[0] = op.sub_block[0] - op.block_size[0];
+          
+          /*_soften_bounds[0] = op.sub_block[0] - op.block_size[0];
           _soften_bounds[1] = op.sub_block[0] + (2*op.block_size[0]);
 
           _soften_bounds[2] = op.sub_block[1] - op.block_size[1];
           _soften_bounds[3] = op.sub_block[1] + (2*op.block_size[1]);
 
           _soften_bounds[4] = op.sub_block[2] - op.block_size[2];
-          _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);
+          _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);*/
+
+          // adjust soften range dynamically
+          if (m_last_fail_count < 10 ) m_soften_range--;
+          if (m_last_fail_count > 15 ) m_soften_range++;
+          if (m_soften_range < 1) m_soften_range = 1;
+          if (m_soften_range > op.block_size[0]) m_soften_range = op.block_size[0];
+          printf ( "ready to soften. last_fail_count=%d, soften_range=%d\n", m_last_fail_count, m_soften_range );
+
+          // this soften counts as a last failure (if no success on previous soften)
+          m_last_fail_count = 20;       
+
+          _soften_bounds[0] = op.sub_block[0] - m_soften_range;
+          _soften_bounds[1] = op.sub_block[0] + op.block_size[0] + m_soften_range;
+
+          _soften_bounds[2] = op.sub_block[1] - m_soften_range;
+          _soften_bounds[3] = op.sub_block[1] + op.block_size[1] + m_soften_range;
+
+          _soften_bounds[4] = op.sub_block[2] - m_soften_range;
+          _soften_bounds[5] = op.sub_block[2] + op.block_size[2] + m_soften_range;
 
           if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
           if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
@@ -5129,7 +5188,7 @@ int BeliefPropagation::RealizePost(void) {
   // force stop if max_iter reached.
   op.cur_iter++;
   if (op.cur_iter >= op.max_iter)
-     ret = 0;
+     ret = -4;  
  
   return ret;
 }
@@ -5380,6 +5439,8 @@ int BeliefPropagation::RealizeStep(void) {
     _block_bound.push_back( op.sub_block[2] );
     _block_bound.push_back( op.block_size[2] );
 
+    // fix a single cell (to one tile value) within the block
+    //
     ret = chooseMinEntropyBlock( _block_bound, &cell, &tile, &tile_idx, &belief);
     m_return = ret;
 
@@ -5406,6 +5467,7 @@ int BeliefPropagation::RealizeStep(void) {
       // collapse
       //
       _ret = tileIdxCollapse( cell, tile_idx );
+
       if (_ret >= 0) {
 
         m_note_n[ m_note_plane ] = 0;
@@ -5419,11 +5481,22 @@ int BeliefPropagation::RealizeStep(void) {
         //
         _ret = cellConstraintPropagate();
 
+        if (_ret < 0 ) {
+            // constraint-prop failure, usually due to no remaining tile vals left that match neighbors.
+            // resulting in block failure.
+
+            // NOT USED. try returning failed cell to prefatory and continue (-Rama)
+            // cellReturnToPrefatory ( m_error_cell );                        
+            // _ret = 1;            
+        }
+
       }
       // collapse failed
       //
       else {
+
         ret = -2;
+
         m_return = ret;
       }
 
@@ -5519,7 +5592,7 @@ int BeliefPropagation::Realize(void) {
 
 int BeliefPropagation::CheckConstraints () {
 
-  // REQUIRED: ComputeBeliefField to be called
+  // REQUIRED: ComputeBP_BeliefField to be called
   // before invoking this function.
 
   // compute the unresolved constraints at each vertex
@@ -6806,7 +6879,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             nei_cell = getNeighbor(anch_cell, jp, i);
             if (nei_cell<0) {
 
-                if (anch_n_tile==1) {
+                if (anch_n_tile==1) {                  
 
                   if ( (op.alg_run_opt == ALG_RUN_MMS) ||
                        (op.alg_run_opt == ALG_RUN_BREAKOUT) ) {
@@ -6838,6 +6911,8 @@ int BeliefPropagation::cellConstraintPropagate() {
                   // unwind
                   //
                   unfillVisited (1 - m_note_plane );
+
+                  m_error_cell = anch_cell;
 
                   PERF_POP();
                   return -1;
@@ -6967,7 +7042,9 @@ int BeliefPropagation::cellConstraintPropagate() {
               //
               unfillVisited (1 - m_note_plane );
 
-              PERF_POP();
+              m_error_cell = anch_cell;
+              
+              PERF_POP();              
               return -1;
             }
 

@@ -124,6 +124,7 @@ public:
   bool      m_draw_tileset;
   float     m_scaling_2D;  
   int       m_frame;  
+  int       m_stream_json;
 
 };
 Sample obj;
@@ -463,6 +464,8 @@ bool Sample::init()
 
   m_viz = VIZ_NONE;
 
+  m_stream_json = 0;
+
   _bp_opt_t* op = bpc.get_opt();
 
   // Render volume
@@ -651,8 +654,8 @@ void Sample::DrawGrid3D ()
 {
     setLight(S3D, 20, 100, 20);
     for (int i=0; i <= 64; i++ ) {
-      drawLine3D( i, 0, 0, i, 0, 64, 1,1,1, .3);
-      drawLine3D( 0, 0, i, 64, 0, i, 1,1,1, .3);
+      drawLine3D( i, 0, 0, i, 0, 64, 1,1,1, .2);
+      drawLine3D( 0, 0, i, 64, 0, i, 1,1,1, .2);
     }
     drawLine3D ( 0,0,0, 5,0,0, 1,0,0, 1);
     drawLine3D ( 0,0,0, 0,5,0, 0,1,0, 1);
@@ -668,8 +671,11 @@ void Sample::RunAlgorithmInteractive ()
     int ret = bpc.RealizeStep ();
     PERF_POP();
 
-    write_tiled_json( bpc, "stream", -2, -2 ); 
-    Sleep(20);
+    // stream to json for tilemaker visualization
+    if ( m_stream_json ) {
+        write_tiled_json( bpc, "stream", -2, -2 ); 
+        Sleep(20);
+    }
 
     // check for step complete (0)
     if (ret <= 0) {
@@ -687,7 +693,10 @@ void Sample::RunAlgorithmInteractive ()
             // successful iteration..
             // write out after every step
            if (bpc.m_return >= 0) {
-             write_tiled_json( bpc, "", -1, -1 );  
+              // write to stream for tilemaker vis
+              write_tiled_json( bpc, "stream", -2, -2 ); 
+              // write to save numbered sequence
+              write_tiled_json( bpc, "", -1, -1 );  
            }
 
             // iteration complete (all steps)
@@ -743,7 +752,7 @@ void Sample::display()
 
   //--------- Visualization
 
-  int cadence = 10;
+  int cadence = 5;
 
 
   // render cadence every 5 steps for perf
@@ -779,6 +788,12 @@ void Sample::display()
           
           start3D(m_cam);
             DrawGrid3D ();
+
+            Vector3DI bmin, bmax;
+            bpc.getCurrentBlock ( bmin, bmax );
+
+            drawBox3D ( bmin, bmax, 1, 0.5, 0, 1);
+
           end3D();
           #endif 
   
@@ -924,7 +939,10 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       if (m_viz > 5) m_viz = 1;  
       bpc.SetVis ( m_viz );
       break;
-
+  case 's':
+      m_stream_json = 1-m_stream_json;
+      printf ("streaming: %d\n", (int) m_stream_json );
+      break;
   };
 }
 
@@ -946,7 +964,7 @@ void Sample::reshape(int w, int h)
 
 void Sample::startup()
 {
-  int w = 1400, h = 1300;
+  int w = 700, h = 700;
   appStart( "BMS / WFC / BP", "Breakout Model Synth", w, h, 4, 2, 16, DEBUG_GL);
 }
 
