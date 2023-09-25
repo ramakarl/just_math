@@ -1,6 +1,16 @@
 TODO
 ===
 
+###### 2023-09-22
+
+* block level WFC needs randomness on restarts
+* investigate conflicts of BMS outside of block choice
+  (percentage of contradictions that fall outside of
+  the block)
+* is map hysteresis screwing us? (rail tile has cone
+  of influence above it, then gets whacked out but leaves
+  constrained cone in the map)
+
 ###### 2023-09-18
 
 * different boundary conditions
