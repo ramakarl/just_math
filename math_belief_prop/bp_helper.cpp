@@ -1350,7 +1350,7 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
   if (cnt   >= 0)  sprintf ( nbuf, "_%05d", cnt );
   if (prefix.size()==0) prefix = bpc.op.tilemap_fn.c_str();
 
-  sprintf (fname, "%s%s%s.json", prefix.c_str(), szbuf, nbuf );
+  snprintf (fname, 1023, "%s%s%s.json", prefix.c_str(), szbuf, nbuf );
 
   // get BP options
   bp_opt_t* op = bpc.get_opt();
