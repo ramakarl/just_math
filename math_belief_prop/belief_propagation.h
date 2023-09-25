@@ -283,8 +283,13 @@ typedef struct _bp_opt_t {
 
   int       use_lookahead;
 
-  float     noise_coefficient;
-  int32_t   noise_func;
+  float     block_noise_coefficient,
+            block_noise_alpha;
+  int32_t   block_noise_func;
+
+  float     wfc_noise_coefficient,
+            wfc_noise_alpha;
+  int32_t   wfc_noise_func;
 
   //int32_t   experiment_idx;
   std::string experiment_str;
@@ -424,8 +429,13 @@ public:
 
     op.seq_iter = 0;
 
-    op.noise_coefficient = 0.0;
-    op.noise_func = OPT_NOISE_FUNC_UNIFORM;
+    op.block_noise_coefficient = 0.0;
+    op.block_noise_alpha = -2.0;
+    op.block_noise_func = OPT_NOISE_FUNC_POWER_LAW;
+
+    op.wfc_noise_coefficient = 0.0;
+    op.wfc_noise_alpha = -2.0;
+    op.wfc_noise_func = OPT_NOISE_FUNC_POWER_LAW;
 
     //op.experiment_idx = -1;
 
@@ -547,7 +557,8 @@ public:
   int   chooseMinEntropyMaxBelief(int64_t *max_cell, int32_t *max_tile, int32_t *max_tile_idx, float *max_belief);
   int   chooseMinEntropyMinBelief(int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
-  int   chooseMinEntropyBlock(std::vector<int64_t> &block_bound, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
+  int   chooseMinEntropyWithinBlock(std::vector<int64_t> &block_bound, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
+  int   chooseMinEntropyWithinNoisyBlock(std::vector<int64_t> &block_bound, int64_t *min_cell, int32_t *min_tile, int32_t *min_tile_idx, float *min_belief);
 
   void  WriteBoundaryMUbuf(int buf_id);
   void  TransferBoundaryMU (int src_id, int dst_id);
@@ -612,7 +623,8 @@ public:
   int64_t numFixed();
   int pickMinEntropyNoiseBlock(void);
   int pickMaxEntropyNoiseBlock(void);
-  float pickNoiseFunc(void);
+  //float pickNoiseFunc(void);
+  float pickNoiseFunc(int32_t noise_func, float noise_coefficient, float noise_alpha);
 
   //----------------------- visualization
 
