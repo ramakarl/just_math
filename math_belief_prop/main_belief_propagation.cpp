@@ -471,8 +471,10 @@ void show_usage(FILE *fp) {
   fprintf(fp, "    -8     breakout model synthesis, max entropy block + noise choice\n");
   fprintf(fp, "  -b <#>   block size (for use in MMS and breakout, default 8x8x8, clamped to dimension)\n");
   fprintf(fp, "  -m <#>   block size retry count (default %i)\n", _g_default_block_retry_count);
-  fprintf(fp, "  -a <#>   wfc noise function parameters\n");
+  fprintf(fp, "  -f <#>   wfc noise function parameters\n");
   fprintf(fp, "  -q <#>   block noise function parameters\n");
+  fprintf(fp, "  -a (0|1) disable/enable adaptive softening (default disabled)\n");
+  fprintf(fp, "  -t <#>   jitter block amount\n");
   fprintf(fp, "  -E       use SVD decomposition speedup (default off)\n");
   fprintf(fp, "  -B       use checkboard speedup (default off)\n");
   fprintf(fp, "  -A <#>   alpha (for visualization)\n");
@@ -551,7 +553,7 @@ int main(int argc, char **argv) {
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
   bpc.op.eps_zero = 1.0/256.0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:t:f:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -619,11 +621,18 @@ int main(int argc, char **argv) {
       case 'm':
         bpc.m_block_retry_limit = atoi(optarg);
         break;
-      case 'a':
+      case 'f':
         bpc.op.wfc_noise_coefficient = atof(optarg);
         break;
       case 'q':
         bpc.op.block_noise_coefficient = atof(optarg);
+        break;
+      case 't':
+        bpc.op.jitter_block = atoi(optarg);
+        if (bpc.op.jitter_block < 0) { bpc.op.jitter_block=0; }
+        break;
+      case 'a':
+        bpc.op.adaptive_soften = ((atoi(optarg)==1) ? 1 : 0);
         break;
 
       case 'w':
