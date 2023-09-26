@@ -3,7 +3,7 @@ TODO
 
 ###### 2023-09-22
 
-* block level WFC needs randomness on restarts
+* ~block level WFC needs randomness on restarts~
 * investigate conflicts of BMS outside of block choice
   (percentage of contradictions that fall outside of
   the block)
