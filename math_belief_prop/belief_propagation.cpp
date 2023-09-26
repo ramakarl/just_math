@@ -4349,10 +4349,6 @@ int BeliefPropagation::RealizePre(void) {
         end_s[1] = m_bpres.y - op.block_size[1];
         end_s[2] = m_bpres.z - op.block_size[2];
 
-        //iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
-        //iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
-        //ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
-
         iz = op.seq_iter / (op.block_idx[0] * op.block_idx[1]);
         iy = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
         ix = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
@@ -4376,34 +4372,11 @@ int BeliefPropagation::RealizePre(void) {
         op.sub_block[0] = x;
         op.sub_block[1] = y;
         op.sub_block[2] = z;
-
-        //DEBUG
-        //
-        /*
-        printf("#####\n");
-        printf("#####\n");
-        printf("## end_s:(%i,%i,%i)\n", (int)end_s[0], (int)end_s[1], (int)end_s[2]);
-        printf("## ixyz: (%i,%i,%i)\n", (int)ix, (int)iy, (int)iz);
-        printf("## iz = %i ( op.seq_iter:%i / (op.block_idx[0]:%i * op.block_idx[1]:%i) )\n",
-            (int)iz, (int)op.seq_iter, (int)op.block_idx[0], (int)op.block_idx[1]);
-        printf("## iy = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) / (op.block_idx[0]:%i) )\n",
-            (int)iy, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)op.block_idx[0] );
-        printf("## ix = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) - (iy:%i * op.block_idx[0]:%i) )\n",
-            (int)ix, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)iy, (int)op.block_idx[0]);
-        printf("## xyz: (%i,%i,%i)\n", (int)x, (int)y, (int)z);
-        printf("#####\n");
-        printf("#####\n");
-        */
-        //
-        //DEBUG
-
       }
 
       else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
                (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
-
         pickMinEntropyNoiseBlock();
-
       }
 
       else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
@@ -4452,12 +4425,12 @@ int BeliefPropagation::RealizePre(void) {
     op.sub_block[0] += v.x;  
     op.sub_block[1] += v.y;
     op.sub_block[2] += v.z;      
-    if (op.sub_block[0] < 0) op.sub_block[0] = 0;
-    if (op.sub_block[1] < 0) op.sub_block[1] = 0;
-    if (op.sub_block[2] < 0) op.sub_block[2] = 0;
-    if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
-    if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
-    if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
+    if (op.sub_block[0] < 0) { op.sub_block[0] = 0; }
+    if (op.sub_block[1] < 0) { op.sub_block[1] = 0; }
+    if (op.sub_block[2] < 0) { op.sub_block[2] = 0; }
+    if (op.sub_block[0] > op.X-op.block_size[0]) { op.sub_block[0] = op.X-op.block_size[0]; }
+    if (op.sub_block[1] > op.Y-op.block_size[1]) { op.sub_block[1] = op.Y-op.block_size[1]; }
+    if (op.sub_block[2] > op.Z-op.block_size[2]) { op.sub_block[2] = op.Z-op.block_size[2]; }
   }
 
 
@@ -4998,31 +4971,32 @@ int BeliefPropagation::RealizePost(void) {
                 (int)op.sub_block[2], (int)op.block_size[2]);
           }
 
-          // assume neighbor blocks to soften are same size as center block that was
-          // attempting to be fixed
+          // Assume neighbor blocks to soften are same size as center block that was
+          // attempting to be fixed.
+          // Adjust soften range dynamically
           //
-          
-          /*_soften_bounds[0] = op.sub_block[0] - op.block_size[0];
-          _soften_bounds[1] = op.sub_block[0] + (2*op.block_size[0]);
-
-          _soften_bounds[2] = op.sub_block[1] - op.block_size[1];
-          _soften_bounds[3] = op.sub_block[1] + (2*op.block_size[1]);
-
-          _soften_bounds[4] = op.sub_block[2] - op.block_size[2];
-          _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);*/
-
-          // adjust soften range dynamically
           if (op.adaptive_soften) {
-              if (m_last_fail_count < 10 ) m_soften_range--;
-              if (m_last_fail_count > 15 ) m_soften_range++;
-              if (m_soften_range < 1) m_soften_range = 1;
-              if (m_soften_range > op.block_size[0]) m_soften_range = op.block_size[0];
-              printf ( "Adaptive soften. last_fail_count=%d, soften_range=%d\n", m_last_fail_count, m_soften_range );              
+
+            // adapt
+            //
+            if (m_last_fail_count < 10 ) { m_soften_range--; }
+            if (m_last_fail_count > 15 ) { m_soften_range++; }
+
+            // clamp
+            //
+            if (m_soften_range < 1) { m_soften_range = 1; }
+            if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
+
+            if (op.verbose >= VB_STEP) {
+              printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+            }
+
           } else {
-              m_soften_range = op.block_size[0];
+            m_soften_range = op.block_size[0];
           }
 
           // this soften counts as a last failure (if no success on previous soften)
+          //
           m_last_fail_count = 20;       
 
           _soften_bounds[0] = op.sub_block[0] - m_soften_range;
