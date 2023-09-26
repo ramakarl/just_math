@@ -252,9 +252,17 @@ typedef struct _bp_opt_t {
             block_idx[3],
             sub_block_range[3][2],
             seq_iter;
+  
   int32_t   block_schedule;
   bool      adaptive_soften;
   int       jitter_block;
+  int       solved_tile_cnt;
+  
+  Vector3DF prev_block_centroid;
+  float     prev_block_mass;
+
+  Vector3DF curr_block_centroid;
+  float     curr_block_mass;
 
   int64_t   step_cb;
   float     state_info_d;
@@ -483,6 +491,9 @@ public:
   int       start();
   int       finish( int final_ret );
   void      advance_seed ( int amt=1 );
+
+  void      jitterBlock ();
+  void      getBlockCenterOfMass (Vector3DF& center, float& mass);
 
   int       RealizePre();
   int       RealizeIter();
