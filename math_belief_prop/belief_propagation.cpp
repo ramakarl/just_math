@@ -369,6 +369,8 @@ void BeliefPropagation::ConstructStaticBufs () {
   //-- Construct G
   //
   AllocBuf ( BUF_G, 'f', m_num_values );
+
+  // default weights. actual weights are set in init()
   float weight = 1.0 / m_num_values;
   for (int a=0; a < m_num_values; a++ ) {
     SetValF ( BUF_G, a, weight );
@@ -974,6 +976,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
 
   float vmax = op.eps_converge * 10.0;
 
+
   switch (op.viz_opt) {
   case VIZ_TILES_2D:
     // tiles for 2D render. get literal tile value & count
@@ -986,14 +989,14 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // get tile ID normalized to num tiles
     i = getValI ( BUF_TILE_IDX, 0, v );
     f = float(i) / float(getNumValues(v));
-    s = Vector4DF( f, f, f, 0.5 );
+    s = (i<=1) ? Vector4DF(0,0,0,0) : Vector4DF( f, f, f, 0.5 );
     break;
   case VIZ_TILECOUNT:
     // readily available. no prepare needed.
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
     f = 1.0 / float(i);
-    s = (i==1) ? Vector4DF(0,0,0,1) : Vector4DF( f, f, f, f );
+    s = (i==1) ? Vector4DF(1,0.5,0,0.1) : Vector4DF( f, f, f, f );
     break;
   case VIZ_CONSTRAINT:
     // visualize remaining constraints per cell
