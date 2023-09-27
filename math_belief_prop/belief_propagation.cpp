@@ -4129,6 +4129,10 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
   ComputeBlockEntropy();
 
+  float pct_solved = float(op.solved_tile_cnt)/getNumVerts();  
+  Vector3DF center (op.X/2, op.Y/2, op.Z/2);
+  float max_dist = sqrt(center.x*center.x + center.y*center.y);
+
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
       for (x=0; x<n_b[0]; x++) {
@@ -4142,6 +4146,13 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cur_entropy += df;
 
         tmp_noise = df;
+
+        if (pct_solved > 0.95) {
+            float dist = 1.0 - ((Vector3DF(x,y,z) - center).Length() / max_dist);
+            //if (dist < op.block_size[0]*2 ) 
+            //  cur_entropy *= 0.5;
+            cur_entropy -= dist*dist * 100;
+        }
 
         if ((max_entropy < 0.0) ||
             ( (cur_entropy - max_entropy) > -_eps )) {
@@ -4170,6 +4181,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
       }
     }
   }
+  dbgprintf ("max entropy: %f\n", max_entropy );
 
   //DEBUG
   if (op.verbose >= VB_DEBUG) {
@@ -4996,29 +5008,6 @@ int BeliefPropagation::RealizePost(void) {
         printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
       }
 
-      // block center bias
-      // - if we are in last final 90% of map solved.. 
-      // - and block failed.
-      // - and the block has unsolved parts (entropy mass) both before and after..
-      // - then immediately soften if it moved the
-      //   center of mass of entropy closer to the center of the map. 
-      //
-      /* pct_solved = float(op.solved_tile_cnt)/getNumVerts();
-      getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);
-      if (m_return < 0 && pct_solved > 0.00 && op.prev_block_mass==1 && op.curr_block_mass==1) {
-          
-        Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
-              
-        // compare previous & solved entropy center-of-mass to map center
-        float prev_dist = (op.prev_block_centroid - map_center).Length();
-        float curr_dist = (op.curr_block_centroid - map_center).Length();
-             
-        // if distance is reduced. mark the block as success.
-        if (curr_dist < prev_dist) 
-            m_return = 0;         
-      }*/
-
-
       // assume continue
       //
       ret = 1;
@@ -5719,9 +5708,38 @@ int BeliefPropagation::RealizeStep(void) {
       m_block_fail_count++;
       ret = 0;
     }
+    
+    // block center bias
+    // - if we are in last final 95% of map solved,
+    // - and the block is still ok (not failed)..
+    // - we check the center-of-mass entropy both before and now..
+    // - if the center of mass is closer to the center of the map,
+    //   then we accept the block early with some probability.
+    if (ret==1) {    
+      float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
+      if (pct_solved > 0.95 ) {
+        getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
+        if (op.prev_block_mass > 0 && op.curr_block_mass > 0) {
+          float prob = m_rand.randF();
+          if (prob > 0.50) {
+              Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
+              
+              // compare previous & solved entropy center-of-mass to map center
+              float prev_dist = (op.prev_block_centroid - map_center).Length();
+              float curr_dist = (op.curr_block_centroid - map_center).Length();
+             
+              // if distance is reduced. accept the block early.
+              if (curr_dist < prev_dist) {
+                m_return = 0;         
+                ret = 0;
+              }
+          }
+        }
+      }
+    }
+    //-- end of ALG_RUN_BREAKOUT
 
   }
-
   else if (op.alg_run_opt == ALG_RUN_BACKTRACK) {
 
     ret = 0;
