@@ -905,6 +905,7 @@ void BeliefPropagation::SetVis (int vopt) {
   case VIZ_TILE0:            msg = "VIZ_TILE0"; break;
   case VIZ_TILECOUNT:        msg = "VIZ_TILECOUNT"; break;
   case VIZ_NOTES:            msg = "VIZ_NOTES"; break;
+  case VIZ_DEBUG:            msg = "VIZ_DEBUG"; break;
   case VIZ_CONSTRAINT:       msg = "VIZ_CONSTRAINT"; break;
   case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
   case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
@@ -989,14 +990,14 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // get tile ID normalized to num tiles
     i = getValI ( BUF_TILE_IDX, 0, v );
     f = float(i) / float(getNumValues(v));
-    s = (i<=1) ? Vector4DF(0,0,0,0) : Vector4DF( f, f, f, 0.5 );
+    s = (i<=1) ? Vector4DF(0,0,0,0) : Vector4DF( 1-f, f, 0, 0.8 );
     break;
   case VIZ_TILECOUNT:
     // readily available. no prepare needed.
     // visualize 1/TILE_NDX_N as alpha, so opaque/white = fully resolved
     i = getValI ( BUF_TILE_IDX_N, v );
-    f = 1.0 / float(i);
-    s = (i==1) ? Vector4DF(1,0.5,0,0.1) : Vector4DF( f, f, f, f );
+    f = float(i) / getNumValues(v);
+    s = (i==1) ? Vector4DF(0,0,0,0) : Vector4DF( 1-f, f, 0, 0.8 );
     break;
   case VIZ_CONSTRAINT:
     // visualize remaining constraints per cell
@@ -1008,6 +1009,10 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     // visualize notes
     f = getValF ( BUF_VIZ, v );
     s = Vector4DF(f,f,f,f);
+    break;
+  case VIZ_DEBUG:
+    f = getValF ( BUF_VIZ, v );
+    s = (f==0) ? Vector4DF(0,0,0,0) : Vector4DF(f,0,1-f,f);
     break;
   case VIZ_BP_BELIEF:
     // get maxbelief value
@@ -3181,6 +3186,8 @@ int BeliefPropagation::start () {
 
   op.solved_tile_cnt = 0;
 
+  op.entropy_radius = 0.9;
+
   m_rand.seed ( op.seed );
 
   int v = m_rand.randI();  // first random # (used as spot check)
@@ -4127,11 +4134,48 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
     printf("### pickMaxEntropyNoiseBlock: block bounds: [%i,%i,%i]\n", n_b[0], n_b[1], n_b[2]);
   }
 
+  // compute cell & block entropies
   ComputeBlockEntropy();
 
   float pct_solved = float(op.solved_tile_cnt)/getNumVerts();  
-  Vector3DF center (op.X/2, op.Y/2, op.Z/2);
-  float max_dist = sqrt(center.x*center.x + center.y*center.y);
+  Vector3DF map_ctr (op.X/2, op.Y/2, op.Z/2);
+  Vector3DI block_ctr = Vector3DI(op.block_size[0]/2, op.block_size[1]/2, op.block_size[2]/2.0f);
+  float dist, e;
+  float max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
+  float block_r =  2.0*sqrt(block_ctr.x*block_ctr.x + block_ctr.y*block_ctr.y + block_ctr.z*block_ctr.z) / max_dist;
+ 
+  // compute entropy outside of radius
+  int cnt_zero=0;
+  float outside_entropy=0;
+  for (z=0; z < op.Z; z++) {
+    for (y=0; y < op.Y; y++) {
+      for (x=0; x < op.X; x++) {         
+         
+         cell = getVertex(x,y,z);
+         dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
+         
+         SetValF ( BUF_VIZ, 0, cell );
+
+         e = getValF( BUF_CELL_ENTROPY, cell );
+         
+         if (e < _eps) {
+             cnt_zero++;
+             continue;
+         }
+
+         if ( dist > op.entropy_radius ) 
+             outside_entropy += e;
+      }
+    }
+  }
+  // decrease entropy radius if solved outside it
+  if (outside_entropy < _eps) {
+      op.entropy_radius -= 1.0 / max_dist;
+      if (op.entropy_radius < 0) op.entropy_radius = 0;
+  }
+
+  printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
+  printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
@@ -4140,22 +4184,30 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         cell = getVertex(x,y,z);
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
 
+
         tmp_ent = cur_entropy;
 
         df = pickNoiseFunc( op.block_noise_func, op.block_noise_coefficient, op.block_noise_alpha );
-        cur_entropy += df;
+        
+        if (cur_entropy < _eps) {
+            continue;
+        }
+
+        cur_entropy += df;   
 
         tmp_noise = df;
 
-        if (pct_solved > 0.95) {
-            float dist = 1.0 - ((Vector3DF(x,y,z) - center).Length() / max_dist);
-            //if (dist < op.block_size[0]*2 ) 
-            //  cur_entropy *= 0.5;
-            cur_entropy -= dist*dist * 100;
+        if (pct_solved > 0.95 && op.entropy_bias) {
+            dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
+            
+            if (dist < op.entropy_radius - block_r)
+                cur_entropy = -1;
         }
 
-        if ((max_entropy < 0.0) ||
-            ( (cur_entropy - max_entropy) > -_eps )) {
+        // debug vis        
+        SetValF ( BUF_VIZ, sqrt(fmax(cur_entropy,0)) / 4.0f, getVertex(x+block_ctr.x, y+block_ctr.y, z+block_ctr.z) );
+
+        if ( cur_entropy > _eps && (cur_entropy - max_entropy) > -_eps ) {
 
           // if we have a choice between blocks of equal entropy,
           // choose one from the list at random.
@@ -4181,7 +4233,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
       }
     }
   }
-  dbgprintf ("max entropy: %f\n", max_entropy );
+  dbgprintf ("max entropy: %f, cnt_zero: %d\n", max_entropy, cnt_zero );
 
   //DEBUG
   if (op.verbose >= VB_DEBUG) {
@@ -5647,6 +5699,16 @@ int BeliefPropagation::RealizeStep(void) {
 
     _block_bound.push_back( op.sub_block[2] );
     _block_bound.push_back( op.block_size[2] );
+
+    //--- debugging. check a specific cell
+    /* n_idx = getValI ( BUF_TILE_IDX_N, 0 );
+    printf ( "num tiles at 0,0,0: %d, ", n_idx );
+    for (int i=0; i < n_idx;i++) {
+      tile = getValI ( BUF_TILE_IDX, i, 0 );
+      printf ( " %s ", m_tile_name [ tile ].c_str() );
+    }
+    printf ("\n"); */
+    
 
     // fix a single cell (to one tile value) within the block
     //

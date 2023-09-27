@@ -707,12 +707,12 @@ void Sample::RunAlgorithmInteractive ()
 
                 // successful iteration..
                 // write out after every step
-               if (bpc.m_return >= 0) {
+               /* if (bpc.m_return >= 0) {
                   // write to stream for tilemaker vis
                   write_tiled_json( bpc, "stream", -2, -2 ); 
                   // write to save numbered sequence
                   write_tiled_json( bpc, "", -1, -1 );  
-               }
+               } */
 
                 // iteration complete (all steps)
                 // start new iteration
@@ -802,7 +802,7 @@ void Sample::display()
           // Draw 3D grid
           
           start3D(m_cam);
-            DrawGrid3D ();
+            //DrawGrid3D ();
 
             Vector3DI bmin, bmax;
             bpc.getCurrentBlock ( bmin, bmax );
@@ -921,6 +921,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   if (action==AppEnum::BUTTON_RELEASE) return;
 
   switch (keycode) {
+
+  case 'x':
+      bpc.op.entropy_bias = 1 - bpc.op.entropy_bias;
+      printf ("entropy_bias: %d\n", bpc.op.entropy_bias);
+      break;
+
   case 'w':  
       write_tiled_json( bpc ); 
       break;
@@ -944,7 +950,7 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       Restart ();   
       break;
 
-   case 'g':  
+   case 'n':  
       // regenerate with new seed
       bpc.finish(-77);   // -77 = stopped by user
       bpc.advance_seed();
@@ -957,12 +963,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   case ',':  
       m_viz--; 
-      if (m_viz < 1) m_viz = 5;
+      if (m_viz < 1) m_viz = 6;
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > 5) m_viz = 1;  
+      if (m_viz > 6) m_viz = 1;  
       bpc.SetVis ( m_viz );
       break;
   case 's':

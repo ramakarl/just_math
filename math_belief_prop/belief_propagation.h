@@ -96,10 +96,12 @@
 #define VIZ_TILECOUNT   3       // number of tiles available per cell. no overhead. 
 #define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead (eg. 5%)
 #define VIZ_NOTES       5       // visualize notes. some overhead.
-#define VIZ_BP_BELIEF   6       // BP only. max belief among available tiles. some overhead.
-#define VIZ_BP_ENTROPY  7       // BP only
-#define VIZ_BP_MU       8       // BP only
-#define VIZ_BP_DMU      9       // BP only
+#define VIZ_DEBUG       6
+
+#define VIZ_BP_BELIEF   7       // BP only. max belief among available tiles. some overhead.
+#define VIZ_BP_ENTROPY  8       // BP only
+#define VIZ_BP_MU       9       // BP only
+#define VIZ_BP_DMU      10       // BP only
 
 // primary algorithm selector
 #define ALG_BP                  0
@@ -257,6 +259,8 @@ typedef struct _bp_opt_t {
   bool      adaptive_soften;
   int       jitter_block;
   int       solved_tile_cnt;
+  int       entropy_bias;
+  float     entropy_radius;
   
   Vector3DF prev_block_centroid;
   float     prev_block_mass;
@@ -448,6 +452,7 @@ public:
     op.seq_iter = 0;
     op.adaptive_soften = false;     // default (fixed soften)
     op.jitter_block = 0;            // default (no-jitter)
+    op.entropy_bias = 1;    
 
     op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
