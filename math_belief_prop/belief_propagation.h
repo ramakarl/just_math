@@ -64,12 +64,15 @@
 
 #define VB_SUPPRESS     -1
 #define VB_NONE         0
-#define VB_ERROR        0
 #define VB_EXPERIMENT   1
-#define VB_RUN          2
-#define VB_STEP         3
-#define VB_INTRASTEP    4
-#define VB_DEBUG        5
+#define VB_MULTIRUN     2
+#define VB_RUN          3
+#define VB_STEP         4
+#define VB_INTRASTEP    5
+#define VB_DEBUG        6
+
+// level at which errors should be reported
+#define VB_ERROR        3
 
 #define OPT_PTRS
 #define OPT_MUPTR
@@ -96,7 +99,7 @@
 #define VIZ_TILECOUNT   3       // number of tiles available per cell. no overhead. 
 #define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead (eg. 5%)
 #define VIZ_NOTES       5       // visualize notes. some overhead.
-#define VIZ_DEBUG       6
+#define VIZ_ENTROPY     6
 
 #define VIZ_BP_BELIEF   7       // BP only. max belief among available tiles. some overhead.
 #define VIZ_BP_ENTROPY  8       // BP only
@@ -413,6 +416,8 @@ typedef struct _bp_stat_type {
 
 typedef struct _bp_expr_type {
 
+  std::string name;
+
   int         num_expr;
   int         num_run;
 
@@ -450,9 +455,9 @@ public:
     op.block_idx[2] = 0;
 
     op.seq_iter = 0;
-    op.adaptive_soften = false;     // default (fixed soften)
-    op.jitter_block = 0;            // default (no-jitter)
-    op.entropy_bias = 1;    
+    op.adaptive_soften = false;     // default: no adaptive soften
+    op.jitter_block = 0;            // default: no block jitter
+    op.entropy_bias = 0;            // default: no mass entropy bias    
 
     op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
@@ -520,6 +525,24 @@ public:
   void _saveTileIdx(void);
   void _restoreTileIdx(void);
 
+  std::string getAlgName (int alg) {
+    std::string name;
+    switch (alg) {
+    case ALG_BP:          name="bp";   break;
+    case ALG_BP_MIN:      name="bpn"; break;  
+    case ALG_BP_MIN_WAVE: name="bpnw"; break;  
+    case ALG_BP_MIN_RESIDUAL: name="bpnr"; break;  
+    case ALG_WFC:         name="wfc"; break;  
+    case ALG_MMS_SEQ :     name="mms"; break;  
+    case ALG_MMS_RAND1:    name="mmsr1"; break;  
+    case ALG_MMS_RAND2:    name="mmsr2"; break;  
+    case ALG_BMS:           name="bms"; break;  
+    case ALG_BMS_MIN :      name="bmsm"; break;       
+    case ALG_BMS_MIN_NOISE: name="bmsmn"; break;  
+    case ALG_BMS_MAX_NOISE: name="bmsxn"; break;
+    };
+    return name;
+  }
 
   //------------------------ belief propagation, mid-level API
 

@@ -515,30 +515,39 @@ int bp_multirun ( BeliefPropagation& bpc, int num_runs, std::string outfile ) {
 // - the state variables are stored in bpc.expr struct
 // - set the desired min/max state variables prior to calling this func
 //
-int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string outrun ) {
+int bp_experiments ( BeliefPropagation& bpc ) {
 
   int ret, runret;
   std::string csv;
 
+  // create output names
+  char fexpr[512], frun[512];
+  
+  std::string alg = bpc.getAlgName ( bpc.op.alg_idx );
+
+  sprintf ( fexpr, "%s_%s_%03d_expr.csv", bpc.expr.name.c_str(), alg.c_str(), bpc.op.X );
+  sprintf ( frun,  "%s_%s_%03d_run.csv", bpc.expr.name.c_str(), alg.c_str(), bpc.op.X );
+  
+
   // start report file:
   // overwrite first
-  FILE* fpe = fopen ( outexpr.c_str(), "w" );
-  if ( fpe==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outexpr.c_str() ); exit(-7); }
+  FILE* fpe = fopen ( fexpr, "w" );
+  if ( fpe==0 ) { printf ( "ERROR: Cannot open %s for output.\n", fexpr ); exit(-7); }
   fprintf ( fpe, "reset\n" );
   fclose (fpe);
 
-  FILE* fpr = fopen ( outrun.c_str(), "w" );
-  if ( fpr==0 ) { printf ( "ERROR: Cannot open %s for output.\n", outrun.c_str() ); exit(-7); }
+  FILE* fpr = fopen ( frun, "w" );
+  if ( fpr==0 ) { printf ( "ERROR: Cannot open %s for output.\n", frun ); exit(-7); }
   fprintf ( fpr, "reset\n" );
   fclose (fpr);
 
   // append
-  fpe = fopen ( outexpr.c_str(), "a" );
-  fpr = fopen ( outrun.c_str(), "a" );
+  fpe = fopen ( fexpr, "a" );
+  fpr = fopen ( frun, "a" );
 
   // write headers
-  fprintf ( fpe, "gridx, gridy, gridz, tiles, max_step, eps, step_rate, # runs, success, %%, fail_constr, total time, ave time(ms), start seed\n" );
-  fprintf ( fpr, "run, status, iter, time(ms), constr, iter_resolv, total_resolv, verts, resolv%%, cur_step, max_step, maxdmu, eps, avemu, avedmu\n" );
+  fprintf ( fpe, "X, Y, Z, TILES, SEED, #Run, #Success, Success %%, Resolved, Ave_Resolved, Ave_Resolved%%, Total_Time, Ave_Time(sec)\n" );
+  fprintf ( fpr, "%s\n", bpc.getStatCSV(0).c_str() );
 
   // platform-specific, find name & rule files
   std::string name_path, rule_path;
@@ -591,8 +600,8 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
     // start multiple runs
     bpc.op.max_run = num_runs;
 
-    int success=0;
-    float fail_constr=0;
+    int64_t total_resolve=0;
+    int   total_success=0;    
     float total_time=0;
 
     for (int run=0; run < bpc.op.max_run; run++) {
@@ -605,66 +614,76 @@ int bp_experiments ( BeliefPropagation& bpc, std::string outexpr, std::string ou
       // run iterations & steps
       runret = 1;
       while ( runret >= 1 ) {
+
         ret = bpc.RealizeStep ();
+
         if (ret <= 0) {
+
           // finish this iteration
           ret = bpc.RealizePost();
+
           if ( ret > 0) {
-            // iteration complete (all steps), start new iteration
+
+            // block complete (all steps), start new iteration
             bpc.RealizePre();
             runret = 1;
+
           } else if (ret <= 0) {
+
             // done!
             runret = 0;
-            write_tiled_json ( bpc );
+            write_tiled_json ( bpc, "", -1, run );            
             bpc.finish ( ret );
             bpc.advance_seed ();
           }
-          fprintf ( fpr, "%s\n", bpc.getStatCSV().c_str() );
-
+          
         } else {
           // error, ignore and continue (1). can set runret=ret if you want to stop on error. -1=maxbelief err, -2=tileidx err, -3=cellConstrProp err
           runret = 1;
         }
       }
-      // run completion
+      // run complete
+      //
+      // append to run stats
+      fprintf ( fpr, "%s\n", bpc.getStatCSV(1).c_str() );
+      
+      // record for experiment stats
       if (bpc.st.success) {
-        success++;
-      } else {
-        if (bpc.st.constraints >= 0)
-          fail_constr += bpc.st.constraints;
+        total_success++;
       }
+      total_resolve += bpc.st.total_resolved;
       total_time += bpc.st.elapsed_time;
 
     }
+
     // experiment completion
+    //
+    float ave_time =      float(total_time)/bpc.op.max_run;
+    float ave_resolve =   float(total_resolve)/bpc.op.max_run;
+    float pct_success =   100*float(total_success)/bpc.op.max_run;
 
-    float ave_time = total_time / bpc.op.max_run;
-    fail_constr /= bpc.op.max_run;
-
+    
     if ( bpc.op.verbose >= VB_EXPERIMENT ) {
-      printf ( "GRID: %d,%d,%d, tiles:%d, maxstep: %d, eps:%f, srate:%f, runs:%d, success: %d (%4.1f%%), failconstr: %f, time: %f, avetime: %f, sseed: %d\n",
-          (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z,
-          (int)bpc.m_num_values, (int)bpc.op.max_step,
-          (float)bpc.op.eps_converge, (float)bpc.op.step_rate,
-          (int)bpc.op.max_run, success,
-          100*float(success)/bpc.op.max_run,
-          fail_constr,
-          total_time, ave_time, bpc.op.seed );
+      printf ( "GRID: %d,%d,%d, TILES:%d, SSEED:%d, #Runs:%d, #Success: %d (%4.2f%%), Resolved: %lld, ave %f (%4.2f%%), Time(sec): %f, ave %f\n",
+          (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
+          (int)bpc.op.max_run, 
+          total_success, pct_success, 
+          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          total_time,    ave_time);
     }
 
-    fprintf ( fpe, "%d,%d,%d, %d, %d, %f, %f, %d, %d, %1.5f, %f, %f, %f, %d\n",
-        (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z,
-        (int)bpc.m_num_values, (int)bpc.op.max_step,
-        bpc.op.eps_converge, bpc.op.step_rate,
-        bpc.op.max_run, success, float(success)/bpc.op.max_run,
-        fail_constr, total_time, ave_time, bpc.op.seed );
+    fprintf ( fpe, "%d,%d,%d, %d, %d, %d, %d, %4.2f%%, %lld, %f, %4.2f%%, %f, %f\n",
+          (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
+          (int)bpc.op.max_run, 
+          total_success, pct_success, 
+          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          total_time,    ave_time);
 
     // proper flush
     fclose ( fpe );
-    fpe = fopen ( outexpr.c_str(), "a" );
+    fpe = fopen ( fexpr, "a" );
     fclose ( fpr );
-    fpr = fopen ( outrun.c_str(), "a" );
+    fpr = fopen ( frun, "a" );
 
     // next experiment
     grid += dgrid;
@@ -1364,7 +1383,7 @@ int write_tiled_json ( BeliefPropagation & bpc, std::string prefix, int mapsz, i
       printf("ERROR: Failed to write (%s)\n", fname );
       return -1;
   } else {
-      if (op->verbose >= 2) {
+      if (op->verbose >= VB_RUN ) {
         if (mapsz>=0 && cnt >=0) 
             printf("Writing tilemap (%s)\n", fname );        
       }
