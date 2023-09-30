@@ -39,6 +39,6 @@ flt=`cat mu_forest.filter | tr '\n' ' '`
   -X 32 -Y 32 -Z 1 \
   -Q ./tileset_mu_forest.png \
   -s 16 \
-  -S 1234 \
+  -S 1235 \
   -M mu_forest_bms.json
 
