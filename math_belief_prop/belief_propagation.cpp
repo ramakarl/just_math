@@ -119,8 +119,8 @@ int BeliefPropagation::default_opts () {
   //
   op.cur_iter = 0;
 
-  // default to max_iter 10000
-  op.max_iter = 10000;
+  // default to max_iter 1 mil
+  op.max_iter = 1000000;
 
   // steps
   //
@@ -905,7 +905,7 @@ void BeliefPropagation::SetVis (int vopt) {
   case VIZ_TILE0:            msg = "VIZ_TILE0"; break;
   case VIZ_TILECOUNT:        msg = "VIZ_TILECOUNT"; break;
   case VIZ_NOTES:            msg = "VIZ_NOTES"; break;
-  case VIZ_DEBUG:            msg = "VIZ_DEBUG"; break;
+  case VIZ_ENTROPY:          msg = "VIZ_ENTROPY"; break;
   case VIZ_CONSTRAINT:       msg = "VIZ_CONSTRAINT"; break;
   case VIZ_BP_BELIEF:        msg = "VIZ_BP_BELIEF"; break;
   case VIZ_BP_ENTROPY:       msg = "VIZ_BP_ENTROPY"; break;
@@ -1010,7 +1010,7 @@ Vector4DF BeliefPropagation::getVisSample ( int64_t v ) {
     f = getValF ( BUF_VIZ, v );
     s = Vector4DF(f,f,f,f);
     break;
-  case VIZ_DEBUG:
+  case VIZ_ENTROPY:
     f = getValF ( BUF_VIZ, v );
     s = (f==0) ? Vector4DF(0,0,0,0) : Vector4DF(f,0,1-f,f);
     break;
@@ -3311,20 +3311,22 @@ int BeliefPropagation::start () {
 
 int BeliefPropagation::finish (int ret) {
 
-  if ( ret==0 ) {
-    // success. complete.
-    printf ( "  DONE (SUCCESS).\n" );
-  } else {
-    // post error condition
-    switch (ret) {
-    case -1: printf ( "  DONE (FAIL). ERROR: chooseMaxBelief.\n" ); break;
-    case -2: printf ( "  DONE (FAIL). ERROR: tileIdxCollapse.\n" ); break;
-    case -3: printf ( "  DONE (FAIL). ERROR: cellConstraintPropagate.\n" ); break;
-    case -4: printf ( "  DONE (FAIL). MAX ITER HIT.\n" ); break;
-    case -77: printf ( "  DONE (STOPPED BY USER).\n"); break;
-    default:
-        printf ( "  DONE (FAIL).\n"); break;
-    };
+  if (op.verbose >= VB_STEP ) {
+    if ( ret==0 ) {
+      // success. complete.
+      printf ( "  DONE (SUCCESS).\n" );
+    } else {
+      // post error condition
+      switch (ret) {
+      case -1: printf ( "  DONE (FAIL). ERROR: chooseMaxBelief.\n" ); break;
+      case -2: printf ( "  DONE (FAIL). ERROR: tileIdxCollapse.\n" ); break;
+      case -3: printf ( "  DONE (FAIL). ERROR: cellConstraintPropagate.\n" ); break;
+      case -4: printf ( "  DONE (FAIL). MAX ITER HIT.\n" ); break;
+      case -77: printf ( "  DONE (STOPPED BY USER).\n"); break;
+      default:
+          printf ( "  DONE (FAIL).\n"); break;
+      };
+    }
   }
   return ret;
 }
@@ -4116,8 +4118,9 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   int64_t cell;
 
   int32_t equal_entropy_count=0;
-
   float df = 0.0;
+  float dist, max_dist, e;
+  float block_r;
 
   // we have significant round off error because
   // of the running sums, so use a local epsilon
@@ -4125,6 +4128,10 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   //
   //float _eps = (1.0/16.0);
   float _eps = op.eps_zero;
+
+  Vector3DF map_ctr (op.X/2, op.Y/2, op.Z/2);
+  
+  Vector3DI block_ctr = Vector3DI(op.block_size[0]/2, op.block_size[1]/2, op.block_size[2]/2.0f);    
 
   n_b[0] = m_res.x - op.block_size[0]+1;
   n_b[1] = m_res.y - op.block_size[1]+1;
@@ -4138,44 +4145,47 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   ComputeBlockEntropy();
 
   float pct_solved = float(op.solved_tile_cnt)/getNumVerts();  
-  Vector3DF map_ctr (op.X/2, op.Y/2, op.Z/2);
-  Vector3DI block_ctr = Vector3DI(op.block_size[0]/2, op.block_size[1]/2, op.block_size[2]/2.0f);
-  float dist, e;
-  float max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
-  float block_r =  2.0*sqrt(block_ctr.x*block_ctr.x + block_ctr.y*block_ctr.y + block_ctr.z*block_ctr.z) / max_dist;
+
+  // mass entropy biasing
+  if (op.entropy_bias) {
+
+    // entropy bias preparation        
+    max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
+    block_r =  2.0*sqrt(block_ctr.x*block_ctr.x + block_ctr.y*block_ctr.y + block_ctr.z*block_ctr.z) / max_dist;
  
-  // compute entropy outside of radius
-  int cnt_zero=0;
-  float outside_entropy=0;
-  for (z=0; z < op.Z; z++) {
-    for (y=0; y < op.Y; y++) {
-      for (x=0; x < op.X; x++) {         
+    // compute entropy outside of radius
+    int cnt_zero=0;
+    float outside_entropy=0;
+    for (z=0; z < op.Z; z++) {
+      for (y=0; y < op.Y; y++) {
+        for (x=0; x < op.X; x++) {         
          
-         cell = getVertex(x,y,z);
-         dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
-         
-         SetValF ( BUF_VIZ, 0, cell );
+           // get distance from cell to center
+           cell = getVertex(x,y,z);
+           dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
 
-         e = getValF( BUF_CELL_ENTROPY, cell );
+           SetValF ( BUF_VIZ, 0, cell );
+           e = getValF( BUF_CELL_ENTROPY, cell );
          
-         if (e < _eps) {
-             cnt_zero++;
-             continue;
-         }
-
-         if ( dist > op.entropy_radius ) 
-             outside_entropy += e;
+           // skip if entropy near 0
+           if (e < _eps) {
+               cnt_zero++;
+               continue;
+           }
+           // sum total entropy outside the entropy radius
+           if ( dist > op.entropy_radius ) 
+               outside_entropy += e;
+        }
       }
     }
-  }
-  // decrease entropy radius if solved outside it
-  if (outside_entropy < _eps) {
-      op.entropy_radius -= 1.0 / max_dist;
-      if (op.entropy_radius < 0) op.entropy_radius = 0;
-  }
-
-  printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
-  printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
+    // decrease entropy radius if solved outside it
+    if (outside_entropy < _eps) {
+        op.entropy_radius -= 1.0 / max_dist;
+        if (op.entropy_radius < 0) op.entropy_radius = 0;
+    }
+    printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
+    printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
+  }  
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
@@ -4183,7 +4193,6 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
         cell = getVertex(x,y,z);
         cur_entropy = getValF( BUF_BLOCK_ENTROPY, cell );
-
 
         tmp_ent = cur_entropy;
 
@@ -4197,15 +4206,17 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
         tmp_noise = df;
 
-        if (pct_solved > 0.95 && op.entropy_bias) {
+        if (op.entropy_bias && pct_solved > 0.95) {
             dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
             
             if (dist < op.entropy_radius - block_r)
                 cur_entropy = -1;
         }
 
-        // debug vis        
-        SetValF ( BUF_VIZ, sqrt(fmax(cur_entropy,0)) / 4.0f, getVertex(x+block_ctr.x, y+block_ctr.y, z+block_ctr.z) );
+        // entropy vis 
+        if (op.viz_opt==VIZ_ENTROPY ) {
+          SetValF ( BUF_VIZ, sqrt(fmax(cur_entropy,0)) / 4.0f, getVertex(x+block_ctr.x, y+block_ctr.y, z+block_ctr.z) );
+        }
 
         if ( cur_entropy > _eps && (cur_entropy - max_entropy) > -_eps ) {
 
@@ -4233,7 +4244,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
       }
     }
   }
-  dbgprintf ("max entropy: %f, cnt_zero: %d\n", max_entropy, cnt_zero );
+  // dbgprintf ("max entropy: %f, cnt_zero: %d\n", max_entropy, cnt_zero );
 
   //DEBUG
   if (op.verbose >= VB_DEBUG) {
@@ -4337,45 +4348,41 @@ void BeliefPropagation::getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax ) {
 }
 
 void BeliefPropagation::jitterBlock ()
-{
-    // [optional] block jittering
-    // randomize the block center somewhat 
-    if (op.jitter_block > 0 ) {    
-        Vector3DI v;
+{    
+    Vector3DI v;
     
-        // jitter annealing
-        //float anneal = float(op.solved_tile_cnt)/getNumVerts();
-        //anneal = (anneal > 0.90) ? (1-anneal)*10.0 : 1;
+    // jitter annealing
+    //float anneal = float(op.solved_tile_cnt)/getNumVerts();
+    //anneal = (anneal > 0.90) ? (1-anneal)*10.0 : 1;
 
-        v = m_rand.randV3(-op.jitter_block, op.jitter_block);
-        op.sub_block[0] += v.x;  
-        op.sub_block[1] += v.y;
-        op.sub_block[2] += v.z;      
+    v = m_rand.randV3(-op.jitter_block, op.jitter_block);
+    op.sub_block[0] += v.x;  
+    op.sub_block[1] += v.y;
+    op.sub_block[2] += v.z;      
 
-        // jitter center bias     
-        // *DOES NOT WORK* - only shifts the work window, doesn't push the entropy.
-        // - bias blocks toward center when >98% solved to press long-distance constraints together
-        /*float pct_solved = 100.0*float(op.solved_tile_cnt)/getNumVerts() ;
-        if (pct_solved > 98.0) {
-            Vector3DI ctr, bias;
-            ctr.x = op.sub_block[0] + (op.block_size[0]/2);
-            ctr.y = op.sub_block[1] + (op.block_size[1]/2);
-            ctr.z = op.sub_block[2] + (op.block_size[2]/2);
-            bias.x = (ctr.x < op.X/2) ? +1 : -1;
-            bias.y = (ctr.y < op.Y/2) ? +1 : -1;
-            bias.z = (ctr.z < op.Z/2) ? +1 : -1;
-            op.sub_block[0] += bias.x;
-            op.sub_block[1] += bias.y;
-            op.sub_block[2] += bias.z;
-        }*/
+    // jitter center bias     
+    // *DOES NOT WORK* - only shifts the work window, doesn't push the entropy.
+    // - bias blocks toward center when >98% solved to press long-distance constraints together
+    /*float pct_solved = 100.0*float(op.solved_tile_cnt)/getNumVerts() ;
+    if (pct_solved > 98.0) {
+        Vector3DI ctr, bias;
+        ctr.x = op.sub_block[0] + (op.block_size[0]/2);
+        ctr.y = op.sub_block[1] + (op.block_size[1]/2);
+        ctr.z = op.sub_block[2] + (op.block_size[2]/2);
+        bias.x = (ctr.x < op.X/2) ? +1 : -1;
+        bias.y = (ctr.y < op.Y/2) ? +1 : -1;
+        bias.z = (ctr.z < op.Z/2) ? +1 : -1;
+        op.sub_block[0] += bias.x;
+        op.sub_block[1] += bias.y;
+        op.sub_block[2] += bias.z;
+    }*/
 
-        if (op.sub_block[0] < 0) op.sub_block[0] = 0;
-        if (op.sub_block[1] < 0) op.sub_block[1] = 0;
-        if (op.sub_block[2] < 0) op.sub_block[2] = 0;
-        if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
-        if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
-        if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
-    }
+    if (op.sub_block[0] < 0) op.sub_block[0] = 0;
+    if (op.sub_block[1] < 0) op.sub_block[1] = 0;
+    if (op.sub_block[2] < 0) op.sub_block[2] = 0;
+    if (op.sub_block[0] > op.X-op.block_size[0]) op.sub_block[0] = op.X-op.block_size[0];
+    if (op.sub_block[1] > op.Y-op.block_size[1]) op.sub_block[1] = op.Y-op.block_size[1];
+    if (op.sub_block[2] > op.Z-op.block_size[2]) op.sub_block[2] = op.Z-op.block_size[2];
 }
 
 // Compute the center-of-mass of the tile entropy within a block
@@ -4588,8 +4595,13 @@ int BeliefPropagation::RealizePre(void) {
   else { }
 
   
-  // Jitter Block
-  jitterBlock ();
+  // [optional] Jitter Block
+  // jitter can occur regardless of block scheduling above.
+  //  
+  if (op.jitter_block > 0 ) {    
+    jitterBlock ();
+  }
+
 
 
   //-----------
@@ -4657,9 +4669,11 @@ int BeliefPropagation::RealizePre(void) {
     // we can reset it
     //
     _saveTileIdx();
-
-    // measure entropy center-of-mass before we fuzz block
-    getBlockCenterOfMass (op.prev_block_centroid, op.prev_block_mass);
+    
+    // [optional] mass biasing. measure entropy center-of-mass before we fuzz block
+    if (op.entropy_bias) {      
+      getBlockCenterOfMass (op.prev_block_centroid, op.prev_block_mass);
+    }
 
     // fuzz out a block
     //
@@ -4789,9 +4803,9 @@ int BeliefPropagation::RealizePre(void) {
     break;
   }
 
-  // measure elapsed time
+  // measure elapsed time (in seconds)
   clock_t t2 = clock();
-  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
+  st.elapsed_time += (double(t2) - t1) / CLOCKS_PER_SEC;
 
   return ret;
 }
@@ -5086,7 +5100,7 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_BREAKOUT:
 
       if (op.verbose >= VB_STEP) {
-        printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int)m_return, sanityGroundState());
+        printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int) m_return, sanityGroundState());
       }
 
       // assume continue
@@ -5403,7 +5417,7 @@ int BeliefPropagation::RealizePost(void) {
   st.post = ret;
 
   clock_t t2 = clock();
-  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
+  st.elapsed_time += (double(t2) - t1) / CLOCKS_PER_SEC;
 
   // print iter stats
   //
@@ -5417,7 +5431,7 @@ int BeliefPropagation::RealizePost(void) {
     // success only happens once in post. when fully done.
     st.success = (ret==0);
 
-    if (op.verbose >= VB_RUN)
+    if (op.verbose >= VB_MULTIRUN)
         printf ("%s", getStatMessage().c_str() );
   }
 
@@ -5431,7 +5445,7 @@ int BeliefPropagation::RealizePost(void) {
     st.num_block_fail++;    // equal to total_block_cnt - num_block_success
   }
 
-  if (op.verbose >= VB_RUN) {
+  /*if (op.verbose >= VB_RUN) {
     printf ("Block (%s): total blks: %d, failcnt: %d, success rate: %3.1f%%, #success: %d, ave retry: %3.1f, #soften: %d, resolved: %d (%4.1f%%), solved: %d (%4.1f%%)\n",
             (m_return==0) ? "SUCCESS" : "FAIL   ",
             (int)st.total_block_cnt,
@@ -5443,7 +5457,7 @@ int BeliefPropagation::RealizePost(void) {
             (int)st.total_resolved, 100.0*float(st.total_resolved)/getNumVerts(),
             op.solved_tile_cnt, 100.0*float(op.solved_tile_cnt)/getNumVerts()        
         );
-  }
+  }*/
   
   // cur_iter is total number of realizepost completed (unconditional).
   // force stop if max_iter reached.
@@ -5460,13 +5474,14 @@ std::string BeliefPropagation::getStatMessage () {
   char msg[1024] = {0};
 
   snprintf ( msg, 1024,
-             "  %s: %d/%d, Iter: %d, %4.1fmsec, constr:%d, resolved: %d/%d/%d (%4.1f%%), Grid:%d,%d,%d, Seed: %d\n",
-              ((st.post==1) ? "RUN" :
-              ((st.success==1) ? "RUN_SUCCESS" : "RUN_FAIL")),
+             "  RUN %s: %d/%d (run), %d (iter), GRID: %d,%d,%d, SEED: %d, Time(sec): %6.3f, Resolved: %d/%d (%4.1f%%)\n",              
+              ((st.success==1) ? "SUCCESS" : "FAIL   "),
               op.cur_run, op.max_run, op.cur_iter,
-              st.elapsed_time, (int)st.constraints,
-              st.iter_resolved, (int)st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
-              op.X, op.Y, op.Z, op.seed );
+              op.X, op.Y, op.Z, op.seed,
+              st.elapsed_time, 
+              st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts
+            );
+               
 
 
   //-- belief prop stats
@@ -5490,14 +5505,20 @@ std::string BeliefPropagation::getStatCSV (int mode) {
 
   char msg[1024] = {0};
   int status;
-  status = (st.post==1) ? 0 : (st.success==1) ? 1 : -1;
+  status = (st.post==1) ? -1 : (st.success==1) ? 1 : 0;
 
-  snprintf ( msg, 1024,
-      "%d, %d, %d, %4.1f, %d, %d, %d, %d, %4.1f%%, %d, %d, %d, %d",
-      op.cur_run, status, op.cur_iter, st.elapsed_time,
-      (int) st.constraints, st.iter_resolved, st.total_resolved, op.max_iter, 100.0*float(st.total_resolved)/op.max_iter,
-      op.X, op.Y, op.Z, op.seed );
-
+  if (mode==0) {
+    snprintf ( msg, 1024, "X, Y, Z, seed, run, max_run, iter, status, time(sec), resolved, verts, resolve%%" );
+  } else {
+    snprintf ( msg, 1024, "%d, %d, %d, %d, %d, %d, %d, %d, %6.3f, %d, %d, %4.2f",
+                op.X, op.Y, op.Z, op.seed,
+                op.cur_run, op.max_run, op.cur_iter,
+                status,                
+                st.elapsed_time, 
+                st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts 
+    );
+  }
+      
 
  //     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
  //     st.ave_mu, st.ave_dmu,
@@ -5548,6 +5569,7 @@ int BeliefPropagation::RealizeIter (void) {
 //
 int BeliefPropagation::RealizeStep(void) {
 
+  std::string msg;
   float   d=-1.0,
           f_residue=-1.0,
           belief=-1.0;
@@ -5661,7 +5683,7 @@ int BeliefPropagation::RealizeStep(void) {
         // propagate constraints to remove neighbor tiles,
         // and count number resolved (only 1 tile val remain)
         //
-        _ret = cellConstraintPropagate();
+        _ret = cellConstraintPropagate();        
 
       }
 
@@ -5717,13 +5739,15 @@ int BeliefPropagation::RealizeStep(void) {
 
     if (ret >= 1) {
 
+      if (op.verbose >= VB_STEP ) msg += "cell choosen, continue";
+      
       // 1 = continue condition.
       // display chosen cell
       //
       if (op.verbose >= VB_INTRASTEP ) {
         vp = getVertexPos(cell);
         n_idx = getValI ( BUF_TILE_IDX_N, cell );
-        printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs-breakout]\n",
+        printf( "  RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs-breakout]\n",
             (int)op.cur_iter,
             (int)cell,
             (int)vp.x, (int)vp.y, (int)vp.z,
@@ -5741,6 +5765,8 @@ int BeliefPropagation::RealizeStep(void) {
 
       if (_ret >= 0) {
 
+        if (op.verbose >= VB_STEP ) msg += ", collapse ok";
+
         m_note_n[ m_note_plane ] = 0;
         m_note_n[ 1 - m_note_plane  ] = 0;
 
@@ -5753,29 +5779,38 @@ int BeliefPropagation::RealizeStep(void) {
         _ret = cellConstraintPropagate();
 
         if (_ret < 0 ) {
-            // constraint-prop failure, usually due to no remaining tile vals left that match neighbors.
+            // Return <0 from cellConstraintPropagate. Failed
+            // usually due to no remaining tile vals left that match neighbors,
             // resulting in block failure. 
             Vector3DI v = getErrorCell();
             if (op.verbose >= VB_STEP ) {
-                printf ( "Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
+                printf ( "  Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
             }
+          if (op.verbose >= VB_STEP ) msg += ", propagate FAIL";
+        } else {
+          if (op.verbose >= VB_STEP ) msg += ", propagate ok";
         }
 
       }
-      // collapse failed
+      // Return <0 from tileIdxCollapse
+      // collapse failed.
       //
       else {
+
+        if (op.verbose >= VB_STEP ) msg += ", collapse FAIL";
 
         ret = -2;
 
         m_return = ret;
       }
 
-      // ret inherits chooseMinEntropy return value (presumably 1)
-      // unless there's an error, in which case we propagate that
-      // value on
+      // Error from tileIdxCollapse or cellConstraintPropagate
+      // set m_return to propagate that value on
       //
       if (_ret < 0) {
+        
+        if (op.verbose >= VB_STEP ) msg += ", ERROR TO POST";
+
         //m_breakout_block_fail_count++;
         m_block_fail_count++;
         ret = -3;
@@ -5783,8 +5818,17 @@ int BeliefPropagation::RealizeStep(void) {
       }
 
     }
+    // Return 0 from chooseMinEntropy means
+    // block is fully realized. Proceed to post and next block.
+    //
+    else if (ret == 0 ) {
 
-    // If we get an error in the choice of tile to fix,
+      if (op.verbose >= VB_STEP ) msg += "block realized";
+
+    }
+    
+    // Return <0 from chooseMinEntropy
+    // We have an error in the choice of tile, and
     // we want to stop but don't want to communicate that
     // to the higher level.
     // RealizePost will act approparitely to either
@@ -5795,38 +5839,51 @@ int BeliefPropagation::RealizeStep(void) {
     // RealizePost can use.
     //
     else if (ret < 0) {
+
+      if (op.verbose >= VB_STEP ) msg += ", chooseMinEntropy FAIL";
+
       m_block_fail_count++;
+
       ret = 0;
     }
     
-    // block center bias
-    // - if we are in last final 95% of map solved,
-    // - and the block is still ok (not failed)..
-    // - we check the center-of-mass entropy both before and now..
-    // - if the center of mass is closer to the center of the map,
-    //   then we accept the block early with some probability.
-    if (ret==1) {    
-      float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
-      if (pct_solved > 0.95 ) {
-        getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
-        if (op.prev_block_mass > 0 && op.curr_block_mass > 0) {
-          float prob = m_rand.randF();
-          if (prob > 0.50) {
-              Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
+    // [optional] mass entropy biasing
+    if (op.entropy_bias) {
+
+      // entropy biasing method:
+      // - if we are in last final 95% of map solved,
+      // - and the block is still ok (not failed)..
+      // - we check the center-of-mass entropy both before and now..
+      // - if the center of mass is closer to the center of the map,
+      //   then we accept the block early with some probability.
+      if (ret==1) {    
+        float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
+        if (pct_solved > 0.95 ) {
+          getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
+          if (op.prev_block_mass > 0 && op.curr_block_mass > 0) {
+            float prob = m_rand.randF();
+            if (prob > 0.50) {
+                Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
               
-              // compare previous & solved entropy center-of-mass to map center
-              float prev_dist = (op.prev_block_centroid - map_center).Length();
-              float curr_dist = (op.curr_block_centroid - map_center).Length();
+                // compare previous & solved entropy center-of-mass to map center
+                float prev_dist = (op.prev_block_centroid - map_center).Length();
+                float curr_dist = (op.curr_block_centroid - map_center).Length();
              
-              // if distance is reduced. accept the block early.
-              if (curr_dist < prev_dist) {
-                m_return = 0;         
-                ret = 0;
-              }
+                // if distance is reduced. accept the block early.
+                if (curr_dist < prev_dist) {
+
+                  if (op.verbose >= VB_STEP ) msg += ", mass_entropy FORCE SUCCESS";
+
+                  m_return = 0;         
+                  ret = 0;
+                }
+            }
           }
         }
       }
     }
+
+
     //-- end of ALG_RUN_BREAKOUT
 
   }
@@ -5842,7 +5899,7 @@ int BeliefPropagation::RealizeStep(void) {
   // complete timing
   //
   clock_t t2 = clock();
-  st.elapsed_time += ((double(t2) - t1)*1000.0) / CLOCKS_PER_SEC;
+  st.elapsed_time += (double(t2) - t1) / CLOCKS_PER_SEC;
 
   // always increment cur_step;
   op.cur_step++;
@@ -5852,7 +5909,17 @@ int BeliefPropagation::RealizeStep(void) {
   // and return max_step is exceedex
   //
   if ( ret==1 ) {
-    if (op.cur_step >= op.max_step )  { ret = -2; }
+    if (op.cur_step >= op.max_step )  { 
+
+      if (op.verbose >= VB_STEP ) msg += ", STOP MAX STEP";
+
+      ret = -2; 
+    }
+  }
+
+  // report everything that happened in step
+  if (op.verbose >= VB_STEP ) {
+    printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
   }
 
   // prep vis

@@ -243,6 +243,9 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         op->D = strToI(optarg);
         op->X = op->Y = op->Z = op->D;
         break;
+      case 'x':
+        op->entropy_bias = strToI(optarg);
+        break;
       case 'X':
         op->X = strToI(optarg);
         break;
@@ -517,26 +520,25 @@ bool Sample::init()
     // -W 1 -r 1 -V 3 -I 50 -S 181 -e .0001 -X 10 -Y 10 -Z 10 -N stair_name.csv -R stair_rule.csv
 
   //-- Experiments  
-  /* bpc.expr.num_expr = 20;
-  bpc.expr.num_run = 50;
-  bpc.expr.grid_min.Set (10, 10, 1);
-  bpc.expr.grid_max.Set (210, 210, 1);
-  bpc.expr.maxstep_min = 1;
-  bpc.expr.maxstep_max = 1;
+
+
+  bpc.expr.name = "pm";
+  bpc.expr.num_expr = 4;
+  bpc.expr.num_run = 20;
+  bpc.expr.grid_min.Set (20, 20, 1);
+  bpc.expr.grid_max.Set (80, 80, 1);
+  bpc.expr.maxstep_min = 10000;
+  bpc.expr.maxstep_max = 10000;
   bpc.expr.steprate_min = 0.98;
   bpc.expr.steprate_max = 0.98;
   bpc.expr.eps_min = .0001;
   bpc.expr.eps_max = .0001;
   bpc.st.instr = 0;
 
-  bp_experiments ( bpc, "expr_pm.csv", "run_pm.csv" );
-  exit(-6); */
+  bp_experiments ( bpc );
+  exit(-6);  
     
-  //-- Multirun testing  
-  /* bp_multirun ( bpc, bpc.op.max_run, "run.csv" );
-  
-  exit(-5); */
-    
+   
   // Initiate Algorithm
   
   // find name & rule files
@@ -767,7 +769,7 @@ void Sample::display()
 
   //--------- Visualization
 
-  int cadence = 5;
+  int cadence = 1;
 
 
   // render cadence every 5 steps for perf
@@ -950,7 +952,7 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
       Restart ();   
       break;
 
-   case 'n':  
+   case 'g':  
       // regenerate with new seed
       bpc.finish(-77);   // -77 = stopped by user
       bpc.advance_seed();
