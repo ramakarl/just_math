@@ -1,0 +1,44 @@
+#!/bin/bash
+
+flt=`cat mu_forest.filter | tr '\n' ' '`
+
+#../../bpc \
+#  -N ./tilename_revolution.csv \
+#  -R ./tilerule_revolution.csv \
+#  -j '1:' \
+#  -J "$flt" \
+#  -G -1 \
+#  -Q ./tileset_revolution.png \
+#  -s 16 \
+#  -X 32 -Y 32 -Z 1 \
+#  -M revolution_water_x32y32.json
+
+
+#../../bpc \
+#  -N ./tilename_mu_forest.csv \
+#  -R ./tilerule_mu_forest.csv \
+#  -j '1:' \
+#  -J "d 0" \
+#  -G -1 \
+#  -I 2000 \
+#  -i 500 \
+#  -b 8 \
+#  -X 64 -Y 64 -Z 1 \
+#  -Q ./tileset_mu_forest.png \
+#  -s 16 \
+#  -M mu_forest_wfc.json
+
+../../bpc \
+  -N ./tilename_mu_forest.csv \
+  -R ./tilerule_mu_forest.csv \
+  -J "d 0" \
+  -G -8 \
+  -I 2000 \
+  -i 1000 \
+  -b 16 \
+  -X 32 -Y 32 -Z 1 \
+  -Q ./tileset_mu_forest.png \
+  -s 16 \
+  -S 1235 \
+  -M mu_forest_bms.json
+

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+example_img="microtileset_forest.png"
+
+echo "generating tileset PNG, tilename CSV and tilerule CSV"
+../img2tile \
+  -i "$example_img" \
+  -s 16 -w 32 \
+  -Q .img/ \
+  -S tileset_mu_forest.png \
+  -M tilemap_mu_forest.json \
+  -N tilename_mu_forest.csv \
+  -R tilerule_mu_forest.csv

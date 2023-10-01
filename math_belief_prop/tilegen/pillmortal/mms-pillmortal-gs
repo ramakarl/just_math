@@ -1,0 +1,30 @@
+#!/bin/bash
+
+Z=1
+X=32
+Y=48
+
+flt=`cat pm.filter | tr '\n' ' '`
+
+b=1
+it=0
+
+./bpc \
+  -N ./pillmortal_tilename.csv \
+  -R ./pillmortal_tilerule.csv \
+  -X $X \
+  -Y $Y \
+  -Z $Z \
+  -S 1234 \
+  -j '1:' \
+  -J "$flt" \
+  -G -2 \
+  -i $it \
+  -b $b \
+  -s 8 \
+  -Q ./pillmortal_tileset.png \
+  -M pillmortal_mms_i${it}_b${b} \
+  -V 2
+
+
+

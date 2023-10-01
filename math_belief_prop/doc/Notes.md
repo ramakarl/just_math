@@ -158,6 +158,109 @@ constraidedness
 ```
 
 
+BEM
+---
+
+```
+pct_solved = 1 - #{ tile count == 1} / (X*Y*Z)
+block_entropy = \sum_{p \in B} cell_entropy(p)
+cell_entropy(p) = \sum_{j \in D_p} g_p(j) \lg g_p(j)
+g_p(p) = \frac{ G_p(j) }{ \sum_{j \in D_p} G_p(j) }
+block_mass(B) = \frac{ \sum_{ p \in B | |D_p| > 1 } p }{ #\{ p | |D_p| > 1 \} }
+```
+
+Where $g_p(j)$  is the normalized probability, dependent on
+what's left at the cell $p$ ($G_p(\cdot)$ is the original,
+non-normalized probability).
+
+
+Now:
+
+```
+Pre:
+  # choose block B from some schedule (max entropy + noise)
+  if we're in a fresh run:
+    if (pct_solved <= 0.95):
+      pick max entropy block (+noise)
+    else:
+      pick max entropy block outside of radius
+      if entropy in outside radius is 0, decrease radius size
+
+  # jitter block B
+  move the block choice by a small random amount from currently chosen position
+  
+
+Step:
+  ...
+  if (pct_solved > 0.95) and
+     (cur_block_mass < prev_block_mass) and
+     (rand() < 0.5):
+    accept (partial) block
+  ...
+```
+
+Some notes:
+
+* Proceeds as normal until it gets to 'frustrated and entangled' (FaE) state
+  (pct_solved > 0.95)
+* In the FaE state, we want to corral/herd frustrated regions together
+  - We pick the center as the destination of the corralling
+  - To focus attention on frustrated elements on the periphery, we
+    reject all block choices inside a 'punch-out' radius
+  - We selectively and probabilistically accept partial block solutions so long as the
+    frustrated regions within them are closer to the destination point
+    (e.g. the center)
+  - The selective biasing of choice of partially completed blocks is
+    independent of the underlying solver (as is most of the rest of these algorithms)
+* As blocks on the periphery get solved or as the small frustrated regions get
+  corralled to the destination point (e.g. the center), the punch-out radius
+  shrinks to capture regions still on the periphery but closer to the center
+* During block choice, including after every retry, the block is potentially
+  jittered by some amount. That is, block choice is shifted by a small random amount
+  - The jitter is done relative to the previous block choice so a block choice that
+    has undergone multiple retries might be far from the initially chosen block position
+  - One attempt was to bias the jitter towards the destination point but this functionality
+    is currently removed
+    
+There are two main regions, the block choice and the block acceptance.
+
+* Block choice is done to:
+  - heavily bias outer blocks during FaE
+  - allow some small randomization of block choice when
+    retrying to give the attempt a better chance at overcoming
+    local contradictions
+* Block acceptance is done to:
+  - allow for entropy corralling during FaE by biasing selections
+    that favor the small frustrated regions within a block to move
+    towards a destination point (e.g. the center)
+    
+---
+
+
+Entangled elastic constraints.
+
+Elastic constraints being contraints on configurations that are related to two or more locally frustrated
+regions with each frustrated region allowed to wander very far from each other.
+A canonical example of this is a self avoiding loop or path in 2d or 3d.
+The number of paths entering a region must be even.
+If a region gets into an arc consistent state but somehow could only resolve to an odd parity
+boundary, it's only way to resolve that contradiction is to pair up with another region that has
+the same issue.
+Presumably regions can wander and this is what is meant by elastic, as they might be satisfied
+locally or even start of local but then have the possibility of moving away from each other.
+
+They're entangled in a sense because the map will remain frustrated until they eventually wander
+into each other with the hope of resolution.
+
+The current snapshot of the code has three ideas to try and take advantage of this observation:
+
+* Instead of failing outright, allow for partially resolved blocks, biasing the center of
+  mass in a certain direction
+* Weight considered blocks heavier the further away from the rally point the blocks are
+  as the rally point will tend towards a high entropy state
+* Do the above process based on percentage of map completed, preferring it to do it when
+  the map has settled into its cooled entangled phase.
+
 
 
 Glossary
@@ -205,3 +308,5 @@ References
 * [Creating Infinite Road for my Drifting Game](https://www.youtube.com/watch?v=n44DgwqnjxQ)
 * [wfc zelda](https://observablehq.com/@makio135/zelda-wfc)
 * [Infinite WFC for Clomper](https://www.youtube.com/watch?v=DrTYmUtWWw4) (infinite wfc but destroys saved collapsed state outside of field of view)
+* [roads and platforms, wfc having trouble](https://twitter.com/0x21376B00/status/1544803545718804480) ([link](https://twitter.com/0x21376B00/status/1546776783663628288))
+
