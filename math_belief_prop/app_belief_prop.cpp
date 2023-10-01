@@ -520,7 +520,7 @@ bool Sample::init()
 
   //-- Experiments  
 
-  bpc.expr.name = "pm";
+  /*bpc.expr.name = "pm";
   bpc.expr.num_expr = 30;
   bpc.expr.num_run = 50;
   bpc.expr.grid_min.Set (10, 10, 1);
@@ -534,7 +534,7 @@ bool Sample::init()
   bpc.st.instr = 0;
 
   bp_experiments ( bpc );
-  exit(-6); 
+  exit(-6); */
    
   // Initiate Algorithm
   
@@ -586,7 +586,7 @@ bool Sample::init()
   bpc.SetVis ( m_viz );
 
   // start running
-  m_run = true;
+  m_run = false;
 
   return true;
 }
@@ -660,6 +660,10 @@ void Sample::DrawTileMap ()
         }
     }
     
+    // draw error cell
+    Vector3DI bmin = bpc.getErrorCell();
+    drawFill ( bmin.x, bmin.y, bmin.x+1, bmin.y+1, 1, 0, 1, 1);  
+
     end2D();
 }
 
@@ -757,6 +761,7 @@ void Sample::display()
 
   Vector3DF a, b, c;
   Vector3DF p, q, d;
+  Vector3DI bmin, bmax;
 
   void (*_cb_f)(void *) = NULL;
 
@@ -808,15 +813,14 @@ void Sample::display()
           
           start3D(m_cam);
             //DrawGrid3D ();
-
-            Vector3DI bmin, bmax;
+          
             bpc.getCurrentBlock ( bmin, bmax );
             drawBox3D ( bmin, bmax+Vector3DI(1,1,1), 1, 0.5, 0, 1);
 
             bmin = bpc.getErrorCell();
             drawBox3D ( bmin, bmin+Vector3DI(1,1,1), 1, 0, 0, 1);
             bmin = bpc.getErrorCause();
-            drawBox3D ( bmin, bmin+Vector3DI(1,1,1), 1, 0, 1, 1);
+            drawBox3D ( bmin, bmin+Vector3DI(1,1,1), 1, 0, 1, 1);            
 
           end3D();
           #endif 
@@ -843,7 +847,7 @@ void Sample::display()
           // Draw 2D tileset if requested
           if ( m_draw_tileset ) {
               DrawTileSet ();          
-          }       
+          }                 
 
           #endif 
       }
