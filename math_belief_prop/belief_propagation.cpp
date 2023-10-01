@@ -5710,7 +5710,7 @@ int BeliefPropagation::RealizeStep(void) {
 
     if (ret >= 1) {
 
-      if (op.verbose >= VB_STEP ) msg += "cell choosen, continue";
+      if (op.verbose >= VB_INTRASTEP ) msg += "cell choosen, continue";
       
       // 1 = continue condition.
       // display chosen cell
@@ -5736,7 +5736,7 @@ int BeliefPropagation::RealizeStep(void) {
 
       if (_ret >= 0) {
 
-        if (op.verbose >= VB_STEP ) msg += ", collapse ok";
+        if (op.verbose >= VB_INTRASTEP ) msg += ", collapse ok";
 
         m_note_n[ m_note_plane ] = 0;
         m_note_n[ 1 - m_note_plane  ] = 0;
@@ -5754,12 +5754,12 @@ int BeliefPropagation::RealizeStep(void) {
             // usually due to no remaining tile vals left that match neighbors,
             // resulting in block failure. 
             Vector3DI v = getErrorCell();
-            if (op.verbose >= VB_STEP ) {
+            if (op.verbose >= VB_INTRASTEP ) {
                 printf ( "  Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
             }
-          if (op.verbose >= VB_STEP ) msg += ", propagate FAIL";
+          if (op.verbose >= VB_INTRASTEP ) { msg += ", propagate FAIL"; }
         } else {
-          if (op.verbose >= VB_STEP ) msg += ", propagate ok";
+          if (op.verbose >= VB_INTRASTEP ) { msg += ", propagate ok"; }
         }
 
       }
@@ -5768,7 +5768,7 @@ int BeliefPropagation::RealizeStep(void) {
       //
       else {
 
-        if (op.verbose >= VB_STEP ) msg += ", collapse FAIL";
+        if (op.verbose >= VB_INTRASTEP ) { msg += ", collapse FAIL"; }
 
         ret = -2;
 
@@ -5780,7 +5780,7 @@ int BeliefPropagation::RealizeStep(void) {
       //
       if (_ret < 0) {
         
-        if (op.verbose >= VB_STEP ) msg += ", ERROR TO POST";
+        if (op.verbose >= VB_INTRASTEP ) { msg += ", ERROR TO POST"; }
 
         //m_breakout_block_fail_count++;
         m_block_fail_count++;
@@ -5794,7 +5794,7 @@ int BeliefPropagation::RealizeStep(void) {
     //
     else if (ret == 0 ) {
 
-      if (op.verbose >= VB_STEP ) msg += "block realized";
+      if (op.verbose >= VB_INTRASTEP ) { msg += "block realized"; }
 
     }
     
@@ -5811,7 +5811,7 @@ int BeliefPropagation::RealizeStep(void) {
     //
     else if (ret < 0) {
 
-      if (op.verbose >= VB_STEP ) msg += ", chooseMinEntropy FAIL";
+      if (op.verbose >= VB_INTRASTEP ) { msg += ", chooseMinEntropy FAIL"; }
 
       m_block_fail_count++;
 
@@ -5843,7 +5843,7 @@ int BeliefPropagation::RealizeStep(void) {
                 // if distance is reduced. accept the block early.
                 if (curr_dist < prev_dist) {
 
-                  if (op.verbose >= VB_STEP ) msg += ", mass_entropy FORCE SUCCESS";
+                  if (op.verbose >= VB_INTRASTEP ) { msg += ", mass_entropy FORCE SUCCESS"; }
 
                   m_return = 0;         
                   ret = 0;
@@ -5882,14 +5882,14 @@ int BeliefPropagation::RealizeStep(void) {
   if ( ret==1 ) {
     if (op.cur_step >= op.max_step )  { 
 
-      if (op.verbose >= VB_STEP ) msg += ", STOP MAX STEP";
+      if (op.verbose >= VB_INTRASTEP ) { msg += ", STOP MAX STEP"; }
 
       ret = -2; 
     }
   }
 
   // report everything that happened in step
-  if (op.verbose >= VB_STEP ) {
+  if (op.verbose >= VB_INTRASTEP ) {
     printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
   }
 
