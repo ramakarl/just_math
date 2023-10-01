@@ -264,6 +264,7 @@ typedef struct _bp_opt_t {
   int       solved_tile_cnt;
   int       entropy_bias;
   float     entropy_radius;
+  int       wrap_count;
   
   Vector3DF prev_block_centroid;
   float     prev_block_mass;

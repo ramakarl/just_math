@@ -94,6 +94,11 @@ int bp_restart ( BeliefPropagation& bpc ) {
 
   bp_opt_t* op = bpc.get_opt();
 
+  // set iter to  
+  if (op->max_iter==0) {
+    
+  }
+
   // parse & record constraints before start
   //
   ret = bp_parse_constraints ( bpc, bpc.op.constraint_cmd, constraint_op_list );
@@ -260,7 +265,9 @@ int bp_read_constraint_file ( BeliefPropagation& bpc,
 
     fclose(fp);
 
-    printf ( "  constraint cmd: %s\n", constraint_cmd.c_str());
+     if (bpc.op.verbose >= VB_RUN) { 
+        printf ( "  constraint cmd: %s\n", constraint_cmd.c_str());
+     }
 
   } else {
     ret = -1;
@@ -587,6 +594,11 @@ int bp_experiments ( BeliefPropagation& bpc ) {
     bpc.op.eps_converge = eps;
     bpc.op.step_rate = steprate;
 
+    // read constraint filter
+    if (bpc.op.alg_idx == ALG_MMS_SEQ) {
+      bp_read_constraint_file ( bpc, bpc.op.tilefilter_fn, bpc.op.constraint_cmd );
+    }
+
     // initialize BP
     ret = bp_init_CSV ( bpc, bpc.op.X, bpc.op.Y, bpc.op.Z, name_path, rule_path );
     if (ret<0) {
@@ -596,6 +608,9 @@ int bp_experiments ( BeliefPropagation& bpc ) {
       return -1;
       //exit(-1);
     }
+    
+    
+  
 
     // start multiple runs
     bpc.op.max_run = num_runs;
@@ -660,15 +675,14 @@ int bp_experiments ( BeliefPropagation& bpc ) {
     //
     float ave_time =      float(total_time)/bpc.op.max_run;
     float ave_resolve =   float(total_resolve)/bpc.op.max_run;
-    float pct_success =   100*float(total_success)/bpc.op.max_run;
-
+    float pct_success =   100*float(total_success)/bpc.op.max_run;    
     
     if ( bpc.op.verbose >= VB_EXPERIMENT ) {
       printf ( "GRID: %d,%d,%d, TILES:%d, SSEED:%d, #Runs:%d, #Success: %d (%4.2f%%), Resolved: %lld, ave %f (%4.2f%%), Time(sec): %f, ave %f\n",
           (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
           (int)bpc.op.max_run, 
           total_success, pct_success, 
-          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          (long long int)total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
           total_time,    ave_time);
     }
 
@@ -676,7 +690,7 @@ int bp_experiments ( BeliefPropagation& bpc ) {
           (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
           (int)bpc.op.max_run, 
           total_success, pct_success, 
-          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          (long long int)total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
           total_time,    ave_time);
 
     // proper flush

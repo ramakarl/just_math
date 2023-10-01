@@ -171,9 +171,7 @@ void Sample::on_arg(int i, std::string arg, std::string optarg )
         break;
       case 'i':
         vali = strToI(optarg);
-        if (vali > 0) {
-          op->max_iter = (int64_t) vali;
-        }
+        op->max_iter = (int64_t) vali;        
         break;
       case 'N':
         op->name_fn = optarg;
@@ -466,7 +464,8 @@ bool Sample::init()
 {
   int ret;
 
-  addSearchPath(ASSET_PATH);
+  addSearchPath( "assets" );
+  addSearchPath( ASSET_PATH );
 
   #ifdef USE_PERF
     PERF_INIT (64, true, false, true, 0, "" );
@@ -521,12 +520,11 @@ bool Sample::init()
 
   //-- Experiments  
 
-
   bpc.expr.name = "pm";
-  bpc.expr.num_expr = 4;
-  bpc.expr.num_run = 20;
-  bpc.expr.grid_min.Set (20, 20, 1);
-  bpc.expr.grid_max.Set (80, 80, 1);
+  bpc.expr.num_expr = 30;
+  bpc.expr.num_run = 50;
+  bpc.expr.grid_min.Set (10, 10, 1);
+  bpc.expr.grid_max.Set (310, 310, 1);
   bpc.expr.maxstep_min = 10000;
   bpc.expr.maxstep_max = 10000;
   bpc.expr.steprate_min = 0.98;
@@ -536,8 +534,7 @@ bool Sample::init()
   bpc.st.instr = 0;
 
   bp_experiments ( bpc );
-  exit(-6);  
-    
+  exit(-6); 
    
   // Initiate Algorithm
   
@@ -547,7 +544,9 @@ bool Sample::init()
   getFileLocation ( op->rule_fn, rule_path );
 
   // find contraint file
-  bp_read_constraint_file ( bpc, op->tilefilter_fn, op->constraint_cmd );
+  if (op->alg_idx == ALG_MMS_SEQ) {
+    bp_read_constraint_file ( bpc, op->tilefilter_fn, op->constraint_cmd );
+  }
 
   // initialize belief prop (using helper func)
   ret = bp_init_CSV ( bpc, op->X, op->Y, op->Z, name_path, rule_path );
@@ -557,10 +556,10 @@ bool Sample::init()
   }
 
   // tileobj -> tri_shape_lib
-  std::string obj_path;
+  std::string filepath;
   if (bpc.op.tileobj_fn.size() > 0) {
-    getFileLocation ( op->tileobj_fn, obj_path );
-    ret=load_obj_stl_lib( obj_path, tri_shape_lib );
+    getFileLocation ( op->tileobj_fn, filepath );
+    ret=load_obj_stl_lib( filepath, tri_shape_lib );
     if (ret<0) {
       fprintf(stderr, "ERROR: when trying to load '%s' (load_obj_stl_lib)\n", bpc.op.tileobj_fn.c_str());
       exit(-1);
@@ -569,7 +568,11 @@ bool Sample::init()
   
   // Generate tile images (2D only, if tileset is set)
   if ( bpc.op.Z==1 && bpc.op.tileset_fn.length()>0 ) {
-     GenerateTileImgs ( bpc.op.tileset_fn, bpc.op.tileset_stride_x);
+     if (!getFileLocation ( bpc.op.tileset_fn, filepath )) {
+       fprintf(stderr, "ERROR: Cannot find '%s'\n", bpc.op.tileset_fn.c_str());
+       exit(-1);
+     }
+     GenerateTileImgs ( filepath, bpc.op.tileset_stride_x);     
   }
 
   // Select algorithm
@@ -579,7 +582,7 @@ bool Sample::init()
   Restart ();
 
   // start viz
-  m_viz = VIZ_TILECOUNT;
+  m_viz = (bpc.op.Z==1) ? VIZ_TILES_2D : VIZ_TILECOUNT;
   bpc.SetVis ( m_viz );
 
   // start running
@@ -720,7 +723,7 @@ void Sample::RunAlgorithmInteractive ()
                 // start new iteration
                 PERF_PUSH("Pre");
                 bpc.RealizePre();
-                PERF_POP();
+                PERF_POP();                
             
             } else if ( ret <= 0 ) {
             

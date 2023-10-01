@@ -3185,6 +3185,7 @@ int BeliefPropagation::start () {
   m_num_nbrs = getNumNeighbors(0);
 
   op.solved_tile_cnt = 0;
+  op.wrap_count = 0;
 
   op.entropy_radius = 0.9;
 
@@ -3355,6 +3356,8 @@ void BeliefPropagation::ResetStats () {
   st.time_viz = 0;
   st.time_maxdiff = 0;
   st.time_updatemu = 0;
+
+  st.constraints = -1;
 }
 
 
@@ -4421,7 +4424,7 @@ void BeliefPropagation::getBlockCenterOfMass (Vector3DF& center, float& mass)
 //
 int BeliefPropagation::RealizePre(void) {
 
-  int ret = 0;
+  int ret = 0;  
 
   int64_t cell=-1;
   int32_t tile=-1,
@@ -4522,6 +4525,36 @@ int BeliefPropagation::RealizePre(void) {
         op.sub_block[0] = x;
         op.sub_block[1] = y;
         op.sub_block[2] = z;
+
+        // detect and count wrap around
+        //printf ( "%d %d %d\n", ix, iy, iz);
+        if (op.cur_iter > 0 && ix==0 && iy==0 && iz==0) {
+          if (op.max_iter < 0) {            
+            op.wrap_count++;
+          }          
+        }
+        
+
+        //DEBUG
+        //
+        /*
+        printf("#####\n");
+        printf("#####\n");
+        printf("## end_s:(%i,%i,%i)\n", (int)end_s[0], (int)end_s[1], (int)end_s[2]);
+        printf("## ixyz: (%i,%i,%i)\n", (int)ix, (int)iy, (int)iz);
+        printf("## iz = %i ( op.seq_iter:%i / (op.block_idx[0]:%i * op.block_idx[1]:%i) )\n",
+            (int)iz, (int)op.seq_iter, (int)op.block_idx[0], (int)op.block_idx[1]);
+        printf("## iy = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) / (op.block_idx[0]:%i) )\n",
+            (int)iy, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)op.block_idx[0] );
+        printf("## ix = %i ( op.seq_iter:%i - (iz:%i * (op.block_idx[0]:%i * op.block_idx[1]:%i) - (iy:%i * op.block_idx[0]:%i) )\n",
+            (int)ix, (int)op.seq_iter, (int)iz, (int)op.block_idx[0], (int)op.block_idx[1], (int)iy, (int)op.block_idx[0]);
+        printf("## xyz: (%i,%i,%i)\n", (int)x, (int)y, (int)z);
+        printf("#####\n");
+        printf("#####\n");
+        */
+        //
+        //DEBUG
+
       }
 
       else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
@@ -4721,58 +4754,66 @@ int BeliefPropagation::RealizePre(void) {
 
   case ALG_RUN_MMS:
 
-    // fuzz out a block
-    //
-    m_note_n[ m_note_plane ] = 0;
-    m_note_n[ 1 - m_note_plane  ] = 0;
+     if (op.max_iter < 0 && op.wrap_count >= abs(op.max_iter) )  {
+       
+       // break out and stop if wrap count 
+        break;
 
-    for (x=op.sub_block[0]; x<(op.sub_block[0]+op.block_size[0]); x++) {
-      for (y=op.sub_block[1]; y<(op.sub_block[1]+op.block_size[1]); y++) {
-        for (z=op.sub_block[2]; z<(op.sub_block[2]+op.block_size[2]); z++) {
+     } else {
 
-          n_idx=0;
-          cell = getVertex(x,y,z);
+      // fuzz out a block
+      //
+      m_note_n[ m_note_plane ] = 0;
+      m_note_n[ 1 - m_note_plane  ] = 0;
 
-          orig_tile = getValI( BUF_TILE_IDX, 0, cell );
+      for (x=op.sub_block[0]; x<(op.sub_block[0]+op.block_size[0]); x++) {
+        for (y=op.sub_block[1]; y<(op.sub_block[1]+op.block_size[1]); y++) {
+          for (z=op.sub_block[2]; z<(op.sub_block[2]+op.block_size[2]); z++) {
 
-          for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
-            tile = m_block_admissible_tile[tile_idx];
-            SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+            n_idx=0;
+            cell = getVertex(x,y,z);
 
-            cellFillVisitedSingle ( cell, m_note_plane );
-            cellFillVisitedNeighbor ( cell, m_note_plane );
+            orig_tile = getValI( BUF_TILE_IDX, 0, cell );
 
-            n_idx++;
+            for (tile_idx=0; tile_idx < m_block_admissible_tile.size(); tile_idx++) {
+              tile = m_block_admissible_tile[tile_idx];
+              SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+
+              cellFillVisitedSingle ( cell, m_note_plane );
+              cellFillVisitedNeighbor ( cell, m_note_plane );
+
+              n_idx++;
+            }
+
+            SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+            // save original value
+            //
+            SetValI( BUF_BLOCK, orig_tile, cell );
+
           }
-
-          SetValI( BUF_TILE_IDX_N, n_idx, cell );
-
-          // save original value
-          //
-          SetValI( BUF_BLOCK, orig_tile, cell );
-
         }
       }
-    }
 
-    // reset visited from above so that constraint propagate
-    // can use it.
-    //
-    unfillVisited( m_note_plane  );
+      // reset visited from above so that constraint propagate
+      // can use it.
+      //
+      unfillVisited( m_note_plane  );
 
-    // propagate constraints to remove neighbor tiles,
-    // and count number resolved (only 1 tile val remain)
-    //
-    ret = cellConstraintPropagate();
-    if (ret < 0) { break; }
-    break;
+      // propagate constraints to remove neighbor tiles,
+      // and count number resolved (only 1 tile val remain)
+      //
+      ret = cellConstraintPropagate();
+      if (ret < 0) { break; }
+
+     } break;
 
   default:
     // bad algorithm choice error?
     //
     break;
   }
-
+  
   // measure elapsed time (in seconds)
   clock_t t2 = clock();
   st.elapsed_time += (double(t2) - t1) / CLOCKS_PER_SEC;
@@ -5276,9 +5317,18 @@ int BeliefPropagation::RealizePost(void) {
         printf("RealizePost: WFC_MMS m_return %i\n", (int)m_return);
       }
 
+      // detect wrap around and stop now
+      if (m_return == -5 ) {        
+
+        // indicate that map is complete.
+        ret = 0;
+
+      }
+
+      // for all other negative m_return indicates failure.
       // if wfc failed on the block, reset to previously known good state
       //
-      if (m_return < 0) {
+      else if (m_return < 0) {
 
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: MMS restore ([%i+%i][%i+%i][%i+%i] (MMS block fail) (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
@@ -5321,11 +5371,15 @@ int BeliefPropagation::RealizePost(void) {
 
 
         }
+        // continue with MMS
+        ret = 1;
 
       }
 
-      // else we accept move on
-      //
+      // else, we should have m_return==0 here
+      // because RealizeStep stopped iterating (we got to Post)
+      // and the block is complete. accept and move to next block
+      //      
       else {
 
         if (op.verbose >= VB_STEP) {
@@ -5337,6 +5391,8 @@ int BeliefPropagation::RealizePost(void) {
 
         op.seq_iter++;
         m_block_fail_count=0;
+        // continue
+        ret = 1;
       }
 
       // we're taking control away from the code at the bottom
@@ -5344,7 +5400,7 @@ int BeliefPropagation::RealizePost(void) {
       // so we need to do some housekeeping ourselves.
       //
       //op.cur_iter++;
-      ret = 1;
+      
       break;
 
     case ALG_CELL_ANY:
@@ -5402,6 +5458,10 @@ int BeliefPropagation::RealizePost(void) {
     // success only happens once in post. when fully done.
     st.success = (ret==0);
 
+    // check constraints for verification
+    ComputeTile0Field();
+    st.constraints = CheckConstraints ();
+
     if (op.verbose >= VB_MULTIRUN)
         printf ("%s", getStatMessage().c_str() );
   }
@@ -5432,8 +5492,8 @@ int BeliefPropagation::RealizePost(void) {
   
   // cur_iter is total number of realizepost completed (unconditional).
   // force stop if max_iter reached.
-  op.cur_iter++;
-  if (op.cur_iter >= op.max_iter) {
+  op.cur_iter++;  
+  if (op.cur_iter >= op.max_iter && op.max_iter > 0) {
      ret = -4;  
   } 
   return ret;
@@ -5445,12 +5505,13 @@ std::string BeliefPropagation::getStatMessage () {
   char msg[1024] = {0};
 
   snprintf ( msg, 1024,
-             "  RUN %s: %d/%d (run), %d (iter), GRID: %d,%d,%d, SEED: %d, Time(sec): %6.3f, Resolved: %d/%d (%4.1f%%)\n",              
+             "  RUN %s: %d/%d (run), %d (iter), GRID: %d,%d,%d, SEED: %d, Time(sec): %6.3f, Resolved: %d/%d (%4.1f%%), Constraints: %d\n",              
               ((st.success==1) ? "SUCCESS" : "FAIL   "),
               op.cur_run, op.max_run, op.cur_iter,
               op.X, op.Y, op.Z, op.seed,
               st.elapsed_time, 
-              st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts
+              st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts,
+              (int)st.constraints
             );
                
 
@@ -5479,14 +5540,15 @@ std::string BeliefPropagation::getStatCSV (int mode) {
   status = (st.post==1) ? -1 : (st.success==1) ? 1 : 0;
 
   if (mode==0) {
-    snprintf ( msg, 1024, "X, Y, Z, seed, run, max_run, iter, status, time(sec), resolved, verts, resolve%%" );
+    snprintf ( msg, 1024, "X, Y, Z, seed, run, max_run, iter, status, time(sec), resolved, verts, resolve%%, constraints" );
   } else {
-    snprintf ( msg, 1024, "%d, %d, %d, %d, %d, %d, %d, %d, %6.3f, %d, %d, %4.2f",
+    snprintf ( msg, 1024, "%d, %d, %d, %d, %d, %d, %d, %d, %6.3f, %d, %d, %4.2f, %d",
                 op.X, op.Y, op.Z, op.seed,
                 op.cur_run, op.max_run, op.cur_iter,
                 status,                
                 st.elapsed_time, 
-                st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts 
+                st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts ,
+                (int)st.constraints 
     );
   }
       
@@ -5611,70 +5673,80 @@ int BeliefPropagation::RealizeStep(void) {
 
   else if (op.alg_run_opt == ALG_RUN_MMS) {
 
-    // Here we run WFC on the block we've fuzzed
-    // Since the whole grid outside of the block we've fuzzed
-    // is in a 'ground state' (tile count exactly 1), we can
-    // run vanilla WFC without worrying about moving out of the
-    // block.
-    //
-    ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
-    m_return = ret;
+    // Check and bailout if we've hit max wrap count
+    if (op.max_iter < 0 && op.wrap_count >= abs(op.max_iter) ) {
 
-    if (ret >= 1) {
+      // indicate done, special value of m_return=-5
+      ret = 0;
+      m_return = -5;
 
-      // 1 = continue condition.
-      // display chosen cell
+    } else {
+
+      // Here we run WFC on the block we've fuzzed
+      // Since the whole grid outside of the block we've fuzzed
+      // is in a 'ground state' (tile count exactly 1), we can
+      // run vanilla WFC without worrying about moving out of the
+      // block.
       //
-      if (op.verbose >= VB_INTRASTEP ) {
-        vp = getVertexPos(cell);
-        n_idx = getValI ( BUF_TILE_IDX_N, cell );
-        printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs]\n",
-            (int)op.cur_iter,
-            (int)cell,
-            (int)vp.x, (int)vp.y, (int)vp.z,
-            (int)tile, 0.0, (int)tile_idx, (int)n_idx);
-      }
+      ret = chooseMinEntropy( &cell, &tile, &tile_idx, &belief);
+      m_return = ret;
 
-      // reset iter resolved and advance total
-      //
-      st.iter_resolved = 1;
-      st.total_resolved++;
+      if (ret >= 1) {
 
-      // collapse
-      //
-      _ret = tileIdxCollapse( cell, tile_idx );
-      if (_ret >= 0) {
-
-        m_note_n[ m_note_plane ] = 0;
-        m_note_n[ 1 - m_note_plane  ] = 0;
-
-        cellFillVisitedNeighbor ( cell, m_note_plane );
-        unfillVisited( m_note_plane  );
-
-        // propagate constraints to remove neighbor tiles,
-        // and count number resolved (only 1 tile val remain)
+        // 1 = continue condition.
+        // display chosen cell
         //
-        _ret = cellConstraintPropagate();        
+        if (op.verbose >= VB_INTRASTEP ) {
+          vp = getVertexPos(cell);
+          n_idx = getValI ( BUF_TILE_IDX_N, cell );
+          printf("RESOLVE it:%i cell:%i;[%i,%i,%i] tile:%i, belief:%f (tile_idx:%i / %i) [rs]\n",
+              (int)op.cur_iter,
+              (int)cell,
+              (int)vp.x, (int)vp.y, (int)vp.z,
+              (int)tile, 0.0, (int)tile_idx, (int)n_idx);
+        }
+
+        // reset iter resolved and advance total
+        //
+        st.iter_resolved = 1;
+        st.total_resolved++;
+
+        // collapse
+        //
+        _ret = tileIdxCollapse( cell, tile_idx );
+        if (_ret >= 0) {
+
+          m_note_n[ m_note_plane ] = 0;
+          m_note_n[ 1 - m_note_plane  ] = 0;
+
+          cellFillVisitedNeighbor ( cell, m_note_plane );
+          unfillVisited( m_note_plane  );
+
+          // propagate constraints to remove neighbor tiles,
+          // and count number resolved (only 1 tile val remain)
+          //
+          _ret = cellConstraintPropagate();        
+
+        }
+
+        // collapse failed
+        //
+        else {
+          ret = -2;
+          m_return = ret;
+        }
+
+        // ret inherits chooseMinEntropy return value (presumably 1)
+        // unless there's an error, in which case we propagate that
+        // value on
+        //
+        if (_ret < 0) {
+          ret = -3;
+          m_return = ret;
+          m_block_fail_count++;
+        }
 
       }
-
-      // collapse failed
-      //
-      else {
-        ret = -2;
-        m_return = ret;
-      }
-
-      // ret inherits chooseMinEntropy return value (presumably 1)
-      // unless there's an error, in which case we propagate that
-      // value on
-      //
-      if (_ret < 0) {
-        ret = -3;
-        m_return = ret;
-        m_block_fail_count++;
-      }
-
     }
 
   }
