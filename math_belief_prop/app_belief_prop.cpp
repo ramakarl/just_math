@@ -464,7 +464,8 @@ bool Sample::init()
 {
   int ret;
 
-  addSearchPath(ASSET_PATH);
+  addSearchPath( "assets" );
+  addSearchPath( ASSET_PATH );
 
   #ifdef USE_PERF
     PERF_INIT (64, true, false, true, 0, "" );
@@ -519,12 +520,11 @@ bool Sample::init()
 
   //-- Experiments  
 
-  
   bpc.expr.name = "pm";
-  bpc.expr.num_expr = 8;
-  bpc.expr.num_run = 10;
-  bpc.expr.grid_min.Set (20, 20, 1);
-  bpc.expr.grid_max.Set (60, 60, 1);
+  bpc.expr.num_expr = 30;
+  bpc.expr.num_run = 50;
+  bpc.expr.grid_min.Set (10, 10, 1);
+  bpc.expr.grid_max.Set (310, 310, 1);
   bpc.expr.maxstep_min = 10000;
   bpc.expr.maxstep_max = 10000;
   bpc.expr.steprate_min = 0.98;
@@ -534,8 +534,7 @@ bool Sample::init()
   bpc.st.instr = 0;
 
   bp_experiments ( bpc );
-  exit(-6);   
-    
+  exit(-6); 
    
   // Initiate Algorithm
   
