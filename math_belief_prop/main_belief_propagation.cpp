@@ -31,6 +31,12 @@
 //
 // Sample utils
 #include <algorithm>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+
 #include "mersenne.h"
 #include "dataptr.h"
 
@@ -497,6 +503,74 @@ void show_usage(FILE *fp) {
 
 void show_version(FILE *fp) {
   fprintf(fp, "bp version: %s\n", BELIEF_PROPAGATION_VERSION);
+
+
+}
+
+typedef struct rt_viz_type {
+  std::string fn;
+  int32_t viz_step_freq;
+  int32_t viz_op;
+  char fn_tmp[64];
+
+  int32_t counter;
+} rt_viz_t;
+
+int viz_gp_file(BeliefPropagation &bpc, rt_viz_t &rt_viz) {
+  int fd;
+  FILE *fp;
+  int32_t X, Y, Z,
+          ix, iy, iz;
+  int32_t ntile;
+  float ftile, maxtile;
+  int64_t cell;
+
+  strncpy( rt_viz.fn_tmp, "viz.gp.XXXXXX", 32 );
+
+  fd = mkstemp(rt_viz.fn_tmp);
+  if (fd<0) { return fd; }
+  fp = fdopen(fd, "w");
+  if (!fp) { return -1; }
+
+  //---
+
+  X = bpc.m_bpres.x;
+  Y = bpc.m_bpres.y;
+  Z = bpc.m_bpres.z;
+
+  maxtile = (float)bpc.m_num_values;
+
+  // keep palette static and stop grid from
+  // jumping when edges have beenr esolved.
+  //
+  fprintf(fp, "0 0 0 0\n%i %i %i 1\n", (int)X, (int)Y, (int)Z);
+
+  for (ix=0; ix<X; ix++) {
+    for (iy=0; iy<Y; iy++) {
+      for (iz=0; iz<Z; iz++) {
+
+        cell = bpc.getVertex(ix,iy,iz);
+        ntile = bpc.getValI( BUF_TILE_IDX_N, cell );
+
+        ftile = (float)ntile / maxtile;
+
+
+        if (ntile <= 1) { continue; }
+
+        fprintf(fp, "%i %i %i %f\n", ix, iy, iz, ftile);
+      }
+      fprintf(fp, "\n");
+    }
+    fprintf(fp, "\n");
+  }
+  fprintf(fp, "\n");
+
+  //---
+
+  fclose(fp);
+  rename( rt_viz.fn_tmp, rt_viz.fn.c_str() );
+
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -537,6 +611,10 @@ int main(int argc, char **argv) {
           tile=-1,
           tile_idx=-1 ;
 
+  rt_viz_t rt_viz;
+  int64_t step_counter=0;
+
+
   std::vector< std::vector< int32_t > > constraint_list;
   std::vector< std::vector< float > > tri_shape_lib;
 
@@ -549,11 +627,18 @@ int main(int argc, char **argv) {
 
   int arg=1;
 
+  rt_viz.fn = "viz.gp";
+  strncpy( rt_viz.fn_tmp, "viz.gp.XXXXXX", 32 );
+  rt_viz.viz_step_freq = -1;
+  rt_viz.viz_op = -1;
+  rt_viz.counter = 0;
+
+
   bpc.op.tiled_reverse_y = 0;
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
   bpc.op.eps_zero = 1.0/256.0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:t:f:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:t:f:@:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -729,11 +814,21 @@ int main(int argc, char **argv) {
         bpc.op.experiment_str = optarg;
         break;
 
+      case '@':
+        rt_viz.viz_op = 0;
+        rt_viz.viz_step_freq = 10;
+        break;
+
       default:
         show_usage(stderr);
         exit(-1);
         break;
     }
+  }
+
+  if (rt_viz.viz_op >= 0) {
+    printf("## RT_VIZ enabled\n");
+    //viz_gp_file(bpc, rt_viz);
   }
 
   if ((!name_fn) || (!rule_fn)) {
@@ -836,7 +931,7 @@ int main(int argc, char **argv) {
 
   //if (bpc.op.verbose > 0) { printf ( "bpc realize.\n" ); }
 
-  //------------ NOTE 
+  //------------ NOTE
   // should replace bpc.start() with bp_restart()
   // to avoid duplicate code in bp_helper
   //
@@ -869,6 +964,7 @@ int main(int argc, char **argv) {
 
   //for (it=0; it < n_it; it++) {
   while (1) {
+    rt_viz.counter++;
 
     if (it > 0) {
       ret = bpc.RealizePre();
@@ -876,15 +972,31 @@ int main(int argc, char **argv) {
         printf("RealizePre failed with %i (it:%i)\n", (int)ret, (int)it);
         break;
       }
+
+      if (rt_viz.viz_op>=0) { viz_gp_file(bpc, rt_viz); }
+
     }
 
     ret = 1;
+
+    step_counter=1;
     while (ret>0) {
       ret = bpc.RealizeStep();
+
+      step_counter++;
+
+      if (rt_viz.viz_op>=0) {
+        if ( (rt_viz.viz_step_freq > 0) &&
+             ((step_counter % rt_viz.viz_step_freq) == 0) ) {
+          viz_gp_file(bpc, rt_viz);
+        }
+      }
     }
 
     ret = bpc.RealizePost();
     if (ret <= 0) { break; }
+
+    if (rt_viz.viz_op>=0) { viz_gp_file(bpc, rt_viz); }
 
     if (bpc.m_return == 0) {
 

@@ -234,6 +234,34 @@ There are two main regions, the block choice and the block acceptance.
     that favor the small frustrated regions within a block to move
     towards a destination point (e.g. the center)
     
+---
+
+
+Entangled elastic constraints.
+
+Elastic constraints being contraints on configurations that are related to two or more locally frustrated
+regions with each frustrated region allowed to wander very far from each other.
+A canonical example of this is a self avoiding loop or path in 2d or 3d.
+The number of paths entering a region must be even.
+If a region gets into an arc consistent state but somehow could only resolve to an odd parity
+boundary, it's only way to resolve that contradiction is to pair up with another region that has
+the same issue.
+Presumably regions can wander and this is what is meant by elastic, as they might be satisfied
+locally or even start of local but then have the possibility of moving away from each other.
+
+They're entangled in a sense because the map will remain frustrated until they eventually wander
+into each other with the hope of resolution.
+
+The current snapshot of the code has three ideas to try and take advantage of this observation:
+
+* Instead of failing outright, allow for partially resolved blocks, biasing the center of
+  mass in a certain direction
+* Weight considered blocks heavier the further away from the rally point the blocks are
+  as the rally point will tend towards a high entropy state
+* Do the above process based on percentage of map completed, preferring it to do it when
+  the map has settled into its cooled entangled phase.
+
+
 
 Glossary
 ---

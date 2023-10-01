@@ -5070,7 +5070,7 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_BREAKOUT:
 
       if (op.verbose >= VB_STEP) {
-        printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int) m_return, sanityGroundState());
+        printf("RealizePost: BREAKOUT m_return: %2i (ground_state:%i)\n", (int) m_return, sanityGroundState());
       }
 
       // assume continue
@@ -5890,7 +5890,7 @@ int BeliefPropagation::RealizeStep(void) {
 
   // report everything that happened in step
   if (op.verbose >= VB_INTRASTEP ) {
-    printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
+    printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %2d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
   }
 
   // prep vis

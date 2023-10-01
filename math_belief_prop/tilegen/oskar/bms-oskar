@@ -1,0 +1,118 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+# To the extent possible under law, the person who associated CC0 with
+# this file has waived all copyright and related or neighboring rights
+# to this file.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+#
+# A note on usage:
+#
+# The 'name' and 'rule' files are required for a bpc run,
+# as is the X, Y, Z dimension.
+#
+# The 'map' or 'tiled_fn' is the output rendered to a tiled
+# JSON file, using the specified tileset_fn (path relative to
+# where the tiled JSON file is) and the stride is the tile
+# width.
+# Specifying the map file makes sure the output gets saved in
+# a reasonable way (otherwise you'd have to parse the 'verbose'
+# output to make a reasonable rendering of the output) and
+# the tileset_fn and stride are not technically needed but
+# are used to populate the appropriate JSON values in the tiled
+# file.
+#
+# The -J 'd 0` option culls the 0 tile.
+# The 0 (or 'null') tile is special in the 2D tileset contexts
+# of this sort and represent a tile that is not to be displayed
+# and on the border. Though it might not be an error to include
+# the null tiles as part of the choice in the bulk grid, the
+# intent is to restrict them, which is why the 'cull' option needs
+# to be set.
+#
+# Common Options:
+#
+#  -N         name file (CSV)
+#  -R         rule file (CSV)
+#  -M         (output) tiled file (JSON)
+#  -Q         tileset to use in the tiled file (png)
+#  -s         stride to use in the tiled file
+#  -[XYZ] <#> dimensional ordinals. Z should be 1 for the 2d tilesets
+#  -G <#>     fixing schedule. 2 is minimum entropy cell, choosing maximum belief
+#  -I <#>     maximum iteration count for a step in the belief propagation convergence
+#  -S <#>     seed
+#  -V <#>     verbosity level
+#
+
+
+bpc_bin="../../bpc"
+#bpc_bin="valgrind ../bpc.debug"
+
+mkdir -p log
+
+######
+######
+
+#name_fn="./oskar-pipe_name.csv"
+name_fn="./oskar-pipe_name_w.csv"
+rule_fn="./oskar-pipe_rule.csv"
+objloc_fn="./oskar-pipe_objloc.csv"
+stl_fn="./oskar-pipe.stl"
+
+echo "running 'oskar-pipe' breakout model synthesis, producing '$stl_fn'"
+echo "logfile in log/oskar_path.log"
+
+x=128
+y=2
+z=128
+
+b=8
+sn=`echo "$b*$b*$b*17" | bc`
+
+## start pipes are in X-Z plane
+## constraints are still a bit janky
+## but the idea is to remove start pipes
+## from the whole grid (d 1),
+## then force 0 for the X-Z Y=0 plane,
+## add the pipe start tile, then force it
+## at that position.
+## The cells can never be empty or else
+## we get a contradiciton, which is why
+## we're going through these contortions.
+##
+
+# four endpoints
+flt=` echo 'd 1 f[][0][] 0 a[1][0][1] 1 a[-2][0][-2] 1 a[-2][0][2] 1 a[3][0][-2] 1 ' \
+                  ' f[1][0][1] 1 f[-2][0][-2] 1 f[-2][0][2] 1 f[3][0][-2] 1'`
+
+# two endpoints
+flt=` echo 'd 1 f[][0][] 0 a[1][0][1] 1 a[-2][0][-2] 1 f[1][0][1] 1 f[-2][0][-2] 1'`
+
+$bpc_bin \
+  -N $name_fn \
+  -R $rule_fn \
+  -L $objloc_fn \
+  -M $stl_fn \
+  -X $x -Y $y -Z $z \
+  -t 1 \
+  -m 20 \
+  -q 1 \
+  -f 1 \
+  -b $b \
+  -G -8 \
+  -I $sn \
+  -J "$flt" \
+  -i 100000 \
+  -S 1234 \
+  -@ 123 \
+  -V 4 > log/oskar_path.log
+
+######
+######
+
+
