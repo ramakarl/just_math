@@ -1,0 +1,33 @@
+#!/bin/bash
+
+Z=1
+X=32
+Y=48
+
+it=10000
+
+for b in `seq 5 12` ; do
+
+  echo "#>>>> b$b"
+
+  ./bpc \
+    -N ./pillmortal_tilename.csv \
+    -R ./pillmortal_tilerule.csv \
+    -X $X \
+    -Y $Y \
+    -Z $Z \
+    -f 1 -q 1 \
+    -S 1234 \
+    -I 1024 \
+    -i 10000 \
+    -J 'd 0' \
+    -G -8 \
+    -b $b \
+    -s 8 \
+    -Q ./pillmortal_tileset.png \
+    -M pillmortal_bms_i${it}_b${b}  \
+    -V 2
+done
+
+
+

@@ -4505,10 +4505,6 @@ int BeliefPropagation::RealizePre(void) {
         end_s[1] = m_bpres.y - op.block_size[1];
         end_s[2] = m_bpres.z - op.block_size[2];
 
-        //iz = op.cur_iter / (op.block_idx[0] * op.block_idx[1]);
-        //iy = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
-        //ix = ( op.cur_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
-
         iz = op.seq_iter / (op.block_idx[0] * op.block_idx[1]);
         iy = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) ) / (op.block_idx[0]) ;
         ix = ( op.seq_iter - (iz * op.block_idx[0] * op.block_idx[1]) - (iy * op.block_idx[0]) );
@@ -4566,9 +4562,7 @@ int BeliefPropagation::RealizePre(void) {
 
       else if ((op.block_schedule == OPT_BLOCK_MIN_ENTROPY) ||
                (op.block_schedule == OPT_BLOCK_NOISY_MIN_ENTROPY)) {
-
         pickMinEntropyNoiseBlock();
-
       }
 
       else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
@@ -4609,15 +4603,12 @@ int BeliefPropagation::RealizePre(void) {
   //
   else { }
 
-  
   // [optional] Jitter Block
   // jitter can occur regardless of block scheduling above.
   //  
   if (op.jitter_block > 0 ) {    
     jitterBlock ();
   }
-
-
 
   //-----------
   //----------- REALIZEPRE - ALG SECTION
@@ -5123,7 +5114,7 @@ int BeliefPropagation::RealizePost(void) {
     case ALG_CELL_BREAKOUT:
 
       if (op.verbose >= VB_STEP) {
-        printf("RealizePost: BREAKOUT m_return: %i (ground_state:%i)\n", (int) m_return, sanityGroundState());
+        printf("RealizePost: BREAKOUT m_return: %2i (ground_state:%i)\n", (int) m_return, sanityGroundState());
       }
 
       // assume continue
@@ -5179,31 +5170,32 @@ int BeliefPropagation::RealizePost(void) {
                 (int)op.sub_block[2], (int)op.block_size[2]);
           }
 
-          // assume neighbor blocks to soften are same size as center block that was
-          // attempting to be fixed
+          // Assume neighbor blocks to soften are same size as center block that was
+          // attempting to be fixed.
+          // Adjust soften range dynamically
           //
-          
-          /*_soften_bounds[0] = op.sub_block[0] - op.block_size[0];
-          _soften_bounds[1] = op.sub_block[0] + (2*op.block_size[0]);
-
-          _soften_bounds[2] = op.sub_block[1] - op.block_size[1];
-          _soften_bounds[3] = op.sub_block[1] + (2*op.block_size[1]);
-
-          _soften_bounds[4] = op.sub_block[2] - op.block_size[2];
-          _soften_bounds[5] = op.sub_block[2] + (2*op.block_size[2]);*/
-
-          // adjust soften range dynamically
           if (op.adaptive_soften) {
-              if (m_last_fail_count < 10 ) m_soften_range--;
-              if (m_last_fail_count > 15 ) m_soften_range++;
-              if (m_soften_range < 1) m_soften_range = 1;
-              if (m_soften_range > op.block_size[0]) m_soften_range = op.block_size[0];
-              printf ( "Adaptive soften. last_fail_count=%d, soften_range=%d\n", m_last_fail_count, m_soften_range );              
+
+            // adapt
+            //
+            if (m_last_fail_count < 10 ) { m_soften_range--; }
+            if (m_last_fail_count > 15 ) { m_soften_range++; }
+
+            // clamp
+            //
+            if (m_soften_range < 1) { m_soften_range = 1; }
+            if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
+
+            if (op.verbose >= VB_STEP) {
+              printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+            }
+
           } else {
-              m_soften_range = op.block_size[0];
+            m_soften_range = op.block_size[0];
           }
 
           // this soften counts as a last failure (if no success on previous soften)
+          //
           m_last_fail_count = 20;       
 
           _soften_bounds[0] = op.sub_block[0] - m_soften_range;
@@ -5522,7 +5514,7 @@ std::string BeliefPropagation::getStatMessage () {
               op.X, op.Y, op.Z, op.seed,
               st.elapsed_time, 
               st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts,
-              st.constraints
+              (int)st.constraints
             );
                
 
@@ -5559,7 +5551,7 @@ std::string BeliefPropagation::getStatCSV (int mode) {
                 status,                
                 st.elapsed_time, 
                 st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts ,
-                st.constraints 
+                (int)st.constraints 
     );
   }
       
@@ -5793,7 +5785,7 @@ int BeliefPropagation::RealizeStep(void) {
 
     if (ret >= 1) {
 
-      if (op.verbose >= VB_STEP ) msg += "cell choosen, continue";
+      if (op.verbose >= VB_INTRASTEP ) msg += "cell choosen, continue";
       
       // 1 = continue condition.
       // display chosen cell
@@ -5819,7 +5811,7 @@ int BeliefPropagation::RealizeStep(void) {
 
       if (_ret >= 0) {
 
-        if (op.verbose >= VB_STEP ) msg += ", collapse ok";
+        if (op.verbose >= VB_INTRASTEP ) msg += ", collapse ok";
 
         m_note_n[ m_note_plane ] = 0;
         m_note_n[ 1 - m_note_plane  ] = 0;
@@ -5837,12 +5829,12 @@ int BeliefPropagation::RealizeStep(void) {
             // usually due to no remaining tile vals left that match neighbors,
             // resulting in block failure. 
             Vector3DI v = getErrorCell();
-            if (op.verbose >= VB_STEP ) {
+            if (op.verbose >= VB_INTRASTEP ) {
                 printf ( "  Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
             }
-          if (op.verbose >= VB_STEP ) msg += ", propagate FAIL";
+          if (op.verbose >= VB_INTRASTEP ) { msg += ", propagate FAIL"; }
         } else {
-          if (op.verbose >= VB_STEP ) msg += ", propagate ok";
+          if (op.verbose >= VB_INTRASTEP ) { msg += ", propagate ok"; }
         }
 
       }
@@ -5851,7 +5843,7 @@ int BeliefPropagation::RealizeStep(void) {
       //
       else {
 
-        if (op.verbose >= VB_STEP ) msg += ", collapse FAIL";
+        if (op.verbose >= VB_INTRASTEP ) { msg += ", collapse FAIL"; }
 
         ret = -2;
 
@@ -5863,7 +5855,7 @@ int BeliefPropagation::RealizeStep(void) {
       //
       if (_ret < 0) {
         
-        if (op.verbose >= VB_STEP ) msg += ", ERROR TO POST";
+        if (op.verbose >= VB_INTRASTEP ) { msg += ", ERROR TO POST"; }
 
         //m_breakout_block_fail_count++;
         m_block_fail_count++;
@@ -5877,7 +5869,7 @@ int BeliefPropagation::RealizeStep(void) {
     //
     else if (ret == 0 ) {
 
-      if (op.verbose >= VB_STEP ) msg += "block realized";
+      if (op.verbose >= VB_INTRASTEP ) { msg += "block realized"; }
 
     }
     
@@ -5894,7 +5886,7 @@ int BeliefPropagation::RealizeStep(void) {
     //
     else if (ret < 0) {
 
-      if (op.verbose >= VB_STEP ) msg += ", chooseMinEntropy FAIL";
+      if (op.verbose >= VB_INTRASTEP ) { msg += ", chooseMinEntropy FAIL"; }
 
       m_block_fail_count++;
 
@@ -5926,7 +5918,7 @@ int BeliefPropagation::RealizeStep(void) {
                 // if distance is reduced. accept the block early.
                 if (curr_dist < prev_dist) {
 
-                  if (op.verbose >= VB_STEP ) msg += ", mass_entropy FORCE SUCCESS";
+                  if (op.verbose >= VB_INTRASTEP ) { msg += ", mass_entropy FORCE SUCCESS"; }
 
                   m_return = 0;         
                   ret = 0;
@@ -5965,15 +5957,15 @@ int BeliefPropagation::RealizeStep(void) {
   if ( ret==1 ) {
     if (op.cur_step >= op.max_step )  { 
 
-      if (op.verbose >= VB_STEP ) msg += ", STOP MAX STEP";
+      if (op.verbose >= VB_INTRASTEP ) { msg += ", STOP MAX STEP"; }
 
       ret = -2; 
     }
   }
 
   // report everything that happened in step
-  if (op.verbose >= VB_STEP ) {
-    printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
+  if (op.verbose >= VB_INTRASTEP ) {
+    printf ( "  RealizeStep: ret: %d, _ret: %d, m_return: %2d, msg: %s\n", ret, _ret, m_return, msg.c_str() );
   }
 
   // prep vis

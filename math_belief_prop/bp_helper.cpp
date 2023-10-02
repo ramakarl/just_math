@@ -682,7 +682,7 @@ int bp_experiments ( BeliefPropagation& bpc ) {
           (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
           (int)bpc.op.max_run, 
           total_success, pct_success, 
-          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          (long long int)total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
           total_time,    ave_time);
     }
 
@@ -690,7 +690,7 @@ int bp_experiments ( BeliefPropagation& bpc ) {
           (int)bpc.op.X, (int)bpc.op.Y, (int)bpc.op.Z, (int)bpc.m_num_values, bpc.op.seed,
           (int)bpc.op.max_run, 
           total_success, pct_success, 
-          total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
+          (long long int)total_resolve, ave_resolve, 100*ave_resolve/bpc.m_num_verts,
           total_time,    ave_time);
 
     // proper flush
