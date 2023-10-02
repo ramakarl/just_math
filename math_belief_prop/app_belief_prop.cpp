@@ -122,6 +122,7 @@ public:
   bool      m_run;  
   bool      m_save;
   bool      m_draw_tileset;
+  int       m_draw_boxes;
   bool      m_stop_on_error;
   float     m_scaling_2D;  
   int       m_frame;  
@@ -488,6 +489,7 @@ bool Sample::init()
   m_frame     = 0;  
   m_save      = false;  // save to disk
   m_draw_tileset = false;
+  m_draw_boxes = 1;
   m_scaling_2D = 2;
 
   m_cam = new Camera3D;
@@ -642,6 +644,7 @@ void Sample::DrawTileMap ()
     int th = bpc.op.tileset_stride_y * m_scaling_2D;
     float num_tiles = bpc.getNumValues(0);
     float alpha;
+    Vector3DI bmin, bmax;
 
     // draw fog box
     drawFill ( 0, 0, bpc.op.X*tw, bpc.op.Y*th, .8,.8,.8,1 );
@@ -659,12 +662,27 @@ void Sample::DrawTileMap ()
             }
         }
     }
-    
-    // draw error cell
-    Vector3DI bmin = bpc.getErrorCell();
-    drawFill ( bmin.x, bmin.y, bmin.x+1, bmin.y+1, 1, 0, 1, 1);  
-
     end2D();
+    
+    // draw optional boxes
+    if (m_draw_boxes > 0) {
+      start2D();
+
+        // draw current block
+        if ( m_draw_boxes==1 || m_draw_boxes==2) {
+          bpc.getCurrentBlock ( bmin, bmax );
+          drawRect ( bmin.x*tw, bmin.y*th, (bmax.x+1)*tw, (bmax.y+1)*th, 1,1,1,1 );
+        }
+
+        // draw error cell       
+        if ( m_draw_boxes==1 || m_draw_boxes==3) {
+          bmin = bpc.getErrorCell();
+          //printf ( "%d %d %\n", bmin.x, bmin.y, bmin.z);
+          drawFill ( bmin.x*tw, bmin.y*th, (bmin.x+1)*tw, (bmin.y+1)*th, 1, 0, 0, 1);  
+        }
+        
+      end2D(); 
+    }
 }
 
 void Sample::DrawGrid3D ()
@@ -777,7 +795,9 @@ void Sample::display()
 
   //--------- Visualization
 
-  int cadence = 1;
+  int cadence = 10;
+
+  //Sleep (100);
 
 
   // render cadence every 5 steps for perf
@@ -920,8 +940,8 @@ void Sample::mousewheel(int delta)
 
   m_cam->SetOrbit(m_cam->getAng(), m_cam->getToPos(), dist, dolly);
 
-  m_scaling_2D += (delta > 0) ? 0.1 : -0.1;
-  if (m_scaling_2D < 0.1 ) m_scaling_2D = 0.1;
+  m_scaling_2D += (delta > 0) ? 0.05 : -0.05;
+  if (m_scaling_2D < 0.05 ) m_scaling_2D = 0.05;
 }
 
 
@@ -932,8 +952,14 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
   switch (keycode) {
 
   case 'x':
-      bpc.op.entropy_bias = 1 - bpc.op.entropy_bias;
-      printf ("entropy_bias: %d\n", bpc.op.entropy_bias);
+      bpc.op.jitter_block = (bpc.op.jitter_block==0) ? 3 : 0;
+      printf ("jitter: %d\n", bpc.op.jitter_block);
+   //   bpc.op.entropy_bias = 1 - bpc.op.entropy_bias;
+   //  printf ("entropy_bias: %d\n", bpc.op.entropy_bias);
+      break;
+  case 'b':
+      m_draw_boxes++;
+      if (m_draw_boxes > 3) m_draw_boxes = 0;
       break;
 
   case 'w':  

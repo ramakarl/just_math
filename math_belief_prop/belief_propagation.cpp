@@ -3358,6 +3358,9 @@ void BeliefPropagation::ResetStats () {
   st.time_updatemu = 0;
 
   st.constraints = -1;
+
+  m_error_cell = -1000000;
+  m_error_cause = -1000000;
 }
 
 

@@ -474,7 +474,7 @@ public:
     //m_breakout_soften_limit = 10;
 
     m_block_fail_count = 0;
-    m_block_retry_limit = 20;
+    m_block_retry_limit = 10;
 
     op.viz_opt = VIZ_TILE0;
 
