@@ -647,7 +647,7 @@ void Sample::DrawTileMap ()
     Vector3DI bmin, bmax;
 
     // draw fog box
-    drawFill ( 0, 0, bpc.op.X*tw, bpc.op.Y*th, .8,.8,.8,1 );
+    drawFill ( 0, 0, bpc.op.X*tw, bpc.op.Y*th, 1,.5,.5,1 );
 
     // draw tiles
     for (int y=0; y < bpc.op.Y; y++) {
@@ -795,9 +795,9 @@ void Sample::display()
 
   //--------- Visualization
 
-  int cadence = 10;
+  int cadence = 1;
 
-  //Sleep (100);
+  //Sleep (10);
 
 
   // render cadence every 5 steps for perf
@@ -845,9 +845,9 @@ void Sample::display()
           end3D();
           #endif 
   
-      } else {
-          // 2D visualize
-          
+      } else if (m_viz == VIZ_TILES_2D) {
+
+          // 2D visualize          
 
           #ifdef USE_OPENGL
      
@@ -870,6 +870,16 @@ void Sample::display()
           }                 
 
           #endif 
+
+      } else {
+          // no visualization (fastest)         
+          clearGL();
+          start2D();
+          setview2D(getWidth(), getHeight());
+          char msg[1024];
+          sprintf ( msg, "NO VIZ. %s\n", bpc.getStatMessage().c_str());
+          drawText ( 20, 20, msg, 1,1,1,1);
+          end2D();
       }
 
       // Complete rendering
@@ -998,12 +1008,12 @@ void Sample::keyboard(int keycode, AppEnum action, int mods, int x, int y)
 
   case ',':  
       m_viz--; 
-      if (m_viz < 1) m_viz = 6;
+      if (m_viz < 0) m_viz = 6;
       bpc.SetVis ( m_viz );
       break;
   case '.':  
       m_viz++; 
-      if (m_viz > 6) m_viz = 1;  
+      if (m_viz > 6) m_viz = 0;
       bpc.SetVis ( m_viz );
       break;
   case 's':

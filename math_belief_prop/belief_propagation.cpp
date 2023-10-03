@@ -4189,8 +4189,8 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         op.entropy_radius -= 1.0 / max_dist;
         if (op.entropy_radius < 0) op.entropy_radius = 0;
     }
-    printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
-    printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
+    //printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
+    //printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
   }  
 
   for (z=0; z<n_b[2]; z++) {

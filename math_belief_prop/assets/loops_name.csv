@@ -1,0 +1,8 @@
+#tile_id, tile_name, tile_prob
+0, 01_air_0,1
+1, 02_rail_bend_0,1
+2, 02_rail_bend_1,1
+3, 02_rail_bend_2,1
+4, 02_rail_bend_3,1
+5, 03_rail_straight_0,1
+6, 03_rail_straight_1,1
