@@ -638,7 +638,7 @@ int main(int argc, char **argv) {
   bpc.op.alpha = 0.5;
   bpc.op.alg_idx = 0;
   bpc.op.eps_zero = 1.0/256.0;
-  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:t:f:@:")) != EOF) {
+  while ((ch=pd_getopt(argc, argv, "hvdV:r:e:z:I:i:N:R:C:T:D:X:Y:Z:S:A:G:w:EBQ:M:s:c:uJ:L:lb:j:m:a:q:U:t:f:@:x:")) != EOF) {
     switch (ch) {
       case 'h':
         show_usage(stdout);
@@ -817,6 +817,9 @@ int main(int argc, char **argv) {
       case '@':
         rt_viz.viz_op = 0;
         rt_viz.viz_step_freq = 10;
+        break;
+      case 'x':
+        bpc.op.entropy_bias = 2;
         break;
 
       default:

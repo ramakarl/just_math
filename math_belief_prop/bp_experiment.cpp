@@ -347,17 +347,33 @@ int bp_correlation_experiment(BeliefPropagation &bpc,
   else if (op3 == "3d") {
 
     int lf=0;
-    for (x=0; x<bpc.m_bpres.x; x++) {
+    for (z=0; z<bpc.m_bpres.z; z++) {
       lf=0;
-      for (y=0; y<bpc.m_bpres.y; y++) {
+      for (x=0; x<bpc.m_bpres.x; x++) {
         lf=0;
-        for (z=0; z<bpc.m_bpres.z; z++) {
-
+        for (y=0; y<bpc.m_bpres.y; y++) {
           if (grid_sum[x][y][z] > 0) {
             printf("%i %i %i %i\n", (int)x, (int)y, (int)z, (int)grid_sum[x][y][z]);
             lf=1;
           }
+        }
+        if (lf) { printf("\n"); }
+      }
+      if (lf) { printf("\n"); }
+    }
 
+    printf("\n");
+
+    lf=0;
+    for (z=0; z<bpc.m_bpres.z; z++) {
+      lf=0;
+      for (y=0; y<bpc.m_bpres.y; y++) {
+        lf=0;
+        for (x=0; x<bpc.m_bpres.x; x++) {
+          if (grid_sum[x][y][z] > 0) {
+            printf("%i %i %i %i\n", (int)x, (int)y, (int)z, (int)grid_sum[x][y][z]);
+            lf=1;
+          }
         }
         if (lf) { printf("\n"); }
       }

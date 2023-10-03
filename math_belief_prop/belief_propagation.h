@@ -674,6 +674,7 @@ public:
   int sanityBreakoutSavedTileGrid(void);
   int sanityBreakoutStatBlock(std::vector<int32_t> &_debug_stat, int32_t *_bounds);
   int sanityGroundState(void);
+  int sanityArcConsistency(void);
 
 
   // number of fixed tiles (only 1 tile in cell)
@@ -750,6 +751,9 @@ public:
   int btPush(int64_t, int64_t, int64_t);
   int btUnwind(int64_t);
 
+  // terse version for exposition
+  //
+  int __cellConstraintPropagate();
 
   //-------------------------- debugging functions
 
@@ -757,6 +761,7 @@ public:
   //
   void  debugPrint();
   void  debugPrintTerse(int buf_idx=BUF_TILE_IDX);
+  void  debugPrintTerseBlock(int32_t x_s, int32_t x_n, int32_t y_s, int32_t y_n, int32_t z_s, int32_t z_n, int buf_idx=BUF_TILE_IDX);
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
