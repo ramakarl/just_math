@@ -4153,7 +4153,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   float pct_solved = float(op.solved_tile_cnt)/getNumVerts();  
 
   // mass entropy biasing
-  if (op.entropy_bias) {
+  if (op.entropy_bias && pct_solved > op.entropy_pct) {
 
     // entropy bias preparation        
     max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
@@ -4212,7 +4212,7 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
         tmp_noise = df;
 
-        if (op.entropy_bias && pct_solved > 0.95) {
+        if (op.entropy_bias && pct_solved > op.entropy_pct) {
             dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
             
             if (dist < op.entropy_radius - block_r)
@@ -5904,11 +5904,11 @@ int BeliefPropagation::RealizeStep(void) {
       //   then we accept the block early with some probability.
       if (ret==1) {    
         float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
-        if (pct_solved > 0.95 ) {
+        if (pct_solved > op.entropy_pct ) {
           getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
           if (op.prev_block_mass > 0 && op.curr_block_mass > 0) {
             float prob = m_rand.randF();
-            if (prob > 0.50) {
+            if (prob < op.entropy_flip ) {
                 Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
               
                 // compare previous & solved entropy center-of-mass to map center
