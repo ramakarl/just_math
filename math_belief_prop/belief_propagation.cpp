@@ -5187,13 +5187,17 @@ int BeliefPropagation::RealizePost(void) {
       else if (m_return < 0) {
 
         // block failed. restore.
+        //
         if (op.verbose >= VB_STEP) {
-          printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
+          printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)"
+              " (m_batch_fail_count:%i / m_batch_retry_size:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_block_fail_count,
-              (int)m_block_retry_limit);
+              (int)m_block_retry_limit,
+              (int)m_batch_fail_count,
+              (int)m_batch_retry_size);
         }
 
         // before we soften, we need to restore the grid state to before we started mucking
@@ -5201,188 +5205,200 @@ int BeliefPropagation::RealizePost(void) {
         //
         _restoreTileIdx();
 
-        // SOFTEN phase
+        // Soften is often an extreme event, so to try and give
+        // it a chance to work on some areas that it could
+        // make progress on, only do a soften after it's bounced
+        // around on a bunch of different blocks and still hasn't
+        // found anyting to go through with the soften step.
         //
         if (m_block_fail_count >= m_block_retry_limit) {
-          op.seq_iter++;
-          st.num_soften++;
-          m_block_fail_count = 0;
+          m_batch_fail_count++;
 
           if (op.verbose >= VB_STEP) {
-            printf("RealizePost: BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+            printf("RealizePost: BREAKOUT-batch-end ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)"
+                " (m_batch_fail_count:%i / m_batch_retry_size:%i)\n",
                 (int)op.sub_block[0], (int)op.block_size[0],
                 (int)op.sub_block[1], (int)op.block_size[1],
-                (int)op.sub_block[2], (int)op.block_size[2]);
+                (int)op.sub_block[2], (int)op.block_size[2],
+                (int)m_block_fail_count,
+                (int)m_block_retry_limit,
+                (int)m_batch_fail_count,
+                (int)m_batch_retry_size);
           }
 
-          // Assume neighbor blocks to soften are same size as center block that was
-          // attempting to be fixed.
-          // Adjust soften range dynamically
+          op.seq_iter++;
+          m_block_fail_count = 0;
+
+          // SOFTEN phase
+          // We've tried m_batch_block_size number of blocks, all m_block_retry_limit
+          // times, all to no success...now we soften.
           //
-          if (op.adaptive_soften) {
+          if (m_batch_fail_count >= m_batch_retry_size) {
 
-            // adapt
-            //
-            if (m_last_fail_count < 10 ) { m_soften_range--; }
-            if (m_last_fail_count > 15 ) { m_soften_range++; }
-
-            // clamp
-            //
-            if (m_soften_range < 1) { m_soften_range = 1; }
-            if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
+            m_batch_fail_count = 0;
+            st.num_soften++;
 
             if (op.verbose >= VB_STEP) {
-              printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+              printf("RealizePost: BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+                  (int)op.sub_block[0], (int)op.block_size[0],
+                  (int)op.sub_block[1], (int)op.block_size[1],
+                  (int)op.sub_block[2], (int)op.block_size[2]);
             }
 
-          } else {
-            m_soften_range = op.block_size[0];
-          }
+            // Assume neighbor blocks to soften are same size as center block that was
+            // attempting to be fixed.
+            // Adjust soften range dynamically
+            //
+            if (op.adaptive_soften) {
 
-          // this soften counts as a last failure (if no success on previous soften)
-          //
-          m_last_fail_count = 20;
+              // adapt
+              //
+              if (m_last_fail_count < 10 ) { m_soften_range--; }
+              if (m_last_fail_count > 15 ) { m_soften_range++; }
 
-          _soften_bounds[0] = op.sub_block[0] - m_soften_range;
-          _soften_bounds[1] = op.sub_block[0] + op.block_size[0] + m_soften_range;
+              // clamp
+              //
+              if (m_soften_range < 1) { m_soften_range = 1; }
+              if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
 
-          _soften_bounds[2] = op.sub_block[1] - m_soften_range;
-          _soften_bounds[3] = op.sub_block[1] + op.block_size[1] + m_soften_range;
+              if (op.verbose >= VB_STEP) {
+                printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+              }
 
-          _soften_bounds[4] = op.sub_block[2] - m_soften_range;
-          _soften_bounds[5] = op.sub_block[2] + op.block_size[2] + m_soften_range;
-
-          if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
-          if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
-          if (_soften_bounds[4] < 0) { _soften_bounds[4] = 0; }
-
-          if (_soften_bounds[1] >= m_bpres.x) { _soften_bounds[1] = m_bpres.x; }
-          if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
-          if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
-
-          if (op.verbose >= VB_STEP) {
-            printf("RealizePost: BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
-                (int)_soften_bounds[0], (int)_soften_bounds[1],
-                (int)_soften_bounds[2], (int)_soften_bounds[3],
-                (int)_soften_bounds[4], (int)_soften_bounds[5]);
-          }
-
-          //printf("### DEBUG BEFORE ###\n");
-          //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
-          //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
-          //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
-          //printf("### DEBUG BEFORE ###\n");
-
-
-
-          m_note_n[ m_note_plane ] = 0;
-          m_note_n[ 1 - m_note_plane  ] = 0;
-
-          for (z=_soften_bounds[4]; z<_soften_bounds[5]; z++) {
-            for (y=_soften_bounds[2]; y<_soften_bounds[3]; y++) {
-              for (x=_soften_bounds[0]; x<_soften_bounds[1]; x++) {
-
-                cell = getVertex(x,y,z);
-                n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
-
-                // reverse a solved cell cnt
-                prev_n = getValI( BUF_TILE_IDX_N, cell );
-                if ( prev_n==1 && n_idx > 1) op.solved_tile_cnt--;
-
-                // reset to prefatory state
-                for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
-                  tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
-                  SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
-                }
-                SetValI( BUF_TILE_IDX_N, n_idx, cell );
-
-                // note visted for constraint-prop
-                cellFillVisitedSingle ( cell, m_note_plane );
-                cellFillVisitedNeighbor ( cell, m_note_plane );              }
+            } else {
+              m_soften_range = op.block_size[0];
             }
-          }
 
-          //printf("### DEBUG AFTER ###\n");
-          //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
-          //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
-          //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
-          //printf("### DEBUG AFTER ###\n");
+            // this soften counts as a last failure (if no success on previous soften)
+            //
+            m_last_fail_count = 20;
 
-          //if (op.verbose >= VB_DEBUG) {
-            sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
-            printf("## RealizePost: breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+            _soften_bounds[0] = op.sub_block[0] - m_soften_range;
+            _soften_bounds[1] = op.sub_block[0] + op.block_size[0] + m_soften_range;
+
+            _soften_bounds[2] = op.sub_block[1] - m_soften_range;
+            _soften_bounds[3] = op.sub_block[1] + op.block_size[1] + m_soften_range;
+
+            _soften_bounds[4] = op.sub_block[2] - m_soften_range;
+            _soften_bounds[5] = op.sub_block[2] + op.block_size[2] + m_soften_range;
+
+            if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
+            if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
+            if (_soften_bounds[4] < 0) { _soften_bounds[4] = 0; }
+
+            if (_soften_bounds[1] >= m_bpres.x) { _soften_bounds[1] = m_bpres.x; }
+            if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
+            if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
+
+            if (op.verbose >= VB_STEP) {
+              printf("RealizePost: BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
                   (int)_soften_bounds[0], (int)_soften_bounds[1],
                   (int)_soften_bounds[2], (int)_soften_bounds[3],
-                  (int)_soften_bounds[4], (int)_soften_bounds[5],
-                  (int)_debug_stat[0], (int)_debug_stat[1]);
+                  (int)_soften_bounds[4], (int)_soften_bounds[5]);
+            }
 
-          //}
+            //printf("### DEBUG BEFORE ###\n");
+            //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
+            //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
+            //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
+            //printf("### DEBUG BEFORE ###\n");
 
 
-          // reset visited from above so that constraint propagate
-          // can use it.
-          //
-          unfillVisited( m_note_plane  );
 
-          // if the constraint propgation fails, we're in a bad state
-          // as we should have been in an even more unrestricted state
-          // before we started since we restored from a previously
-          // arc consistent state and now we've softened (made wildcard)
-          // the block and it's neighbors in question.
-          //
-          ret = cellConstraintPropagate();
-          if (ret < 0) {
-              printf ( "*** SOFTEN FAIL ***\n" );
-              op.cur_iter++;
-          }
+            m_note_n[ m_note_plane ] = 0;
+            m_note_n[ 1 - m_note_plane  ] = 0;
 
-        }
+            for (z=_soften_bounds[4]; z<_soften_bounds[5]; z++) {
+              for (y=_soften_bounds[2]; y<_soften_bounds[3]; y++) {
+                for (x=_soften_bounds[0]; x<_soften_bounds[1]; x++) {
 
-      }
+                  cell = getVertex(x,y,z);
+                  n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+
+                  // reverse a solved cell cnt
+                  prev_n = getValI( BUF_TILE_IDX_N, cell );
+                  if ( prev_n==1 && n_idx > 1) op.solved_tile_cnt--;
+
+                  // reset to prefatory state
+                  for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+                    tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+                    SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+                  }
+                  SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+                  // note visted for constraint-prop
+                  cellFillVisitedSingle ( cell, m_note_plane );
+                  cellFillVisitedNeighbor ( cell, m_note_plane );
+
+                }
+              }
+            }
+
+            //printf("### DEBUG AFTER ###\n");
+            //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
+            //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
+            //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
+            //printf("### DEBUG AFTER ###\n");
+
+            //if (op.verbose >= VB_DEBUG) {
+              sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
+              printf("## RealizePost: breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+                    (int)_soften_bounds[0], (int)_soften_bounds[1],
+                    (int)_soften_bounds[2], (int)_soften_bounds[3],
+                    (int)_soften_bounds[4], (int)_soften_bounds[5],
+                    (int)_debug_stat[0], (int)_debug_stat[1]);
+
+            //}
+
+
+            // reset visited from above so that constraint propagate
+            // can use it.
+            //
+            unfillVisited( m_note_plane  );
+
+            // if the constraint propgation fails, we're in a bad state
+            // as we should have been in an even more unrestricted state
+            // before we started since we restored from a previously
+            // arc consistent state and now we've softened (made wildcard)
+            // the block and it's neighbors in question.
+            //
+            ret = cellConstraintPropagate();
+            if (ret < 0) {
+                printf ( "*** SOFTEN FAIL ***\n" );
+                op.cur_iter++;
+            }
+
+          } // soften condition
+
+        } // batch retry code block
+
+      }  // m_return < 0 code block
 
       if ( ret >= 0 ) {
-          // no error..
 
-          // Whether we've softened or accepted the block, we're finished.
-          // We're taking control away from the code at the bottom
-          // since we're not resolving a single cell/tile now,
-          // so we need to do some housekeeping ourselves.
-          //
+        // no error..
+        // Whether we've softened or accepted the block, we're finished.
+        // slow way to check to see if we've converged
+        //
+        if (numFixed() == m_num_verts)  { ret = 0; }
+        else                            { ret = 1; }
 
-          //op.cur_iter++;
-
-          // slow way to check to see if we've converged
-          //
-          if (numFixed() == m_num_verts) {
-            ret = 0;
-
-          } else {
-            ret = 1;
-          }
       }
 
       break;
 
     case ALG_CELL_MMS:
 
-
-      // TODO: potentially check for iteration count.
-      // There's a check on the outer loop (in main)
-      // to only iteration for a certain number but it
-      // should probably go here as well.
-      //
-      // For now, just return 1 (continue) so that
-      // it's handled at a higher level.
-      //
-
       if (op.verbose >= VB_STEP) {
         printf("RealizePost: WFC_MMS m_return %i\n", (int)m_return);
       }
 
       // detect wrap around and stop now
+      //
       if (m_return == -5 ) {
 
         // indicate that map is complete.
+        //
         ret = 0;
 
       }
@@ -5738,9 +5754,12 @@ int BeliefPropagation::RealizeStep(void) {
   else if (op.alg_run_opt == ALG_RUN_MMS) {
 
     // Check and bailout if we've hit max wrap count
-    if (op.max_iter < 0 && op.wrap_count >= abs(op.max_iter) ) {
+    //
+    if ( (op.max_iter < 0) &&
+         (op.wrap_count >= abs(op.max_iter)) ) {
 
       // indicate done, special value of m_return=-5
+      //
       ret = 0;
       m_return = -5;
 
