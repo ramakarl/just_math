@@ -461,9 +461,9 @@ public:
     m_block_retry_limit = 10;       // default: 10 retries
 
     op.seq_iter = 0;
-    op.adaptive_soften = true;     // default: no adaptive soften
-    op.jitter_block = 2;            // default: no block jitter
-    op.entropy_bias = 1;            // default: no mass entropy bias    
+    op.adaptive_soften = false;     // default: no adaptive soften
+    op.jitter_block = 0;            // default: no block jitter
+    op.entropy_bias = 0;            // default: no mass entropy bias    
     op.entropy_pct = 0.5;
     op.entropy_flip = 0.8;
     
