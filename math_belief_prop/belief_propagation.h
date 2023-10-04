@@ -263,6 +263,8 @@ typedef struct _bp_opt_t {
   int       jitter_block;
   int       solved_tile_cnt;
   int       entropy_bias;
+  float     entropy_pct;
+  float     entropy_flip;
   float     entropy_radius;
   int       wrap_count;
 
@@ -455,10 +457,15 @@ public:
     op.block_idx[1] = 0;
     op.block_idx[2] = 0;
 
+    m_block_fail_count = 0;
+    m_block_retry_limit = 10;       // default: 10 retries
+
     op.seq_iter = 0;
     op.adaptive_soften = false;     // default: no adaptive soften
     op.jitter_block = 0;            // default: no block jitter
-    op.entropy_bias = 0;            // default: no mass entropy bias
+    op.entropy_bias = 0;            // default: no mass entropy bias    
+    op.entropy_pct = 0.5;
+    op.entropy_flip = 0.8;
 
     op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
@@ -473,8 +480,7 @@ public:
     //m_breakout_block_fail_count = 0;
     //m_breakout_soften_limit = 10;
 
-    m_block_fail_count = 0;
-    m_block_retry_limit = 20;
+    
 
     m_batch_fail_count = 0;
     m_batch_retry_size = 6;

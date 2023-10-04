@@ -3358,6 +3358,9 @@ void BeliefPropagation::ResetStats () {
   st.time_updatemu = 0;
 
   st.constraints = -1;
+
+  m_error_cell = -1000000;
+  m_error_cause = -1000000;
 }
 
 
@@ -4155,34 +4158,38 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
 
   // mass entropy biasing
-  if (op.entropy_bias==1) {
+  if ((op.entropy_bias==1) &&
+      (pct_solved > op.entropy_pct)) {
 
     // entropy bias preparation
+    //
     max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
     block_r =  2.0*sqrt(block_ctr.x*block_ctr.x + block_ctr.y*block_ctr.y + block_ctr.z*block_ctr.z) / max_dist;
 
     // compute entropy outside of radius
+    //
     int cnt_zero=0;
     float outside_entropy=0;
     for (z=0; z < op.Z; z++) {
       for (y=0; y < op.Y; y++) {
         for (x=0; x < op.X; x++) {
 
-           // get distance from cell to center
-           cell = getVertex(x,y,z);
-           dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
+          // get distance from cell to center
+          cell = getVertex(x,y,z);
+          dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
 
-           SetValF ( BUF_VIZ, 0, cell );
-           e = getValF( BUF_CELL_ENTROPY, cell );
+          SetValF ( BUF_VIZ, 0, cell );
+          e = getValF( BUF_CELL_ENTROPY, cell );
 
-           // skip if entropy near 0
-           if (e < _eps) {
-               cnt_zero++;
-               continue;
-           }
-           // sum total entropy outside the entropy radius
-           if ( dist > op.entropy_radius )
-               outside_entropy += e;
+          // skip if entropy near 0
+          if (e < _eps) {
+            cnt_zero++;
+            continue;
+          }
+          // sum total entropy outside the entropy radius
+          if ( dist > op.entropy_radius ) {
+            outside_entropy += e;
+          }
         }
       }
     }
@@ -4191,8 +4198,8 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         op.entropy_radius -= 1.0 / max_dist;
         if (op.entropy_radius < 0) op.entropy_radius = 0;
     }
-    printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
-    printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
+    //printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
+    //printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
   }
 
   //experimental
@@ -4235,11 +4242,13 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
 
         tmp_noise = df;
 
-        if ((op.entropy_bias==1) && (pct_solved > 0.95)) {
-            dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
+        if ((op.entropy_bias==1) &&
+            (pct_solved > op.entropy_pct)) {
+          dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
 
-            if (dist < op.entropy_radius - block_r)
-                cur_entropy = -1;
+          if (dist < op.entropy_radius - block_r) {
+            cur_entropy = -1;
+          }
         }
 
         //experimental
@@ -5984,11 +5993,11 @@ int BeliefPropagation::RealizeStep(void) {
       //   then we accept the block early with some probability.
       if (ret==1) {
         float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
-        if (pct_solved > 0.95 ) {
-          getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);
+        if (pct_solved > op.entropy_pct ) {
+          getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
           if (op.prev_block_mass > 0 && op.curr_block_mass > 0) {
             float prob = m_rand.randF();
-            if (prob > 0.50) {
+            if (prob < op.entropy_flip ) {
                 Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
 
                 // compare previous & solved entropy center-of-mass to map center
