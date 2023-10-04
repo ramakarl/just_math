@@ -1,6 +1,14 @@
 TODO
 ===
 
+###### 2023-10-03
+
+* calculate entropy center of mass ($\mu = \sum _ {\text{cell}} E _ c(\text{cell}) p _ {\text{cell}}$)
+* calculate entropy variance ($\nu = \frac{ (E_c(\text{cell}) - \mu)^2 }{ \sum _ {\text{cell}} \mathbb{1} _ {E_c({\text{cell}}) > 0} }$)
+* choose soften policy less aggressively
+  - allow for trying many different regions with higher entropy rather than just one before softening
+
+
 ###### 2023-09-22
 
 * ~block level WFC needs randomness on restarts~

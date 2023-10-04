@@ -95,8 +95,8 @@
 
 #define VIZ_NONE        0
 #define VIZ_TILES_2D    1
-#define VIZ_TILE0       2       // visualized resolved tile 0. similar to json output. no overhead. 
-#define VIZ_TILECOUNT   3       // number of tiles available per cell. no overhead. 
+#define VIZ_TILE0       2       // visualized resolved tile 0. similar to json output. no overhead.
+#define VIZ_TILECOUNT   3       // number of tiles available per cell. no overhead.
 #define VIZ_CONSTRAINT  4       // visualize remaining constraints. high overhead (eg. 5%)
 #define VIZ_NOTES       5       // visualize notes. some overhead.
 #define VIZ_ENTROPY     6
@@ -257,7 +257,7 @@ typedef struct _bp_opt_t {
             block_idx[3],
             sub_block_range[3][2],
             seq_iter;
-  
+
   int32_t   block_schedule;
   bool      adaptive_soften;
   int       jitter_block;
@@ -267,7 +267,7 @@ typedef struct _bp_opt_t {
   float     entropy_flip;
   float     entropy_radius;
   int       wrap_count;
-  
+
   Vector3DF prev_block_centroid;
   float     prev_block_mass;
 
@@ -383,7 +383,7 @@ typedef struct _bp_stat_type {
 
   float   elapsed_time;
 
-  int64_t constraints; 
+  int64_t constraints;
   bool    success;
 
   bool    instr;
@@ -466,7 +466,6 @@ public:
     op.entropy_bias = 0;            // default: no mass entropy bias    
     op.entropy_pct = 0.5;
     op.entropy_flip = 0.8;
-    
 
     op.block_noise_coefficient = 1.0/128.0;
     op.block_noise_alpha = -2.0;
@@ -475,13 +474,16 @@ public:
     op.wfc_noise_coefficient = 1.0/128.0;
     op.wfc_noise_alpha = -2.0;
     op.wfc_noise_func = OPT_NOISE_FUNC_POWER_LAW;
-    
+
     //op.experiment_idx = -1;
 
     //m_breakout_block_fail_count = 0;
     //m_breakout_soften_limit = 10;
 
     
+
+    m_batch_fail_count = 0;
+    m_batch_retry_size = 6;
 
     op.viz_opt = VIZ_TILE0;
 
@@ -537,16 +539,16 @@ public:
     std::string name;
     switch (alg) {
     case ALG_BP:          name="bp";   break;
-    case ALG_BP_MIN:      name="bpn"; break;  
-    case ALG_BP_MIN_WAVE: name="bpnw"; break;  
-    case ALG_BP_MIN_RESIDUAL: name="bpnr"; break;  
-    case ALG_WFC:         name="wfc"; break;  
-    case ALG_MMS_SEQ :     name="mms"; break;  
-    case ALG_MMS_RAND1:    name="mmsr1"; break;  
-    case ALG_MMS_RAND2:    name="mmsr2"; break;  
-    case ALG_BMS:           name="bms"; break;  
-    case ALG_BMS_MIN :      name="bmsm"; break;       
-    case ALG_BMS_MIN_NOISE: name="bmsmn"; break;  
+    case ALG_BP_MIN:      name="bpn"; break;
+    case ALG_BP_MIN_WAVE: name="bpnw"; break;
+    case ALG_BP_MIN_RESIDUAL: name="bpnr"; break;
+    case ALG_WFC:         name="wfc"; break;
+    case ALG_MMS_SEQ :     name="mms"; break;
+    case ALG_MMS_RAND1:    name="mmsr1"; break;
+    case ALG_MMS_RAND2:    name="mmsr2"; break;
+    case ALG_BMS:           name="bms"; break;
+    case ALG_BMS_MIN :      name="bmsm"; break;
+    case ALG_BMS_MIN_NOISE: name="bmsmn"; break;
     case ALG_BMS_MAX_NOISE: name="bmsxn"; break;
     };
     return name;
@@ -644,12 +646,12 @@ public:
   // used for visualization
   //
   void  PrepareVisualization ();
-  
+
   void  ComputeTile0Field();
   void  ComputeNoteField ();
-  void  ComputeBP_BeliefField ();  
-  void  ComputeBP_DiffMUField ();  
-  
+  void  ComputeBP_BeliefField ();
+  void  ComputeBP_DiffMUField ();
+
 
   int   ComputeCellEntropy();
   int   ComputeBlockEntropy(int32_t reuse_cell_entropy=0);
@@ -660,8 +662,8 @@ public:
   //
   int   CullBoundary();
   int   cellConstraintPropagate();
-  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx); 
-  void  cellFillVisitedNeighborFast (Vector3DI jp, uint64_t vtx,  int32_t note_idx); 
+  void  cellFillVisitedNeighbor(uint64_t vtx, int32_t note_idx);
+  void  cellFillVisitedNeighborFast (Vector3DI jp, uint64_t vtx,  int32_t note_idx);
   int   cellFillVisitedSingle(uint64_t vtx, int32_t note_idx);
 
   void  cellReturnToPrefatory ( int64_t cell );
@@ -681,6 +683,7 @@ public:
   int sanityBreakoutSavedTileGrid(void);
   int sanityBreakoutStatBlock(std::vector<int32_t> &_debug_stat, int32_t *_bounds);
   int sanityGroundState(void);
+  int sanityArcConsistency(void);
 
 
   // number of fixed tiles (only 1 tile in cell)
@@ -757,6 +760,9 @@ public:
   int btPush(int64_t, int64_t, int64_t);
   int btUnwind(int64_t);
 
+  // terse version for exposition
+  //
+  int __cellConstraintPropagate();
 
   //-------------------------- debugging functions
 
@@ -764,6 +770,7 @@ public:
   //
   void  debugPrint();
   void  debugPrintTerse(int buf_idx=BUF_TILE_IDX);
+  void  debugPrintTerseBlock(int32_t x_s, int32_t x_n, int32_t y_s, int32_t y_n, int32_t z_s, int32_t z_n, int buf_idx=BUF_TILE_IDX);
   void  debugPrintC();
   void  debugPrintS();
   void  debugPrintMU();
@@ -817,11 +824,15 @@ public:
 
   int64_t       m_block_fail_count,
                 m_block_retry_limit,
+
+                m_batch_fail_count,
+                m_batch_retry_size,
+
                 m_last_fail_count,
                 m_soften_fail_count;
 
   int           m_soften_range;
-  
+
   int64_t       m_error_cell;
   int64_t       m_error_cause;
   std::string   m_error_name;

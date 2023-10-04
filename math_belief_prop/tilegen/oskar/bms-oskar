@@ -51,7 +51,7 @@
 
 
 bpc_bin="../../bpc"
-#bpc_bin="valgrind ../bpc.debug"
+#bpc_bin="valgrind ../../bpc.debug"
 
 mkdir -p log
 
@@ -67,9 +67,9 @@ stl_fn="./oskar-pipe.stl"
 echo "running 'oskar-pipe' breakout model synthesis, producing '$stl_fn'"
 echo "logfile in log/oskar_path.log"
 
-x=128
-y=2
-z=128
+x=48
+y=48
+z=48
 
 b=8
 sn=`echo "$b*$b*$b*17" | bc`
@@ -87,11 +87,15 @@ sn=`echo "$b*$b*$b*17" | bc`
 ##
 
 # four endpoints
-flt=` echo 'd 1 f[][0][] 0 a[1][0][1] 1 a[-2][0][-2] 1 a[-2][0][2] 1 a[3][0][-2] 1 ' \
-                  ' f[1][0][1] 1 f[-2][0][-2] 1 f[-2][0][2] 1 f[3][0][-2] 1'`
+#flt=` echo 'd 1 f[][0][] 0 a[1][0][1] 1 a[-2][0][-2] 1 a[-2][0][2] 1 a[3][0][-2] 1 ' \
+#                         ' f[1][0][1] 1 f[-2][0][-2] 1 f[-2][0][2] 1 f[3][0][-2] 1'`
 
 # two endpoints
 flt=` echo 'd 1 f[][0][] 0 a[1][0][1] 1 a[-2][0][-2] 1 f[1][0][1] 1 f[-2][0][-2] 1'`
+
+#  -x 2 \
+
+it=1000000
 
 $bpc_bin \
   -N $name_fn \
@@ -99,6 +103,7 @@ $bpc_bin \
   -L $objloc_fn \
   -M $stl_fn \
   -X $x -Y $y -Z $z \
+  -x 2 \
   -t 1 \
   -m 20 \
   -q 1 \
@@ -107,7 +112,7 @@ $bpc_bin \
   -G -8 \
   -I $sn \
   -J "$flt" \
-  -i 100000 \
+  -i $it \
   -S 1234 \
   -@ 123 \
   -V 4 > log/oskar_path.log

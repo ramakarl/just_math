@@ -28,17 +28,21 @@ flt=`cat mu_forest.filter | tr '\n' ' '`
 #  -s 16 \
 #  -M mu_forest_wfc.json
 
+n=256
+
 ../../bpc \
   -N ./tilename_mu_forest.csv \
   -R ./tilerule_mu_forest.csv \
+  -t 2 \
   -J "d 0" \
   -G -8 \
   -I 2000 \
-  -i 1000 \
+  -i 100000 \
   -b 16 \
-  -X 32 -Y 32 -Z 1 \
+  -X $n -Y $n -Z 1 \
   -Q ./tileset_mu_forest.png \
   -s 16 \
   -S 1235 \
-  -M mu_forest_bms.json
+  -M mu_forest_bms.json \
+  -V 4
 

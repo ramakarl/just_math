@@ -3220,11 +3220,11 @@ int BeliefPropagation::start () {
   for (n_idx=0; n_idx<m_num_values; n_idx++) {
     m_block_admissible_tile.push_back(n_idx);
   }
-  
+
   // starting soften
   m_soften_range = 2;
 
-  
+
   // calculate block index bounds.
   //
   op.block_idx[0] = 0;
@@ -4128,6 +4128,11 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   float dist, max_dist, e;
   float block_r;
 
+  float max_block_entropy=0.0,
+        _f=0.0,
+        lg2=0.0,
+        g_renorm=0.0;
+
   // we have significant round off error because
   // of the running sums, so use a local epsilon
   // to try and mitigate the issue.
@@ -4136,8 +4141,8 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   float _eps = op.eps_zero;
 
   Vector3DF map_ctr (op.X/2, op.Y/2, op.Z/2);
-  
-  Vector3DI block_ctr = Vector3DI(op.block_size[0]/2, op.block_size[1]/2, op.block_size[2]/2.0f);    
+
+  Vector3DI block_ctr = Vector3DI(op.block_size[0]/2, op.block_size[1]/2, op.block_size[2]/2.0f);
 
   n_b[0] = m_res.x - op.block_size[0]+1;
   n_b[1] = m_res.y - op.block_size[1]+1;
@@ -4150,37 +4155,41 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
   // compute cell & block entropies
   ComputeBlockEntropy();
 
-  float pct_solved = float(op.solved_tile_cnt)/getNumVerts();  
+  float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
 
   // mass entropy biasing
-  if (op.entropy_bias && pct_solved > op.entropy_pct) {
+  if ((op.entropy_bias==1) &&
+      (pct_solved > op.entropy_pct)) {
 
-    // entropy bias preparation        
+    // entropy bias preparation
+    //
     max_dist = sqrt( map_ctr.x*map_ctr.x + map_ctr.y*map_ctr.y + map_ctr.z*map_ctr.z);
     block_r =  2.0*sqrt(block_ctr.x*block_ctr.x + block_ctr.y*block_ctr.y + block_ctr.z*block_ctr.z) / max_dist;
- 
+
     // compute entropy outside of radius
+    //
     int cnt_zero=0;
     float outside_entropy=0;
     for (z=0; z < op.Z; z++) {
       for (y=0; y < op.Y; y++) {
-        for (x=0; x < op.X; x++) {         
-         
-           // get distance from cell to center
-           cell = getVertex(x,y,z);
-           dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
+        for (x=0; x < op.X; x++) {
 
-           SetValF ( BUF_VIZ, 0, cell );
-           e = getValF( BUF_CELL_ENTROPY, cell );
-         
-           // skip if entropy near 0
-           if (e < _eps) {
-               cnt_zero++;
-               continue;
-           }
-           // sum total entropy outside the entropy radius
-           if ( dist > op.entropy_radius ) 
-               outside_entropy += e;
+          // get distance from cell to center
+          cell = getVertex(x,y,z);
+          dist = (Vector3DF(x,y,z) - map_ctr).Length() / max_dist;
+
+          SetValF ( BUF_VIZ, 0, cell );
+          e = getValF( BUF_CELL_ENTROPY, cell );
+
+          // skip if entropy near 0
+          if (e < _eps) {
+            cnt_zero++;
+            continue;
+          }
+          // sum total entropy outside the entropy radius
+          if ( dist > op.entropy_radius ) {
+            outside_entropy += e;
+          }
         }
       }
     }
@@ -4191,7 +4200,28 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
     }
     //printf ("chk cnt_zero: %d, solved: %d\n", cnt_zero, op.solved_tile_cnt );
     //printf ("entropy radius: %f, outside_entropy: %f\n", op.entropy_radius, outside_entropy );
-  }  
+  }
+
+  //experimental
+  else if (op.entropy_bias==2) {
+
+    lg2 = log(2.0);
+    max_block_entropy = 0.0;
+    g_renorm = 0.0;
+
+    for (x=0; x<m_num_values; x++) {
+      _f = getValF( BUF_G, x );
+      g_renorm += _f;
+      max_block_entropy += (_f * log(_f) / lg2);
+    }
+    max_block_entropy /= g_renorm;
+    max_block_entropy -= log(g_renorm) / lg2;
+    max_block_entropy = -max_block_entropy;
+
+    max_block_entropy *= op.block_size[0]*op.block_size[1]*op.block_size[2];
+
+  }
+  //experimental
 
   for (z=0; z<n_b[2]; z++) {
     for (y=0; y<n_b[1]; y++) {
@@ -4203,23 +4233,41 @@ int BeliefPropagation::pickMaxEntropyNoiseBlock(void) {
         tmp_ent = cur_entropy;
 
         df = pickNoiseFunc( op.block_noise_func, op.block_noise_coefficient, op.block_noise_alpha );
-        
+
         if (cur_entropy < _eps) {
             continue;
         }
 
-        cur_entropy += df;   
+        cur_entropy += df;
 
         tmp_noise = df;
 
-        if (op.entropy_bias && pct_solved > op.entropy_pct) {
-            dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
-            
-            if (dist < op.entropy_radius - block_r)
-                cur_entropy = -1;
+        if ((op.entropy_bias==1) &&
+            (pct_solved > op.entropy_pct)) {
+          dist = (Vector3DF(x,y,z) + block_ctr - map_ctr).Length() / max_dist;
+
+          if (dist < op.entropy_radius - block_r) {
+            cur_entropy = -1;
+          }
         }
 
-        // entropy vis 
+        //experimental
+        else if (op.entropy_bias==2) {
+          Vector3DF rally_point = Vector3DF(op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
+          Vector3DF v = Vector3DF(x+((float)op.block_size[0]/2.0), y+((float)op.block_size[1]/2.0), z+((float)op.block_size[2]/2.0));
+
+          max_dist = rally_point.Length();
+          _f = (rally_point - v).Length();
+
+          // weight by percentage solved, distance to rally point
+          //
+          //cur_entropy += pct_solved * (_f / max_dist) * max_block_entropy;
+          //cur_entropy += (pct_solved*pct_solved) * (_f / max_dist) * max_block_entropy;
+
+        }
+        //experimental
+
+        // entropy vis
         if (op.viz_opt==VIZ_ENTROPY ) {
           SetValF ( BUF_VIZ, sqrt(fmax(cur_entropy,0)) / 4.0f, getVertex(x+block_ctr.x, y+block_ctr.y, z+block_ctr.z) );
         }
@@ -4354,19 +4402,19 @@ void BeliefPropagation::getCurrentBlock ( Vector3DI& bmin, Vector3DI& bmax ) {
 }
 
 void BeliefPropagation::jitterBlock ()
-{    
+{
     Vector3DI v;
-    
+
     // jitter annealing
     //float anneal = float(op.solved_tile_cnt)/getNumVerts();
     //anneal = (anneal > 0.90) ? (1-anneal)*10.0 : 1;
 
     v = m_rand.randV3(-op.jitter_block, op.jitter_block);
-    op.sub_block[0] += v.x;  
+    op.sub_block[0] += v.x;
     op.sub_block[1] += v.y;
-    op.sub_block[2] += v.z;      
+    op.sub_block[2] += v.z;
 
-    // jitter center bias     
+    // jitter center bias
     // *DOES NOT WORK* - only shifts the work window, doesn't push the entropy.
     // - bias blocks toward center when >98% solved to press long-distance constraints together
     /*float pct_solved = 100.0*float(op.solved_tile_cnt)/getNumVerts() ;
@@ -4398,7 +4446,7 @@ void BeliefPropagation::getBlockCenterOfMass (Vector3DF& center, float& mass)
     int64_t cell;
     int32_t n_idx;
     int x,y,z;
-    
+
     center.Set(0,0,0);
     mass = 0;
 
@@ -4407,19 +4455,19 @@ void BeliefPropagation::getBlockCenterOfMass (Vector3DF& center, float& mass)
         for (z=op.sub_block[2]; z<(op.sub_block[2]+op.block_size[2]); z++) {
 
           cell = getVertex(x,y,z);
-          n_idx = getValI( BUF_TILE_IDX_N, cell );          
+          n_idx = getValI( BUF_TILE_IDX_N, cell );
 
           if (n_idx > 1 ) {
               center += Vector3DF(x,y,z);
               mass++;
-          }          
+          }
         }
       }
     }
-    if (mass > 0) {        
+    if (mass > 0) {
         // center-of-mass
         center *= 1.0f / mass;
-    }    
+    }
 }
 
 //  0 - success
@@ -4427,7 +4475,7 @@ void BeliefPropagation::getBlockCenterOfMass (Vector3DF& center, float& mass)
 //
 int BeliefPropagation::RealizePre(void) {
 
-  int ret = 0;  
+  int ret = 0;
 
   int64_t cell=-1;
   int32_t tile=-1,
@@ -4532,11 +4580,11 @@ int BeliefPropagation::RealizePre(void) {
         // detect and count wrap around
         //printf ( "%d %d %d\n", ix, iy, iz);
         if (op.cur_iter > 0 && ix==0 && iy==0 && iz==0) {
-          if (op.max_iter < 0) {            
+          if (op.max_iter < 0) {
             op.wrap_count++;
-          }          
+          }
         }
-        
+
 
         //DEBUG
         //
@@ -4567,7 +4615,7 @@ int BeliefPropagation::RealizePre(void) {
 
       else if (op.block_schedule == OPT_BLOCK_NOISY_MAX_ENTROPY) {
         pickMaxEntropyNoiseBlock();
-        
+
       }
 
       else {
@@ -4605,8 +4653,8 @@ int BeliefPropagation::RealizePre(void) {
 
   // [optional] Jitter Block
   // jitter can occur regardless of block scheduling above.
-  //  
-  if (op.jitter_block > 0 ) {    
+  //
+  if (op.jitter_block > 0 ) {
     jitterBlock ();
   }
 
@@ -4675,11 +4723,17 @@ int BeliefPropagation::RealizePre(void) {
     // we can reset it
     //
     _saveTileIdx();
-    
+
     // [optional] mass biasing. measure entropy center-of-mass before we fuzz block
-    if (op.entropy_bias) {      
+    if (op.entropy_bias==1) {
       getBlockCenterOfMass (op.prev_block_centroid, op.prev_block_mass);
     }
+
+    //experimental
+    else if (op.entropy_bias==2) {
+      getBlockCenterOfMass (op.prev_block_centroid, op.prev_block_mass);
+    }
+    //experimental
 
     // fuzz out a block
     //
@@ -4700,7 +4754,7 @@ int BeliefPropagation::RealizePre(void) {
           n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
 
           // reverse a solved cell cnt
-          prev_n = getValI( BUF_TILE_IDX_N, cell );          
+          prev_n = getValI( BUF_TILE_IDX_N, cell );
           if ( prev_n==1 && n_idx > 1) op.solved_tile_cnt--;
 
           // restore to prefatory
@@ -4712,7 +4766,7 @@ int BeliefPropagation::RealizePre(void) {
             cellFillVisitedNeighbor ( cell, m_note_plane );
           }
           SetValI( BUF_TILE_IDX_N, n_idx, cell );
-          
+
         }
       }
     }
@@ -4758,8 +4812,8 @@ int BeliefPropagation::RealizePre(void) {
   case ALG_RUN_MMS:
 
      if (op.max_iter < 0 && op.wrap_count >= abs(op.max_iter) )  {
-       
-       // break out and stop if wrap count 
+
+       // break out and stop if wrap count
         break;
 
      } else {
@@ -4816,7 +4870,7 @@ int BeliefPropagation::RealizePre(void) {
     //
     break;
   }
-  
+
   // measure elapsed time (in seconds)
   clock_t t2 = clock();
   st.elapsed_time += (double(t2) - t1) / CLOCKS_PER_SEC;
@@ -5095,7 +5149,7 @@ int BeliefPropagation::RealizePost(void) {
   // arc-consistent = ac3.
   //
 
-  
+
 
   // choose the cell and propagate choice
   //
@@ -5122,7 +5176,7 @@ int BeliefPropagation::RealizePost(void) {
       ret = 1;
 
       if (m_return == 0) {
-        
+
         // block succeeded.
         if (op.verbose >= VB_STEP) {
           printf("RealizePost: BREAKOUT-accept ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
@@ -5133,7 +5187,7 @@ int BeliefPropagation::RealizePost(void) {
               (int)m_block_retry_limit);
         }
 
-        op.seq_iter++;        
+        op.seq_iter++;
         m_last_fail_count = m_block_fail_count;
         m_block_fail_count=0;
 
@@ -5142,13 +5196,17 @@ int BeliefPropagation::RealizePost(void) {
       else if (m_return < 0) {
 
         // block failed. restore.
+        //
         if (op.verbose >= VB_STEP) {
-          printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)\n",
+          printf("RealizePost: BREAKOUT-restore ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)"
+              " (m_batch_fail_count:%i / m_batch_retry_size:%i)\n",
               (int)op.sub_block[0], (int)op.block_size[0],
               (int)op.sub_block[1], (int)op.block_size[1],
               (int)op.sub_block[2], (int)op.block_size[2],
               (int)m_block_fail_count,
-              (int)m_block_retry_limit);
+              (int)m_block_retry_limit,
+              (int)m_batch_fail_count,
+              (int)m_batch_retry_size);
         }
 
         // before we soften, we need to restore the grid state to before we started mucking
@@ -5156,174 +5214,200 @@ int BeliefPropagation::RealizePost(void) {
         //
         _restoreTileIdx();
 
-        // SOFTEN phase
+        // Soften is often an extreme event, so to try and give
+        // it a chance to work on some areas that it could
+        // make progress on, only do a soften after it's bounced
+        // around on a bunch of different blocks and still hasn't
+        // found anyting to go through with the soften step.
         //
         if (m_block_fail_count >= m_block_retry_limit) {
-          op.seq_iter++;
-          st.num_soften++;          
-          m_block_fail_count = 0;
+          m_batch_fail_count++;
 
           if (op.verbose >= VB_STEP) {
-            printf("RealizePost: BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+            printf("RealizePost: BREAKOUT-batch-end ([%i+%i][%i+%i][%i+%i] (m_block_fail_count:%i / m_block_retry_limit:%i)"
+                " (m_batch_fail_count:%i / m_batch_retry_size:%i)\n",
                 (int)op.sub_block[0], (int)op.block_size[0],
                 (int)op.sub_block[1], (int)op.block_size[1],
-                (int)op.sub_block[2], (int)op.block_size[2]);
+                (int)op.sub_block[2], (int)op.block_size[2],
+                (int)m_block_fail_count,
+                (int)m_block_retry_limit,
+                (int)m_batch_fail_count,
+                (int)m_batch_retry_size);
           }
 
-          // Assume neighbor blocks to soften are same size as center block that was
-          // attempting to be fixed.
-          // Adjust soften range dynamically
+          op.seq_iter++;
+          m_block_fail_count = 0;
+
+          // SOFTEN phase
+          // We've tried m_batch_block_size number of blocks, all m_block_retry_limit
+          // times, all to no success...now we soften.
           //
-          if (op.adaptive_soften) {
+          if (m_batch_fail_count >= m_batch_retry_size) {
 
-            // adapt
-            //
-            if (m_last_fail_count < 10 ) { m_soften_range--; }
-            if (m_last_fail_count > 15 ) { m_soften_range++; }
-
-            // clamp
-            //
-            if (m_soften_range < 1) { m_soften_range = 1; }
-            if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
+            m_batch_fail_count = 0;
+            st.num_soften++;
 
             if (op.verbose >= VB_STEP) {
-              printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+              printf("RealizePost: BREAKOUT-SOFTEN ([%i+%i][%i+%i][%i+%i] (failed to find breakout block)\n",
+                  (int)op.sub_block[0], (int)op.block_size[0],
+                  (int)op.sub_block[1], (int)op.block_size[1],
+                  (int)op.sub_block[2], (int)op.block_size[2]);
             }
 
-          } else {
-            m_soften_range = op.block_size[0];
-          }
+            // Assume neighbor blocks to soften are same size as center block that was
+            // attempting to be fixed.
+            // Adjust soften range dynamically
+            //
+            if (op.adaptive_soften) {
 
-          // this soften counts as a last failure (if no success on previous soften)
-          //
-          m_last_fail_count = 20;       
+              // adapt
+              //
+              if (m_last_fail_count < 10 ) { m_soften_range--; }
+              if (m_last_fail_count > 15 ) { m_soften_range++; }
 
-          _soften_bounds[0] = op.sub_block[0] - m_soften_range;
-          _soften_bounds[1] = op.sub_block[0] + op.block_size[0] + m_soften_range;
+              // clamp
+              //
+              if (m_soften_range < 1) { m_soften_range = 1; }
+              if (m_soften_range > op.block_size[0]) { m_soften_range = op.block_size[0]; }
 
-          _soften_bounds[2] = op.sub_block[1] - m_soften_range;
-          _soften_bounds[3] = op.sub_block[1] + op.block_size[1] + m_soften_range;
+              if (op.verbose >= VB_STEP) {
+                printf ( "RealisePost: Adaptive soften. last_fail_count=%d, soften_range=%d\n", (int)m_last_fail_count, (int)m_soften_range );
+              }
 
-          _soften_bounds[4] = op.sub_block[2] - m_soften_range;
-          _soften_bounds[5] = op.sub_block[2] + op.block_size[2] + m_soften_range;
-
-          if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
-          if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
-          if (_soften_bounds[4] < 0) { _soften_bounds[4] = 0; }
-
-          if (_soften_bounds[1] >= m_bpres.x) { _soften_bounds[1] = m_bpres.x; }
-          if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
-          if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
-
-          if (op.verbose >= VB_STEP) {
-            printf("RealizePost: BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
-                (int)_soften_bounds[0], (int)_soften_bounds[1],
-                (int)_soften_bounds[2], (int)_soften_bounds[3],
-                (int)_soften_bounds[4], (int)_soften_bounds[5]);
-          }
-
-          m_note_n[ m_note_plane ] = 0;
-          m_note_n[ 1 - m_note_plane  ] = 0;
-
-          for (z=_soften_bounds[4]; z<_soften_bounds[5]; z++) {
-            for (y=_soften_bounds[2]; y<_soften_bounds[3]; y++) {
-              for (x=_soften_bounds[0]; x<_soften_bounds[1]; x++) {
-
-                cell = getVertex(x,y,z);                
-                n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
-
-                // reverse a solved cell cnt
-                prev_n = getValI( BUF_TILE_IDX_N, cell );          
-                if ( prev_n==1 && n_idx > 1) op.solved_tile_cnt--;                
-
-                // reset to prefatory state
-                for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
-                  tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
-                  SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
-                }
-                SetValI( BUF_TILE_IDX_N, n_idx, cell );
-
-                // note visted for constraint-prop
-                cellFillVisitedSingle ( cell, m_note_plane );
-                cellFillVisitedNeighbor ( cell, m_note_plane );              }
+            } else {
+              m_soften_range = op.block_size[0];
             }
-          }
 
-          if (op.verbose >= VB_DEBUG) {
-            sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
-            printf("## RealizePost: breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+            // this soften counts as a last failure (if no success on previous soften)
+            //
+            m_last_fail_count = 20;
+
+            _soften_bounds[0] = op.sub_block[0] - m_soften_range;
+            _soften_bounds[1] = op.sub_block[0] + op.block_size[0] + m_soften_range;
+
+            _soften_bounds[2] = op.sub_block[1] - m_soften_range;
+            _soften_bounds[3] = op.sub_block[1] + op.block_size[1] + m_soften_range;
+
+            _soften_bounds[4] = op.sub_block[2] - m_soften_range;
+            _soften_bounds[5] = op.sub_block[2] + op.block_size[2] + m_soften_range;
+
+            if (_soften_bounds[0] < 0) { _soften_bounds[0] = 0; }
+            if (_soften_bounds[2] < 0) { _soften_bounds[2] = 0; }
+            if (_soften_bounds[4] < 0) { _soften_bounds[4] = 0; }
+
+            if (_soften_bounds[1] >= m_bpres.x) { _soften_bounds[1] = m_bpres.x; }
+            if (_soften_bounds[3] >= m_bpres.y) { _soften_bounds[3] = m_bpres.y; }
+            if (_soften_bounds[5] >= m_bpres.z) { _soften_bounds[5] = m_bpres.z; }
+
+            if (op.verbose >= VB_STEP) {
+              printf("RealizePost: BREAKOUT-SOFTEN bounds ([%i:%i][%i:%i][%i:%i]\n",
                   (int)_soften_bounds[0], (int)_soften_bounds[1],
                   (int)_soften_bounds[2], (int)_soften_bounds[3],
-                  (int)_soften_bounds[4], (int)_soften_bounds[5],
-                  (int)_debug_stat[0], (int)_debug_stat[1]);
+                  (int)_soften_bounds[4], (int)_soften_bounds[5]);
+            }
 
-          }
+            //printf("### DEBUG BEFORE ###\n");
+            //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
+            //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
+            //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
+            //printf("### DEBUG BEFORE ###\n");
 
 
-          // reset visited from above so that constraint propagate
-          // can use it.
-          //
-          unfillVisited( m_note_plane  );
-          
-          // if the constraint propgation fails, we're in a bad state
-          // as we should have been in an even more unrestricted state
-          // before we started since we restored from a previously
-          // arc consistent state and now we've softened (made wildcard)
-          // the block and it's neighbors in question.
-          //
-          ret = cellConstraintPropagate();
-          if (ret < 0) {
-              printf ( "*** SOFTEN FAIL ***\n" );
-              op.cur_iter++;
-          }
 
-        }
+            m_note_n[ m_note_plane ] = 0;
+            m_note_n[ 1 - m_note_plane  ] = 0;
 
-      }
+            for (z=_soften_bounds[4]; z<_soften_bounds[5]; z++) {
+              for (y=_soften_bounds[2]; y<_soften_bounds[3]; y++) {
+                for (x=_soften_bounds[0]; x<_soften_bounds[1]; x++) {
+
+                  cell = getVertex(x,y,z);
+                  n_idx = getValI( BUF_PREFATORY_TILE_IDX_N, cell );
+
+                  // reverse a solved cell cnt
+                  prev_n = getValI( BUF_TILE_IDX_N, cell );
+                  if ( prev_n==1 && n_idx > 1) op.solved_tile_cnt--;
+
+                  // reset to prefatory state
+                  for (tile_idx=0; tile_idx<n_idx; tile_idx++) {
+                    tile = getValI( BUF_PREFATORY_TILE_IDX, tile_idx, cell );
+                    SetValI( BUF_TILE_IDX, tile, tile_idx, cell );
+                  }
+                  SetValI( BUF_TILE_IDX_N, n_idx, cell );
+
+                  // note visted for constraint-prop
+                  cellFillVisitedSingle ( cell, m_note_plane );
+                  cellFillVisitedNeighbor ( cell, m_note_plane );
+
+                }
+              }
+            }
+
+            //printf("### DEBUG AFTER ###\n");
+            //debugPrintTerseBlock( _soften_bounds[0]-2, _soften_bounds[1]+4,
+            //                      _soften_bounds[2]-2, _soften_bounds[3]+4,
+            //                      _soften_bounds[4]-2, _soften_bounds[5]+4);
+            //printf("### DEBUG AFTER ###\n");
+
+            //if (op.verbose >= VB_DEBUG) {
+              sanityBreakoutStatBlock(_debug_stat, _soften_bounds);
+              printf("## RealizePost: breakout-soften ([%i:%i][%i:%i][%i:%i] (n_idx min:%i, max:%i)\n",
+                    (int)_soften_bounds[0], (int)_soften_bounds[1],
+                    (int)_soften_bounds[2], (int)_soften_bounds[3],
+                    (int)_soften_bounds[4], (int)_soften_bounds[5],
+                    (int)_debug_stat[0], (int)_debug_stat[1]);
+
+            //}
+
+
+            // reset visited from above so that constraint propagate
+            // can use it.
+            //
+            unfillVisited( m_note_plane  );
+
+            // if the constraint propgation fails, we're in a bad state
+            // as we should have been in an even more unrestricted state
+            // before we started since we restored from a previously
+            // arc consistent state and now we've softened (made wildcard)
+            // the block and it's neighbors in question.
+            //
+            ret = cellConstraintPropagate();
+            if (ret < 0) {
+                printf ( "*** SOFTEN FAIL ***\n" );
+                op.cur_iter++;
+            }
+
+          } // soften condition
+
+        } // batch retry code block
+
+      }  // m_return < 0 code block
 
       if ( ret >= 0 ) {
-          // no error..
 
-          // Whether we've softened or accepted the block, we're finished.
-          // We're taking control away from the code at the bottom
-          // since we're not resolving a single cell/tile now,
-          // so we need to do some housekeeping ourselves.
-          //
+        // no error..
+        // Whether we've softened or accepted the block, we're finished.
+        // slow way to check to see if we've converged
+        //
+        if (numFixed() == m_num_verts)  { ret = 0; }
+        else                            { ret = 1; }
 
-          //op.cur_iter++;
-
-          // slow way to check to see if we've converged
-          //
-          if (numFixed() == m_num_verts) {
-            ret = 0;
-
-          } else {
-            ret = 1;
-          }
       }
 
       break;
 
     case ALG_CELL_MMS:
 
-
-      // TODO: potentially check for iteration count.
-      // There's a check on the outer loop (in main)
-      // to only iteration for a certain number but it
-      // should probably go here as well.
-      //
-      // For now, just return 1 (continue) so that
-      // it's handled at a higher level.
-      //
-
       if (op.verbose >= VB_STEP) {
         printf("RealizePost: WFC_MMS m_return %i\n", (int)m_return);
       }
 
       // detect wrap around and stop now
-      if (m_return == -5 ) {        
+      //
+      if (m_return == -5 ) {
 
         // indicate that map is complete.
+        //
         ret = 0;
 
       }
@@ -5362,7 +5446,7 @@ int BeliefPropagation::RealizePost(void) {
         //
         if (m_block_fail_count >= m_block_retry_limit) {
 
-          op.seq_iter++;          
+          op.seq_iter++;
           m_block_fail_count=0;
 
           if (op.verbose >= VB_STEP) {
@@ -5382,7 +5466,7 @@ int BeliefPropagation::RealizePost(void) {
       // else, we should have m_return==0 here
       // because RealizeStep stopped iterating (we got to Post)
       // and the block is complete. accept and move to next block
-      //      
+      //
       else {
 
         if (op.verbose >= VB_STEP) {
@@ -5403,7 +5487,7 @@ int BeliefPropagation::RealizePost(void) {
       // so we need to do some housekeeping ourselves.
       //
       //op.cur_iter++;
-      
+
       break;
 
     case ALG_CELL_ANY:
@@ -5472,10 +5556,10 @@ int BeliefPropagation::RealizePost(void) {
   // statistics: record block result
   st.total_block_cnt++;
   if (m_return==0) {
-    // block success.      
-    st.num_block_success++;      
+    // block success.
+    st.num_block_success++;
   } else {
-    // block failure        
+    // block failure
     st.num_block_fail++;    // equal to total_block_cnt - num_block_success
   }
 
@@ -5485,20 +5569,20 @@ int BeliefPropagation::RealizePost(void) {
             (int)st.total_block_cnt,
             (int)m_block_fail_count,
             float(st.num_block_success)*100.0/st.total_block_cnt,
-            (int)st.num_block_success,            
+            (int)st.num_block_success,
             float(st.total_block_cnt) / (st.num_block_success+1),
             (int)st.num_soften,
             (int)st.total_resolved, 100.0*float(st.total_resolved)/getNumVerts(),
-            op.solved_tile_cnt, 100.0*float(op.solved_tile_cnt)/getNumVerts()        
+            op.solved_tile_cnt, 100.0*float(op.solved_tile_cnt)/getNumVerts()
         );
   }*/
-  
+
   // cur_iter is total number of realizepost completed (unconditional).
   // force stop if max_iter reached.
-  op.cur_iter++;  
+  op.cur_iter++;
   if (op.cur_iter >= op.max_iter && op.max_iter > 0) {
-     ret = -4;  
-  } 
+     ret = -4;
+  }
   return ret;
 }
 
@@ -5508,15 +5592,15 @@ std::string BeliefPropagation::getStatMessage () {
   char msg[1024] = {0};
 
   snprintf ( msg, 1024,
-             "  RUN %s: %d/%d (run), %d (iter), GRID: %d,%d,%d, SEED: %d, Time(sec): %6.3f, Resolved: %d/%d (%4.1f%%), Constraints: %d\n",              
+             "  RUN %s: %d/%d (run), %d (iter), GRID: %d,%d,%d, SEED: %d, Time(sec): %6.3f, Resolved: %d/%d (%4.1f%%), Constraints: %d\n",
               ((st.success==1) ? "SUCCESS" : "FAIL   "),
               op.cur_run, op.max_run, op.cur_iter,
               op.X, op.Y, op.Z, op.seed,
-              st.elapsed_time, 
+              st.elapsed_time,
               st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts,
               (int)st.constraints
             );
-               
+
 
 
   //-- belief prop stats
@@ -5548,13 +5632,13 @@ std::string BeliefPropagation::getStatCSV (int mode) {
     snprintf ( msg, 1024, "%d, %d, %d, %d, %d, %d, %d, %d, %6.3f, %d, %d, %4.2f, %d",
                 op.X, op.Y, op.Z, op.seed,
                 op.cur_run, op.max_run, op.cur_iter,
-                status,                
-                st.elapsed_time, 
+                status,
+                st.elapsed_time,
                 st.total_resolved, (int) m_num_verts, 100.0*float(st.total_resolved)/m_num_verts ,
-                (int)st.constraints 
+                (int)st.constraints
     );
   }
-      
+
 
  //     op.cur_step, op.max_step, st.max_dmu, st.eps_curr,
  //     st.ave_mu, st.ave_dmu,
@@ -5629,6 +5713,8 @@ int BeliefPropagation::RealizeStep(void) {
   //
   float _eps = getLinearEps();
 
+  float _zeps = op.eps_zero;
+
   // assume continue
   //
   int ret = 1,
@@ -5677,9 +5763,12 @@ int BeliefPropagation::RealizeStep(void) {
   else if (op.alg_run_opt == ALG_RUN_MMS) {
 
     // Check and bailout if we've hit max wrap count
-    if (op.max_iter < 0 && op.wrap_count >= abs(op.max_iter) ) {
+    //
+    if ( (op.max_iter < 0) &&
+         (op.wrap_count >= abs(op.max_iter)) ) {
 
       // indicate done, special value of m_return=-5
+      //
       ret = 0;
       m_return = -5;
 
@@ -5728,7 +5817,7 @@ int BeliefPropagation::RealizeStep(void) {
           // propagate constraints to remove neighbor tiles,
           // and count number resolved (only 1 tile val remain)
           //
-          _ret = cellConstraintPropagate();        
+          _ret = cellConstraintPropagate();
 
         }
 
@@ -5776,7 +5865,7 @@ int BeliefPropagation::RealizeStep(void) {
       printf ( " %s ", m_tile_name [ tile ].c_str() );
     }
     printf ("\n"); */
-    
+
 
     // fix a single cell (to one tile value) within the block
     //
@@ -5786,7 +5875,7 @@ int BeliefPropagation::RealizeStep(void) {
     if (ret >= 1) {
 
       if (op.verbose >= VB_INTRASTEP ) msg += "cell choosen, continue";
-      
+
       // 1 = continue condition.
       // display chosen cell
       //
@@ -5827,7 +5916,7 @@ int BeliefPropagation::RealizeStep(void) {
         if (_ret < 0 ) {
             // Return <0 from cellConstraintPropagate. Failed
             // usually due to no remaining tile vals left that match neighbors,
-            // resulting in block failure. 
+            // resulting in block failure.
             Vector3DI v = getErrorCell();
             if (op.verbose >= VB_INTRASTEP ) {
                 printf ( "  Block fail due to constraint. <%d,%d,%d>. Only tile left: %s\n", v.x,v.y,v.z, m_error_name.c_str());
@@ -5854,7 +5943,7 @@ int BeliefPropagation::RealizeStep(void) {
       // set m_return to propagate that value on
       //
       if (_ret < 0) {
-        
+
         if (op.verbose >= VB_INTRASTEP ) { msg += ", ERROR TO POST"; }
 
         //m_breakout_block_fail_count++;
@@ -5872,7 +5961,7 @@ int BeliefPropagation::RealizeStep(void) {
       if (op.verbose >= VB_INTRASTEP ) { msg += "block realized"; }
 
     }
-    
+
     // Return <0 from chooseMinEntropy
     // We have an error in the choice of tile, and
     // we want to stop but don't want to communicate that
@@ -5892,9 +5981,9 @@ int BeliefPropagation::RealizeStep(void) {
 
       ret = 0;
     }
-    
+
     // [optional] mass entropy biasing
-    if (op.entropy_bias) {
+    if (op.entropy_bias == 1) {
 
       // entropy biasing method:
       // - if we are in last final 95% of map solved,
@@ -5902,7 +5991,7 @@ int BeliefPropagation::RealizeStep(void) {
       // - we check the center-of-mass entropy both before and now..
       // - if the center of mass is closer to the center of the map,
       //   then we accept the block early with some probability.
-      if (ret==1) {    
+      if (ret==1) {
         float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
         if (pct_solved > op.entropy_pct ) {
           getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);        
@@ -5910,17 +5999,17 @@ int BeliefPropagation::RealizeStep(void) {
             float prob = m_rand.randF();
             if (prob < op.entropy_flip ) {
                 Vector3DF map_center (op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
-              
+
                 // compare previous & solved entropy center-of-mass to map center
                 float prev_dist = (op.prev_block_centroid - map_center).Length();
                 float curr_dist = (op.curr_block_centroid - map_center).Length();
-             
+
                 // if distance is reduced. accept the block early.
                 if (curr_dist < prev_dist) {
 
                   if (op.verbose >= VB_INTRASTEP ) { msg += ", mass_entropy FORCE SUCCESS"; }
 
-                  m_return = 0;         
+                  m_return = 0;
                   ret = 0;
                 }
             }
@@ -5928,6 +6017,68 @@ int BeliefPropagation::RealizeStep(void) {
         }
       }
     }
+
+    //experimental
+    else if (op.entropy_bias == 2) {
+
+      // only consider if we're in an arc consistent state and
+      // haven't found a full resolution
+      //
+      if (ret==1) {
+        float pct_solved = float(op.solved_tile_cnt)/getNumVerts();
+
+        float prob = m_rand.randF();
+
+        // whether it happens before or after doesn't matter to much
+        //if (prob > (0.50 + ((1.0-pct_solved)/2.0))) {
+        if ( (m_block_fail_count > 0) &&
+             (prob > (0.50 + ((1.0-(pct_solved*pct_solved))/2.0))) ) {
+
+          getBlockCenterOfMass (op.curr_block_centroid, op.curr_block_mass);
+          //if ( (op.prev_block_mass > 0) &&
+          //     (op.curr_block_mass > 0) ) {
+          if ( (op.prev_block_mass > 0) &&
+               (op.curr_block_mass > 0) &&
+               (op.curr_block_mass <= (op.prev_block_mass + _zeps)) ) {
+            Vector3DF rally_point = Vector3DF(op.X/2.0f, op.Y/2.0f, op.Z/2.0f);
+
+            // compare previous & solved entropy center-of-mass to map center
+            //
+            float prev_dist = (op.prev_block_centroid - rally_point).Length();
+            float curr_dist = (op.curr_block_centroid - rally_point).Length();
+
+            // if distance is reduced. accept the block early.
+            //
+            if (curr_dist < prev_dist) {
+              if (op.verbose >= VB_INTRASTEP ) {
+                msg += ", mass_entropy FORCE SUCCESS";
+              }
+
+              if (op.verbose >= VB_STEP) {
+                printf("RealizeStep: choosing partial block ([%i+%i][%i+%i][%i+%i]) prv(mass:%f,dist:%f), cur(mass:%f,dist:%f) (rally %f,%f,%f)"
+                    " (p %f > (0.5 + ((1.0-%f)/2.0)) (%f))\n",
+                    (int)op.sub_block[0], (int)op.block_size[0],
+                    (int)op.sub_block[1], (int)op.block_size[1],
+                    (int)op.sub_block[2], (int)op.block_size[2],
+                    op.prev_block_mass, prev_dist,
+                    op.curr_block_mass, curr_dist,
+                    rally_point.x, rally_point.y, rally_point.z,
+                    //prob, pct_solved, (0.5 + ((1.0-pct_solved)/2.0)) );
+                    prob, pct_solved, (0.5 + ((1.0-pct_solved*pct_solved)/2.0)) );
+              }
+
+              m_return = 0;
+              ret = 0;
+            }
+          }
+
+        }
+
+      }
+
+    }
+    //experimental
+
 
 
     //-- end of ALG_RUN_BREAKOUT
@@ -5955,11 +6106,11 @@ int BeliefPropagation::RealizeStep(void) {
   // and return max_step is exceedex
   //
   if ( ret==1 ) {
-    if (op.cur_step >= op.max_step )  { 
+    if (op.cur_step >= op.max_step )  {
 
       if (op.verbose >= VB_INTRASTEP ) { msg += ", STOP MAX STEP"; }
 
-      ret = -2; 
+      ret = -2;
     }
   }
 
@@ -6510,6 +6661,70 @@ void BeliefPropagation::debugPrintBlockEntropy() {
 
 }
 
+void BeliefPropagation::debugPrintTerseBlock( int32_t x_s, int32_t x_n,
+                                              int32_t y_s, int32_t y_n,
+                                              int32_t z_s, int32_t z_n,
+                                              int buf_id) {
+
+  int i=0, j=0, n=3, m=7, jnbr=0, a=0;
+  int a_idx=0, a_idx_n=0;
+  int64_t u=0;
+  Vector3DI p;
+  double v=0.0;
+  float _vf = 0.0, f, _eps;
+
+  int __a = 0;
+
+  int64_t max_cell=-1;
+  int32_t max_tile=-1, max_tile_idx=-1;
+  float max_belief=-1.0;
+  int count=-1;
+
+  int print_rule = 0;
+
+  int buf_tile_idx = BUF_TILE_IDX,
+      buf_tile_idx_n = BUF_TILE_IDX_N;
+
+  if (buf_id == BUF_PREFATORY_TILE_IDX) {
+    buf_tile_idx = BUF_PREFATORY_TILE_IDX;
+    buf_tile_idx_n = BUF_PREFATORY_TILE_IDX_N;
+  }
+  else if (buf_id == BUF_SAVE_TILE_IDX) {
+    buf_tile_idx = BUF_SAVE_TILE_IDX;
+    buf_tile_idx_n = BUF_SAVE_TILE_IDX_N;
+  }
+
+  if (x_s<0) { x_s = 0; }
+  if (y_s<0) { y_s = 0; }
+  if (z_s<0) { z_s = 0; }
+
+  if ((x_s+x_n)>op.X) { x_n = op.X - x_s; }
+  if ((y_s+y_n)>op.Y) { y_n = op.Y - y_s; }
+  if ((z_s+z_n)>op.Z) { z_n = op.Z - z_s; }
+
+  printf("buf_id:%i, buf:%i, buf_n:%i\n", buf_id, buf_tile_idx, buf_tile_idx_n);
+  for (p.z=z_s; p.z<(z_s+z_n); p.z++) {
+    for (p.y=y_s; p.y<(y_s+y_n); p.y++) {
+      for (p.x=x_s; p.x<(x_s+x_n); p.x++) {
+
+        u = getVertex(p.x, p.y, p.z);
+
+        a_idx_n = getValI( buf_tile_idx_n, u );
+
+        printf("[%i,%i,%i](%i): ", (int)p.x, (int)p.y, (int)p.z, (int)u);
+        for (a_idx=0; a_idx<a_idx_n; a_idx++) {
+          a = getValI( buf_tile_idx, (int)a_idx, (int)u );
+          printf(" %i", (int)a);
+        }
+        printf("\n");
+      }
+
+    }
+  }
+
+
+}
+
 void BeliefPropagation::debugPrintTerse(int buf_id) {
 
   int i=0, j=0, n=3, m=7, jnbr=0, a=0;
@@ -6921,7 +7136,7 @@ int BeliefPropagation::tileIdxCollapse(uint64_t pos, int32_t tile_idx) {
   SetValI( BUF_TILE_IDX, tile_val, 0, pos);
   SetValI( BUF_TILE_IDX, tv, tile_idx, pos);
   SetValI( BUF_TILE_IDX_N, 1, pos );
-  
+
   op.solved_tile_cnt++;
 
   if (st.enabled) {
@@ -7161,6 +7376,66 @@ int BeliefPropagation::sanityAccessed() {
   return 0;
 }
 
+int BeliefPropagation::sanityArcConsistency() {
+  int64_t anch_cell, nei_cell;
+  int32_t anch_tile,
+          anch_n_tile,
+          anch_tile_idx,
+          nei_tile,
+          nei_n_tile,
+          nei_tile_idx,
+          dir_idx;
+  Vector3DI anch_p, nei_p;
+  Vector3DI _dir[6];
+
+  int boundary_tile = 0,
+      tile_valid = 0,
+      anch_has_valid_conn = 0;
+
+  float _eps = op.eps_zero;
+
+  for (anch_cell=0; anch_cell < m_num_verts; anch_cell++) {
+
+    anch_p = getVertexPos(anch_cell);
+    anch_n_tile = getValI( BUF_TILE_IDX_N, anch_cell );
+
+    for (anch_tile_idx=0; anch_tile_idx < anch_n_tile; anch_tile_idx++) {
+      anch_tile = getValI( BUF_TILE_IDX, anch_tile_idx, anch_cell );
+
+
+      for (dir_idx=0; dir_idx<6; dir_idx++) {
+        nei_cell = getNeighbor( anch_cell, dir_idx );
+
+        // anchor on boundary
+        //
+        if (nei_cell < 0) {
+          if (getValF( BUF_F, anch_tile, boundary_tile, dir_idx ) < _eps) {
+            return -1;
+          }
+          continue;
+        }
+
+
+        anch_has_valid_conn = 0;
+        nei_n_tile = getValI( BUF_TILE_IDX_N, nei_cell );
+        for (nei_tile_idx=0; nei_tile_idx < nei_n_tile; nei_tile_idx++) {
+          nei_tile = getValI( BUF_TILE_IDX, nei_tile_idx, nei_cell );
+          if (getValF( BUF_F, anch_tile, nei_tile, dir_idx ) > _eps) {
+            anch_has_valid_conn = 1;
+            break;
+          }
+        }
+
+        if (anch_has_valid_conn==0) { return -2; }
+
+      }
+    }
+
+  }
+
+  return 0;
+}
+
 
 int BeliefPropagation::removeTileIdx (int64_t anch_cell, int32_t anch_tile_idx) {
 
@@ -7181,14 +7456,14 @@ int BeliefPropagation::removeTileIdx (int64_t anch_cell, int32_t anch_tile_idx) 
   last_tile = getValI ( BUF_TILE_IDX, anch_tile_n, anch_cell );
   SetValI( BUF_TILE_IDX, (anch_tile), anch_tile_n, anch_cell );
   SetValI( BUF_TILE_IDX, (last_tile), anch_tile_idx, anch_cell );
- 
+
   SetValI( BUF_TILE_IDX_N, (anch_tile_n ), anch_cell );
 
   // count as solved, 1 tile value left
   if (anch_tile_n==1) {
      op.solved_tile_cnt++;
   }
-  
+
   if (st.enabled) {
     st.num_culled += 1;
   }
@@ -7307,7 +7582,7 @@ int BeliefPropagation::cellConstraintPropagate() {
             nei_cell = getNeighbor(anch_cell, jp, i);
             if (nei_cell<0) {
 
-                if (anch_n_tile==1) {                  
+                if (anch_n_tile==1) {
 
                   if ( (op.alg_run_opt == ALG_RUN_MMS) ||
                        (op.alg_run_opt == ALG_RUN_BREAKOUT) ) {
@@ -7370,7 +7645,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
                 removeTileIdx (anch_cell, anch_b_idx);
 
-                if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {                  
+                if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
                   resolved++;
 
                   //if (op.verbose >= VB_INTRASTEP ) {
@@ -7426,7 +7701,7 @@ int BeliefPropagation::cellConstraintPropagate() {
           nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
           int32_t* nei_a_ptr = (int32_t*) getPtr ( BUF_TILE_IDX, 0, nei_cell );
           int32_t* nei_a_end = nei_a_ptr + nei_n_tile;
-          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {              
+          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {
               if (getValF( BUF_F, anch_b_val, *nei_a_ptr, i ) > _eps) {    // nei_a_val is random access, so no accel of BUF_F ptr
                   anch_has_valid_conn = 1;
                   break;
@@ -7483,8 +7758,8 @@ int BeliefPropagation::cellConstraintPropagate() {
               m_error_cell = anch_cell;
               m_error_cause = nei_cell;
               m_error_name = m_tile_name[anch_b_val] + " removing by " + m_tile_name[nei_a_val];
-              
-              PERF_POP();              
+
+              PERF_POP();
               return -1;
             }
 
@@ -7502,7 +7777,7 @@ int BeliefPropagation::cellConstraintPropagate() {
 
             removeTileIdx(anch_cell, anch_b_idx);
 
-            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {              
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) {
               resolved++;
 
               //if (op.verbose >= VB_INTRASTEP ) {
@@ -7546,6 +7821,107 @@ int BeliefPropagation::cellConstraintPropagate() {
   PERF_POP();
   return 0;
 }
+
+
+// terse version of the above
+//
+int BeliefPropagation::__cellConstraintPropagate() {
+  int still_culling=1, i;
+  int64_t note_idx, anch_cell, nei_cell;
+  int64_t nei_n_tile, nei_a_idx, nei_a_val;
+  int64_t anch_n_tile, anch_b_idx, anch_b_val;
+  int anch_has_valid_conn = 0;
+  int boundary_tile = 0, tile_valid = 0;
+  int gn_idx = 0;
+  float _eps = op.eps_zero;
+  Vector3DI jp, _pos, _nei_pos;
+  int resolved = 0;
+  int num_nbrs = getNumNeighbors(0);
+
+  while (still_culling) {
+
+    for (note_idx=0; note_idx < (int64_t) m_note_n[ m_note_plane  ]; note_idx++) {
+      anch_cell = getValL ( BUF_NOTE, note_idx, m_note_plane  );
+      jp = getVertexPos(anch_cell);
+      anch_n_tile = getValI ( BUF_TILE_IDX_N, anch_cell );
+
+      for (anch_b_idx=0; anch_b_idx < anch_n_tile; anch_b_idx++) {
+        tile_valid = 1;
+        anch_b_val = getValI ( BUF_TILE_IDX, anch_b_idx, anch_cell);
+
+        for (i=0; i < m_num_nbrs; i++) {
+
+          if (getValF( BUF_F, anch_b_val, boundary_tile, i ) < _eps) {
+            nei_cell = getNeighbor(anch_cell, jp, i);
+
+            if (nei_cell<0) {
+              if (anch_n_tile==1) {
+                unfillVisited (1 - m_note_plane );
+                return -1;
+              }
+              tile_valid = 0;
+              removeTileIdx (anch_cell, anch_b_idx);
+              if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) { resolved++; }
+              cellFillVisitedNeighborFast ( jp, anch_cell, 1 - m_note_plane );
+              anch_b_idx--;
+              anch_n_tile--;
+              break;
+            }
+          }
+
+        }
+
+        if (!tile_valid) { continue; }
+
+        for (i=0; i < m_num_nbrs; i++) {
+          nei_cell = getNeighbor(anch_cell, jp, i);
+
+          if (nei_cell<0) { continue; }
+          anch_has_valid_conn = 0;
+
+          nei_n_tile = getValI ( BUF_TILE_IDX_N, nei_cell );
+          int32_t* nei_a_ptr = (int32_t*) getPtr ( BUF_TILE_IDX, 0, nei_cell );
+          int32_t* nei_a_end = nei_a_ptr + nei_n_tile;
+          for (; nei_a_ptr < nei_a_end; nei_a_ptr++) {
+            if (getValF( BUF_F, anch_b_val, *nei_a_ptr, i ) > _eps) {    // nei_a_val is random access, so no accel of BUF_F ptr
+              anch_has_valid_conn = 1;
+              break;
+            }
+          }
+
+          if (!anch_has_valid_conn) {
+            if (anch_n_tile==1) {
+              nei_a_val = *(nei_a_ptr-1);
+              unfillVisited (1 - m_note_plane );
+              return -1;
+            }
+
+            tile_valid = 0;
+            removeTileIdx(anch_cell, anch_b_idx);
+            if ( getValI( BUF_TILE_IDX_N, anch_cell ) == 1 ) { resolved++; }
+            cellFillVisitedNeighborFast (jp, anch_cell, 1 - m_note_plane );
+            anch_b_idx--;
+            anch_n_tile--;
+
+            break;
+          }
+
+        }
+
+        if (!tile_valid) { continue; }
+      }
+    }
+
+    unfillVisited (1 - m_note_plane );
+    if (m_note_n[ m_note_plane ] == 0) { still_culling = 0; }
+    m_note_n[ m_note_plane ] = 0;
+    m_note_plane  = 1 - m_note_plane ;
+  }
+
+  return 0;
+}
+
+
 
 int BeliefPropagation::btPush(int64_t bt_cur_stack_idx, int64_t cell, int64_t tile_val) {
 

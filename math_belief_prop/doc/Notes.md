@@ -255,12 +255,12 @@ into each other with the hope of resolution.
 The current snapshot of the code has three ideas to try and take advantage of this observation:
 
 * Instead of failing outright, allow for partially resolved blocks, biasing the center of
-  mass in a certain direction
-* Weight considered blocks heavier the further away from the rally point the blocks are
-  as the rally point will tend towards a high entropy state
+  mass to move towards the rally point
+* Weight blocks heavier the further away they are from the rally point
+  as the rally point will tend towards a high entropy state and will put pressure
+  on the schedule to select blocks around the rally point
 * Do the above process based on percentage of map completed, preferring it to do it when
   the map has settled into its cooled entangled phase.
-
 
 
 Glossary
