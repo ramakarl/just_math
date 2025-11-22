@@ -43,7 +43,7 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 
 ## News & Updates
 
-**UPDATES**: <br>
+Nov 22, 2025 - Faster and simpler builds. Clean re-commit. Reduced download from 150MB to ~12 MB.
 Dec 5, 2023 - Build steps confirmed working with latest libmin repo and Visual Studio 2019 in Dec 2023 for all samples. Removed <a href="https://github.com/ramakarl/libmin">libmin</a> from this repo and put into its own separate repository.<br>
 Sep 16,2023 - Obj materials sample added.<br>
 Aug 12,2023 - G-coder sample added.<br>
@@ -52,17 +52,17 @@ Feb 7, 2023 - Artificial Neural Network sample added. PS: For fun I wrote the or
 
 ## How to Build
 <br>
-* Updated 2025 *
-Build is now simpler and faster. Libmin dependent code is now directly compiled with each project (not static or shared linked).
+**Updated Nov 2025**
+Build is now simpler and faster. Libmin dependent code is now directly compiled with each project (not static or shared linked).<br>
 Steps:<br>
-1. Clone this repo
-2. Clone <a href="https://github.com/ramakarl/libmin">libmin</a> as a sibling folder
+1. Clone this repo<br>
+2. Clone <a href="https://github.com/ramakarl/libmin">libmin</a> as a sibling folder<br>
 `
-\codes
-  \just_math
-  \libmin
+\codes<br>
+  \just_math<br>
+  \libmin<br>
 `
-3. Run cmake or cmake-gui on specific sample folder.
+3. Run cmake or cmake-gui on specific sample folder.<br>
 
 ## Contributions
 I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If you have similar interests contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
