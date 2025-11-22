@@ -57,9 +57,11 @@ Build is now simpler and faster. Libmin dependent code is now directly compiled 
 Steps:<br>
 1. Clone this just_math repo<br>
 2. Clone <a href="https://github.com/ramakarl/libmin">libmin</a> as a sibling folder<br>
+```
 \codes
  ├── \just_math
  └── \libmin
+ ```
 3. Run cmake or cmake-gui on specific sample folder.<br>
 
 ## Contributions
