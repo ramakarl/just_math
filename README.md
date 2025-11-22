@@ -61,7 +61,7 @@ Steps:<br>
 \codes
  ├── \just_math
  └── \libmin
- ```
+```
 3. Run cmake or cmake-gui on specific sample folder.<br>
 
 ## Contributions
