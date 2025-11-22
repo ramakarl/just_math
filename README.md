@@ -1,26 +1,20 @@
-# just_math
 
+<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_teaser.jpg" width="900">
+
+# just_math
 Just Math - A collection of pure math demos.
 
 The goal of Just Math is to provide both a visual example and code demonstrations of specific concepts in computer graphics, mathematics, simulation and AI. 
 
-## Sample Gallery
+## News & Updates
 
-<div style="display:flex">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_3ddda.JPG" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_basis.JPG" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_bp.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_cells.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_deform.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_invk.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_quatsquad.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_raycast.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_trajectories.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles.jpg" width="200">
-<img src="https://github.com/ramakarl/just_math/blob/main/gallery/img_wangtiles3d.jpg" width="200">
-</div>
+Nov 22, 2025 - Faster and simpler builds. Clean re-commit. Reduced download from 150MB to ~12 MB.<br>
+Sep 16,2023 - Obj materials sample added.<br>
+Aug 12,2023 - G-coder sample added.<br>
+Mar 13,2023 - Bilinear Patch intersection sample added.<br>
+Feb 7, 2023 - Artificial Neural Network sample added. PS: For fun I wrote the original wikipedia article for <a href="https://en.wikipedia.org/wiki/Tensor_(machine_learning)">Tensor (machine learning)</a>.<br>
 
-## Just Math Samples
+## Samples
 
 Each sample in Just Math demonstrates a specific concept in code and visually.
 The samples provided are briefly described:
@@ -41,39 +35,34 @@ using B-Splines, Bezier Curves, and Catmull-Rom splines for position. Slerp or S
 - WangTiles - Sampling of spatial distribution functions with scale invariance.
 - WangTiles3D - Alternative demo of Wang Tiles for 3D geometry instancing over a density map landscape.
 
-## News & Updates
-
-Nov 22, 2025 - Faster and simpler builds. Clean re-commit. Reduced download from 150MB to ~12 MB.
-Dec 5, 2023 - Build steps confirmed working with latest libmin repo and Visual Studio 2019 in Dec 2023 for all samples. Removed <a href="https://github.com/ramakarl/libmin">libmin</a> from this repo and put into its own separate repository.<br>
-Sep 16,2023 - Obj materials sample added.<br>
-Aug 12,2023 - G-coder sample added.<br>
-Mar 13,2023 - Bilinear Patch intersection sample added.<br>
-Feb 7, 2023 - Artificial Neural Network sample added. PS: For fun I wrote the original wikipedia article for <a href="https://en.wikipedia.org/wiki/Tensor_(machine_learning)">Tensor (machine learning)</a>.<br>
-
 ## How to Build
-<br>
-**Updated Nov 2025**
-Build is now simpler and faster. Libmin dependent code is now directly compiled with each project (not static or shared linked).<br>
+
+**Updated Nov 2025**<br>
+Build with cmake is now simpler and faster.<br>
+Libmin dependent code is now directly compiled with each project (no shared or static libs).<br>
 Steps:<br>
 1. Clone this just_math repo<br>
 2. Clone <a href="https://github.com/ramakarl/libmin">libmin</a> as a sibling folder<br>
-```
+<pre>
 \codes
  ├── \just_math
  └── \libmin
-```
+</pre>
 3. Run cmake or cmake-gui on specific sample folder.<br>
 
-## Contributions
-I am interested in building a community around simple, well documented, math codes, in pure C/C++ for CPU (no shaders), with interactive graphical demos (not just youtube videos) that are MIT/BSD Licensed. If you have similar interests contact me at: Rama Hoetzlein, ramahoetzlein@gmail.com
+Let me know if you have any issues building.
+
+## Contact
+Feel free to contact me if you have any questions, comments or suggestions:<br>
+**Rama Hoetzlein** <br>
+Website: <a href="https://ramakarl.com">ramakarl.com</a><br>
+Email: ramahoetzlein@gmail.com<br>
 
 ## License & Copyright info
 MIT License.<br>
-Copyright 2007-2024 (c) Quanta Sciences & Rama Hoetzlein: 3DDDA, ANN, Basis, Bilinear_Patch, Cells, Deform, Displace, Gcoder, Invk, Obj_Materials, QuadSquad, QuatTraj, Raycast, Voxelizer<br>
-Copyright 2022-2023 (c) Abram Connelly and Rama Hoetzlein: math_belief_prop (incl. BMS, WFC, BP, LSA)<br>
+Copyright 2007-2024 (c) Quanta Sciences & Rama Hoetzlein<br>
 The Just Math samples are MIT Licensed.<br>
 Libmin is MIT Licensed with contributions from other BSD and MIT licensed sources.<br>
-Contact: Rama Hoetzlein at ramahoetzlein@gmail.com
 
 
 
