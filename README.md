@@ -55,13 +55,11 @@ Feb 7, 2023 - Artificial Neural Network sample added. PS: For fun I wrote the or
 **Updated Nov 2025**
 Build is now simpler and faster. Libmin dependent code is now directly compiled with each project (not static or shared linked).<br>
 Steps:<br>
-1. Clone this repo<br>
+1. Clone this just_math repo<br>
 2. Clone <a href="https://github.com/ramakarl/libmin">libmin</a> as a sibling folder<br>
-`
-\codes<br>
-  \just_math<br>
-  \libmin<br>
-`
+\codes
+ ├── \just_math
+ └── \libmin
 3. Run cmake or cmake-gui on specific sample folder.<br>
 
 ## Contributions
